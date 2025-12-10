@@ -38,14 +38,14 @@ Every issue document MUST start with a YAML frontmatter block at the very top of
 Required fields (canonical values):
 - `date` (string): format `YYYY-MM-DD` (e.g., `2025-12-09`).
 - `type` (string): one of:
-	- `Bug / Technical Issue`
+	- `Bug`
 	- `Feature Plan`
 	- `RFC`
 	- `ADR`
-	- `Work Item / Task`
+	- `Task`
 	- `Design Decision`
-	- `Epic/Parent Issue`
-	- `Lesson Learned / Retrospective`
+	- `Epic`
+	- `Retrospective`
 - `severity` (string): one of `Critical`, `High`, `Medium`, `Low`, `N/A`.
 - `status` (string): one of the canonical statuses below:
 	- `Draft`
@@ -84,17 +84,17 @@ Canonical frontmatter examples (recommended):
 ```yaml
 ---
 date: 2025-12-09
-type: "Feature Plan"
-severity: "Medium"
-status: "Proposed"
-author: "Alice Developer <alice@example.com>"
-reviewer: "Bob Architect"
+type: Feature Plan
+severity: Medium
+status: Proposed
+author: Alice Developer <alice@example.com>
+reviewer: Bob Architect
 tags:
 	- feature
 	- api
 	- dotnet
 related:
-	- "251201_ef-core-circular-reference.md"
+	- 251201_ef-core-circular-reference.md
 ---
 
 # [Issue Title]
@@ -118,11 +118,11 @@ This keeps the workflow robust for forks or minimal checkouts that may not inclu
 ### 1. Bug Report / Technical Issue
 **Use when:** Something is broken, throwing errors, or behaving unexpectedly.
 
-<bug-or-technical-issue-template>
+<bug-template>
 ```markdown
 ---
 date: YYYY-MM-DD
-type: Bug / Technical Issue
+type: Bug
 severity: Critical | High | Medium | Low | N/A
 status: Resolved | In Progress | Investigating
 ---
@@ -144,7 +144,7 @@ status: Resolved | In Progress | Investigating
 ## Prevention
 - [ ] [Checklist item]
 ```
-</bug-or-technical-issue-template>
+</bug-template>
 
 ### 2. Feature Plan
 **Use when:** Planning a new capability or enhancement.
@@ -241,14 +241,14 @@ related:
 ```
 </adr-template>
 
-### 5. Work Item / Task
+### 5. Task
 **Use when:** Tracking a specific task, follow-up, or todo item.
 
-<work-item-template>
+<task-template>
 ```markdown
 ---
 date: YYYY-MM-DD
-type: Work Item / Task
+type: Task
 severity: Critical | High | Medium | Low | N/A
 status: Draft | Proposed | In Progress | Accepted
 ---
@@ -269,16 +269,16 @@ status: Draft | Proposed | In Progress | Accepted
 ## References
 - [Link to code or docs]
 ```
-</work-item-template>
+</task-template>
 
-### 6. Lesson Learned / Retrospective
+### 6. Retrospective
 **Use when:** Extracting insights from resolved issues, incidents, or completed work to improve future processes.
 
-<lesson-learned-or-retrospective-template>
+<retrospective-template>
 ```markdown
 ---
 date: YYYY-MM-DD
-type: Lesson Learned / Retrospective
+type: Retrospective
 severity: N/A
 status: Documented | Reviewed | Implemented
 ---
@@ -305,7 +305,7 @@ status: Documented | Reviewed | Implemented
 - [ ] [Checklist item for preventing recurrence]
 - [ ] [Recommendations for similar situations]
 ```
-</lesson-learned-or-retrospective-template>
+</retrospective-template>
 
 ## Writing Style Guidelines
 
