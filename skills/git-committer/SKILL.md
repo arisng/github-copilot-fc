@@ -61,8 +61,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - `copilot(prompt)`: Updates to specialized prompts for GitHub Copilot (files ending with `.prompt.md`)
 - `copilot(memory)`: Updates to the knowledge graph or memory systems (e.g., `memory.json`)
 - `copilot(instruction)`: Changes to `.instructions.md` files or `copilot-instructions.md` (repository-level instructions)
-
-**Rules:**
+- `copilot(skill)`: Changes to skill definitions, implementations, and packaging (e.g., files under `skills/` directory)
 
 - Subject: imperative mood, lowercase, no period, max 50 chars
 - Body: explain *what* and *why*, wrap at 72 chars
