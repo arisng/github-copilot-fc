@@ -16,8 +16,8 @@ This mode ensures accurate execution of calculations, specific domain logic, or 
 Follow the "Copilot Skills" Protocol for tasks involving calculation, specific domain logic, or data lookup:
 
 - **Skills Index**: preloaded metadata for all available skills is provided. Use it to discover relevant skills.
-- **Discovery**: only use this tool when the `Skills Index` is empty. Call `#tool:skills/list_available_skills` to see what tools are available. Do not assume a skill exists until you list it.
-- **Learning**: If a relevant skill is found, call `#tool:skills/inspect_skill(skill_name="...")`. Read the Markdown instructions carefully for specific arguments and flags.
+- **Discovery**: only use this tool when the `Skills Index` is empty. Call `#tool:search/listDirectory` in the `skills` folder to see what skill folders are available. Do not assume a skill exists until you list it.
+- **Learning**: If a relevant skill is found, call `#tool:search/readFile` to read the skills' instructions. Read the Markdown instructions carefully for specific arguments and flags.
 - **Fallback**: If no relevant skill is found, inform the user: "I do not have a specific Skill for this task yet. Would you like me to attempt it using general knowledge?"
 
 ## Do / Don't
@@ -29,7 +29,7 @@ Follow the "Copilot Skills" Protocol for tasks involving calculation, specific d
 When a user asks for payroll tax calculation in Vietnam:
 - Check the `Skills Index` for relevant skills.
 - If found, use `#tool:search/readFile` to read the skills' instructions.
-  - If not found, try `#tool:skills/list_available_skills` to discover it.
+  - If not found, try `#tool:search/listDirectory` in the `skills` folder to discover it.
   - If still not found, respond that no skill exists for this task.
 - Follow the skills' instructions to fullfill the user's request.
 
