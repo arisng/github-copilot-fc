@@ -1,0 +1,11 @@
+{
+    "servers":{
+        "skills": {
+            "command": "python",
+            "args": [
+                "scripts/skills-mcp-server.py"
+            ],
+            "type": "stdio"
+        }
+    }
+}
