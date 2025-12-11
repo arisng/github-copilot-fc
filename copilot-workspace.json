@@ -1,0 +1,53 @@
+{
+  "name": "GitHub Copilot Workspace",
+  "version": "1.0.0",
+  "description": "Workspace for GitHub Copilot customizations: Claude Skills, Custom Agents, Instructions, and Prompts",
+
+  "workspace": {
+    "type": "copilot-workspace",
+    "components": [
+      "claude-skills",
+      "custom-agents",
+      "custom-instructions",
+      "reusable-prompts"
+    ]
+  },
+
+  "directories": {
+    "skills": ".claude/skills",
+    "agents": "agents",
+    "instructions": "instructions",
+    "prompts": "prompts",
+    "issues": ".docs/issues",
+    "scripts": "scripts"
+  },
+
+  "commands": {
+    "skills:publish-copy": "powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Copy",
+    "skills:publish-link": "powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Link",
+    "skills:update-check": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -CheckOnly",
+    "skills:update-apply": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1",
+    "issues:reindex": "powershell -ExecutionPolicy Bypass -File scripts/extract-issue-metadata.ps1",
+    "workspace:list-skills": "powershell Get-ChildItem -Path .claude/skills -Directory | Select-Object Name",
+    "workspace:status": "powershell Write-Host 'GitHub Copilot Workspace Status'; Get-ChildItem -Path .claude/skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
+  },
+
+  "vscode": {
+    "recommendedExtensions": [
+      "ms-windows-ai-studio.windows-ai-studio",
+      "github.copilot",
+      "github.copilot-chat"
+    ],
+    "settings": {
+      "chat.useClaudeSkills": true,
+      "github.copilot.chat.customAgents.showOrganizationAndEnterpriseAgents": true
+    }
+  },
+
+  "metadata": {
+    "created": "2025-12-11",
+    "author": "GitHub Copilot Workspace",
+    "repository": "https://github.com/your-org/copilot-workspace",
+    "documentation": ".docs/issues/"
+  }
+}
