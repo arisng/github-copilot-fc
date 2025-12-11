@@ -40,7 +40,7 @@ For each group, generate a commit message following **Conventional Commits** for
 <footer>
 ```
 
-**Types:**
+**General Types:**
 
 - `feat`: New feature
 - `fix`: Bug fix
@@ -53,15 +53,16 @@ For each group, generate a commit message following **Conventional Commits** for
 - `build`: Build system or external dependencies
 - `ci`: CI configuration
 
-**Project-Specific Types:**
+**Project Specific Types:**
 
-- `docs(changelog)`: Changes to changelog files
+- `docs(issue)`: Changes to issues documentation (e.g., `.docs/issues/` files)
+- `docs(changelog)`: Changes to changelog files (e.g., `.docs/changelogs/` files)
 - `devtool(script)`: Changes to PowerShell or helper scripts (e.g., `scripts/*.ps1`)
 - `copilot(custom-agent)`: Modifications to custom agent definitions (files ending with `.agent.md`)
 - `copilot(prompt)`: Updates to specialized prompts for GitHub Copilot (files ending with `.prompt.md`)
 - `copilot(memory)`: Updates to the knowledge graph or memory systems (e.g., `memory.json`)
 - `copilot(instruction)`: Changes to `.instructions.md` files or `copilot-instructions.md` (repository-level instructions)
-- `copilot(skill)`: Changes to skill definitions, implementations, and packaging (e.g., files under `skills/` directory)
+- `copilot(skill)`: Changes to Claude Skill definitions, implementations, and packaging (e.g., files under `.claude/skills/` directory)
 
 - Subject: imperative mood, lowercase, no period, max 50 chars
 - Body: explain *what* and *why*, wrap at 72 chars
