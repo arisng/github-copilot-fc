@@ -1,5 +1,5 @@
 {
-  "name": "GitHub Copilot Workspace",
+  "name": "GitHub Copilot FC",
   "version": "1.0.0",
   "description": "Workspace for GitHub Copilot customizations: Claude Skills, Custom Agents, Instructions, and Prompts",
 
@@ -46,8 +46,8 @@
 
   "metadata": {
     "created": "2025-12-11",
-    "author": "GitHub Copilot Workspace",
-    "repository": "https://github.com/your-org/copilot-workspace",
+    "author": "arisng",
+    "repository": "https://github.com/arisng/copilot-workspace",
     "documentation": ".docs/issues/"
   }
 }
