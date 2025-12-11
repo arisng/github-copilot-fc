@@ -9,6 +9,32 @@ description: Skill for analyzing git changes, grouping them into logical atomic 
 
 This skill enables crafting clean, atomic git commits with conventional commit messages by analyzing all changes in the repository, intelligently grouping them into logical commits, and guiding the user through the process.
 
+## ⚠️ Critical: Project-Specific Types Are Mandatory
+
+**DO NOT default to general conventional commit types.** This project uses specialized commit types that must be applied based on file paths and change nature. Always use the project-specific mappings below - they override general conventional commit guidelines.
+
+## File Path to Commit Type Mapping
+
+Before creating any commit plan, map each changed file to its required commit type:
+
+| File Path Pattern    | Required Commit Type    | Rationale                                    |
+| -------------------- | ----------------------- | -------------------------------------------- |
+| `instructions/*.md`  | `copilot(instruction)`  | Repository-level Copilot instructions        |
+| `.claude/skills/*`   | `copilot(skill)`        | Claude skill definitions and implementations |
+| `.docs/issues/*`     | `docs(issue)`           | Issue documentation and tracking             |
+| `.docs/changelogs/*` | `docs(changelog)`       | Changelog files                              |
+| `scripts/*.ps1`      | `devtool(script)`       | PowerShell helper scripts                    |
+| `*.agent.md`         | `copilot(custom-agent)` | Custom agent definitions                     |
+| `*.prompt.md`        | `copilot(prompt)`       | Copilot prompt files                         |
+| `memory.json`        | `copilot(memory)`       | Knowledge graph memory systems               |
+
+**Common Mistakes to Avoid:**
+
+- ❌ `feat(instructions)` → ✅ `copilot(instruction)`
+- ❌ `feat(skill)` → ✅ `copilot(skill)`  
+- ❌ `chore(issue)` → ✅ `docs(issue)`
+- ❌ `docs` (no scope) → ✅ `docs(issue)` or `docs(changelog)`
+
 ## Workflow
 
 ### 1. Analyze All Changes
@@ -17,7 +43,19 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 - If no changes exist, inform the user there's nothing to commit
 - Read relevant file diffs to understand the nature of each change
 
-### 2. Group Changes into Logical Commits
+### 2. Pre-Commit Verification Checklist
+
+**MANDATORY: Complete this checklist before presenting any commit plan:**
+
+- [ ] **Type Mapping**: Every file path mapped to correct project-specific type using the table above
+- [ ] **No Generic Types**: No commits using `feat`, `fix`, `docs` without project-specific scope
+- [ ] **Atomic Grouping**: Changes grouped by logical feature/module boundaries
+- [ ] **Dependency Order**: Commit order maintains buildable state
+- [ ] **Scope Accuracy**: Commit scopes match actual module/feature names
+
+**If any checklist item fails, revise the plan before proceeding.**
+
+### 3. Group Changes into Logical Commits
 
 Group related changes based on:
 
@@ -28,7 +66,7 @@ Group related changes based on:
 
 Create a todo list tracking each planned commit.
 
-### 3. Generate Conventional Commit Messages
+### 4. Generate Conventional Commit Messages
 
 For each group, generate a commit message following **Conventional Commits** format:
 
@@ -40,7 +78,7 @@ For each group, generate a commit message following **Conventional Commits** for
 <footer>
 ```
 
-**General Types:**
+**General Types (use only when no project-specific type applies):**
 
 - `feat`: New feature
 - `fix`: Bug fix
@@ -53,7 +91,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - `build`: Build system or external dependencies
 - `ci`: CI configuration
 
-**Project Specific Types:**
+**Project-Specific Types (MANDATORY - use these instead of general types):**
 
 - `docs(issue)`: Changes to issues documentation (e.g., `.docs/issues/` files)
 - `docs(changelog)`: Changes to changelog files (e.g., `.docs/changelogs/` files)
@@ -68,7 +106,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - Body: explain *what* and *why*, wrap at 72 chars
 - Scope: module/feature name (optional but recommended)
 
-### 4. Interactive Review & Commit Loop
+### 5. Interactive Review & Commit Loop
 
 For each planned commit:
 
@@ -78,7 +116,7 @@ For each planned commit:
 4. On rejection: ask for feedback and regenerate the message
 5. Mark the commit as completed and move to the next
 
-### 5. Completion
+### 6. Completion
 
 After all commits are done, show a summary of all commits created.
 
@@ -86,6 +124,8 @@ After all commits are done, show a summary of all commits created.
 
 - **Never commit without explicit user approval**
 - **Never discard or reset user's changes**
+- **MANDATORY: Use project-specific commit types - no exceptions**
+- **MANDATORY: Complete pre-commit verification checklist**
 - Keep commits atomic: one logical change per commit
 - Ensure commit order maintains a buildable state
 - Use English for all commit messages unless instructed otherwise
@@ -120,15 +160,16 @@ git commit -m "<subject>" -m "<body>"
 ```text
 📦 Commit Plan (3 commits)
 
-1. feat(quiz): add question bank entity and repository
-   Files: src/Core/Domain/Quiz/QuestionBank.cs, src/Infrastructure/Persistence/QuizRepository.cs
+1. copilot(skill): add vscode-docs skill for researching VS Code docs
+   Files: .claude/skills/vscode-docs/SKILL.md, .claude/skills/vscode-docs/assets/toc.md
 
-2. test(quiz): add unit tests for question bank
-   Files: tests/Core.Tests/Quiz/QuestionBankTests.cs
+2. copilot(instruction): update orchestration guidelines for domain-specific skills
+   Files: instructions/claude-skills.instructions.md
 
-3. docs(quiz): update API documentation for quiz module
-   Files: docs/api/quiz.md
+3. docs(issues): remove deprecated copilot-skills design decision issue
+   Files: .docs/issues/251210_copilot-skills.md
 
+✅ Pre-commit verification: All file paths mapped to correct project-specific types
 Ready to proceed with commit #1? (yes/no/edit)
 ```
 
@@ -137,3 +178,4 @@ Ready to proceed with commit #1? (yes/no/edit)
 - If a commit fails, show the error and ask how to proceed
 - If conflicts arise, guide the user to resolve them
 - Always provide a way to abort and restore original staging state
+- **If commit types are incorrect, stop and revise the entire plan**
