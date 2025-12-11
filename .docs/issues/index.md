@@ -7,7 +7,7 @@
 - YAML Format: 2
 - Legacy Format: 0
 
-| File | Date | Type | Status | Severity | Format |
-|------|------|------|--------|----------|--------|
-| 251210_lessons-learned-from-creating-the-issue-writer-skill.md | 2025-12-10 | Retrospective | Implemented | N/A | YAML |
-| 251210_copilot-skills.md | 2025-12-10 | Design Decision | Proposed | High | YAML |
+| File                                                           | Date       | Type            | Status      | Severity | Format |
+| -------------------------------------------------------------- | ---------- | --------------- | ----------- | -------- | ------ |
+| 251210_lessons-learned-from-creating-the-issue-writer-skill.md | 2025-12-10 | Retrospective   | Implemented | N/A      | YAML   |
+| 251210_copilot-skills.md                                       | 2025-12-10 | Design Decision | Proposed    | High     | YAML   |
