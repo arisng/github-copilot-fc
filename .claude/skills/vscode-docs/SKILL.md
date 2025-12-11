@@ -1,6 +1,6 @@
 ﻿---
 name: vscode-docs
-description: Skill for researching and grounding answers from official VS Code documentation, focusing on TOC navigation, release notes, and GitHub Copilot features. Use when answering questions about VS Code features, especially GitHub Copilot, or when needing up-to-date information from official docs.
+description: Skill for researching and grounding answers from official VS Code documentation, focusing on TOC navigation, release notes, and GitHub Copilot features. Use when answering questions about VS Code features, especially GitHub Copilot, or when needing up-to-date information from official docs. Use this skill before conducting any web searches.
 ---
 
 # VS Code Docs Research Skill
