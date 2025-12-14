@@ -27,6 +27,7 @@ Before creating any commit plan, map each changed file to its required commit ty
 | `*.agent.md`         | `copilot(custom-agent)` | Custom agent definitions                     |
 | `*.prompt.md`        | `copilot(prompt)`       | Copilot prompt files                         |
 | `memory.json`        | `copilot(memory)`       | Knowledge graph memory systems               |
+| `mcp.json`           | `copilot(mcp)`          | MCP configuration                            |
 
 **Common Mistakes to Avoid:**
 
@@ -101,6 +102,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - `copilot(memory)`: Updates to the knowledge graph or memory systems (e.g., `memory.json`)
 - `copilot(instruction)`: Changes to `.instructions.md` files or `copilot-instructions.md` (repository-level instructions)
 - `copilot(skill)`: Changes to Claude Skill definitions, implementations, and packaging (e.g., files under `skills/` directory)
+- `copilot(mcp)`: Changes to MCP configuration files (e.g., `mcp.json`)
 
 - Subject: imperative mood, lowercase, no period, max 50 chars
 - Body: explain *what* and *why*, wrap at 72 chars
