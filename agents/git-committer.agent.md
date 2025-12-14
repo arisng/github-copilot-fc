@@ -124,6 +124,58 @@ For each group, generate a commit message following **Conventional Commits** for
 - Body: explain *what* and *why*, wrap at 72 chars
 - Scope: module/feature name (optional but recommended)
 
+### Commit Message Quality Guidelines
+
+**MANDATORY: Ensure commit messages provide sufficient detail for accurate changelog generation. Vague messages lead to misleading summaries and knowledge graph errors.**
+
+#### Specificity Requirements
+- **For deletions/removals**: Always list what was removed (files, features, agents, etc.)
+- **For bulk changes**: Specify each major component affected
+- **For refactors**: Detail what was restructured and why
+- **For additions**: Describe new capabilities or features added
+
+#### Examples
+
+**Good - Specific:**
+```
+refactor(agents): remove unused agents - conductor, context7, implementation, microsoft-docs, research, verifier, web-search
+
+Removes seven specialized agents that were redundant or unused.
+This streamlines the agent portfolio and reduces maintenance overhead.
+```
+
+**Bad - Vague:**
+```
+refactor: update agent definitions
+```
+
+**Good - Detailed additions:**
+```
+feat(copilot): add web-search agent for .NET 10 documentation and security best practices
+
+Introduces specialized agent for researching .NET 10 docs and security.
+Supports developers working with latest .NET frameworks.
+```
+
+**Good - Bulk changes:**
+```
+refactor(skills): migrate skills from .claude/skills/ to skills/ directory
+
+Moves all skill definitions and implementations to workspace-local location.
+Removes dependency on user home directory for better portability.
+Affects: git-committer/, issue-writer/, pdf/, skill-creator/, vn-payroll/, vscode-docs-researcher/
+```
+
+#### Validation Checklist
+Before finalizing any commit message:
+- [ ] Does it clearly state what changed?
+- [ ] For deletions: Are specific items listed?
+- [ ] For additions: Are new capabilities described?
+- [ ] Could someone understand the impact from the message alone?
+- [ ] Would this message generate an accurate changelog entry?
+
+**If any checklist item fails, revise the message to be more specific.**
+
 ### 6. Interactive Review & Commit Loop
 For each planned commit:
 1. Present the commit message and list of files to be included
