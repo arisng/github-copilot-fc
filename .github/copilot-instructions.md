@@ -13,6 +13,11 @@ This repository is a **Copilot FC Workspace** for developing and managing Custom
 - **Issues** (`.docs/issues/`): Project documentation and tracking.
 
 ## Development Workflows
+- **Code Review**: Always review and get explicit approval for changes before committing. Do not auto-commit without user confirmation to prevent unexpected behavior. Here are sample anti-patterns to be aware of:
+  - Must not follow "green-before-done" protocols without considering user review needs
+  - Must not allow patterns from previous interactions where auto-committing became automatic
+  - Must not assume user intent implies immediate commit approval
+  - Must not treat documentation changes as "code" that requires immediate validation commits
 - **Creating Agents**: Create `agents/<name>.agent.md`. Reference `agents/meta.agent.md` for schema and best practices.
 - **Creating Instructions**: Use `agents/instruction-writer.agent.md` or reference `instructions/meta.instructions.md`.
 - **Managing Skills**: Source: `skills/<skill-name>/` (managed via PowerShell scripts).
