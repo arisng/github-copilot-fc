@@ -1,5 +1,7 @@
 # GitHub Copilot Instructions for Copilot FC Workspace
 
+**Note:** This `copilot-instructions.md` file is workspace-specific and provides context only for this Copilot FC Workspace. It is not intended for external publishing.
+
 This repository is a **Copilot FC Workspace** for developing and managing Custom Agents, Claude Skills, and Instructions.
 
 ## Project Structure & Architecture
