@@ -1,6 +1,6 @@
 ---
 agent: 'agent'
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'runTasks', 'git/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'usages', 'vscodeAPI', 'problems', 'changes', 'fetch', 'todos', 'runSubagent']
+tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'execute/createAndRunTask', 'execute/getTaskOutput', 'execute/runTask', 'git/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'search/usages', 'vscode/vscodeAPI', 'read/problems', 'search/changes', 'web/fetch', 'todo', 'agent']
 description: 'Generate a changelog file for daily, weekly, or specific date updates, always overriding the existing file. Always use git commit history to gather changes.'
 ---
 
