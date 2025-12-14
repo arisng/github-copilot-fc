@@ -14,37 +14,44 @@ This repository now includes a comprehensive automation system for managing GitH
 ## 🚀 Available Solutions
 
 ### 1. PowerShell Scripts
+
 - **`publish-skills.ps1`**: Main publishing script with Copy/Link/Sync methods
 - **`update-personal-skills.ps1`**: Update management for existing skills
 - **`run-command.ps1`**: Unified command interface for all workspace operations
 
 ### 2. Workspace Configuration System
+
 - **`copilot-workspace.json`**: Central configuration file defining workspace structure and commands
 - **Unified Commands**: Single interface for all workspace operations (skills, agents, issues, etc.)
 - **Extensible**: Easy to add new commands and components
 
 ### 3. VS Code Integration
+
 - **Tasks**: 6 new tasks in Command Palette for easy access
 - **Quick Access**: Publish skills, check updates, workspace status, and more directly from VS Code
 
 ### 4. Git Integration
+
 - **Post-commit Hook**: Automatic publishing when skills are committed
 - **Version Control**: All components tracked alongside your code
 
 ### 5. Documentation
-- **README**: Comprehensive guide in `.claude/skills/README.md`
+
+- **README**: Comprehensive guide in `skills/README.md`
 - **Workflow**: Complete development and publishing workflow
 - **Issue Tracking**: Structured documentation in `.docs/issues/`
 
 ## 🎯 Recommended Usage
 
 ### For Development
+
 ```powershell
 # During development, use link method for automatic updates
 .\run-command.ps1 -Command skills:publish-link
 ```
 
 ### For Production
+
 ```powershell
 # For stable releases, use copy method
 .\run-command.ps1 -Command skills:publish-copy

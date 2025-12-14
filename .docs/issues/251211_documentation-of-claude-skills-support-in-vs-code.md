@@ -33,12 +33,14 @@ VS Code 1.107 introduced experimental support for reusing existing Claude Skills
 - **Use Cases**: Individual workflows, experimental skills, personal productivity tools
 - **Management**: Not version controlled, personal use only
 
-#### Project Skills: `.claude/skills/`
+#### Workspace (Project) Skills: `skills/`
 
-- **Path**: `${workspaceFolder}.claude/skills/skill-name/SKILL.md`
+- **Path**: `${workspaceFolder}skills/skill-name/SKILL.md`
 - **Scope**: Specific to the current workspace/project
 - **Use Cases**: Team workflows, project-specific expertise, shared utilities
 - **Management**: Version controlled with project, automatically shared with team
+
+**Note**: All GitHub Copilot customizations (agents, instructions, prompts) and Claude Skills are intentionally located in workspace root directories (not in VS Code's standard scan locations like `.github/`, `.claude/skills/`, etc.) to prevent duplication. VS Code scans both synced user settings (for GitHub Copilot customizations) and user home locations (for Claude Skills), so workspace versions are kept separate from published versions.
 
 ### Skill Structure Requirements
 
