@@ -8,7 +8,7 @@ param(
 
 function Update-PersonalSkills {
 
-    $projectSkillsPath = Join-Path $PSScriptRoot "..\.claude\skills"
+    $projectSkillsPath = Join-Path $PSScriptRoot "..\skills"
     $personalSkillsPath = Join-Path $env:USERPROFILE ".claude\skills"
 
     # Ensure directories exist

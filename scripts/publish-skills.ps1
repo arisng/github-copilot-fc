@@ -16,7 +16,7 @@ function Publish-SkillsToPersonal {
         Publishes skills from the project factory to personal skills folder.
 
     .DESCRIPTION
-        Copies or links skills from the project's .claude/skills/ folder to the user's personal
+        Copies or links skills from the project's skills/ folder to the user's personal
         ~/.claude/skills/ folder for reuse across all projects.
 
     .PARAMETER Method
@@ -41,7 +41,7 @@ function Publish-SkillsToPersonal {
 
     Write-Host "Script started with Method: $Method" -ForegroundColor Cyan
 
-    $projectSkillsPath = Join-Path $PSScriptRoot "..\.claude\skills"
+    $projectSkillsPath = Join-Path $PSScriptRoot "..\skills"
     $personalSkillsPath = Join-Path $env:USERPROFILE ".claude\skills"
 
     # Ensure project skills directory exists

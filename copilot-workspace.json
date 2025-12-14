@@ -14,7 +14,7 @@
   },
 
   "directories": {
-    "skills": ".claude/skills",
+    "skills": "skills",
     "agents": "agents",
     "instructions": "instructions",
     "prompts": "prompts",
@@ -23,13 +23,16 @@
   },
 
   "commands": {
+    "agents:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish-agents.ps1",
+    "instructions:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish-instructions.ps1",
+    "prompts:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish-prompts.ps1",
     "skills:publish-copy": "powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Copy",
     "skills:publish-link": "powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Link",
     "skills:update-check": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -CheckOnly",
     "skills:update-apply": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1",
     "issues:reindex": "powershell -ExecutionPolicy Bypass -File scripts/extract-issue-metadata.ps1",
-    "workspace:list-skills": "powershell Get-ChildItem -Path .claude/skills -Directory | Select-Object Name",
-    "workspace:status": "powershell Write-Host 'GitHub Copilot Workspace Status'; Get-ChildItem -Path .claude/skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
+    "workspace:list-skills": "powershell Get-ChildItem -Path skills -Directory | Select-Object Name",
+    "workspace:status": "powershell Write-Host 'GitHub Copilot Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
   },
 
   "vscode": {

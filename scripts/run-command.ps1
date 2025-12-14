@@ -1,11 +1,11 @@
 function Invoke-CopilotWorkspaceCommand {
     <#
     .SYNOPSIS
-        Execute commands from the Copilot Workspace configuration.
+        Execute commands from the Github Copilot FC workspace configuration.
 
     .DESCRIPTION
         Reads copilot-workspace.json and executes predefined commands for managing
-        the GitHub Copilot workspace components.
+        the GitHub Copilot FC workspace components.
 
     .PARAMETER Command
         The command to execute (use 'list' to see available commands).
@@ -43,7 +43,7 @@ function Invoke-CopilotWorkspaceCommand {
 
     # If no command specified or 'list', show available commands
     if (-not $Command -or $Command -eq 'list') {
-        Write-Host "GitHub Copilot Workspace Commands" -ForegroundColor Cyan
+        Write-Host "GitHub Copilot FC workspace commands" -ForegroundColor Cyan
         Write-Host "=================================" -ForegroundColor Cyan
         Write-Host ""
 
