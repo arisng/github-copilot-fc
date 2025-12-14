@@ -14,7 +14,7 @@ This repository is a **Copilot FC Workspace** for developing and managing Custom
 - **Creating Agents**: Create `agents/<name>.agent.md`. Reference `agents/meta.agent.md` for schema and best practices.
 - **Creating Instructions**: Use `agents/instruction-writer.agent.md` or reference `instructions/meta.instructions.md`.
 - **Managing Skills**: Source: `skills/<skill-name>/` (managed via PowerShell scripts).
-- **Publishing**: Use automated scripts (`publish-agents.ps1`, `publish-instructions.ps1`, `publish-prompts.ps1`) to publish customizations to VS Code's synced user settings.
+- **Publishing**: Use automated scripts to publish specific customizations to VS Code's synced user settings (e.g., `publish-agents.ps1 -Agents "agent-name"`, `publish-skills.ps1 -Method Copy -Skills "skill-name"`).
 - **Meta-tools Note**: Meta-tools like `meta.agent.md` and `instruction-writer.agent.md` instruct users to save files in `.github/` locations (standard VS Code paths) since these tools are published for use in other projects.
 - **Documentation**:
   - Create issues in `.docs/issues/`.
@@ -27,5 +27,8 @@ This repository is a **Copilot FC Workspace** for developing and managing Custom
 - **Skill Structure**: Each skill resides in its own subdirectory within `skills/`.
 
 ## Key Commands
-- **Publish Skills**: `powershell -File scripts/publish-skills.ps1 -Method Copy`
+- **Publish Agents**: `powershell -File scripts/publish-agents.ps1 -Agents "agent-name"`
+- **Publish Skills**: `powershell -File scripts/publish-skills.ps1 -Method Copy -Skills "skill-name"`
+- **Publish Instructions**: `powershell -File scripts/publish-instructions.ps1 -Instructions "instruction-name"`
+- **Publish Prompts**: `powershell -File scripts/publish-prompts.ps1 -Prompts "prompt-name"`
 - **Reindex Issues**: `powershell -File scripts/extract-issue-metadata.ps1`
