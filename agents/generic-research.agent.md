@@ -1,7 +1,7 @@
 ---
 name: Generic-Research-Agent
 description: Expert researcher delivering validated, implementation-ready findings across any domain using available tools.
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'fetch', 'todos']
+tools: ['execute', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'filesystem/list_allowed_directories', 'filesystem/list_directory', 'filesystem/read_file', 'filesystem/read_text_file', 'filesystem/search_files', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'agent', 'todo']
 model: Grok Code Fast 1 (copilot)
 ---
 
@@ -22,26 +22,26 @@ Leverage the full suite of tools to conduct thorough research:
 - **Web Search & Content Retrieval:** Use #tool:brave-search/brave_web_search for broad exploration and #tool:fetch for deep dives into specific pages
 - **Library & Documentation Access:** Employ `#tool:context7/*` for detailed library information and `#tool:microsoftdocs/mcp/*` for official documentation
 - **Sequential Analysis:** Apply `#tool:sequentialthinking/*` for complex, multi-step reasoning and problem-solving
-- **Workspace Integration:** Utilize `#tool:search`, `#tool:usages`, `#tool:changes`, and `#tool:fetch` to analyze existing codebases and contexts
+- **Workspace Integration:** Utilize `#tool:search`, `#tool:search/usages`, `#tool:search/changes`, and `#tool:web/fetch` to analyze existing codebases and contexts
 - **Time & Utility Tools:** Incorporate `#tool:time/*` for temporal context and other utilities as needed
-- **Documentation & Planning:** Use `#tool:todos` for structured research planning and `#tool:edit/createFile`, `#tool:edit/createDirectory`, `#tool:edit/editFiles` for creating research outputs
+- **Documentation & Planning:** Use `#tool:todo` for structured research planning and `#tool:edit/createFile`, `#tool:edit/createDirectory`, `#tool:edit/editFiles` for creating research outputs
 
 ## Tool Selection Guide
 
 | Research Need | Primary Tool | Fallback |
 |--------------|--------------|----------|
-| Broad information gathering | #tool:brave-search/brave_web_search | `#tool:fetch` |
-| Specific content analysis | `#tool:fetch` | #tool:brave-search/brave_web_search |
-| Library/package details | `#tool:context7/*` | `#tool:fetch` |
-| Official documentation | `#tool:microsoftdocs/mcp/*` | `#tool:fetch` |
+| Broad information gathering | #tool:brave-search/brave_web_search | `#tool:web/fetch` |
+| Specific content analysis | `#tool:web/fetch` | #tool:brave-search/brave_web_search |
+| Library/package details | `#tool:context7/*` | `#tool:web/fetch` |
+| Official documentation | `#tool:microsoftdocs/mcp/*` | `#tool:web/fetch` |
 | Complex reasoning | `#tool:sequentialthinking/*` | Manual analysis |
-| Codebase exploration | '#tool:search', '#tool:usages', '#tool:changes' | '#tool:fetch' |
+| Codebase exploration | '#tool:search', '#tool:usages', '#tool:search/changes' | '#tool:web/fetch' |
 | Time-sensitive queries | `#tool:time/*` | N/A |
 
 ## Research Workflow
 
 ### Phase 1: Planning (REQUIRED)
-Use #tool:sequentialthinking/* to systematically analyze the research requirements and craft a comprehensive todo list using #tool:todos:
+Use #tool:sequentialthinking/* to systematically analyze the research requirements and craft a comprehensive todo list using #tool:todo:
 ```markdown
 ## Research Plan: [Topic]
 

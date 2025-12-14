@@ -2,7 +2,7 @@
 name: PM-Changelog
 description: Generates monthly changelog summaries for non-tech stakeholders from weekly raw changelogs
 model: Claude Sonnet 4.5 (copilot)
-tools: ['edit/createFile', 'edit/editFiles', 'search', 'runCommands', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'fetch', 'todos', 'runSubagent']
+tools: ['edit/createFile', 'edit/editFiles', 'search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'sequentialthinking/*', 'time/*', 'search/usages', 'search/changes', 'web/fetch', 'todo', 'agent']
 ---
 
 # Product Manager - Monthly Changelog Generator

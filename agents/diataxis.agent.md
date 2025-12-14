@@ -3,7 +3,7 @@ name: Diataxis-Documentation-Expert
 description: Specialized agent for creating and organizing documentation using the Diátaxis framework
 model: Grok Code Fast 1 (copilot)
 tools:
-  ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'fetch', 'todos']
+  ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'sequentialthinking/*', 'time/*', 'search/usages', 'search/changes', 'web/fetch', 'todo']
 ---
 
 # Diátaxis Documentation Expert

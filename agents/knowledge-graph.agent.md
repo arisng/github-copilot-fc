@@ -3,7 +3,7 @@ name: Knowledge-Graph-Agent
 description: Generic sub-agent for Knowledge Graph memory management - handles entity resolution, relation mapping, and context retrieval for any parent agent.
 model: Grok Code Fast 1 (copilot)
 tools:
-  ['search', 'sequentialthinking/*', 'time/*', 'memory/*', 'todos']
+  ['search', 'sequentialthinking/*', 'time/*', 'memory/*', 'todo']
 ---
 
 # Knowledge Graph

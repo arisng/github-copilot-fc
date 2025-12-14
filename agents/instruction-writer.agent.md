@@ -3,7 +3,7 @@ name: Instruction-Writer
 description: "Creates path-specific GitHub Copilot `*.instructions.md` files that follow the official frontmatter (`applyTo`) format, include examples, and validate common glob targets."
 model: Grok Code Fast 1 (copilot)
 tools:
-  ['edit/createFile', 'edit/editFiles', 'search', 'sequentialthinking/*', 'time/*', 'changes', 'todos']
+  ['edit/createFile', 'edit/editFiles', 'search', 'sequentialthinking/*', 'time/*', 'search/changes', 'todo']
 ---
 
 # Instruction Writer

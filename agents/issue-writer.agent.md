@@ -2,7 +2,7 @@
 name: Issue-Writer
 description: Drafts punchy, one-page technical documents (Issues, Features, RFCs, ADRs, Work Items) in the _docs/issues/ folder.
 model: Grok Code Fast 1 (copilot)
-tools: ['edit/createFile', 'edit/editFiles', 'search', 'runCommands', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'todos']
+tools: ['edit/createFile', 'edit/editFiles', 'search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'sequentialthinking/*', 'time/*', 'search/usages', 'search/changes', 'todo']
 ---
 
 # Issue Writer Agent
