@@ -17,19 +17,19 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 
 **MANDATORY STEP: Before any grouping or planning, assign a commit type to EACH changed file individually using this mapping. Files with different commit types MUST be in separate commits - this is non-negotiable for atomicity.**
 
-| File Path Pattern          | Required Commit Type      | Rationale                                    |
-| -------------------------- | ------------------------- | -------------------------------------------- |
-| `instructions/*.md`        | `copilot(instruction)`    | Repository-level Copilot instructions        |
-| `skills/*`                 | `copilot(skill)`          | Claude skill definitions and implementations |
-| `.docs/issues/*`           | `docs(issue)`             | Issue documentation and tracking             |
-| `.docs/changelogs/*`       | `docs(changelog)`         | Changelog files                              |
-| `scripts/*.ps1`            | `devtool(script)`         | PowerShell helper scripts                    |
-| `*.agent.md`               | `copilot(custom-agent)`   | Custom agent definitions                     |
-| `*.prompt.md`              | `copilot(prompt)`         | Copilot prompt files                         |
-| `memory.json`              | `copilot(memory)`         | Knowledge graph memory systems               |
-| `.vscode/mcp.json`         | `copilot(mcp)`            | MCP server configuration for Copilot         |
-| `.vscode/settings.json`    | `devtool(vscode)`         | VS Code workspace settings                   |
-| `.vscode/*.json` (general) | `devtool(vscode)`         | Other VS Code configuration files            |
+| File Path Pattern       | Required Commit Type    | Rationale                                    |
+| ----------------------- | ----------------------- | -------------------------------------------- |
+| `instructions/*.md`     | `copilot(instruction)`  | Repository-level Copilot instructions        |
+| `skills/*`              | `copilot(skill)`        | Claude skill definitions and implementations |
+| `.docs/issues/*`        | `docs(issue)`           | Issue documentation and tracking             |
+| `.docs/changelogs/*`    | `docs(changelog)`       | Changelog files                              |
+| `scripts/*.ps1`         | `devtool(script)`       | PowerShell helper scripts                    |
+| `*.agent.md`            | `copilot(custom-agent)` | Custom agent definitions                     |
+| `*.prompt.md`           | `copilot(prompt)`       | Copilot prompt files                         |
+| `memory.json`           | `copilot(memory)`       | Knowledge graph memory systems               |
+| `.vscode/mcp.json`      | `copilot(mcp)`          | MCP server configuration for Copilot         |
+| `.vscode/settings.json` | `devtool(vscode)`       | VS Code workspace settings                   |
+| `.vscode/tasks.json`    | `devtool(vscode)`       | VS Code workspace task configurations        |
 
 **Critical Rules:**
 - **Different commit types = Different commits** - Even related files must be separated if they have different types
