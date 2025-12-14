@@ -1,26 +1,59 @@
-# GitHub Copilot FC
+# Copilot FC
 
-A dedicated workspace for developing, managing, and deploying GitHub Copilot customizations, including Custom Agents, Claude Skills, and Context Instructions.
+A dedicated workspace for developing, versioning, and publishing GitHub Copilot customizations, including Custom Agents, Context Instructions, Prompts, and Claude Skills.
 
 ## 🚀 Features
 
 - **Custom Agents**: Specialized AI personas defined in `agents/*.agent.md` for specific tasks (e.g., Research, Documentation, Architecture).
-- **Claude Skills**: Domain-specific capabilities and tools stored in `.claude/skills/` that extend Copilot's functionality.
 - **Instructions**: Context-aware guidelines in `instructions/` to steer AI behavior for specific file types or folders.
+- **Claude Skills**: Domain-specific capabilities and tools stored in `skills/` that extend Copilot's functionality.
 - **Automation**: PowerShell scripts to manage the lifecycle of skills and agents.
 
 ## 📂 Project Structure
 
 ```text
 .
-├── agents/                 # Custom Agent definitions (.agent.md)
-├── .claude/skills/         # Domain-specific skills (each in its own folder)
-├── instructions/           # Context instructions (.instructions.md)
-├── prompts/                # Reusable prompt templates
+├── agents/                 # Custom Agent definitions (.agent.md) - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
+├── skills/                 # Domain-specific skills (each in its own folder) - BY DESIGN: Located here instead of .claude/skills/ to avoid duplication when VS Code scans both workspace and user home locations
+├── instructions/           # Context instructions (.instructions.md) - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
+├── prompts/                # Reusable prompt templates - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
 ├── scripts/                # PowerShell automation scripts
 ├── .docs/issues/           # Project documentation and issue tracking
 └── copilot-workspace.json  # Workspace configuration
 ```
+
+## 🏗️ Architecture Decisions
+
+### Component Locations: Workspace Root vs VS Code Scan Paths
+
+**By Design**: All GitHub Copilot customizations are intentionally located in workspace root directories (not in VS Code's standard scan locations) to prevent duplication.
+
+**The Problem**: VS Code scans for customizations in both:
+- **Synced user settings locations** (published versions)
+- **Workspace scan paths** (like `.github/`, `.claude/skills/`)
+
+Since this workspace is for authoring, versioning, and publishing customizations to VS Code's synced user settings, having them in both places causes duplication.
+
+#### GitHub Copilot Customizations (Agents, Instructions, Prompts)
+
+- **VS Code scans**: `.github/` (workspace) + VS Code User Settings (synced)
+- **Our locations**: `agents/`, `instructions/`, `prompts/` (not `.github/`)
+
+#### Claude Skills
+
+- **VS Code scans**: `.claude/skills/` (workspace) + `~/.claude/skills/` (user home)
+- **Our location**: `skills/` (not `.claude/skills/`)
+
+**Workflow**:
+1. **Author** customizations in workspace root directories (not scanned by VS Code)
+2. **Publish** to VS Code's synced user settings or personal locations (globally available)
+3. **Use** across all workspaces and devices without duplication
+
+**Authoring Workflow**:
+1. **Create/Edit** customizations in their respective directories (`agents/`, `instructions/`, `prompts/`, `skills/`)
+2. **Test Locally** in this workspace (customizations are available here)
+3. **Publish** using the appropriate script when ready for global use
+4. **Sync** happens automatically across your VS Code installations
 
 ## 🛠️ Getting Started
 
@@ -46,25 +79,57 @@ Agents are defined in the `agents/` directory. To create a new agent:
 2. Use the `Meta-Agent` or reference `agents/meta.agent.md` for the required schema.
 3. Define the agent's `name`, `description`, and `tools` in the YAML frontmatter.
 
-### Managing Skills
+### Authoring Customizations
 
-Skills are located in `.claude/skills/`. Use the provided scripts to manage them:
+All GitHub Copilot customizations are managed through automated publishing scripts:
 
-- **Publish Skills to Personal Library**:
+#### Agents
 
-  ```powershell
-  # Copy mode (recommended for stability)
-  ./scripts/publish-skills.ps1 -Method Copy
-  
-  # Link mode (for active development)
-  ./scripts/publish-skills.ps1 -Method Link
-  ```
+```powershell
+# Publish all agents to VS Code
+.\scripts\publish-agents.ps1
 
-- **Update Personal Skills**:
+# Publish specific agents
+.\scripts\publish-agents.ps1 -Agents "meta", "instruction-writer"
+```
 
-  ```powershell
-  ./scripts/update-personal-skills.ps1
-  ```
+#### Instructions
+
+```powershell
+# Publish all instructions to VS Code
+.\scripts\publish-instructions.ps1
+
+# Publish specific instructions
+.\scripts\publish-instructions.ps1 -Instructions "powershell", "claude-skills"
+```
+
+#### Prompts
+
+```powershell
+# Publish all prompts to VS Code
+.\scripts\publish-prompts.ps1
+
+# Publish specific prompts
+.\scripts\publish-prompts.ps1 -Prompts "changelog", "conventional-commit"
+```
+
+#### Claude Skills
+
+```powershell
+# Copy method (recommended)
+.\scripts\publish-skills.ps1 -Method Copy
+
+# Link method (for development)
+.\scripts\publish-skills.ps1 -Method Link -Skills "git-committer", "issue-writer"
+
+# Check for updates
+.\scripts\update-personal-skills.ps1 -CheckOnly
+
+# Apply updates
+.\scripts\update-personal-skills.ps1
+```
+
+All published customizations are stored in VS Code's user data directory (`~/AppData/Roaming/Code/User/prompts/`) and synced across your devices.
 
 ### Documentation
 

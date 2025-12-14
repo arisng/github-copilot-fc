@@ -1,5 +1,5 @@
 {
-  "name": "GitHub Copilot FC",
+  "name": "Copilot FC",
   "version": "1.0.0",
   "description": "Workspace for GitHub Copilot customizations: Claude Skills, Custom Agents, Instructions, and Prompts",
 
@@ -32,7 +32,7 @@
     "skills:update-apply": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1",
     "issues:reindex": "powershell -ExecutionPolicy Bypass -File scripts/extract-issue-metadata.ps1",
     "workspace:list-skills": "powershell Get-ChildItem -Path skills -Directory | Select-Object Name",
-    "workspace:status": "powershell Write-Host 'GitHub Copilot Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
+    "workspace:status": "powershell Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
   },
 
   "vscode": {
