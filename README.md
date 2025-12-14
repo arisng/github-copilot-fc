@@ -1,5 +1,7 @@
 # Copilot FC
 
+**FC** (inspired by "football club") embodies the collaborative spirit of a professional team where specialized AI components work together harmoniously toward shared coding victories. Just as football players pass, defend, and score as a cohesive unit, Copilot FC orchestrates AI assistants, skills, and tools as a unified team—fostering the team-sport mentality where every component contributes to collective development excellence.
+
 A dedicated workspace for developing, versioning, and publishing GitHub Copilot customizations, including Custom Agents, Context Instructions, Prompts, and Claude Skills.
 
 ## 🚀 Features
