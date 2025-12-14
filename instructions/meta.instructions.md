@@ -1,4 +1,5 @@
 ---
+name: meta-instructions
 description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
 applyTo: '**/*.instructions.md'
 ---
