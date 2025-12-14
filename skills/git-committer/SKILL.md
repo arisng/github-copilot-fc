@@ -15,19 +15,26 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 
 ## File Path to Commit Type Mapping
 
-Before creating any commit plan, map each changed file to its required commit type:
+**MANDATORY STEP: Before any grouping or planning, assign a commit type to EACH changed file individually using this mapping. Files with different commit types MUST be in separate commits - this is non-negotiable for atomicity.**
 
-| File Path Pattern    | Required Commit Type    | Rationale                                    |
-| -------------------- | ----------------------- | -------------------------------------------- |
-| `instructions/*.md`  | `copilot(instruction)`  | Repository-level Copilot instructions        |
-| `skills/*`           | `copilot(skill)`        | Claude skill definitions and implementations |
-| `.docs/issues/*`     | `docs(issue)`           | Issue documentation and tracking             |
-| `.docs/changelogs/*` | `docs(changelog)`       | Changelog files                              |
-| `scripts/*.ps1`      | `devtool(script)`       | PowerShell helper scripts                    |
-| `*.agent.md`         | `copilot(custom-agent)` | Custom agent definitions                     |
-| `*.prompt.md`        | `copilot(prompt)`       | Copilot prompt files                         |
-| `memory.json`        | `copilot(memory)`       | Knowledge graph memory systems               |
-| `mcp.json`           | `copilot(mcp)`          | MCP configuration                            |
+| File Path Pattern          | Required Commit Type      | Rationale                                    |
+| -------------------------- | ------------------------- | -------------------------------------------- |
+| `instructions/*.md`        | `copilot(instruction)`    | Repository-level Copilot instructions        |
+| `skills/*`                 | `copilot(skill)`          | Claude skill definitions and implementations |
+| `.docs/issues/*`           | `docs(issue)`             | Issue documentation and tracking             |
+| `.docs/changelogs/*`       | `docs(changelog)`         | Changelog files                              |
+| `scripts/*.ps1`            | `devtool(script)`         | PowerShell helper scripts                    |
+| `*.agent.md`               | `copilot(custom-agent)`   | Custom agent definitions                     |
+| `*.prompt.md`              | `copilot(prompt)`         | Copilot prompt files                         |
+| `memory.json`              | `copilot(memory)`         | Knowledge graph memory systems               |
+| `.vscode/mcp.json`         | `copilot(mcp)`            | MCP server configuration for Copilot         |
+| `.vscode/settings.json`    | `devtool(vscode)`         | VS Code workspace settings                   |
+| `.vscode/*.json` (general) | `devtool(vscode)`         | Other VS Code configuration files            |
+
+**Critical Rules:**
+- **Different commit types = Different commits** - Even related files must be separated if they have different types
+- **No exceptions** - Atomicity requires type separation
+- **Check mapping first** - Assign types to individual files before considering relationships
 
 **Common Mistakes to Avoid:**
 
@@ -35,6 +42,8 @@ Before creating any commit plan, map each changed file to its required commit ty
 - ❌ `feat(skill)` → ✅ `copilot(skill)`  
 - ❌ `chore(issue)` → ✅ `docs(issue)`
 - ❌ `docs` (no scope) → ✅ `docs(issue)` or `docs(changelog)`
+- ❌ Mixing `copilot(mcp)` + `devtool(vscode)` in one commit → ✅ Separate commits
+- ❌ Grouping files with different types → ✅ One type per commit
 
 ## Workflow
 
@@ -44,7 +53,10 @@ Before creating any commit plan, map each changed file to its required commit ty
 - If no changes exist, inform the user there's nothing to commit
 - Read relevant file diffs to understand the nature of each change
 
-### 2. Pre-Commit Verification Checklist
+### 2. Assign Commit Types to Individual Files
+**MANDATORY: For each changed file, determine its exact commit type using the mapping table above. Document this assignment - it drives the entire commit strategy.**
+
+### 3. Pre-Commit Verification Checklist
 
 **MANDATORY: Complete this checklist before presenting any commit plan:**
 
@@ -56,18 +68,30 @@ Before creating any commit plan, map each changed file to its required commit ty
 
 **If any checklist item fails, revise the plan before proceeding.**
 
-### 3. Group Changes into Logical Commits
+### 4. Group Changes into Logical Commits
+**CRITICAL CONSTRAINT: Files with different commit types CANNOT be grouped together - they must be in separate commits.**
 
-Group related changes based on:
-
-- **Feature scope**: Files related to the same feature/module
-- **Change type**: Separate refactors from features from fixes
-- **Domain boundaries**: Respect module/bounded context boundaries
+Group remaining related changes based on:
+- **Same commit type**: Only group files that share the same required commit type
+- **Feature scope**: Files related to the same feature/module (within same type)
+- **Change type**: Separate refactors from features from fixes (within same type)
+- **Domain boundaries**: Respect module/bounded context boundaries (within same type)
 - **Dependencies**: Ensure commits can be applied sequentially without breaking the build
 
-Create a todo list tracking each planned commit.
+**If grouping would mix commit types, split into separate commits immediately.**
 
-### 4. Generate Conventional Commit Messages
+Create a todo list tracking each planned commit with their assigned types.
+
+### 5. Validate Commit Plan
+**MANDATORY VALIDATION: Review each planned commit to ensure:**
+- All files in a commit share the same commit type
+- No commit mixes different types
+- Each commit represents one logical change within its type
+- Commits can be applied in sequence without conflicts
+
+**If validation fails, revise the grouping immediately.**
+
+### 6. Generate Conventional Commit Messages
 
 For each group, generate a commit message following **Conventional Commits** format:
 
@@ -108,7 +132,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - Body: explain *what* and *why*, wrap at 72 chars
 - Scope: module/feature name (optional but recommended)
 
-### 5. Interactive Review & Commit Loop
+### 7. Interactive Review & Commit Loop
 
 For each planned commit:
 
@@ -118,7 +142,7 @@ For each planned commit:
 4. On rejection: ask for feedback and regenerate the message
 5. Mark the commit as completed and move to the next
 
-### 6. Completion
+### 8. Completion
 
 After all commits are done, show a summary of all commits created.
 
@@ -128,6 +152,7 @@ After all commits are done, show a summary of all commits created.
 - **Never discard or reset user's changes**
 - **MANDATORY: Use project-specific commit types - no exceptions**
 - **MANDATORY: Complete pre-commit verification checklist**
+- **MANDATORY: Different commit types require separate commits** - No exceptions for atomicity
 - Keep commits atomic: one logical change per commit
 - Ensure commit order maintains a buildable state
 - Use English for all commit messages unless instructed otherwise
@@ -181,3 +206,4 @@ Ready to proceed with commit #1? (yes/no/edit)
 - If conflicts arise, guide the user to resolve them
 - Always provide a way to abort and restore original staging state
 - **If commit types are incorrect, stop and revise the entire plan**
+- **If validation fails due to type mixing, immediately revise the grouping**
