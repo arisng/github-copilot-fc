@@ -37,7 +37,7 @@ Analyze all changes (staged and unstaged) in the current git repository, intelli
 | `memory.json`              | `copilot(memory)`         | Knowledge graph memory systems               |
 | `.vscode/mcp.json`         | `copilot(mcp)`            | MCP server configuration for Copilot         |
 | `.vscode/settings.json`    | `devtool(vscode)`         | VS Code workspace settings                   |
-| `.vscode/*.json` (general) | `devtool(vscode)`         | Other VS Code configuration files            |
+| `.vscode/tasks.json`       | `devtool(vscode)`         | VS Code workspace task configurations        |
 
 **Critical Rules:**
 - **Different commit types = Different commits** - Even related files must be separated if they have different types
