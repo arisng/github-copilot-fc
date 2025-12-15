@@ -19,10 +19,10 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 
 | File Path Pattern       | Required Commit Type    | Rationale                                    |
 | ----------------------- | ----------------------- | -------------------------------------------- |
-| `instructions/*.md`     | `copilot(instruction)`  | Repository-level Copilot instructions        |
-| `skills/*`              | `copilot(skill)`        | Claude skill definitions and implementations |
 | `.docs/issues/*`        | `docs(issue)`           | Issue documentation and tracking             |
 | `.docs/changelogs/*`    | `docs(changelog)`       | Changelog files                              |
+| `instructions/*.md`     | `copilot(instruction)`  | Repository-level Copilot instructions        |
+| `skills/*`              | `copilot(skill)`        | Claude skill definitions and implementations |
 | `scripts/*.ps1`         | `devtool(script)`       | PowerShell helper scripts                    |
 | `*.agent.md`            | `copilot(custom-agent)` | Custom agent definitions                     |
 | `*.prompt.md`           | `copilot(prompt)`       | Copilot prompt files                         |
@@ -54,6 +54,7 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 - Read relevant file diffs to understand the nature of each change
 
 ### 2. Assign Commit Types to Individual Files
+
 **MANDATORY: For each changed file, determine its exact commit type using the mapping table above. Document this assignment - it drives the entire commit strategy.**
 
 ### 3. Pre-Commit Verification Checklist
@@ -69,6 +70,7 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 **If any checklist item fails, revise the plan before proceeding.**
 
 ### 4. Group Changes into Logical Commits
+
 **CRITICAL CONSTRAINT: Files with different commit types CANNOT be grouped together - they must be in separate commits.**
 
 Group remaining related changes based on:
@@ -83,6 +85,7 @@ Group remaining related changes based on:
 Create a todo list tracking each planned commit with their assigned types.
 
 ### 5. Validate Commit Plan
+
 **MANDATORY VALIDATION: Review each planned commit to ensure:**
 - All files in a commit share the same commit type
 - No commit mixes different types
@@ -103,7 +106,7 @@ For each group, generate a commit message following **Conventional Commits** for
 <footer>
 ```
 
-**General Types (use only when no project-specific type applies):**
+**Generic Types (use only when no project-specific type applies):**
 
 - `feat`: New feature
 - `fix`: Bug fix
