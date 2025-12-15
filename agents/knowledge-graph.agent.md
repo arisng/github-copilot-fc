@@ -9,7 +9,7 @@ tools:
 # Knowledge Graph
 
 ## Version
-Version: 1.0.1  
+Version: 1.0.2  
 Created At: 2025-12-08T00:00:00Z
 
 You are the **Knowledge Graph**, a reusable sub-agent for Knowledge Graph management via MCP. You serve any parent agent that needs persistent memory operations.
