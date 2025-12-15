@@ -9,7 +9,8 @@ A dedicated workspace for developing, versioning, and publishing GitHub Copilot 
 - **Custom Agents**: Specialized AI personas defined in `agents/*.agent.md` for specific tasks (e.g., Research, Documentation, Architecture).
 - **Instructions**: Context-aware guidelines in `instructions/` to steer AI behavior for specific file types or folders.
 - **Claude Skills**: Domain-specific capabilities and tools stored in `skills/` that extend Copilot's functionality.
-- **Automation**: PowerShell scripts to manage the lifecycle of skills and agents.
+- **Agent Evaluation**: Deterministic framework for evaluating and activating the right agents for the job.
+- **Automation**: PowerShell and Python scripts to manage the lifecycle of skills, agents, and evaluations.
 
 ## 📂 Project Structure
 
@@ -19,7 +20,7 @@ A dedicated workspace for developing, versioning, and publishing GitHub Copilot 
 ├── skills/                 # Domain-specific skills (each in its own folder) - BY DESIGN: Located here instead of .claude/skills/ to avoid duplication when VS Code scans both workspace and user home locations
 ├── instructions/           # Context instructions (.instructions.md) - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
 ├── prompts/                # Reusable prompt templates - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
-├── scripts/                # PowerShell automation scripts
+├── scripts/                # PowerShell and Python automation scripts
 ├── .docs/issues/           # Project documentation and issue tracking
 └── copilot-workspace.json  # Workspace configuration
 ```
@@ -64,6 +65,7 @@ Since this workspace is for authoring, versioning, and publishing customizations
 - **VS Code**
 - **GitHub Copilot** & **GitHub Copilot Chat** extensions
 - **PowerShell** (for automation scripts)
+- **Python 3.x** (for agent evaluation and advanced tools)
 
 ### Installation
 
@@ -80,6 +82,17 @@ Agents are defined in the `agents/` directory. To create a new agent:
 1. Create a new file `agents/<agent-name>.agent.md`.
 2. Use the `Meta-Agent` or reference `agents/meta.agent.md` for the required schema.
 3. Define the agent's `name`, `description`, and `tools` in the YAML frontmatter.
+
+### Agent Evaluation
+
+The workspace includes a deterministic evaluation framework to ensure the right agents are activated for each task.
+
+- **Forced Evaluation**: The `instructions/agent-forced-eval.instructions.md` file (when published) instructs Copilot to evaluate available subagents before responding.
+- **Tool-Based Evaluation**: For deterministic results, use the Python-based evaluator:
+
+  ```powershell
+  python scripts/agent_evaluator.py "Your query here"
+  ```
 
 ### Authoring Customizations
 
@@ -150,5 +163,5 @@ The workspace is configured via `copilot-workspace.json`. This file defines the 
 ## 🤝 Contributing
 
 - Follow the conventions defined in `.github/copilot-instructions.md`.
-- Use **PowerShell** for all scripting tasks.
+- Use **PowerShell** for automation tasks and **Python** for complex logic/tools.
 - Ensure all new agents include proper YAML frontmatter.
