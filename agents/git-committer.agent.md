@@ -28,10 +28,10 @@ Analyze all changes (staged and unstaged) in the current git repository, intelli
 
 | File Path Pattern          | Required Commit Type      | Rationale                                    |
 | -------------------------- | ------------------------- | -------------------------------------------- |
-| `instructions/*.md`        | `copilot(instruction)`    | Repository-level Copilot instructions        |
-| `skills/*`                 | `copilot(skill)`          | Claude skill definitions and implementations |
 | `.docs/issues/*`           | `docs(issue)`             | Issue documentation and tracking             |
 | `.docs/changelogs/*`       | `docs(changelog)`         | Changelog files                              |
+| `instructions/*.md`        | `copilot(instruction)`    | Repository-level Copilot instructions        |
+| `skills/*`                 | `copilot(skill)`          | Claude skill definitions and implementations |
 | `scripts/*.ps1`            | `devtool(script)`         | PowerShell helper scripts                    |
 | `*.agent.md`               | `copilot(custom-agent)`   | Custom agent definitions                     |
 | `*.prompt.md`              | `copilot(prompt)`         | Copilot prompt files                         |
@@ -64,7 +64,20 @@ Analyze all changes (staged and unstaged) in the current git repository, intelli
 ### 2. Assign Commit Types to Individual Files
 **MANDATORY: For each changed file, determine its exact commit type using the mapping table above. Document this assignment - it drives the entire commit strategy.**
 
-### 3. Group Changes into Logical Commits
+### 3. Pre-Commit Verification Checklist
+
+**MANDATORY: Complete this checklist before presenting any commit plan:**
+
+- [ ] **Type Mapping**: Every file path mapped to correct project-specific type using the table above
+- [ ] **No Generic Types**: No commits using `feat`, `fix`, `docs` without project-specific scope
+- [ ] **Atomic Grouping**: Changes grouped by logical feature/module boundaries
+- [ ] **Dependency Order**: Commit order maintains buildable state
+- [ ] **Scope Accuracy**: Commit scopes match actual module/feature names
+
+**If any checklist item fails, revise the plan before proceeding.**
+
+### 4. Group Changes into Logical Commits
+
 **CRITICAL CONSTRAINT: Files with different commit types CANNOT be grouped together - they must be in separate commits.**
 
 Group remaining related changes based on:
@@ -78,7 +91,7 @@ Group remaining related changes based on:
 
 Create a todo list tracking each planned commit with their assigned types.
 
-### 4. Validate Commit Plan
+### 5. Validate Commit Plan
 **MANDATORY VALIDATION: Review each planned commit to ensure:**
 - All files in a commit share the same commit type
 - No commit mixes different types
@@ -87,7 +100,7 @@ Create a todo list tracking each planned commit with their assigned types.
 
 **If validation fails, revise the grouping immediately.**
 
-### 5. Generate Conventional Commit Messages
+### 6. Generate Conventional Commit Messages
 For each group, generate a commit message following **Conventional Commits** format:
 
 ```
@@ -98,7 +111,7 @@ For each group, generate a commit message following **Conventional Commits** for
 <footer>
 ```
 
-**Types:**
+**Generic Types (use only when no project-specific type applies):**
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation only
@@ -110,7 +123,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - `build`: Build system or external dependencies
 - `ci`: CI configuration
 
-**Project-Specific Types:**
+**Project-Specific Types (MANDATORY - use these instead of general types):**
 - `docs(issue)`: Changes to issues documentation (e.g., `.docs/issues/` files)
 - `docs(changelog)`: Changes to changelog files (e.g., `.docs/changelogs/` files)
 - `devtool(script)`: Changes to PowerShell or helper scripts (e.g., `scripts/*.ps1`)
@@ -119,6 +132,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - `copilot(memory)`: Updates to the knowledge graph or memory systems (e.g., `memory.json`)
 - `copilot(instruction)`: Changes to `.instructions.md` files or `copilot-instructions.md` (repository-level instructions)
 - `copilot(skill)`: Changes to Claude Skill definitions, implementations, and packaging (e.g., files under `skills/` directory)
+- `copilot(mcp)`: Changes to MCP configuration files (e.g., `mcp.json`)
 
 **Rules:****
 - Subject: imperative mood, lowercase, no period, max 50 chars
@@ -177,7 +191,7 @@ Before finalizing any commit message:
 
 **If any checklist item fails, revise the message to be more specific.**
 
-### 6. Interactive Review & Commit Loop
+### 7. Interactive Review & Commit Loop
 For each planned commit:
 1. Present the commit message and list of files to be included
 2. **Wait for user approval** before proceeding
@@ -185,7 +199,7 @@ For each planned commit:
 4. On rejection: ask for feedback and regenerate the message
 5. Mark the commit as completed and move to the next
 
-### 7. Completion
+### 8. Completion
 After all commits are done, show a summary of all commits created.
 
 ## Commands Reference
