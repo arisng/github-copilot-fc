@@ -21,7 +21,7 @@ Transform raw weekly developer changelogs into polished monthly summaries that h
 
 ## Knowledge Graph Integration
 
-Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to persist and retrieve business domain knowledge. This enables:
+Use #tool:agent/runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to persist and retrieve business domain knowledge. This enables:
 
 - **Consistent terminology**: Reuse established friendly names for scopes/features
 - **Historical context**: Understand feature evolution across months
@@ -68,14 +68,14 @@ StakeholderRelevance: "High"
 
 **1. Retrieve existing domain knowledge before summarizing:**
 ```
-Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
+Use #tool:agent/runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Retrieve all Module entities and their FriendlyName observations.
 Also retrieve any relations between modules to understand dependencies."
 ```
 
 **2. Persist a newly discovered scope:**
 ```
-Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
+Use #tool:agent/runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Create entity: Module named 'QuizModule' with observations:
 - FriendlyName: '❓ Quiz System'
 - BusinessValue: 'Interactive assessment and knowledge testing'
@@ -85,7 +85,7 @@ Create relation: QuizModule belongsTo LearningPlatform"
 
 **3. Track feature evolution:**
 ```
-Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
+Use #tool:agent/runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Add observation to AuthModule:
 - EnhancedIn: '2025-10'
 - Enhancement: 'Microsoft Entra ID auto-sync'
@@ -98,7 +98,7 @@ Create relation: EntraIDSync belongsTo AuthModule"
 **Before processing changelogs**, invoke Knowledge-Graph-Agent to retrieve existing domain knowledge:
 
 ```
-Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
+Use #tool:agent/runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Retrieve all Module entities with their FriendlyName and BusinessValue observations.
 Also retrieve aliasOf relations for scope-to-friendly-name mappings."
 ```
@@ -123,7 +123,7 @@ Determine which ISO 8601 weeks (Monday start) fall within the current month. **O
 ### Step 3: Search for Raw Changelog Files
 Search in `.docs/changelogs` for files matching pattern `w[weekNumber]_raw.md` (e.g., `w44_raw.md`, `w45_raw.md`).
 
-Use `#tool:search` or `#tool:codebase` tools to find available weekly changelog files.
+Use `#tool:search` or `#tool:search/codebase` tools to find available weekly changelog files.
 
 ### Step 4: Read and Parse Changelogs
 For each found weekly file within the target month's weeks:
@@ -138,7 +138,7 @@ For each found weekly file within the target month's weeks:
 **5b. For NEW scopes not in the graph**, invoke Knowledge-Graph-Agent to persist:
 
 ```
-Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
+Use #tool:agent/runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Create entity: Module named '[NewScopePascalCase]' with observations:
 - TechnicalScope: '[original-scope-name]'
 - FriendlyName: '[emoji] [Human Readable Name]'
