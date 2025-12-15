@@ -1,6 +1,6 @@
 ---
-name: runSubagent-guidelines
-description: 'Best practices for using runSubagent to delegate tasks to subagents'
+name: runSubagent
+description: 'Rules for using runSubagent to delegate tasks to subagents'
 applyTo: '**'
 ---
 
