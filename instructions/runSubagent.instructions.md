@@ -6,6 +6,14 @@ applyTo: '**'
 
 # Tool runSubagent Usage Guidelines
 
+## Mandatory Convention: Trigger Key Phrase
+**CRITICAL**: When delegating to a custom agent via runSubagent, you MUST explicitly include the key phrase **"run as subagent"** (or equivalent trigger phrase) in the prompt. This signals to the delegated custom agent that it is operating in subagent mode and should apply its specialized behavior accordingly.
+
+Example:
+```
+"Please run as subagent and analyze the following API design..."
+```
+
 ## When to Use
 - **Use for**: Complex, multi-step, research-intensive, or autonomous tasks.
 - **Avoid for**: Simple single-step tasks or immediate responses.
@@ -23,13 +31,33 @@ applyTo: '**'
 
 ## Examples
 
-### ✅ Good: Preserving Context
+### ✅ Good: Including Trigger Key Phrase
 ```javascript
 runSubagent(
   agentName: "Generic-Research-Agent",
   description: "Extend API research",
-  // Explicitly includes context so the subagent knows the baseline
-  prompt: "Based on my previous response: [PASTE FULL PREVIOUS RESPONSE]. Now analyze security best practices..."
+  // Explicitly includes the trigger key phrase "run as subagent"
+  prompt: "Please run as subagent. Based on my previous response: [PASTE FULL PREVIOUS RESPONSE]. Now analyze security best practices for REST API authentication..."
+)
+```
+
+### ✅ Good: Preserving Context with Key Phrase
+```javascript
+runSubagent(
+  agentName: "Generic-Research-Agent",
+  description: "Extend API research",
+  // Includes both key phrase and full context
+  prompt: "Run as subagent and extend this analysis: [PASTE FULL PREVIOUS RESPONSE]. Now focus on security considerations..."
+)
+```
+
+### ❌ Bad: Missing Trigger Key Phrase
+```javascript
+runSubagent(
+  agentName: "Generic-Research-Agent",
+  description: "Extend API research",
+  prompt: "Based on my previous response: [PASTE FULL PREVIOUS RESPONSE]. Now analyze security best practices..." 
+  // Fails: Missing "run as subagent" trigger phrase
 )
 ```
 
@@ -38,6 +66,6 @@ runSubagent(
 runSubagent(
   agentName: "Generic-Research-Agent",
   description: "Continue",
-  prompt: "Now implement that." // Fails: Subagent doesn't know what "that" refers to
+  prompt: "Now implement that." // Fails: Missing both trigger phrase and context
 )
 ```
