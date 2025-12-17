@@ -1,5 +1,5 @@
 ---
-name: skill-forced-eval
+name: skill-eval-forced
 description: 'Forces GitHub Copilot to evaluate and activate referenced Claude Skills'
 applyTo: '**'
 ---
@@ -22,9 +22,14 @@ For EACH detected skill, ask:
 
 ### Step 2 - ACTIVATE (If YES to both)
 You MUST activate the skill immediately:
-1. **Read the Skill Definition**: Use `read_file` on the `SKILL.md` file.
+1. Locate the skill: answer this question `Is this user-level skill or project-specific skill?`
+   - **User-level skill**: found in `${env:USERPROFILE}\.claude\skills\` directory.
+   - **Workspace-specific skill**: found in `\.claude\skills\` directory.
+1. **Read the Skill Definition**:
+   - If user-level skill, use `mcp_filesystem_read_text_file` tool to read the `SKILL.md` file.
+   - If workspace-specific skill, use `read_file` tool to read the `SKILL.md` file.
 2. **Execute the Mechanism**:
-   - If the skill requires a script, use `run_in_terminal` or `run_task` to execute it.
+   - If the skill requires a script, use `run_in_terminal` to execute it.
    - If the skill requires a tool, use the appropriate tool.
    - **DO NOT** attempt to simulate the skill's logic if a script is provided. **EXECUTE THE SCRIPT.**
 

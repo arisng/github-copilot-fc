@@ -1,7 +1,6 @@
 ﻿---
 name: claude-skills
 description: Guidelines for coordinating domain specific skills to perform tasks accurately
-#uncomment applyTo auto-apply this file
 #applyTo: '**'
 ---
 
