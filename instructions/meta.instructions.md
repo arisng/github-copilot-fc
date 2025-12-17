@@ -8,13 +8,18 @@ applyTo: '**/*.instructions.md'
 
 Instructions for creating effective and maintainable custom instruction files that guide GitHub Copilot in generating domain-specific code and following project conventions.
 
-## Project Context
+## Architecture Context
 
-- Target audience: Developers and GitHub Copilot working with domain-specific code
-- File format: Markdown with YAML frontmatter
-- File naming convention: lowercase with hyphens (e.g., `react-best-practices.instructions.md`)
-- Location: `.github/instructions/` directory
-- Purpose: Provide context-aware guidance for code generation, review, and documentation
+This file defines **Level 2: Custom Instruction** in the **Agent -> Instruction -> Skill** architecture.
+
+- **Role**: The **Policy Maker**.
+- **Responsibility**: Defines workflow steps, decision logic, and constraints.
+- **Dependency**: Referenced by Agents (`*.agent.md`); References Skills (`skills/*/SKILL.md`).
+- **Target audience**: Developers and GitHub Copilot working with domain-specific code
+- **File format**: Markdown with YAML frontmatter
+- **File naming convention**: lowercase with hyphens (e.g., `react-best-practices.instructions.md`)
+- **Location**: `instructions/` directory
+- **Purpose**: Provide context-aware guidance for code generation, review, and documentation
 
 ## Required Frontmatter
 
@@ -50,16 +55,27 @@ A well-structured instruction file should include the following sections:
 
 Organize content into logical sections based on the domain:
 
-- **General Instructions**: High-level guidelines and principles
-- **Best Practices**: Recommended patterns and approaches
-- **Code Standards**: Naming conventions, formatting, style rules
-- **Architecture/Structure**: Project organization and design patterns
-- **Common Patterns**: Frequently used implementations
-- **Security**: Security considerations (if applicable)
-- **Performance**: Optimization guidelines (if applicable)
-- **Testing**: Testing standards and approaches (if applicable)
+- **Overview**: Brief introduction.
+- **Workflow**: Step-by-step procedures (The "How").
+- **Semantic Links**: References to Skills for execution (The "Mechanism").
+- **Rules & Constraints**: Decision logic and boundaries.
+- **Best Practices**: Recommended patterns and approaches.
+- **Code Standards**: Naming conventions, formatting, style rules.
+- **Common Patterns**: Frequently used implementations.
+- **Security**: Security considerations (if applicable).
+- **Performance**: Optimization guidelines (if applicable).
+- **Testing**: Testing standards and approaches (if applicable).
 
-### 3. Examples and Code Snippets
+### 3. Semantic Linking (Architecture Specific)
+
+Use standard Markdown links to reference Skills and other Instructions. This allows VS Code to load the necessary context.
+
+- **Link to Skill**: `To perform [Task], execute the [Skill Name](skills/<skill-name>/SKILL.md).`
+- **Link to Instruction**: `Follow the [Sub-Process](instructions/<name>.instructions.md).`
+
+> **Note**: The global `skill-forced-eval` instruction will automatically detect these links and enforce their execution. You do not need to add extra enforcement logic in your instruction file; just ensure the link is clear.
+
+### 4. Examples and Code Snippets
 
 Provide concrete examples with clear labels:
 
@@ -77,7 +93,7 @@ code example here
 \`\`\`
 ```
 
-### 4. Validation and Verification (Optional but Recommended)
+### 5. Validation and Verification (Optional but Recommended)
 
 - Build commands to verify code
 - Linting and formatting tools
@@ -200,14 +216,19 @@ description: 'Brief description of purpose'
 applyTo: '**/*.ext'
 ---
 
-# Technology Name Development
+# [Instruction Title]
 
+## Overview
 Brief introduction and context.
 
-## General Instructions
+## Workflow
+1. Step 1: Analyze the input.
+2. Step 2: Execute the [Skill Name](skills/<skill-name>/SKILL.md).
+3. Step 3: Verify the output.
 
-- High-level guideline 1
-- High-level guideline 2
+## Rules & Constraints
+- Rule 1
+- Rule 2
 
 ## Best Practices
 
@@ -220,10 +241,6 @@ Brief introduction and context.
 - Rule 1
 - Rule 2
 
-### File Organization
-- Structure 1
-- Structure 2
-
 ## Common Patterns
 
 ### Pattern 1
@@ -232,9 +249,6 @@ Description and example
 \`\`\`language
 code example
 \`\`\`
-
-### Pattern 2
-Description and example
 
 ## Validation
 
