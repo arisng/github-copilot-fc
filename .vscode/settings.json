@@ -3,5 +3,6 @@
         {
             "file": "skills/git-commiter/SKILL.md"
         }
-    ]
+    ],
+    "chatgpt.openOnStartup": false
 }
