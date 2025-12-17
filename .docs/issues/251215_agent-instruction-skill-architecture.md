@@ -156,12 +156,52 @@ graph TD
     style Script fill:#e0e0e0,stroke:#424242
 ```
 
+## Concrete Implementation Diagram
+
+This diagram illustrates the **Enforcement Hooks** (`agent-forced-eval` and `skill-forced-eval`) that drive the architecture in practice.
+
+```mermaid
+graph TD
+    %% Define 2 Color Themes
+    classDef nonDet fill:#ffecb3,stroke:#ff6f00,stroke-width:2px,color:#000;
+    classDef det fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000;
+
+    subgraph Legend
+        direction LR
+        L1[Non-Deterministic / AI]:::nonDet --- L2[Deterministic / Code]:::det
+    end
+
+    subgraph "Tier 1: Agent Activation"
+        User[User Query]:::nonDet --> GlobalHook1[agent-forced-eval.instructions.md]:::nonDet
+        GlobalHook1 -->|Enforces| AgentSelection{Select Agent}:::nonDet
+    end
+
+    subgraph "Level 1: Orchestration"
+        AgentSelection -->|Activates| Agent[agents/issue-writer.agent.md]:::nonDet
+        Agent -->|References| Instruction[instructions/issue-writing.instructions.md]:::nonDet
+        Agent -.->|Uses| MCP_LLM[LLM MCP / Search]:::nonDet
+    end
+
+    subgraph "Tier 2: Skill Activation"
+        Instruction -->|Contains Link| SkillLink["[Skill](skills/.../SKILL.md)"]:::nonDet
+        SkillLink -.->|Detected by| GlobalHook2[skill-forced-eval.instructions.md]:::nonDet
+        GlobalHook2 -->|Enforces| SkillExec[Execute Skill]:::nonDet
+        Instruction -.->|Uses| MCP_Code[Code MCP / Files]:::det
+    end
+
+    subgraph "Level 3: Deterministic Execution"
+        SkillExec -->|Reads| SkillDef[skills/issue-writer/SKILL.md]:::det
+        SkillDef -->|Runs| Script[scripts/create_issue.py]:::det
+        Script -->|Output| Result[Final Artifact]:::det
+    end
+```
+
 ## Implementation Strategy
 
 Since VS Code Copilot does not have a native `#include` directive, we use **Semantic Linking**.
 
 **Syntax:**
-Use standard Markdown links with directive verbs to "load" context on demand.
+Use standard Markdown links with directive verbs to reference context. VS Code proactively loads all custom instructions files linked in this manner into the system context of a chat request, promoting reuse.
 
 1. **Agent → Instruction**:
     > "Follow the workflow defined in [Issue Writing Instructions](instructions/issue-writing.instructions.md)."
@@ -215,6 +255,8 @@ Use standard Markdown links with directive verbs to "load" context on demand.
 
 ## Future Work & TODOs
 
-- **Testing Strategy** (TODO): Define how to test composed instructions and multi-skill workflows (unit vs integration testing).
+- **Link Validation** (TODO): Create a linter script to validate that all referenced `.instructions.md` and `SKILL.md` files exist (mitigates runtime errors).
+- **Circular Dependency Detection** (TODO): Implement graph analysis in the build/test phase to detect and prevent circular references between instructions.
+- **Testing Strategy** (TODO): Define how to test composed instructions and multi-skill workflows. Explicitly distinguish between **Unit Tests** (100% coverage for deterministic Skills/Scripts) and **Evals/Integration Tests** (for Instructions/Agents).
 - **Migration Path** (TODO): Document step-by-step refactoring of existing monolithic agents into the composed architecture.
 - **Versioning & Breaking Changes** (Deferred): Design a versioning scheme for skills to manage backward compatibility and breaking changes.

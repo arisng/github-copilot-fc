@@ -19,7 +19,7 @@
 This research analyzes Scott Spence's article on Claude Code skills activation and adapts the proven "Forced Eval Hook" approach for a **hierarchical activation system** in GitHub Copilot. While the original work focused on Claude skills, our implementation creates a two-tier architecture:
 
 **Tier 1**: GitHub Copilot Custom Agent Activation (current work)
-**Tier 2**: Claude Skills Activation by Activated Copilot Agents (future work)
+**Tier 2**: Claude Skills Activation by Activated Copilot Custom Agents (future work)
 
 This hierarchical approach ensures that the appropriate Copilot agent is first activated, then that agent can intelligently activate relevant Claude skills for specialized task execution.
 
