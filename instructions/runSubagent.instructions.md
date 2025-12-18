@@ -14,9 +14,13 @@ Example:
 "Please run as subagent and analyze the following API design..."
 ```
 
-## When to Use
-- **Use for**: Complex, multi-step, research-intensive, or autonomous tasks.
-- **Avoid for**: Simple single-step tasks or immediate responses.
+## When to Use (MANDATORY)
+- Only `run as subagent` for agents listed in <agents>...</agents> block.
+
+## When Not to Use (MANDATORY)
+- Simple single-step tasks or immediate responses
+- Do not run subagent for 'git-committer'
+- Do not `run as subagent` for agents not available in <agents>...</agents>
 
 ## Critical: Context Preservation
 **Subagents are stateless.** You MUST explicitly pass all necessary context in the `prompt`.

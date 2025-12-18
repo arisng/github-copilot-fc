@@ -33,7 +33,7 @@ For each subagent marked YES in Step 1, you MUST call the runSubagent tool and M
 
 Example:
 ```
-runSubagent(agentName: "Git-Committer", prompt: "Please run as subagent. Analyze the current git changes and prepare commit messages.")
+runSubagent(agentName: "PM-Changelog", prompt: "Generate monthly changelog for December 2025.")
 ```
 
 If no subagents are marked YES, you may skip this step and proceed directly to Step 3.
