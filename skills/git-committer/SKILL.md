@@ -106,44 +106,76 @@ For each group, generate a commit message following **Conventional Commits** for
 <footer>
 ```
 
-**Generic Types (use only when no project-specific type applies):**
+**Message Format Rules:**
+- **Subject**: Imperative mood, lowercase, no period, ≤50 chars
+- **Body**: Explain *what* and *why*, wrap at 72 chars
+- **Scope**: Module/feature name (required for project-specific types)
 
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation only
-- `style`: Formatting, whitespace (no code change)
-- `refactor`: Code change that neither fixes nor adds
-- `perf`: Performance improvement
-- `test`: Adding/updating tests
-- `chore`: Build, CI, tooling, dependencies
-- `build`: Build system or external dependencies
-- `ci`: CI configuration
+**Available Commit Types:**
 
-**Project-Specific Types (MANDATORY - use these instead of general types):**
+| Type | Scope | Use Case |
+|------|-------|----------|
+| `docs(issue)` | `issue` | Issue documentation (`.docs/issues/*`) |
+| `docs(changelog)` | `changelog` | Changelog files (`.docs/changelogs/*`) |
+| `copilot(instruction)` | `instruction` | `.instructions.md` files |
+| `copilot(skill)` | `skill` | Claude skill implementations (`skills/*`) |
+| `copilot(custom-agent)` | `agent` | Custom agent definitions (`*.agent.md`) |
+| `copilot(prompt)` | `prompt` | Prompt files (`*.prompt.md`) |
+| `copilot(memory)` | `memory` | Memory systems (`memory.json`) |
+| `copilot(mcp)` | `mcp` | MCP config (`.vscode/mcp.json`) |
+| `devtool(script)` | `script` | PowerShell scripts (`scripts/*.ps1`) |
+| `devtool(vscode)` | `vscode` | VS Code config (`.vscode/settings.json`, `.vscode/tasks.json`) |
+| `feat` | custom | New features (if no project-specific type) |
+| `fix` | custom | Bug fixes (if no project-specific type) |
+| `refactor` | custom | Code restructuring |
+| `test` | custom | Test additions/changes |
+| `chore` | custom | Build, tooling, dependencies |
 
-- `docs(issue)`: Changes to issues documentation (e.g., `.docs/issues/` files)
-- `docs(changelog)`: Changes to changelog files (e.g., `.docs/changelogs/` files)
-- `devtool(script)`: Changes to PowerShell or helper scripts (e.g., `scripts/*.ps1`)
-- `copilot(custom-agent)`: Modifications to custom agent definitions (files ending with `.agent.md`)
-- `copilot(prompt)`: Updates to specialized prompts for GitHub Copilot (files ending with `.prompt.md`)
-- `copilot(memory)`: Updates to the knowledge graph or memory systems (e.g., `memory.json`)
-- `copilot(instruction)`: Changes to `.instructions.md` files or `copilot-instructions.md` (repository-level instructions)
-- `copilot(skill)`: Changes to Claude Skill definitions, implementations, and packaging (e.g., files under `skills/` directory)
-- `copilot(mcp)`: Changes to MCP configuration files (e.g., `mcp.json`)
+**CRITICAL:** Use project-specific types (e.g., `copilot(skill)`) instead of generic types (`feat`, `fix`) when a mapping exists.
 
-- Subject: imperative mood, lowercase, no period, max 50 chars
-- Body: explain *what* and *why*, wrap at 72 chars
-- Scope: module/feature name (optional but recommended)
+### Commit Message Quality Standards
 
-### 7. Interactive Review & Commit Loop
+**KEY:** Provide sufficient detail for accurate changelog generation and knowledge graph tracking. Vague messages lead to misleading summaries.
 
-For each planned commit:
+**Quality Requirements:**
+- **Deletions:** List specific items removed (files, features, agents, etc.)
+- **Bulk changes:** Specify each major component affected
+- **Refactors:** Detail what was restructured and why
+- **Additions:** Describe new capabilities or features clearly
 
-1. Present the commit message and list of files to be included
-2. **Wait for user approval** before proceeding
-3. On approval: stage only the files for this commit, execute the commit
-4. On rejection: ask for feedback and regenerate the message
-5. Mark the commit as completed and move to the next
+**Good Example (Specific):**
+```text
+copilot(custom-agent): remove unused agents - conductor, context7, implementation, microsoft-docs
+
+Removes four specialized agents that were redundant.
+Streamlines agent portfolio and reduces maintenance overhead.
+```
+
+**Bad Example (Vague):**
+```text
+refactor: update agent definitions
+```
+
+### 7. Execution & Review
+
+**Interactive Mode (User-Guided):**
+1. Present the complete commit plan with all details.
+2. **Wait for explicit user approval** before proceeding.
+3. Execute commits sequentially:
+   - Stage only files for the current commit
+   - Execute commit
+   - Confirm success
+4. Allow user to edit or reject commits.
+
+**Autonomous Mode (Subagent):**
+1. Analyze changes and generate the complete commit plan.
+2. **Validate internally** against all constraints.
+3. Execute all planned commits automatically without user prompts.
+4. Return a comprehensive summary of all created commits.
+
+**Safety:**
+- Never discard or reset changes without consent.
+- If validation fails, stop and report the issue.
 
 ### 8. Completion
 
@@ -151,7 +183,7 @@ After all commits are done, show a summary of all commits created.
 
 ## Constraints
 
-- **Never commit without explicit user approval**
+- **Never commit without explicit user approval** (unless operating in authorized autonomous mode)
 - **Never discard or reset user's changes**
 - **MANDATORY: Use project-specific commit types - no exceptions**
 - **MANDATORY: Complete pre-commit verification checklist**

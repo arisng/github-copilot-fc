@@ -9,7 +9,7 @@ Evaluate a user query against the workspace's available subagents and return a J
 
 ## Mechanism
 
-Run the evaluator script from the repository root:
+Run the evaluator script (located in scripts folder relative this skill file) with the user query as an argument.:
 
 ```shell
 python scripts/agent_evaluator.py "YOUR_QUERY_HERE"

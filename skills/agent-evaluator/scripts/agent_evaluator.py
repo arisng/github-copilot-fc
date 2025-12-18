@@ -29,14 +29,6 @@ class AgentEvaluator:
                 "priority": "high",
                 "relevance_score": 0
             },
-            "Git-Committer": {
-                "description": "Analyzes all changes (staged and unstaged), groups them into logical commits, and guides you through committing with conventional messages",
-                "keywords": ["commit", "git", "version control", "changes", "staging", "push", "merge", "atomic commit", "atomic commits", "atomic commits plan"],
-                "file_patterns": [],  # Activates based on git status, not file patterns
-                "intent_patterns": [r"\b(commit|push|merge|stage)\b.*\b(changes?|files?)\b", r"\b(git|version control)\b.*\b(workflow|process)\b"],
-                "priority": "critical",
-                "relevance_score": 0
-            },
             "Instruction-Writer": {
                 "description": "Creates path-specific GitHub Copilot `*.instructions.md` files that follow the official frontmatter (`applyTo`) format, include examples, and validate common glob targets",
                 "keywords": ["instruction", "guideline", "rule", "coding standard", "best practice", "copilot", "instruction file", "revise custom instruction", "create custom instruction"],
