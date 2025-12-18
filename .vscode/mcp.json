@@ -1,5 +1,15 @@
 {
     "servers": {
+        "filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "${env:USERPROFILE}/.claude/skills",
+                "${env:APPDATA}/Code/User/prompts",
+                "${input:workspaceFolder}"
+            ]
+        },
         "memory": {
             "command": "npx",
             "args": [
@@ -11,5 +21,13 @@
             },
             "type": "stdio"
         }
-    }
+    },
+    "inputs": [
+        {
+            "type": "promptString",
+            "id": "workspaceFolder",
+            "description": "Current Workspace Folder",
+            "password": false
+        }
+    ]
 }
