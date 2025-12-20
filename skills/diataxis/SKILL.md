@@ -1,5 +1,5 @@
 ---
-name: diataxis-documentation
+name: diataxis
 description: Create and evaluate documentation using the Diátaxis framework. Use when writing, organizing, or auditing documentation to ensure it serves distinct user needs through four systematic categories (Tutorials, How-to Guides, Reference, Explanation). Ideal for diagnosing documentation problems, separating mixed content, and ensuring each piece serves a single, clear purpose.
 ---
 
