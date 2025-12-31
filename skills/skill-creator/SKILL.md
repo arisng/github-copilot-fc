@@ -258,22 +258,10 @@ At this point, it is time to actually create the skill.
 
 Skip this step only if the skill being developed already exists, and iteration or packaging is needed. In this case, continue to the next step.
 
-When creating a new skill from scratch, always run the `init_skill.py` script. The script conveniently generates a new template skill directory that automatically includes everything a skill requires, making the skill creation process much more efficient and reliable.
-
-Usage:
-
-```bash
-scripts/init_skill.py <skill-name> --path <output-directory>
-```
-
-The script:
-
-- Creates the skill directory at the specified path
-- Generates a SKILL.md template with proper frontmatter and TODO placeholders
-- Creates example resource directories: `scripts/`, `references/`, and `assets/`
-- Adds example files in each directory that can be customized or deleted
-
-After initialization, customize or remove the generated SKILL.md and example files as needed.
+When creating a new skill from scratch in this workspace:
+1. Create a new directory in `skills/` named with lowercase letters and hyphens.
+2. Create a `SKILL.md` file inside that directory.
+3. Add the required YAML frontmatter (name and description).
 
 ### Step 4: Edit the Skill
 
@@ -316,32 +304,13 @@ Do not include any other fields in YAML frontmatter.
 
 Write instructions for using the skill and its bundled resources.
 
-### Step 5: Packaging a Skill
+### Step 5: Publishing a Skill
 
-Once development of the skill is complete, it must be packaged into a distributable .skill file that gets shared with the user. The packaging process automatically validates the skill first to ensure it meets all requirements:
+Once development of the skill is complete, it can be published to your local environment using the workspace scripts:
 
-```bash
-scripts/package_skill.py <path/to/skill-folder>
+```powershell
+powershell -File scripts/publish-skills.ps1 -Method Copy -Skills "skill-name"
 ```
-
-Optional output directory specification:
-
-```bash
-scripts/package_skill.py <path/to/skill-folder> ./dist
-```
-
-The packaging script will:
-
-1. **Validate** the skill automatically, checking:
-
-   - YAML frontmatter format and required fields
-   - Skill naming conventions and directory structure
-   - Description completeness and quality
-   - File organization and resource references
-
-2. **Package** the skill if validation passes, creating a .skill file named after the skill (e.g., `my-skill.skill`) that includes all files and maintains the proper directory structure for distribution. The .skill file is a zip file with a .skill extension.
-
-If validation fails, the script will report the errors and exit without creating a package. Fix any validation errors and run the packaging command again.
 
 ### Step 6: Iterate
 
