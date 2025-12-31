@@ -25,7 +25,7 @@ Arguments:
 
 Example Task:
 "Calculate net salary for 50 million VND with 1 baby."
--> Command: run_skill_script(skill_name="vn_payroll", script_name="calc_pit.py", arguments="--gross 50000000 --dependents 1")
+-> Command: run_skill_script(skill_name="vn-payroll", script_name="calc_pit.py", arguments="--gross 50000000 --dependents 1")
 
 Output Format:
 The script outputs a formatted text block. Present this directly to the user.
