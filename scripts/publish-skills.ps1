@@ -34,7 +34,7 @@ function Publish-SkillsToPersonal {
         Copies all skills from project to personal folder.
 
     .EXAMPLE
-        Publish-SkillsToPersonal -Method Link -Skills "git-committer", "issue-writer"
+        Publish-SkillsToPersonal -Method Link -Skills "git-atomic-commit", "issue-writer"
 
         Creates symbolic links for specific skills.
     #>

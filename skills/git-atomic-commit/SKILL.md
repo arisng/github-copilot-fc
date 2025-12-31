@@ -1,9 +1,9 @@
 ---
-name: git-committer
+name: git-atomic-commit
 description: Skill for analyzing git changes, grouping them into logical atomic commits, generating conventional commit messages, and guiding through the commit process. Use when committing changes with proper conventional commit format and maintaining atomic commits.
 ---
 
-# Git Committer
+# Git Atomic Commit
 
 ## Overview
 
@@ -22,11 +22,13 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 | `.docs/issues/*`        | `docs(issue)`           | Issue documentation and tracking             |
 | `.docs/changelogs/*`    | `docs(changelog)`       | Changelog files                              |
 | `instructions/*.md`     | `copilot(instruction)`  | Repository-level Copilot instructions        |
-| `skills/*`              | `copilot(skill)`        | Claude skill definitions and implementations |
+| `skills/*`              | `ai(skill)`             | Claude skill definitions and implementations |
 | `scripts/*.ps1`         | `devtool(script)`       | PowerShell helper scripts                    |
 | `*.agent.md`            | `copilot(custom-agent)` | Custom agent definitions                     |
+| `**/AGENTS.md`          | `ai(instruction)`       | Standard AI agent custom instructions        |
 | `*.prompt.md`           | `copilot(prompt)`       | Copilot prompt files                         |
 | `memory.json`           | `copilot(memory)`       | Knowledge graph memory systems               |
+| `.codex/*`              | `codex`                 | Codex-specific configuration and instructions|
 | `.vscode/mcp.json`      | `copilot(mcp)`          | MCP server configuration for Copilot         |
 | `.vscode/settings.json` | `devtool(vscode)`       | VS Code workspace settings                   |
 | `.vscode/tasks.json`    | `devtool(vscode)`       | VS Code workspace task configurations        |
@@ -39,9 +41,12 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 **Common Mistakes to Avoid:**
 
 - ❌ `feat(instructions)` → ✅ `copilot(instruction)`
-- ❌ `feat(skill)` → ✅ `copilot(skill)`  
+- ❌ `feat(skill)` → ✅ `ai(skill)`  
 - ❌ `chore(issue)` → ✅ `docs(issue)`
 - ❌ `docs` (no scope) → ✅ `docs(issue)` or `docs(changelog)`
+- ❌ `feat(codex)` → ✅ `codex`
+- ❌ `copilot(agent-config)` → ✅ `ai(instruction)`
+- ❌ `docs(agents)` → ✅ `ai(instruction)`
 - ❌ Mixing `copilot(mcp)` + `devtool(vscode)` in one commit → ✅ Separate commits
 - ❌ Grouping files with different types → ✅ One type per commit
 
@@ -113,25 +118,27 @@ For each group, generate a commit message following **Conventional Commits** for
 
 **Available Commit Types:**
 
-| Type | Scope | Use Case |
-|------|-------|----------|
-| `docs(issue)` | `issue` | Issue documentation (`.docs/issues/*`) |
-| `docs(changelog)` | `changelog` | Changelog files (`.docs/changelogs/*`) |
-| `copilot(instruction)` | `instruction` | `.instructions.md` files |
-| `copilot(skill)` | `skill` | Claude skill implementations (`skills/*`) |
-| `copilot(custom-agent)` | `agent` | Custom agent definitions (`*.agent.md`) |
-| `copilot(prompt)` | `prompt` | Prompt files (`*.prompt.md`) |
-| `copilot(memory)` | `memory` | Memory systems (`memory.json`) |
-| `copilot(mcp)` | `mcp` | MCP config (`.vscode/mcp.json`) |
-| `devtool(script)` | `script` | PowerShell scripts (`scripts/*.ps1`) |
-| `devtool(vscode)` | `vscode` | VS Code config (`.vscode/settings.json`, `.vscode/tasks.json`) |
-| `feat` | custom | New features (if no project-specific type) |
-| `fix` | custom | Bug fixes (if no project-specific type) |
-| `refactor` | custom | Code restructuring |
-| `test` | custom | Test additions/changes |
-| `chore` | custom | Build, tooling, dependencies |
+| Type                    | Scope         | Use Case                                                       |
+| ----------------------- | ------------- | -------------------------------------------------------------- |
+| `docs(issue)`           | `issue`       | Issue documentation (`.docs/issues/*`)                         |
+| `docs(changelog)`       | `changelog`   | Changelog files (`.docs/changelogs/*`)                         |
+| `copilot(instruction)`  | `instruction` | `.instructions.md` files                                       |
+| `ai(skill)`             | `skill`       | Claude skill implementations (`skills/*`)                      |
+| `copilot(custom-agent)` | `agent`       | Custom agent definitions (`*.agent.md`)                        |
+| `ai(instruction)`       | `instruction` | Standard AI agent custom instructions (`AGENTS.md`)            |
+| `copilot(prompt)`       | `prompt`      | Prompt files (`*.prompt.md`)                                   |
+| `copilot(memory)`       | `memory`      | Memory systems (`memory.json`)                                 |
+| `copilot(mcp)`          | `mcp`         | MCP config (`.vscode/mcp.json`)                                |
+| `codex`                 | custom        | Codex-specific configuration and instructions (`.codex/*`)     |
+| `devtool(script)`       | `script`      | PowerShell or bash or python scripts (`*.ps1`, `*.sh`, `*.py`) |
+| `devtool(vscode)`       | `vscode`      | VS Code config (`.vscode/settings.json`, `.vscode/tasks.json`) |
+| `feat`                  | custom        | New features (if no project-specific type)                     |
+| `fix`                   | custom        | Bug fixes (if no project-specific type)                        |
+| `refactor`              | custom        | Code restructuring                                             |
+| `test`                  | custom        | Test additions/changes                                         |
+| `chore`                 | custom        | Build, tooling, dependencies                                   |
 
-**CRITICAL:** Use project-specific types (e.g., `copilot(skill)`) instead of generic types (`feat`, `fix`) when a mapping exists.
+**CRITICAL:** Use project-specific types (e.g., `ai(skill)`) instead of generic types (`feat`, `fix`) when a mapping exists.
 
 ### Commit Message Quality Standards
 
@@ -222,7 +229,7 @@ git commit -m "<subject>" -m "<body>"
 ```text
 📦 Commit Plan (3 commits)
 
-1. copilot(skill): add vscode-docs skill for researching VS Code docs
+1. ai(skill): add vscode-docs skill for researching VS Code docs
    Files: skills/vscode-docs/SKILL.md, skills/vscode-docs/assets/toc.md
 
 2. copilot(instruction): update orchestration guidelines for domain-specific skills

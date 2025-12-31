@@ -135,7 +135,7 @@ All GitHub Copilot customizations are managed through automated publishing scrip
 .\scripts\publish-skills.ps1 -Method Copy
 
 # Link method (for development)
-.\scripts\publish-skills.ps1 -Method Link -Skills "git-committer", "issue-writer"
+.\scripts\publish-skills.ps1 -Method Link -Skills "git-atomic-commit", "issue-writer"
 
 # Check for updates
 .\scripts\update-personal-skills.ps1 -CheckOnly
