@@ -264,7 +264,7 @@ Phase 3+ (Features)   | <50% tasks at ≥60% | 🔴 BLOCK
 # Validate-TaskGrounding.ps1
 param(
     [string]$FeaturePath,
-    [string]$OutputPath = "TASK_GROUNDING_ANALYSIS.md"
+    [string]$OutputPath = "tasks.grounding.md"
 )
 
 # Load artifacts
@@ -325,7 +325,7 @@ jobs:
       with:
         script: |
           const fs = require('fs');
-          const report = fs.readFileSync('TASK_GROUNDING_ANALYSIS.md', 'utf8');
+          const report = fs.readFileSync('tasks.grounding.md', 'utf8');
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
@@ -554,7 +554,7 @@ rules:
 
 **Time**: 2-3 min per task (parallelizable)
 
-**Output**: TASK_GROUNDING_ANALYSIS.md report with Executive Summary, Task Grounding Matrix, Observations, Action Plan, and Decision Gate
+**Output**: tasks.grounding.md report with Executive Summary, Task Grounding Matrix, Observations, Action Plan, and Decision Gate
 
 **Decision**: ✅ Approve / ⚠️ Clarify / 🔴 Block based on phase thresholds and gap analysis
 

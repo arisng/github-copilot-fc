@@ -19,7 +19,7 @@
     Array of individual assessment files (JSON format from individual validations)
 
 .PARAMETER OutputPath
-    Path for the final aggregated report (default: TASK_GROUNDING_ANALYSIS.md)
+    Path for the final aggregated report (default: tasks.grounding.md)
 
 .PARAMETER Validator
     Name of the person performing final aggregation
@@ -40,7 +40,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string[]]$AssessmentFiles,
 
-    [string]$OutputPath = "TASK_GROUNDING_ANALYSIS.md",
+    [string]$OutputPath = "tasks.grounding.md",
 
     [string]$Validator = "Aggregated Review"
 )

@@ -36,7 +36,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$FeaturePath,
 
-    [string]$OutputPath = "TASK_GROUNDING_ANALYSIS.md",
+    [string]$OutputPath = "tasks.grounding.md",
 
     [string]$TaskFilter,  # Optional: "T001,T002,T003" to process only specific tasks
 
@@ -46,6 +46,7 @@ param(
 # Configuration
 $artifactNames = @('spec.md','plan.md','research.md','data-model.md','quickstart.md')
 $contractsDir = 'contracts'
+$taskPattern = '### Task T(\d+): (.+?)\n(.+?)(?=\n###|\n---|\n##|\Z)'
 
 function Get-Artifacts {
     param([string]$Path)
@@ -127,7 +128,7 @@ function Search-Evidence {
     elseif ($evidenceCount -eq 0) { $totalScore = 20 }
 
     # Assess risk
-    $risk = switch {
+    $risk = switch ($true) {
         ($totalScore -ge 90) { "Low" }
         ($totalScore -ge 70) { "Medium" }
         default { "High" }
@@ -186,7 +187,7 @@ function New-ValidationReport {
 "@
 
     foreach ($task in $tasks) {
-        $status = switch {
+        $status = switch ($true) {
             ($task.GroundingLevel -ge 80) { "🟢 **Documented**<br/>(Fully Grounded)" }
             ($task.GroundingLevel -ge 50) { "🟡 **Inferred**<br/>(Partially Grounded)" }
             default { "🔴 **Missing**<br/>(Ungrounded)" }
@@ -204,7 +205,7 @@ function New-ValidationReport {
             "None"
         }
 
-        $nextStep = switch {
+        $nextStep = switch ($true) {
             ($task.GroundingLevel -ge 80) { "Ready to implement" }
             ($task.GroundingLevel -ge 50) { "**BLOCKED**: Needs clarification" }
             default { "**BLOCKED**: Requires specification" }
@@ -298,6 +299,12 @@ try {
     $featureName = Split-Path $FeaturePath -Leaf
 
     if ($JsonOutput) {
+        # Ensure validation directory exists
+        $outputDir = Split-Path $OutputPath -Parent
+        if (!(Test-Path $outputDir)) {
+            New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+        }
+
         # Output JSON format for aggregation
         $jsonOutput = @{
             FeatureName = $featureName

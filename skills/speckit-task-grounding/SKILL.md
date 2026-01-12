@@ -55,6 +55,49 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 - **🟡 Medium**: 70-89% grounding, resolvable gaps
 - **🔴 High**: <70% grounding, critical gaps
 
+## 📚 Grounding Status Glossary
+
+### Task Grounding Status Values
+| Status                                  | Meaning | Description                                     | Action                         |
+| --------------------------------------- | ------- | ----------------------------------------------- | ------------------------------ |
+| 🟢 **Documented**<br/>(Fully Grounded)   | 80-100% | Clear specification with implementation details | ✅ Ready to implement           |
+| 🟡 **Inferred**<br/>(Partially Grounded) | 50-79%  | Evidence exists but requires clarification      | ⚠️ Verify before implementation |
+| 🔴 **Missing**<br/>(Ungrounded)          | <50%    | No evidence found in artifacts                  | 🔴 Block until specified        |
+
+### Phase-Level Grounding Status Values
+| Status                   | Meaning                     | Description                                  |
+| ------------------------ | --------------------------- | -------------------------------------------- |
+| 🟢 **Fully Documented**   | ≥80% tasks fully grounded   | All critical tasks have clear specifications |
+| 🟢 **Mostly Documented**  | 70-79% tasks fully grounded | Most tasks grounded, minor gaps              |
+| 🟡 **Partially Inferred** | 50-69% tasks fully grounded | Significant gaps requiring clarification     |
+| 🟡 **Mostly Inferred**    | 30-49% tasks fully grounded | Major gaps, high risk                        |
+| 🔴 **Poorly Grounded**    | <30% tasks fully grounded   | Critical gaps, block implementation          |
+
+### Risk Level Values
+| Level        | Meaning                           | Description                            |
+| ------------ | --------------------------------- | -------------------------------------- |
+| 🟢 **Low**    | ≥90% grounding, no gaps           | Straightforward implementation         |
+| 🟡 **Medium** | 70-89% grounding, resolvable gaps | Needs verification but implementable   |
+| 🔴 **High**   | <70% grounding, critical gaps     | High risk, may require planning rework |
+
+### Overall Assessment Values
+| Assessment                | Meaning                                 | Description                    |
+| ------------------------- | --------------------------------------- | ------------------------------ |
+| ✅ **APPROVE**             | Meets phase thresholds                  | Proceed with implementation    |
+| ⚠️ **NEEDS CLARIFICATION** | Resolvable gaps identified              | Address gaps before proceeding |
+| 🔴 **BLOCK**               | Critical gaps or insufficient grounding | Return to planning phase       |
+
+### Grounding Score Scale (0-100%)
+| Score    | Qualitative Term | Evidence Required                    |
+| -------- | ---------------- | ------------------------------------ |
+| **100%** | Explicit         | Direct quote with exact location     |
+| **90%**  | Detailed         | Code example or schema provided      |
+| **80%**  | Referenced       | Clear spec with implementation notes |
+| **70%**  | Pattern          | Documented pattern to follow         |
+| **60%**  | Inferred         | Multiple weak references             |
+| **50%**  | Assumed          | Single weak reference                |
+| **<50%** | Missing          | No evidence found                    |
+
 ## Key Features
 
 - **Parallel Processing**: Independent task validation enables team distribution
@@ -82,16 +125,22 @@ For each task in tasks.md:
 ### Step 2: Individual Validation
 ```powershell
 # Reviewer A validates their assigned tasks
-.\scripts\Validate-TaskGrounding.ps1 -FeaturePath "specs/my-feature" -TaskFilter "T001,T002,T003" -JsonOutput -OutputPath "reviewerA-assessment.json"
+.\scripts\Validate-TaskGrounding.ps1 -FeaturePath "specs/my-feature" -TaskFilter "T001,T002,T003" -JsonOutput -OutputPath "specs/my-feature/assessments/reviewerA-assessment.json"
 
 # Reviewer B validates their assigned tasks
-.\scripts\Validate-TaskGrounding.ps1 -FeaturePath "specs/my-feature" -TaskFilter "T004,T005" -JsonOutput -OutputPath "reviewerB-assessment.json"
+.\scripts\Validate-TaskGrounding.ps1 -FeaturePath "specs/my-feature" -TaskFilter "T004,T005" -JsonOutput -OutputPath "specs/my-feature/assessments/reviewerB-assessment.json"
 ```
 
 ### Step 3: Aggregate Results
 ```powershell
 # Combine all individual assessments into final report
-.\scripts\Aggregate-TaskGrounding.ps1 -FeatureName "my-feature" -AssessmentFiles @("reviewerA-assessment.json", "reviewerB-assessment.json", "reviewerC-assessment.json")
+.\scripts\Aggregate-TaskGrounding.ps1 -FeatureName "my-feature" -AssessmentFiles @("specs/my-feature/assessments/reviewerA-assessment.json", "specs/my-feature/assessments/reviewerB-assessment.json", "specs/my-feature/assessments/reviewerC-assessment.json") -OutputPath "specs/my-feature/tasks.grounding.md"
+```
+
+**Post-Aggregation Cleanup:**
+```powershell
+# Optional: Remove intermediate assessment files after successful aggregation
+Remove-Item "specs/my-feature/assessments/*.json"
 ```
 
 **Benefits:**
@@ -100,11 +149,32 @@ For each task in tasks.md:
 - **Efficient Aggregation**: Automated combination maintains consistency
 - **Scalable**: Works with 2 reviewers or 10 reviewers equally well
 
+## Resulting File Structure
+
+After complete validation, your specification folder will contain:
+
+```
+specs/[branch-name]/
+├── spec.md                    # Original artifacts
+├── plan.md
+├── research.md
+├── data-model.md
+├── contracts/
+├── quickstart.md
+├── tasks.md
+├── assessments/                # Intermediate files (can be removed after aggregation)
+│   ├── reviewerA-assessment.json
+│   ├── reviewerB-assessment.json
+│   └── reviewerC-assessment.json
+└── tasks.grounding.md         # Final validation report (VS Code nested under tasks.md)
+```
+
 ## References
 
 - [Complete Framework](references/framework.md) - Full validation methodology and templates
 - [Scoring Examples](references/examples.md) - Real-world validation cases
-- [Report Template](references/report-template.md) - Complete documentation template
+- [Report Template](references/report-template.md) - Reusable template for validation reports
+- [Report Example](references/report-example.md) - Complete filled-out validation report
 - [Automation Scripts](scripts/) - PowerShell validation and aggregation scripts
 
 ## Prerequisites
@@ -116,6 +186,7 @@ For each task in tasks.md:
 - `contracts/` - Directory containing API contracts and interface specifications
 - `quickstart.md` - Key validation scenarios and quickstart guide
 - `tasks.md` - Executable task list derived from plan (input for validation)
+- `assessments/` - Directory for intermediate assessment files (created automatically)
 
 ## Common Use Cases
 
@@ -128,13 +199,18 @@ For each task in tasks.md:
 
 ## Output
 
-Generates `TASK_GROUNDING_ANALYSIS.md` with:
-- Executive Summary table
+**File Locations (relative to specification root):**
+
+- `assessments/reviewer*-assessment.json` - Individual reviewer assessments (intermediate files)
+- `tasks.grounding.md` - Final comprehensive validation report
+
+**Report Contents:**
+- Executive Summary table with phase status
 - Task Grounding Matrix with status indicators
 - Gap analysis with impact and resolution steps
 - Action plan with phase-specific execution steps
 - Risk assessment and mitigation strategies
-- Decision gate recommendation
+- Decision gate recommendation (Approve/Clarify/Block)
 
 ## Decision Rules
 
