@@ -58,11 +58,11 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 ## 📚 Grounding Status Glossary
 
 ### Task Grounding Status Values
-| Status                                  | Meaning | Description                                     | Action                         |
-| --------------------------------------- | ------- | ----------------------------------------------- | ------------------------------ |
-| 🟢 **Documented**<br/>(Fully Grounded)   | 80-100% | Clear specification with implementation details | ✅ Ready to implement           |
-| 🟡 **Inferred**<br/>(Partially Grounded) | 50-79%  | Evidence exists but requires clarification      | ⚠️ Verify before implementation |
-| 🔴 **Missing**<br/>(Ungrounded)          | <50%    | No evidence found in artifacts                  | 🔴 Block until specified        |
+| Status                                  | Meaning | Description                                                                                                                                    | Action                         |
+| --------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| 🟢 **Documented**<br/>(Fully Grounded)   | 80-100% | Clear specification with implementation details from planning phase artifacts (plan.md, research.md, data-model.md, contracts/, quickstart.md) | ✅ Ready to implement           |
+| 🟡 **Inferred**<br/>(Partially Grounded) | 50-79%  | Evidence exists but requires clarification                                                                                                     | ⚠️ Verify before implementation |
+| 🔴 **Missing**<br/>(Ungrounded)          | <50%    | No evidence found in artifacts                                                                                                                 | 🔴 Block until specified        |
 
 ### Phase-Level Grounding Status Values
 | Status                   | Meaning                     | Description                                  |
@@ -88,15 +88,17 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 | 🔴 **BLOCK**               | Critical gaps or insufficient grounding | Return to planning phase       |
 
 ### Grounding Score Scale (0-100%)
-| Score    | Qualitative Term | Evidence Required                    |
-| -------- | ---------------- | ------------------------------------ |
-| **100%** | Explicit         | Direct quote with exact location     |
-| **90%**  | Detailed         | Code example or schema provided      |
-| **80%**  | Referenced       | Clear spec with implementation notes |
-| **70%**  | Pattern          | Documented pattern to follow         |
-| **60%**  | Inferred         | Multiple weak references             |
-| **50%**  | Assumed          | Single weak reference                |
-| **<50%** | Missing          | No evidence found                    |
+| Score    | Qualitative Term | Evidence Required                                                                                                           |
+| -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **100%** | Explicit         | Direct quote with exact location from planning phase artifacts                                                              |
+| **90%**  | Detailed         | Code example or schema provided from planning phase artifacts                                                               |
+| **80%**  | Referenced       | Clear implementation details from planning phase artifacts (plan.md, research.md, data-model.md, contracts/, quickstart.md) |
+| **70%**  | Pattern          | Documented pattern to follow from any artifact                                                                              |
+| **60%**  | Inferred         | Multiple weak references from any artifacts                                                                                 |
+| **50%**  | Assumed          | Single weak reference from any artifact                                                                                     |
+| **<50%** | Missing          | No evidence found in any artifacts (spec.md alone does not qualify for ≥80% scores)                                         |
+
+**Important**: Tasks must be grounded in planning phase artifacts to achieve "Documented" (≥80%) status. Evidence from spec.md alone caps scoring at 70% maximum, as spec.md represents requirements specification rather than implementation planning.
 
 ## Key Features
 
@@ -110,7 +112,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 
 For each task in tasks.md:
 1. **Extract** task details and requirements
-2. **Search** artifacts in order: spec.md → plan.md → research.md → data-model.md → contracts/ → quickstart.md
+2. **Exhaustively search ALL artifacts** in order: spec.md → plan.md → research.md → data-model.md → contracts/ → quickstart.md (do not stop at first evidence found - scan all artifacts for complete grounding assessment)
 3. **Score** grounding level based on evidence strength
 4. **Assess** risk and document gaps
 5. **Aggregate** results for feature-level decision

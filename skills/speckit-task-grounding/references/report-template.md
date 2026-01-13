@@ -6,10 +6,10 @@
 
 ## Executive Summary
 
-| Phase                 | Grounding Status     | Tasks     | Coverage                 | Next Action                 |
-| --------------------- | -------------------- | --------- | ------------------------ | --------------------------- |
-| Phase 1: {{PHASE_1_NAME}} | {{PHASE_1_STATUS}}  | {{PHASE_1_TASKS}} | {{PHASE_1_COVERAGE}} | {{PHASE_1_NEXT_ACTION}} |
-| Phase 2: {{PHASE_2_NAME}} | {{PHASE_2_STATUS}}  | {{PHASE_2_TASKS}} | {{PHASE_2_COVERAGE}} | {{PHASE_2_NEXT_ACTION}} |
+| Phase                     | Grounding Status   | Tasks             | Coverage             | Next Action             |
+| ------------------------- | ------------------ | ----------------- | -------------------- | ----------------------- |
+| Phase 1: {{PHASE_1_NAME}} | {{PHASE_1_STATUS}} | {{PHASE_1_TASKS}} | {{PHASE_1_COVERAGE}} | {{PHASE_1_NEXT_ACTION}} |
+| Phase 2: {{PHASE_2_NAME}} | {{PHASE_2_STATUS}} | {{PHASE_2_TASKS}} | {{PHASE_2_COVERAGE}} | {{PHASE_2_NEXT_ACTION}} |
 
 **Overall Assessment**: {{OVERALL_ASSESSMENT}}  
 **Rationale**:
@@ -19,8 +19,8 @@
 
 ## Task Grounding Matrix
 
-| Task                                                                                                    | Grounding Status                        | Primary Evidence                                                                                                                                                                                                           | Gaps                                            | Next Step                                             |
-| ------------------------------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
+| Task | Grounding Status | Evidence (Artifact: Summary) | Gaps | Next Step |
+| ---- | ---------------- | ---------------------------- | ---- | --------- |
 {{TASK_ROWS}}
 
 ## Observations
@@ -39,6 +39,6 @@
 1. {{PHASE_2_ACTIONS}}
 
 ### Risks
-| Task | Level    | Mitigation                       |
-| ---- | -------- | -------------------------------- |
+| Task | Level | Mitigation |
+| ---- | ----- | ---------- |
 {{RISK_ROWS}}
