@@ -4,13 +4,13 @@ description: 'Guidelines for creating Custom Agents, Instructions, and Skills us
 applyTo: '**/*.agent.md, **/*.instructions.md, skills/**/SKILL.md'
 ---
 
-# Custom Agent Architecture Guidelines
+# Clean Architecture Guidelines for Custom Agent of Copilot in VS Code
 
-Instructions for designing and building high-quality Custom Agents using the **Agent -> Instruction -> Skill** architectural pattern.
+Instructions for designing and building high-quality Custom Agents using the **Agent -> Instruction -> Skill** clean architecture pattern.
 
 ## Architecture Overview
 
-We follow a **Composed Architecture** pattern that strictly separates concerns into three hierarchical levels:
+We follow a **Clean Architecture** pattern that strictly separates concerns into three hierarchical levels:
 
 ### Level 1: Custom Agent (`*.agent.md`)
 - **Role**: The **Orchestrator** & **Interface**.
