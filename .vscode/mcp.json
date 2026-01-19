@@ -1,15 +1,15 @@
 {
     "servers": {
-        "filesystem": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-filesystem",
-                "${env:USERPROFILE}/.claude/skills",
-                "${env:APPDATA}/Code/User/prompts",
-                "${input:workspaceFolder}"
-            ]
-        },
+        // "filesystem": {
+        //     "command": "npx",
+        //     "args": [
+        //         "-y",
+        //         "@modelcontextprotocol/server-filesystem",
+        //         "${env:USERPROFILE}/.claude/skills",
+        //         "${env:APPDATA}/Code/User/prompts",
+        //         "${workspaceFolder}"
+        //     ]
+        // },
         "memory": {
             "command": "npx",
             "args": [
@@ -20,14 +20,15 @@
                 "MEMORY_FILE_PATH": "${workspaceFolder}/.github/memory.json"
             },
             "type": "stdio"
-        }
-    },
-    "inputs": [
-        {
-            "type": "promptString",
-            "id": "workspaceFolder",
-            "description": "Current Workspace Folder",
-            "password": false
-        }
-    ]
+        },
+        "google-calendar": {
+			"command": "npx",
+			"args": [
+				"@cocal/google-calendar-mcp"
+			],
+			"env": {
+				"GOOGLE_OAUTH_CREDENTIALS": "${env:USERPROFILE}\\.config\\google-calendar-mcp\\gcp-oauth.keys.json"
+			}
+		}
+    }
 }
