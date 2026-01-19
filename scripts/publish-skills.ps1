@@ -13,11 +13,11 @@ param(
 function Publish-SkillsToPersonal {
     <#
     .SYNOPSIS
-        Publishes skills from the project factory to personal skills folder.
+        Publishes skills from the project factory to personal skills folders.
 
     .DESCRIPTION
         Copies or links skills from the project's skills/ folder to the user's personal
-        ~/.claude/skills/ folder for reuse across all projects.
+        skills folders (.claude, .codex, .copilot) for reuse across all projects.
 
     .PARAMETER Method
         The publishing method: 'Copy', 'Link', or 'Sync'
@@ -31,28 +31,34 @@ function Publish-SkillsToPersonal {
     .EXAMPLE
         Publish-SkillsToPersonal -Method Copy
 
-        Copies all skills from project to personal folder.
+        Copies all skills from project to personal folders.
 
     .EXAMPLE
         Publish-SkillsToPersonal -Method Link -Skills "git-atomic-commit", "issue-writer"
 
-        Creates symbolic links for specific skills.
+        Creates symbolic links for specific skills in all personal folders.
     #>
 
     Write-Host "Script started with Method: $Method" -ForegroundColor Cyan
 
     $projectSkillsPath = Join-Path $PSScriptRoot "..\skills"
-    $personalSkillsPath = Join-Path $env:USERPROFILE ".claude\skills"
+    $personalSkillsPaths = @(
+        (Join-Path $env:USERPROFILE ".claude\skills"),
+        (Join-Path $env:USERPROFILE ".codex\skills"),
+        (Join-Path $env:USERPROFILE ".copilot\skills")
+    )
 
     # Ensure project skills directory exists
     if (-not (Test-Path $projectSkillsPath)) {
         throw "Project skills directory not found: $projectSkillsPath"
     }
 
-    # Create personal skills directory if it doesn't exist
-    if (-not (Test-Path $personalSkillsPath)) {
-        New-Item -ItemType Directory -Path $personalSkillsPath -Force | Out-Null
-        Write-Host "Created personal skills directory: $personalSkillsPath" -ForegroundColor Green
+    # Create personal skills directories if they don't exist
+    foreach ($path in $personalSkillsPaths) {
+        if (-not (Test-Path $path)) {
+            New-Item -ItemType Directory -Path $path -Force | Out-Null
+            Write-Host "Created personal skills directory: $path" -ForegroundColor Green
+        }
     }
 
     # Get skills to publish
@@ -70,54 +76,58 @@ function Publish-SkillsToPersonal {
 
     foreach ($skillDir in $skillDirs) {
         $sourcePath = $skillDir.FullName
-        $destinationPath = Join-Path $personalSkillsPath $skillDir.Name
 
-        # Check if skill already exists
-        $exists = Test-Path $destinationPath
+        foreach ($path in $personalSkillsPaths) {
+            $destinationPath = Join-Path $path $skillDir.Name
+            $folder = Split-Path (Split-Path $path -Parent) -Leaf
 
-        if ($exists -and -not $Force) {
-            $overwrite = Read-Host "Skill '$($skillDir.Name)' already exists. Overwrite? (y/N)"
-            if ($overwrite -notmatch "^[Yy]") {
-                Write-Host "Skipping $($skillDir.Name)" -ForegroundColor Yellow
-                continue
+            # Check if skill already exists
+            $exists = Test-Path $destinationPath
+
+            if ($exists -and -not $Force) {
+                $overwrite = Read-Host "Skill '$($skillDir.Name)' already exists in $folder. Overwrite? (y/N)"
+                if ($overwrite -notmatch "^[Yy]") {
+                    Write-Host "Skipping $($skillDir.Name) for $folder" -ForegroundColor Yellow
+                    continue
+                }
             }
-        }
 
-        try {
-            switch ($Method) {
-                'Copy' {
-                    if ($exists) { Remove-Item -Path $destinationPath -Recurse -Force }
-                    Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
-                    Write-Host "Copied: $($skillDir.Name)" -ForegroundColor Green
-                }
-                'Link' {
-                    if ($exists) { Remove-Item -Path $destinationPath -Force }
-                    # Create symbolic link (requires admin privileges on Windows)
-                    $target = $sourcePath
-                    $link = $destinationPath
-                    New-Item -ItemType SymbolicLink -Path $link -Target $target -Force | Out-Null
-                    Write-Host "Linked: $($skillDir.Name)" -ForegroundColor Green
-                }
-                'Sync' {
-                    # Use robocopy for incremental sync
-                    $robocopyArgs = @(
-                        "`"$sourcePath`"",
-                        "`"$destinationPath`"",
-                        "/MIR",  # Mirror directory tree
-                        "/NJH",  # No job header
-                        "/NJS"   # No job summary
-                    )
-                    $result = Start-Process -FilePath "robocopy.exe" -ArgumentList $robocopyArgs -NoNewWindow -Wait -PassThru
-                    if ($result.ExitCode -le 3) { # Robocopy exit codes: 0-3 are success
-                        Write-Host "Synced: $($skillDir.Name)" -ForegroundColor Green
-                    } else {
-                        Write-Warning "Sync failed for $($skillDir.Name) (Exit code: $($result.ExitCode))"
+            try {
+                switch ($Method) {
+                    'Copy' {
+                        if ($exists) { Remove-Item -Path $destinationPath -Recurse -Force }
+                        Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
+                        Write-Host "Copied: $($skillDir.Name) to $folder" -ForegroundColor Green
+                    }
+                    'Link' {
+                        if ($exists) { Remove-Item -Path $destinationPath -Force }
+                        # Create symbolic link (requires admin privileges on Windows)
+                        $target = $sourcePath
+                        $link = $destinationPath
+                        New-Item -ItemType SymbolicLink -Path $link -Target $target -Force | Out-Null
+                        Write-Host "Linked: $($skillDir.Name) to $folder" -ForegroundColor Green
+                    }
+                    'Sync' {
+                        # Use robocopy for incremental sync
+                        $robocopyArgs = @(
+                            "`"$sourcePath`"",
+                            "`"$destinationPath`"",
+                            "/MIR",  # Mirror directory tree
+                            "/NJH",  # No job header
+                            "/NJS"   # No job summary
+                        )
+                        $result = Start-Process -FilePath "robocopy.exe" -ArgumentList $robocopyArgs -NoNewWindow -Wait -PassThru
+                        if ($result.ExitCode -le 3) { # Robocopy exit codes: 0-3 are success
+                            Write-Host "Synced: $($skillDir.Name) to $folder" -ForegroundColor Green
+                        } else {
+                            Write-Warning "Sync failed for $($skillDir.Name) in $folder (Exit code: $($result.ExitCode))"
+                        }
                     }
                 }
             }
-        }
-        catch {
-            Write-Error "Failed to publish $($skillDir.Name): $_"
+            catch {
+                Write-Error "Failed to publish $($skillDir.Name) to $folder : $_"
+            }
         }
     }
 
