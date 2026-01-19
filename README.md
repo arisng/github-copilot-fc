@@ -2,13 +2,13 @@
 
 **FC** (inspired by "football club") embodies the collaborative spirit of a professional team where specialized AI components work together harmoniously toward shared coding victories. Just as football players pass, defend, and score as a cohesive unit, Copilot FC orchestrates AI assistants, skills, and tools as a unified team—fostering the team-sport mentality where every component contributes to collective development excellence.
 
-A dedicated workspace for developing, versioning, and publishing GitHub Copilot customizations, including Custom Agents, Context Instructions, Prompts, and Claude Skills.
+A dedicated workspace for developing, versioning, and publishing GitHub Copilot customizations, including Custom Agents, Context Instructions, Prompts, and Agent Skills.
 
 ## 🚀 Features
 
 - **Custom Agents**: Specialized AI personas defined in `agents/*.agent.md` for specific tasks (e.g., Research, Documentation, Architecture).
 - **Instructions**: Context-aware guidelines in `instructions/` to steer AI behavior for specific file types or folders.
-- **Claude Skills**: Domain-specific capabilities and tools stored in `skills/` that extend Copilot's functionality.
+- **Agent Skills**: Domain-specific capabilities and tools stored in `skills/` that extend Copilot's functionality.
 - **Agent Evaluation**: Deterministic framework for evaluating and activating the right agents for the job.
 - **Automation**: PowerShell and Python scripts to manage the lifecycle of skills, agents, and evaluations.
 
@@ -17,7 +17,7 @@ A dedicated workspace for developing, versioning, and publishing GitHub Copilot 
 ```text
 .
 ├── agents/                 # Custom Agent definitions (.agent.md) - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
-├── skills/                 # Domain-specific skills (each in its own folder) - BY DESIGN: Located here instead of .claude/skills/ to avoid duplication when VS Code scans both workspace and user home locations
+├── skills/                 # Domain-specific skills (each in its own folder) - BY DESIGN: Located here instead of .github/skills/ to avoid duplication when VS Code scans both workspace and user home locations
 ├── instructions/           # Context instructions (.instructions.md) - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
 ├── prompts/                # Reusable prompt templates - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
 ├── scripts/                # PowerShell and Python automation scripts
@@ -33,7 +33,7 @@ A dedicated workspace for developing, versioning, and publishing GitHub Copilot 
 
 **The Problem**: VS Code scans for customizations in both:
 - **Synced user settings locations** (published versions)
-- **Workspace scan paths** (like `.github/`, `.claude/skills/`)
+- **Workspace scan paths** (like `.github/skills`)
 
 Since this workspace is for authoring, versioning, and publishing customizations to VS Code's synced user settings, having them in both places causes duplication.
 
@@ -42,10 +42,10 @@ Since this workspace is for authoring, versioning, and publishing customizations
 - **VS Code scans**: `.github/` (workspace) + VS Code User Settings (synced)
 - **Our locations**: `agents/`, `instructions/`, `prompts/` (not `.github/`)
 
-#### Claude Skills
+#### Agent Skills
 
-- **VS Code scans**: `.claude/skills/` (workspace) + `~/.claude/skills/` (user home)
-- **Our location**: `skills/` (not `.claude/skills/`)
+- **VS Code scans**: `.github/skills/` (workspace) + `~/.copilot/skills/` (user home)
+- **Our location**: `skills/` (not `.github/skills/`)
 
 **Workflow**:
 1. **Author** customizations in workspace root directories (not scanned by VS Code)
@@ -128,7 +128,7 @@ All GitHub Copilot customizations are managed through automated publishing scrip
 .\scripts\publish-prompts.ps1 -Prompts "changelog", "conventional-commit"
 ```
 
-#### Claude Skills
+#### Agent Skills
 
 ```powershell
 # Copy method (recommended)
