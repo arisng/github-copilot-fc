@@ -9,11 +9,11 @@ param(
 function Publish-InstructionsToVSCode {
     <#
     .SYNOPSIS
-        Publishes instructions from the project factory to VS Code user prompts directory.
+        Publishes instructions from the project factory to VS Code and VS Code Insiders user prompts directories.
 
     .DESCRIPTION
-        Copies instruction files from the project's instructions/ folder to VS Code's user prompts
-        directory for global availability across all workspaces and devices.
+        Copies instruction files from the project's instructions/ folder to VS Code's and VS Code Insiders'
+        user prompts directories for global availability across all workspaces and devices.
 
     .PARAMETER Instructions
         Array of instruction names to publish. If empty, publishes all instructions.
@@ -35,17 +35,22 @@ function Publish-InstructionsToVSCode {
     Write-Host "Publishing instructions to VS Code..." -ForegroundColor Cyan
 
     $projectInstructionsPath = Join-Path $PSScriptRoot "..\instructions"
-    $vscodePromptsPath = Join-Path $env:APPDATA "Code\User\prompts"
+    $vscodePromptsPaths = @(
+        (Join-Path $env:APPDATA "Code\User\prompts"),
+        (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
+    )
 
     # Ensure project instructions directory exists
     if (-not (Test-Path $projectInstructionsPath)) {
         throw "Project instructions directory not found: $projectInstructionsPath"
     }
 
-    # Create VS Code prompts directory if it doesn't exist
-    if (-not (Test-Path $vscodePromptsPath)) {
-        New-Item -ItemType Directory -Path $vscodePromptsPath -Force | Out-Null
-        Write-Host "Created VS Code prompts directory: $vscodePromptsPath" -ForegroundColor Green
+    # Create VS Code prompts directories if they don't exist
+    foreach ($path in $vscodePromptsPaths) {
+        if (-not (Test-Path $path)) {
+            New-Item -ItemType Directory -Path $path -Force | Out-Null
+            Write-Host "Created VS Code prompts directory: $path" -ForegroundColor Green
+        }
     }
 
     # Get instruction files to publish
@@ -63,25 +68,30 @@ function Publish-InstructionsToVSCode {
 
     foreach ($instructionFile in $instructionFiles) {
         $sourcePath = $instructionFile.FullName
-        $destinationPath = Join-Path $vscodePromptsPath $instructionFile.Name
 
-        # Check if instruction already exists
-        $exists = Test-Path $destinationPath
+        foreach ($path in $vscodePromptsPaths) {
+            $destinationPath = Join-Path $path $instructionFile.Name
 
-        if ($exists -and -not $Force) {
-            $overwrite = Read-Host "Instruction '$($instructionFile.BaseName)' already exists. Overwrite? (y/N)"
-            if ($overwrite -notmatch "^[Yy]") {
-                Write-Host "Skipping $($instructionFile.BaseName)" -ForegroundColor Yellow
-                continue
+            # Check if instruction already exists
+            $exists = Test-Path $destinationPath
+
+            if ($exists -and -not $Force) {
+                $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
+                $overwrite = Read-Host "Instruction '$($instructionFile.BaseName)' already exists in VS Code $edition. Overwrite? (y/N)"
+                if ($overwrite -notmatch "^[Yy]") {
+                    Write-Host "Skipping $($instructionFile.BaseName) for VS Code $edition" -ForegroundColor Yellow
+                    continue
+                }
             }
-        }
 
-        try {
-            Copy-Item -Path $sourcePath -Destination $destinationPath -Force
-            Write-Host "Published: $($instructionFile.BaseName)" -ForegroundColor Green
-        }
-        catch {
-            Write-Error "Failed to publish $($instructionFile.BaseName): $_"
+            try {
+                Copy-Item -Path $sourcePath -Destination $destinationPath -Force
+                $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
+                Write-Host "Published: $($instructionFile.BaseName) to VS Code $edition" -ForegroundColor Green
+            }
+            catch {
+                Write-Error "Failed to publish $($instructionFile.BaseName) to $path : $_"
+            }
         }
     }
 

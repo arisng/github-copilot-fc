@@ -9,11 +9,11 @@ param(
 function Publish-PromptsToVSCode {
     <#
     .SYNOPSIS
-        Publishes prompts from the project factory to VS Code user prompts directory.
+        Publishes prompts from the project factory to VS Code and VS Code Insiders user prompts directories.
 
     .DESCRIPTION
-        Copies prompt files from the project's prompts/ folder to VS Code's user prompts
-        directory for global availability across all workspaces and devices.
+        Copies prompt files from the project's prompts/ folder to VS Code's and VS Code Insiders'
+        user prompts directories for global availability across all workspaces and devices.
 
     .PARAMETER Prompts
         Array of prompt names to publish. If empty, publishes all prompts.
@@ -35,17 +35,22 @@ function Publish-PromptsToVSCode {
     Write-Host "Publishing prompts to VS Code..." -ForegroundColor Cyan
 
     $projectPromptsPath = Join-Path $PSScriptRoot "..\prompts"
-    $vscodePromptsPath = Join-Path $env:APPDATA "Code\User\prompts"
+    $vscodePromptsPaths = @(
+        (Join-Path $env:APPDATA "Code\User\prompts"),
+        (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
+    )
 
     # Ensure project prompts directory exists
     if (-not (Test-Path $projectPromptsPath)) {
         throw "Project prompts directory not found: $projectPromptsPath"
     }
 
-    # Create VS Code prompts directory if it doesn't exist
-    if (-not (Test-Path $vscodePromptsPath)) {
-        New-Item -ItemType Directory -Path $vscodePromptsPath -Force | Out-Null
-        Write-Host "Created VS Code prompts directory: $vscodePromptsPath" -ForegroundColor Green
+    # Create VS Code prompts directories if they don't exist
+    foreach ($path in $vscodePromptsPaths) {
+        if (-not (Test-Path $path)) {
+            New-Item -ItemType Directory -Path $path -Force | Out-Null
+            Write-Host "Created VS Code prompts directory: $path" -ForegroundColor Green
+        }
     }
 
     # Get prompt files to publish
@@ -63,25 +68,30 @@ function Publish-PromptsToVSCode {
 
     foreach ($promptFile in $promptFiles) {
         $sourcePath = $promptFile.FullName
-        $destinationPath = Join-Path $vscodePromptsPath $promptFile.Name
 
-        # Check if prompt already exists
-        $exists = Test-Path $destinationPath
+        foreach ($path in $vscodePromptsPaths) {
+            $destinationPath = Join-Path $path $promptFile.Name
 
-        if ($exists -and -not $Force) {
-            $overwrite = Read-Host "Prompt '$($promptFile.BaseName)' already exists. Overwrite? (y/N)"
-            if ($overwrite -notmatch "^[Yy]") {
-                Write-Host "Skipping $($promptFile.BaseName)" -ForegroundColor Yellow
-                continue
+            # Check if prompt already exists
+            $exists = Test-Path $destinationPath
+
+            if ($exists -and -not $Force) {
+                $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
+                $overwrite = Read-Host "Prompt '$($promptFile.BaseName)' already exists in VS Code $edition. Overwrite? (y/N)"
+                if ($overwrite -notmatch "^[Yy]") {
+                    Write-Host "Skipping $($promptFile.BaseName) for VS Code $edition" -ForegroundColor Yellow
+                    continue
+                }
             }
-        }
 
-        try {
-            Copy-Item -Path $sourcePath -Destination $destinationPath -Force
-            Write-Host "Published: $($promptFile.BaseName)" -ForegroundColor Green
-        }
-        catch {
-            Write-Error "Failed to publish $($promptFile.BaseName): $_"
+            try {
+                Copy-Item -Path $sourcePath -Destination $destinationPath -Force
+                $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
+                Write-Host "Published: $($promptFile.BaseName) to VS Code $edition" -ForegroundColor Green
+            }
+            catch {
+                Write-Error "Failed to publish $($promptFile.BaseName) to $path : $_"
+            }
         }
     }
 

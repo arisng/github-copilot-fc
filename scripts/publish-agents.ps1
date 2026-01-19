@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Publishes custom agents to VS Code user prompts directory.
+    Publishes custom agents to VS Code and VS Code Insiders user prompts directories.
 
 .DESCRIPTION
-    Copies agent files from the project's agents/ folder to VS Code's user prompts
-    directory for global availability across all workspaces and devices.
+    Copies agent files from the project's agents/ folder to VS Code's and VS Code Insiders'
+    user prompts directories for global availability across all workspaces and devices.
 
     Handles both array and comma-separated string input formats for agent names.
 
@@ -49,17 +49,22 @@ function Publish-AgentsToVSCode {
     Write-Host "Publishing agents to VS Code..." -ForegroundColor Cyan
 
     $projectAgentsPath = Join-Path $PSScriptRoot "..\agents"
-    $vscodePromptsPath = Join-Path $env:APPDATA "Code\User\prompts"
+    $vscodePromptsPaths = @(
+        (Join-Path $env:APPDATA "Code\User\prompts"),
+        (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
+    )
 
     # Ensure project agents directory exists
     if (-not (Test-Path $projectAgentsPath)) {
         throw "Project agents directory not found: $projectAgentsPath"
     }
 
-    # Create VS Code prompts directory if it doesn't exist
-    if (-not (Test-Path $vscodePromptsPath)) {
-        New-Item -ItemType Directory -Path $vscodePromptsPath -Force | Out-Null
-        Write-Host "Created VS Code prompts directory: $vscodePromptsPath" -ForegroundColor Green
+    # Create VS Code prompts directories if they don't exist
+    foreach ($path in $vscodePromptsPaths) {
+        if (-not (Test-Path $path)) {
+            New-Item -ItemType Directory -Path $path -Force | Out-Null
+            Write-Host "Created VS Code prompts directory: $path" -ForegroundColor Green
+        }
     }
 
     # Normalize agent names: handle both comma-separated strings and arrays
@@ -100,27 +105,32 @@ function Publish-AgentsToVSCode {
 
     foreach ($agentFile in $agentFiles) {
         $sourcePath = $agentFile.FullName
-        $destinationPath = Join-Path $vscodePromptsPath $agentFile.Name
 
-        # Check if agent already exists
-        $exists = Test-Path $destinationPath
+        foreach ($path in $vscodePromptsPaths) {
+            $destinationPath = Join-Path $path $agentFile.Name
 
-        if ($exists -and -not $Force) {
-            $overwrite = Read-Host "Agent '$($agentFile.BaseName)' already exists. Overwrite? (y/N)"
-            if ($overwrite -notmatch "^[Yy]") {
-                Write-Host "Skipping $($agentFile.BaseName)" -ForegroundColor Yellow
-                continue
+            # Check if agent already exists
+            $exists = Test-Path $destinationPath
+
+            if ($exists -and -not $Force) {
+                $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
+                $overwrite = Read-Host "Agent '$($agentFile.BaseName)' already exists in VS Code $edition. Overwrite? (y/N)"
+                if ($overwrite -notmatch "^[Yy]") {
+                    Write-Host "Skipping $($agentFile.BaseName) for VS Code $edition" -ForegroundColor Yellow
+                    continue
+                }
             }
-        }
 
-        try {
-            Copy-Item -Path $sourcePath -Destination $destinationPath -Force
-            Write-Host "Published: $($agentFile.BaseName)" -ForegroundColor Green
-            $successCount++
-        }
-        catch {
-            Write-Host "Failed to publish $($agentFile.BaseName): $_" -ForegroundColor Red
-            $failureCount++
+            try {
+                Copy-Item -Path $sourcePath -Destination $destinationPath -Force
+                $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
+                Write-Host "Published: $($agentFile.BaseName) to VS Code $edition" -ForegroundColor Green
+                $successCount++
+            }
+            catch {
+                Write-Host "Failed to publish $($agentFile.BaseName) to $path : $_" -ForegroundColor Red
+                $failureCount++
+            }
         }
     }
 
