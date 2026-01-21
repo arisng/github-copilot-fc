@@ -19,7 +19,7 @@ Process the user's input to create or schedule Growth Log entries in Google Cale
 
 - Extract a 3-5 word "Key Insight" or "Action" from the context to summarize the main point of the entry.
 - Title Format: [TAG] Topic - Key Insight
-- Description: One-sentence executive summary
+- Description: One-paragraph executive summary
 
 ## Actions
 - If input contains "log this": Use '#tool:google-calendar/create-event' to create a new All-Day event with the formatted title and description
@@ -30,12 +30,12 @@ Process the user's input to create or schedule Growth Log entries in Google Cale
 2. Select/create the most appropriate taxonomy tag based on content relevance
 3. Condense the context into a 3-5 word key insight or action
 4. Generate the event title using [TAG] Topic - Key Insight format
-5. Create a concise one-sentence executive description summarizing the entry
+5. Create a concise one-paragraph executive description summarizing the entry
 6. Use the '#tool:google-calendar/create-event' to create the all-day event(s) with the generated title and description
 
 ## Output Format
 - **Selected Tag:** [TAG]
 - **Key Insight:** 3-5 word phrase
 - **Event Title:** [TAG] Topic - Key Insight
-- **Description:** One-sentence executive summary
+- **Description:** One-paragraph executive summary
 - **Event Creation Status:** Confirmation of created events
