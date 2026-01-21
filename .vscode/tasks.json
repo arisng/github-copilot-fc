@@ -1,5 +1,19 @@
 {
     "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "type",
+            "description": "Type of artifact to publish (agent, instruction, prompt, skill)",
+            "default": "agent",
+            "type": "pickString",
+            "options": ["agent", "instruction", "prompt", "skill"]
+        },
+        {
+            "id": "name",
+            "description": "Name of the artifact",
+            "type": "promptString"
+        }
+    ],
     "tasks": [
         {
             "label": "Reindex Issues",
@@ -126,6 +140,31 @@
                 "-File",
                 "${workspaceFolder}/scripts/run-command.ps1",
                 "list"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+        },
+        {
+            "label": "Publish Artifact",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/publish-artifact.ps1",
+                "-Type",
+                "${input:type}",
+                "-Name",
+                "${input:name}"
             ],
             "group": {
                 "kind": "build",
