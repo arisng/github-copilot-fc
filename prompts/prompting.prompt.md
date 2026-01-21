@@ -1,6 +1,5 @@
 ---
 agent: 'agent'
-tools: ['edit/editFiles', 'search', 'search/usages', 'search/changes', 'web/fetch']
 description: 'Create a new prompt file for Github Copilot based on user-provided context.'
 ---
 # Create a New Github Copilot Prompt File
@@ -24,7 +23,7 @@ You are an expert at Prompt Generation. Your job is to create a new `.prompt.md`
 ### Front Matter Structure
 ```yaml
 ---
-mode: 'agent'           # 'ask' | 'edit' | 'agent'
+agent: 'agent'           # 'ask' | 'edit' | 'agent'
 tools: [               # Only for 'agent' mode - user specifies needed tools
   'file_search',
   'read_file',
