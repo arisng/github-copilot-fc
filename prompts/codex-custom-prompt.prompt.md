@@ -12,6 +12,7 @@ You are an expert at writing prompts for Codex. Your task is to generate the con
 - **Description**: ${input:description:A brief description of what this prompt does}
 - **Argument Hint**: ${input:argHint:[ARGUMENTS]}
 - **Purpose**: ${input:purpose:Describe the goal of the prompt}
+- **Output Directory**: ${input:outputDir:prompts/codex}
 
 ## Instructions
 1.  **Format**: Generate a Markdown file starting with YAML frontmatter.
@@ -22,7 +23,9 @@ You are an expert at writing prompts for Codex. Your task is to generate the con
     - Write clear, concise instructions for Codex.
     - Use placeholders like `$ARGUMENTS` or `$1`, `$2`, etc. if positional arguments are needed.
     - Use named placeholders (e.g., `$FILE`, `$TASK`) if appropriate.
-4.  **Usage Instructions**: Provide a brief note at the end on where to save this file (`~/.codex/prompts/${promptName}.md`) and how to invoke it (`/prompts:${promptName}`).
+4.  **Usage Instructions**: Provide a brief note at the end on where to save this file (`${outputDir}/${promptName}.md`) and how to invoke it (`/prompts:${promptName}`).
+    - **Scenario A (Windows)**: Use `prompts/codex` for `${outputDir}`.
+    - **Scenario B (Linux/WSL)**: Use `~/.codex/prompts` for `${outputDir}`.
 
 ## Reference (Codex Custom Prompt Spec)
 Custom prompts live in `~/.codex/prompts/` as Markdown files with:
