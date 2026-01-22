@@ -23,20 +23,31 @@ You are an expert at Prompt Generation. Your job is to create a new `.prompt.md`
 ### Front Matter Structure
 ```yaml
 ---
-agent: 'agent'           # 'ask' | 'edit' | 'agent'
+agent: 'agent'           # 'ask' | 'edit' | 'agent' | 'custom-agent-name'
+model: 'gpt-4o'          # 'gpt-4o' | 'claude-3.5-sonnet' | 'gemini-2.0-flash' | etc.
 tools: [               # Only for 'agent' mode - user specifies needed tools
   'file_search',
   'read_file',
   'insert_edit_into_file'
 ]
 description: 'Brief description of the prompt\'s purpose'
+arg-hint: 'Optional hint shown in chat input'
 ---
 ```
 
-### Chat Modes
-- **`ask`**: Simple Q&A interactions without file modifications
-- **`edit`**: Direct file editing and code modifications
-- **`agent`**: Complex tasks requiring multiple tools and decision-making
+### Chat Modes & Agents
+- **`ask`**: Simple Q&A interactions without file modifications.
+- **`edit`**: Direct file editing and code modifications.
+- **`agent`**: Complex tasks requiring multiple tools, codebase indexing, and autonomous decision-making. Supports `#codebase` for automatic context finding.
+- **Custom Agents**: You can specify custom agent names (e.g., `@workspace`, `@terminal`, or your own custom agents).
+
+### Advanced Context References
+- **`#codebase`**: Let Copilot find matching files automatically across the entire indexed workspace.
+- **`#file`**: Reference specific files for better grounding.
+- **`#terminal`**: Include recent terminal output or state.
+- **`#selection`**: Reference the current code selection.
+- **`#git`**: Reference current git changes/state.
+- **`#tool:<tool-name>`**: Explicitly reference agent tools in the body text (e.g., `#tool:githubRepo`).
 
 ### Variables (with examples and usage guidance)
 
@@ -145,5 +156,6 @@ Create a new React component with full setup in ${workspaceFolder}.
 - **Structure Output**: Specify expected files and formats
 - **Handle Edge Cases**: Include instructions for unclear requirements
 - **Focus on Action**: Write direct, actionable instructions rather than verbose descriptions
-
----
+- **Use Instructions Files**: For persistent project-wide style or rules, use `.instructions.md` files in `.github/instructions` instead of duplicating them in every prompt.
+- **Model Selection**: Mention specific models in the frontmatter if the task requires higher reasoning (e.g., `model: o1`) or speed (e.g., `model: gemini-2.0-flash`).
+- **Context is King**: Always prefer referencing context (files, codebase, selection) over manual pasting. Use `#codebase` for exploratory tasks.
