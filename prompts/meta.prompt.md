@@ -1,8 +1,8 @@
 ---
 agent: 'agent'
-description: 'Create a new prompt file for Github Copilot based on user-provided context.'
+description: 'Meta prompt to create new GitHub Copilot prompt files based on user-provided context.'
 ---
-# Create a New Github Copilot Prompt File
+# Meta: Create a New GitHub Copilot Prompt File
 
 You are an expert at Prompt Generation. Your job is to create a new `.prompt.md` professional, reusable prompt file for Github Copilot based on user-provided context.
 
