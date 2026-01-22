@@ -1,25 +1,27 @@
 {
   "name": "Copilot FC",
   "version": "1.0.0",
-  "description": "Workspace for GitHub Copilot customizations: Claude Skills, Custom Agents, Instructions, and Prompts",
+  "description": "Workspace for GitHub Copilot customizations: Agent Skills, GitHub Copilot Custom Agents, GitHub Copilot Custom Instructions, and Prompts",
 
   "workspace": {
     "type": "copilot-workspace",
     "components": [
-      "claude-skills",
-      "custom-agents",
-      "custom-instructions",
-      "reusable-prompts"
+      "prompts",
+      "agents",
+      "instructions",
+      "skills",
+      "scripts",
+      "docs"
     ]
   },
 
   "directories": {
-    "skills": "skills",
+    "prompts": "prompts",
     "agents": "agents",
     "instructions": "instructions",
-    "prompts": "prompts",
-    "issues": ".docs/issues",
-    "scripts": "scripts"
+    "skills": "skills",
+    "scripts": "scripts",
+    "docs": ".docs"
   },
 
   "commands": {
@@ -35,22 +37,10 @@
     "workspace:status": "powershell Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
   },
 
-  "vscode": {
-    "recommendedExtensions": [
-      "ms-windows-ai-studio.windows-ai-studio",
-      "github.copilot",
-      "github.copilot-chat"
-    ],
-    "settings": {
-      "chat.useClaudeSkills": true,
-      "github.copilot.chat.customAgents.showOrganizationAndEnterpriseAgents": true
-    }
-  },
-
   "metadata": {
     "created": "2025-12-11",
     "author": "arisng",
     "repository": "https://github.com/arisng/copilot-workspace",
-    "documentation": ".docs/issues/"
+    "documentation": ".docs"
   }
 }
