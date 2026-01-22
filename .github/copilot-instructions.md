@@ -35,11 +35,10 @@ This repository is a **Copilot FC Workspace** for developing and managing Custom
 - **Skill Structure**: Each skill resides in its own subdirectory within `skills/`.
 
 ## Key Commands
-- **Publish Agents**: `powershell -File scripts/publish-agents.ps1 -Agents "agent-name"`
-- **Publish Skills (Copy)**: `powershell -File scripts/publish-skills.ps1 -Method Copy -Skills "skill-name"`
-- **Publish Skills (Link)**: `powershell -File scripts/publish-skills.ps1 -Method Link -Skills "skill-name"`
-- **Publish Instructions**: `powershell -File scripts/publish-instructions.ps1 -Instructions "instruction-name"`
-- **Publish Prompts**: `powershell -File scripts/publish-prompts.ps1 -Prompts "prompt-name"`
+- **Publish Agents**: `powershell -File scripts/publish/publish-agents.ps1 -Agents "agent-name"`
+- **Publish Skills**: `powershell -File scripts/publish/publish-skills.ps1 -Skills "skill-name"`
+- **Publish Instructions**: `powershell -File scripts/publish/publish-instructions.ps1 -Instructions "instruction-name"`
+- **Publish Prompts**: `powershell -File scripts/publish/publish-prompts.ps1 -Prompts "prompt-name"`
 - **Run Python Tests**: `python scripts/run_tests.py`
 - **Run Agent Evaluator**: `python scripts/agent_evaluator.py "YOUR QUERY"`
-- **Reindex Issues**: `powershell -File scripts/extract-issue-metadata.ps1`
+- **Reindex Issues**: `powershell -File scripts/issues/extract-issue-metadata.ps1`

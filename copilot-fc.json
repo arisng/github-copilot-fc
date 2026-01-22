@@ -25,14 +25,11 @@
   },
 
   "commands": {
-    "agents:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish-agents.ps1",
-    "instructions:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish-instructions.ps1",
-    "prompts:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish-prompts.ps1",
-    "skills:publish-copy": "powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Copy",
-    "skills:publish-link": "powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Link",
-    "skills:update-check": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -CheckOnly",
-    "skills:update-apply": "powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1",
-    "issues:reindex": "powershell -ExecutionPolicy Bypass -File scripts/extract-issue-metadata.ps1",
+    "agents:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-agents.ps1",
+    "instructions:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-instructions.ps1",
+    "prompts:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-prompts.ps1",
+    "skills:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1",
+    "issues:reindex": "powershell -ExecutionPolicy Bypass -File scripts/issues/extract-issue-metadata.ps1",
     "workspace:list-skills": "powershell Get-ChildItem -Path skills -Directory | Select-Object Name",
     "workspace:status": "powershell Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
   },
