@@ -23,7 +23,7 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}/scripts/extract-issue-metadata.ps1"
+                "${workspaceFolder}/scripts/issues/extract-issue-metadata.ps1"
             ],
             "group": {
                 "kind": "build",
@@ -38,85 +38,14 @@
             "problemMatcher": []
         },
         {
-            "label": "Publish Skills to Personal (Copy)",
+            "label": "Publish Skills",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}/scripts/publish-skills.ps1",
-                "-Method",
-                "Copy"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Publish Skills to Personal (Link)",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}/scripts/publish-skills.ps1",
-                "-Method",
-                "Link"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Check for Skill Updates",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}/scripts/update-personal-skills.ps1",
-                "-CheckOnly"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Update Personal Skills",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}/scripts/update-personal-skills.ps1"
+                "${workspaceFolder}/scripts/publish/publish-skills.ps1"
             ],
             "group": {
                 "kind": "build",
@@ -138,7 +67,7 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}/scripts/run-command.ps1",
+                "${workspaceFolder}/scripts/workspace/run-command.ps1",
                 "list"
             ],
             "group": {
@@ -160,7 +89,7 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}/scripts/publish-artifact.ps1",
+                "${workspaceFolder}/scripts/publish/publish-artifact.ps1",
                 "-Type",
                 "${input:type}",
                 "-Name",
