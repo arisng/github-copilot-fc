@@ -4,7 +4,7 @@ function Invoke-CopilotWorkspaceCommand {
         Execute commands from the Copilot FC workspace configuration.
 
     .DESCRIPTION
-        Reads copilot-workspace.json and executes predefined commands for managing
+        Reads the workspace manifest (supports copilot-*.json; default is copilot-fc.json) and executes predefined commands for managing
         the Copilot FC workspace components.
     .PARAMETER Command
         The command to execute (use 'list' to see available commands).
@@ -25,7 +25,27 @@ function Invoke-CopilotWorkspaceCommand {
         [string]$Command
     )
 
-    $configPath = Join-Path (Split-Path $PSScriptRoot -Parent) "copilot-workspace.json"
+    # Determine configuration file: prefer COPILOT_WORKSPACE_FILE env var, then a single copilot-*.json file, otherwise default to 'copilot-fc.json'
+    $repoRoot = Split-Path $PSScriptRoot -Parent
+
+    if ($env:COPILOT_WORKSPACE_FILE) {
+        $configFilename = $env:COPILOT_WORKSPACE_FILE
+    }
+    else {
+        $matches = Get-ChildItem -Path $repoRoot -Filter 'copilot-*.json' -File -ErrorAction SilentlyContinue
+        if ($matches -and $matches.Count -eq 1) {
+            $configFilename = $matches[0].Name
+        }
+        elseif ($matches -and $matches.Count -gt 1) {
+            Write-Error "Multiple copilot-*.json files found. Set the COPILOT_WORKSPACE_FILE environment variable to specify which one to use."
+            return
+        }
+        else {
+            $configFilename = 'copilot-fc.json'
+        }
+    }
+
+    $configPath = Join-Path $repoRoot $configFilename
 
     if (-not (Test-Path $configPath)) {
         Write-Error "Configuration file not found: $configPath"

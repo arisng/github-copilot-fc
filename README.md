@@ -22,7 +22,7 @@ A dedicated workspace for developing, versioning, and publishing GitHub Copilot 
 ├── prompts/                # Reusable prompt templates - BY DESIGN: Located here instead of .github/ to avoid duplication when VS Code scans synced user settings
 ├── scripts/                # PowerShell and Python automation scripts
 ├── .docs/issues/           # Project documentation and issue tracking
-└── copilot-workspace.json  # Workspace configuration
+└── copilot-fc.json  # Workspace configuration (or set via COPILOT_WORKSPACE_FILE env var)
 ```
 
 ## 🏗️ Architecture Decisions
@@ -158,7 +158,7 @@ Project issues and documentation are stored in `.docs/issues/`.
 
 ## ⚙️ Configuration
 
-The workspace is configured via `copilot-workspace.json`. This file defines the directory structure, available commands, and VS Code settings.
+The workspace is configured via `copilot-fc.json` (or via the `COPILOT_WORKSPACE_FILE` environment variable). This file defines the directory structure, available commands, and VS Code settings.
 
 ## 🤝 Contributing
 

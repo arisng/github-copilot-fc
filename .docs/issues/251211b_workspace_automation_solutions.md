@@ -21,7 +21,7 @@ This repository now includes a comprehensive automation system for managing GitH
 
 ### 2. Workspace Configuration System
 
-- **`copilot-workspace.json`**: Central configuration file defining workspace structure and commands
+- **`copilot-fc.json`**: Central configuration file defining workspace structure and commands (default filename; override with `COPILOT_WORKSPACE_FILE`).
 - **Unified Commands**: Single interface for all workspace operations (skills, agents, issues, etc.)
 - **Extensible**: Easy to add new commands and components
 

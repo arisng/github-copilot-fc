@@ -97,7 +97,7 @@ Aris Nguyen | 2025-12-11 | devtool(script): add comprehensive skill management s
 
 Aris Nguyen | 2025-12-11 | copilot(skill): add workspace configuration system
 
-- Add copilot-workspace.json with unified command interface
+- Add copilot-fc.json with unified command interface (renamed from copilot-workspace.json)
 - Define workspace components: skills, agents, instructions, prompts
 - Include predefined commands for skills publishing and management
 - Configure VS Code settings for Claude Skills integration
