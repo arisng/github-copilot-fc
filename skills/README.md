@@ -1,41 +1,22 @@
-# Claude Skills Factory
+# Agent Skills Factory
 
-This repository serves as a factory for creating and publishing **Claude Skills** to personal skills folder for reuse across all projects.
+This repository serves as a factory for creating and publishing agent skills to personal skills folders for reuse across Copilot, Codex, and Claude.
 
 **Note**: This workspace also provides automated publishing for **Agents**, **Instructions**, and **Prompts** via separate scripts. See the workspace's README.md for complete documentation.
 
 ## Overview
 
-The skills factory provides automated tools to publish skills from the project workspace (`skills/`) to your personal skills directory (`~/.claude/skills/`) for global availability in VS Code and Claude Code.
+The skills factory provides automated tools to publish skills from the project workspace (`skills/`) to your personal skills directories (`~/.claude/skills/`, `~/.codex/skills/`, `~/.copilot/skills/`) for global availability.
 
-### Why `skills/` instead of `.claude/skills/`?
+### Why `skills/` instead of personal skill folders?
 
-**By Design**: Skills are intentionally located in `skills/` (not `.claude/skills/`) to prevent duplication when VS Code scans for Claude skills.
+**By Design**: Skills are intentionally located in `skills/` (not `.claude/skills/`, `.codex/skills/`, `.copilot/skills/`) to prevent duplication when tools scan for skills.
 
-When `chat.useClaudeSkills` is enabled, VS Code scans both personal (`~/.claude/skills/`) and workspace (`.claude/skills/`) locations. Since this workspace publishes skills to the personal location, having them in both places would cause duplication. Using `skills/` ensures VS Code only sees the published versions.
+When skill discovery is enabled, tools scan both personal and workspace locations. Since this workspace publishes skills to personal locations, having them in both places would cause duplication. Using `skills/` ensures tools only see the published versions.
 
-## Publishing Methods
+## Publishing
 
-### 1. Copy Method (Recommended)
-
-- **Description**: Creates a full copy of skills in your personal folder
-- **Pros**: Works across different drives, no admin privileges needed
-- **Cons**: Changes in factory don't automatically reflect in personal folder
-- **Use Case**: Most reliable for cross-platform compatibility
-
-### 2. Link Method (Windows Only)
-
-- **Description**: Creates symbolic links from personal folder to project folder
-- **Pros**: Automatic updates when factory skills change
-- **Cons**: Requires admin privileges, doesn't work across drives
-- **Use Case**: Development and testing of skills
-
-### 3. Sync Method (Advanced)
-
-- **Description**: Uses robocopy for incremental synchronization
-- **Pros**: Efficient updates, preserves file timestamps
-- **Cons**: Windows-specific, more complex
-- **Use Case**: Large skill collections with frequent updates
+Publishing copies skills from `skills/` to personal skill folders for Copilot, Codex, and Claude.
 
 ## Usage
 
@@ -44,46 +25,33 @@ When `chat.useClaudeSkills` is enabled, VS Code scans both personal (`~/.claude/
 1. Open Command Palette (`Ctrl+Shift+P`)
 2. Run "Tasks: Run Task"
 3. Choose from:
-   - **Publish Skills to Personal (Copy)**: Copy all skills
-   - **Publish Skills to Personal (Link)**: Create symbolic links
-   - **Check for Skill Updates**: See which skills have updates
-   - **Update Personal Skills**: Apply available updates
+    - **Publish Skills**: Copy all skills to personal folders
 
 ### Via PowerShell Scripts
 
 ```powershell
-# Publish all skills using copy method
-.\scripts\publish-skills.ps1 -Method Copy
+# Publish all skills
+.\scripts\publish\publish-skills.ps1
 
-# Publish specific skills using link method
-.\scripts\publish-skills.ps1 -Method Link -Skills "git-committer", "issue-writer"
+# Publish specific skills
+.\scripts\publish\publish-skills.ps1 -Skills "git-committer", "issue-writer"
 
-# Check for updates without applying
-.\scripts\update-personal-skills.ps1 -CheckOnly
-
-# Update all personal skills
-.\scripts\update-personal-skills.ps1
+# Force overwrite
+.\scripts\publish\publish-skills.ps1 -Force
 ```
 
 ### Via Command Line
 
 ```bash
-# Copy method
-powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Copy
-
-# Link method (requires admin)
-powershell -ExecutionPolicy Bypass -File scripts/publish-skills.ps1 -Method Link
-
-# Check updates
-powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -CheckOnly
+powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 ```
 
 ## Skill Development Workflow
 
 1. **Create/Edit Skills**: Work on skills in `skills/` directory
 2. **Test Locally**: Skills are automatically available in this project
-3. **Publish**: Use one of the publishing methods to make skills globally available
-4. **Update**: When skills are improved, use update scripts to sync changes
+3. **Publish**: Copy skills to personal folders for global availability
+4. **Re-publish**: Run the publish script again after updates
 
 ## Directory Structure
 
@@ -99,8 +67,14 @@ powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -Che
 
 ~/.claude/
 └── skills/                    # Personal skills (published)
-    ├── git-committer/         # Copied/linked from factory
+    ├── git-committer/         # Copied from factory
     └── issue-writer/
+
+~/.codex/
+└── skills/                    # Personal skills (published)
+
+~/.copilot/
+└── skills/                    # Personal skills (published)
 ```
 
 ## Best Practices
@@ -114,9 +88,8 @@ powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -Che
 
 ### For Publishing
 
-- Use **Copy method** for production/stable skills
-- Use **Link method** during development for automatic updates
-- Regularly check for updates using the update scripts
+- Re-run the publish script after changes
+- Use `-Force` only when you intend to overwrite
 - Backup your personal skills folder before major operations
 
 ### For Team Collaboration
@@ -130,29 +103,24 @@ powershell -ExecutionPolicy Bypass -File scripts/update-personal-skills.ps1 -Che
 
 ### Common Issues
 
-**"Access denied" when using Link method**
-- Run PowerShell as Administrator
-- Or use Copy method instead
-
 **Skills not appearing in VS Code**
 - Ensure `chat.useClaudeSkills` setting is enabled
 - Restart VS Code after publishing
 - Check that SKILL.md has valid YAML frontmatter
 
-**Updates not detected**
-- Check file timestamps in both directories
-- Ensure you're running update from the correct project directory
-- Verify skill names match between directories
+**Changes not appearing**
+- Re-run the publish script
+- Verify the skill exists in `skills/`
 
 ### Recovery
 
 ```powershell
 # Force republish all skills
-.\scripts\publish-skills.ps1 -Method Copy -Force
+.\scripts\publish\publish-skills.ps1 -Force
 
 # Clean personal skills and republish
 Remove-Item "$env:USERPROFILE\.claude\skills\*" -Recurse -Force
-.\scripts\publish-skills.ps1 -Method Copy
+.\scripts\publish\publish-skills.ps1
 ```
 
 ## Integration with VS Code

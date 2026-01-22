@@ -309,7 +309,7 @@ Write instructions for using the skill and its bundled resources.
 Once development of the skill is complete, it can be published to your local environment using the workspace scripts:
 
 ```powershell
-powershell -File scripts/publish-skills.ps1 -Method Copy -Skills "skill-name"
+powershell -File scripts/publish/publish-skills.ps1 -Skills "skill-name"
 ```
 
 ### Step 6: Iterate
