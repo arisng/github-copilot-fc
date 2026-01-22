@@ -116,12 +116,12 @@ related:
 
 ## Automation
 
-After creating or updating any issue document, attempt to regenerate the issues index by running `scripts/extract-issue-metadata.ps1` if it exists. The agent (or a user) SHOULD check for the script at `scripts/extract-issue-metadata.ps1` and only run it when present; if the script is missing, skip this step without failing the workflow.
+After creating or updating any issue document, attempt to regenerate the issues index by running `scripts/issues/extract-issue-metadata.ps1` if it exists. The agent (or a user) SHOULD check for the script at `scripts/issues/extract-issue-metadata.ps1` and only run it when present; if the script is missing, skip this step without failing the workflow.
 
 Recommended PowerShell snippet (run from the repository root):
 
 ```powershell
-$script = Join-Path (Get-Location) 'scripts\extract-issue-metadata.ps1'
+$script = Join-Path (Get-Location) 'scripts\issues\extract-issue-metadata.ps1'
 if (Test-Path $script) { & $script } else { Write-Host 'No metadata extraction script found; skipping index regeneration.' }
 ```
 
