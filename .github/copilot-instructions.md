@@ -1,44 +1,33 @@
 # GitHub Copilot Instructions for Copilot FC Workspace
 
-**Note:** This `copilot-instructions.md` file is workspace-specific and provides context only for this Copilot FC Workspace. It is not intended for external publishing.
+Use these instructions when working in this workspace (not for external publishing).
 
-This repository is a **Copilot FC Workspace** for developing and managing Custom Agents, Claude Skills, and Instructions.
+## Big picture
+- This repo is a factory for Copilot customizations: Agents, Instructions, Prompts, and Skills. See [README.md](README.md).
+- Customizations live at the workspace root (not under .github or user settings) to avoid duplication when VS Code also scans synced user settings.
+- Publishing copies artifacts from the workspace into personal folders; scripts live in [scripts/publish](scripts/publish).
 
-## Project Structure & Architecture
-- **Agents** (`agents/*.agent.md`): Custom AI personas. **BY DESIGN**: Located in `agents/` (not `.github/`) to avoid duplication with synced user settings.
-- **Skills** (`skills/`): Domain-specific capabilities. **BY DESIGN**: Located in `skills/` (not `.claude/skills/`) to avoid duplication with user home locations.
-- **Instructions** (`instructions/`): Context-specific guidelines. **BY DESIGN**: Located in `instructions/` (not `.github/`) to avoid duplication.
-- **Prompts** (`prompts/`): Reusable prompt templates. **BY DESIGN**: Located in `prompts/` (not `.github/`) to avoid duplication.
-- **Scripts** (`scripts/`): Automation for workspace management (PowerShell) and testing/evaluation (Python).
-- **Issues** (`.docs/issues/`): Project documentation and tracking.
+## Key directories (why they exist)
+- Agents live in [agents](agents) (e.g., [agents/meta.agent.md](agents/meta.agent.md)).
+- Instructions live in [instructions](instructions) (e.g., [instructions/meta.instructions.md](instructions/meta.instructions.md)).
+- Skills live in [skills](skills) (e.g., [skills/README.md](skills/README.md)).
+- Prompts live in [prompts](prompts), split into Copilot vs Codex.
 
-## Development Workflows
-- **Code Review**: Always review and get explicit approval for changes before committing. Do not auto-commit without user confirmation.
-- **Creating Components**:
-  - **Agents**: Create `agents/<name>.agent.md`. Reference `agents/meta.agent.md`.
-  - **Instructions**: Use `agents/instruction-writer.agent.md` or reference `instructions/meta.instructions.md`.
-  - **Skills**: Create in `skills/<skill-name>/`.
-- **Publishing**: Use automated scripts to publish specific customizations to VS Code's synced user settings.
-  - **Copy Method**: Recommended for reliability.
-  - **Link Method**: For development (Windows only, requires admin).
-- **Testing**:
-  - Python scripts/skills: Use `scripts/run_tests.py`.
-  - PowerShell scripts: Use Pester (e.g., `*.Tests.ps1`).
-- **Agent Evaluation**: Use `scripts/agent_evaluator.py` for deterministic agent selection logic.
+## Project-specific conventions
+- Agent YAML frontmatter must include `name`, `description`, and `tools`.
+- Skill layout is one folder per skill with a required SKILL.md (see [skills/README.md](skills/README.md)).
+- Use forward slashes in markdown links, even on Windows.
+- Prefer PowerShell scripts for workspace/publishing tasks and Python for testing/logic tools.
 
-## Conventions
-- **Scripting**:
-  - **PowerShell** (`.ps1`): For workspace management and publishing tasks.
-  - **Python** (`.py`): For complex logic, testing, and skill implementations.
-- **Paths**: Use forward slashes `/` in markdown links, even on Windows.
-- **Agent Definition**: Always include `name`, `description`, and `tools` in YAML frontmatter.
-- **Skill Structure**: Each skill resides in its own subdirectory within `skills/`.
+## Workflows you should follow
+- Creating artifacts:
+  - New agent: create agents/<name>.agent.md and reference [agents/meta.agent.md](agents/meta.agent.md).
+  - New instruction: use [agents/instruction-writer.agent.md](agents/instruction-writer.agent.md) or follow [instructions/meta.instructions.md](instructions/meta.instructions.md).
+  - New skill: create skills/<skill-name>/ with SKILL.md.
+- Publishing: run the appropriate script in [scripts/publish](scripts/publish) (agents, instructions, prompts, skills).
+- Testing: Python tooling runs via scripts/run_tests.py; PowerShell tests use Pester (see scripts for patterns).
 
-## Key Commands
-- **Publish Agents**: `powershell -File scripts/publish/publish-agents.ps1 -Agents "agent-name"`
-- **Publish Skills**: `powershell -File scripts/publish/publish-skills.ps1 -Skills "skill-name"`
-- **Publish Instructions**: `powershell -File scripts/publish/publish-instructions.ps1 -Instructions "instruction-name"`
-- **Publish Prompts**: `powershell -File scripts/publish/publish-prompts.ps1 -Prompts "prompt-name"`
-- **Run Python Tests**: `python scripts/run_tests.py`
-- **Run Agent Evaluator**: `python scripts/agent_evaluator.py "YOUR QUERY"`
-- **Reindex Issues**: `powershell -File scripts/issues/extract-issue-metadata.ps1`
+## Examples worth copying
+- Agent structure example: [agents/meta.agent.md](agents/meta.agent.md).
+- Instruction structure example: [instructions/meta.instructions.md](instructions/meta.instructions.md).
+- Skill publishing workflow: [skills/README.md](skills/README.md).
