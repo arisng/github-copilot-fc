@@ -1,5 +1,5 @@
 ﻿---
-name: vscode-docs-researcher
+name: ghc-docs
 description: Comprehensive research and grounding of answers using official VS Code and GitHub Copilot documentation. Use before conducting web searches for VS Code features, Copilot capabilities, configuration, debugging, extensions, remote development, or any official Microsoft documentation queries.
 ---
 
@@ -19,6 +19,7 @@ Research and ground answers using official VS Code and GitHub Copilot documentat
 - **Documentation TOC**: `assets/toc.md` - Complete structure for navigation
 - **Official URLs**: See [RESOURCES.md](references/resources.md) for canonical links
 - **Expertise Areas**: See [KEY-AREAS.md](references/key-areas.md) for detailed coverage
+- **Prompt Files**: See [prompt-files.md](references/prompt-files.md) for current Prompt File Engineering standards
 - **Usage Examples**: See [WORKFLOW-EXAMPLES.md](references/workflow-examples.md) for concrete scenarios
 
 ## Tool Integration
