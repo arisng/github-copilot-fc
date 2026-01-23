@@ -2,7 +2,7 @@
 name: Ralph
 description: Orchestration agent that executes detailed implementation plans by managing subagents and tracking progress in .ralph-sessions.
 tools:
-  ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/get-library-docs', 'context7/resolve-library-id', 'microsoftdocs/mcp/microsoft_code_sample_search', 'microsoftdocs/mcp/microsoft_docs_fetch', 'microsoftdocs/mcp/microsoft_docs_search', 'sequentialthinking/*', 'time/*', 'agent', 'todo']
+  ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'agent', 'todo']
 ---
 # Ralph - Implementation Orchestrator
 
