@@ -71,7 +71,7 @@ Create documentation in this structure:
 │   └── [component]/
 ├── explanation/        # Conceptual discussions
 │   └── [subject]/
-└── index.md            # Navigation
+└── index.md            # Navigation (generated automatically)
 ```
 
 **Naming conventions:**
@@ -80,6 +80,16 @@ Create documentation in this structure:
 - How-to: `how-to-configure-x.md`, `how-to-deploy-y.md`
 - Reference: `api-reference.md`, `configuration-options.md`
 - Explanation: `about-architecture.md`, `understanding-x.md`
+
+### 6. Generate Index
+
+Use the Python script to automatically generate the `index.md` file:
+
+```bash
+python skills/diataxis/scripts/generate_index.py
+```
+
+This script scans the `.docs/` subfolders, extracts titles from `.md` files, and creates links organized by category. Run it whenever you add or remove documentation files to keep the index up-to-date.
 
 ## Common Workflows
 
@@ -111,6 +121,16 @@ Create documentation in this structure:
 3. Create separate files for each category
 4. In each file, link to related content in other categories
 5. Remove the original mixed document
+
+### Generating the documentation index
+
+To keep the documentation index consistent and up-to-date:
+
+1. Ensure all documentation files are placed in the appropriate `.docs/` subfolders (`tutorials/`, `how-to/`, `reference/`, `explanation/`).
+2. Run the generation script: `python skills/diataxis/scripts/generate_index.py`
+3. The script will automatically scan for `.md` files, extract their titles, and update `.docs/index.md` with organized links.
+
+This workflow should be used after adding new documents or restructuring existing ones.
 
 ## Key Principle
 

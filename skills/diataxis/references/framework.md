@@ -1,6 +1,7 @@
 # Diátaxis Framework - Complete Guide
 
 ## Table of Contents
+
 1. [Tutorials (Learning-Oriented)](#tutorials)
 2. [How-to Guides (Task-Oriented)](#how-to-guides)
 3. [Reference (Information-Oriented)](#reference)
@@ -13,6 +14,7 @@
 Tutorials are **lessons** that guide learners through practical activities under your guidance. Think of a cookbook recipe that a cooking student would follow while learning.
 
 ### Purpose
+
 - Teach skills through guided practice
 - Build confidence and competence
 - Create the "feeling of doing" — joined-up purpose, action, and result
@@ -50,7 +52,7 @@ Tutorials are **lessons** that guide learners through practical activities under
 
 ### Structure Template
 
-```
+```markdown
 # Getting Started with [Topic]
 
 Learn how to [specific skill] in [timeframe].
@@ -76,6 +78,7 @@ Learn how to [specific skill] in [timeframe].
 ```
 
 ### What to Avoid
+
 - Don't explain why things work — link to Explanation instead
 - Don't offer choices or alternatives — teach one way
 - Don't assume prior knowledge — link to Tutorials for prerequisites
@@ -89,6 +92,7 @@ Learn how to [specific skill] in [timeframe].
 How-to guides are **directions** that solve real-world problems. They assume competence and focus on accomplishing a specific task. Think of a recipe a chef uses to make a dish they already know how to make.
 
 ### Purpose
+
 - Solve specific, practical problems
 - Address real-world complexity and edge cases
 - Serve as a reference while doing work
@@ -154,6 +158,7 @@ Solution: Y
 ```
 
 ### What to Avoid
+
 - Don't teach basic skills — link to Tutorials
 - Don't explain why things work — link to Explanation
 - Don't offer unnecessary alternatives — focus on the most direct path
@@ -167,6 +172,7 @@ Solution: Y
 Reference guides are **technical descriptions** of machinery. They are austere, accurate, and consulted rather than read. Think of a dictionary or API documentation.
 
 ### Purpose
+
 - Provide complete, accurate information
 - Describe how things work, not how to use them
 - Support lookups and exploration
@@ -229,6 +235,7 @@ Reference guides are **technical descriptions** of machinery. They are austere, 
 ```
 
 ### What to Avoid
+
 - Don't include how-to instructions — link to How-to Guides
 - Don't explain philosophy or design decisions — link to Explanation
 - Don't organize by use case — organize by structure
@@ -242,6 +249,7 @@ Reference guides are **technical descriptions** of machinery. They are austere, 
 Explanation is **discursive discussion** that deepens understanding. It answers "Why?" and "Can you tell me about…?" Think of an essay or research paper.
 
 ### Purpose
+
 - Provide conceptual clarity
 - Explain design decisions and tradeoffs
 - Connect to broader context
@@ -304,6 +312,7 @@ Explanation is **discursive discussion** that deepens understanding. It answers 
 ```
 
 ### What to Avoid
+
 - Don't write instructions — link to How-to Guides
 - Don't describe machinery — link to Reference
 - Don't teach from scratch — link to Tutorials
@@ -383,9 +392,9 @@ For each documentation piece, verify:
 
 ## Matrix Quick Reference
 
-| | Practical | Theoretical |
-|---|---|---|
-| **Learning** | **Tutorials** — "We will…" | **Explanation** — "Why is…" |
-| **Working** | **How-to Guides** — "To achieve X…" | **Reference** — "X is defined as…" |
+|              | Practical                           | Theoretical                        |
+| ------------ | ----------------------------------- | ---------------------------------- |
+| **Learning** | **Tutorials** — "We will…"          | **Explanation** — "Why is…"        |
+| **Working**  | **How-to Guides** — "To achieve X…" | **Reference** — "X is defined as…" |
 
 Choose the right quadrant, follow its principles, and everything else falls into place.
