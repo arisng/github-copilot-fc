@@ -12,8 +12,7 @@ A workspace for building and publishing GitHub Copilot customizations: Custom Ag
 
 - **Custom Agents**: `agents/*.agent.md`
 - **Custom Instructions**: `instructions/*.instructions.md`
-- **Copilot Prompts**: `prompts/copilot/`
-- **Codex Prompts**: `prompts/codex/`
+- **Prompts**: `prompts/`
 - **Agent Skills**: `skills/<skill-name>/`
 - **Publishing**: `scripts/publish/`
 
@@ -22,8 +21,7 @@ A workspace for building and publishing GitHub Copilot customizations: Custom Ag
 - **Custom Agents**: Copilot only.
 - **Custom Instructions**: Copilot only.
 - **Prompts**:
-  - **Copilot**: Author prompts in `prompts/copilot/` (files end with `.prompt.md`).
-  - **Codex**: Author prompts in `prompts/codex/` (Codex custom prompt files).
+  - **Copilot**: Author prompts in `prompts/` (files end with `.prompt.md`).
 - **Skills**: Shared across multi-agent platforms (Copilot, Codex, Claude).
 
 ## 🧭 Why These Folders

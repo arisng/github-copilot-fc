@@ -11,7 +11,7 @@ Use these instructions when working in this workspace (not for external publishi
 - Agents live in [agents](agents) (e.g., [agents/meta.agent.md](agents/meta.agent.md)).
 - Instructions live in [instructions](instructions) (e.g., [instructions/meta.instructions.md](instructions/meta.instructions.md)).
 - Skills live in [skills](skills) (e.g., [skills/README.md](skills/README.md)).
-- Prompts live in [prompts](prompts), split into Copilot vs Codex.
+- Prompts live in [prompts](prompts) (files end with .prompt.md).
 
 ## Project-specific conventions
 - Agent YAML frontmatter must include `name`, `description`, and `tools`.
