@@ -3,7 +3,7 @@
 Use these instructions when working in this workspace (not for external publishing).
 
 ## Big picture
-- This repo is a factory for Copilot customizations: Agents, Instructions, Prompts, and Skills. See [README.md](README.md).
+- This repo is a factory for Copilot customizations: Agents, Instructions, Prompts, Skills, and Toolsets. See [README.md](README.md).
 - Customizations live at the workspace root (not under .github or user settings) to avoid duplication when VS Code also scans synced user settings.
 - Publishing copies artifacts from the workspace into personal folders; scripts live in [scripts/publish](scripts/publish).
 
@@ -12,10 +12,12 @@ Use these instructions when working in this workspace (not for external publishi
 - Instructions live in [instructions](instructions) (e.g., [instructions/meta.instructions.md](instructions/meta.instructions.md)).
 - Skills live in [skills](skills) (e.g., [skills/README.md](skills/README.md)).
 - Prompts live in [prompts](prompts) (files end with .prompt.md).
+- Toolsets live in [toolsets](toolsets) (files end with .toolsets.jsonc).
 
 ## Project-specific conventions
 - Agent YAML frontmatter must include `name`, `description`, and `tools`.
 - Skill layout is one folder per skill with a required SKILL.md (see [skills/README.md](skills/README.md)).
+- Toolset files are JSONC files defining tool groupings for Copilot chat.
 - Use forward slashes in markdown links, even on Windows.
 - Prefer PowerShell scripts for workspace/publishing tasks and Python for testing/logic tools.
 
@@ -24,7 +26,8 @@ Use these instructions when working in this workspace (not for external publishi
   - New agent: create agents/<name>.agent.md and reference [agents/meta.agent.md](agents/meta.agent.md).
   - New instruction: use [agents/instruction-writer.agent.md](agents/instruction-writer.agent.md) or follow [instructions/meta.instructions.md](instructions/meta.instructions.md).
   - New skill: create skills/<skill-name>/ with SKILL.md.
-- Publishing: run the appropriate script in [scripts/publish](scripts/publish) (agents, instructions, prompts, skills).
+  - New toolset: create toolsets/<name>.toolsets.jsonc following the toolset JSONC structure.
+- Publishing: run the appropriate script in [scripts/publish](scripts/publish) (agents, instructions, prompts, skills, toolsets).
 - Testing: Python tooling runs via scripts/run_tests.py; PowerShell tests use Pester (see scripts for patterns).
 
 ## Examples worth copying

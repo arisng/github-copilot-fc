@@ -1,0 +1,12 @@
+{
+	"workspace-read": {
+		"tools": [
+			"readFile",
+            "problems",
+			"terminalLastCommand",
+            "terminalSelection"
+		],
+		"description": "my custom read workspace toolset",
+		"icon": "eye-watch"
+	}
+}

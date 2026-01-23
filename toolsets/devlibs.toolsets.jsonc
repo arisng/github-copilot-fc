@@ -1,0 +1,10 @@
+{
+	"devlibs": {
+		"tools": [
+            "microsoftdocs/mcp",
+            "context7",
+		],
+		"description": "my dev libraries toolset",
+		"icon": "library"
+	}
+}

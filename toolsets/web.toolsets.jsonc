@@ -1,0 +1,10 @@
+{
+	"web": {
+		"tools": [
+			"fetch",
+            "brave_web_search"
+		],
+		"description": "my web search toolset",
+		"icon": "globe"
+	}
+}

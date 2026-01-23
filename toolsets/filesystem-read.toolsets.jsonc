@@ -1,0 +1,16 @@
+{
+	"filesystem-readonly": {
+		"tools": [
+			"directory_tree",
+            "list_allowed_directories",
+            "list_directory_with_sizes",
+            "list_directory",
+            "search_files",
+            "read_multiple_files",
+			"get_file_info",
+            "read_text_file"
+		],
+		"description": "A toolset for read-only access to the filesystem, allowing users to explore directories and read file contents without making any modifications.",
+		"icon": "files"
+	}
+}

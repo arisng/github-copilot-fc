@@ -1,7 +1,7 @@
 {
   "name": "Copilot FC",
   "version": "1.0.0",
-  "description": "Workspace for GitHub Copilot customizations: Agent Skills, GitHub Copilot Custom Agents, GitHub Copilot Custom Instructions, and Prompts",
+  "description": "Workspace for GitHub Copilot customizations: Agent Skills, GitHub Copilot Custom Agents, GitHub Copilot Custom Instructions, Prompts, and Toolsets",
 
   "workspace": {
     "type": "copilot-workspace",
@@ -10,6 +10,7 @@
       "agents",
       "instructions",
       "skills",
+      "toolsets",
       "scripts",
       "docs"
     ]
@@ -20,6 +21,7 @@
     "agents": "agents",
     "instructions": "instructions",
     "skills": "skills",
+    "toolsets": "toolsets",
     "scripts": "scripts",
     "docs": ".docs"
   },
@@ -29,6 +31,7 @@
     "instructions:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-instructions.ps1",
     "prompts:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-prompts.ps1",
     "skills:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1",
+    "toolsets:publish": "powershell -ExecutionPolicy Bypass -File scripts/publish/publish-toolsets.ps1",
     "issues:reindex": "powershell -ExecutionPolicy Bypass -File scripts/issues/extract-issue-metadata.ps1",
     "workspace:list-skills": "powershell Get-ChildItem -Path skills -Directory | Select-Object Name",
     "workspace:status": "powershell Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"

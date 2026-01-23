@@ -1,0 +1,11 @@
+{
+	"workspace-edit": {
+		"tools": [
+			"createDirectory",
+            "createFile",
+			"editFiles"
+		],
+		"description": "my custom edit workspace toolset",
+		"icon": "pencil"
+	}
+}

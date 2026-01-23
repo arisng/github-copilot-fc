@@ -19,8 +19,11 @@ switch ($Type.ToLower()) {
     "skill" {
         & "$PSScriptRoot/publish-skills.ps1" -Method $Method -Skills $Name
     }
+    "toolset" {
+        & "$PSScriptRoot/publish-toolsets.ps1" -Toolsets $Name
+    }
     default {
-        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill"
+        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset"
         exit 1
     }
 }

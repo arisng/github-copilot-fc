@@ -1,0 +1,12 @@
+{
+	"github-gist": {
+		"tools": [
+			"create_gist",
+            "get_gist",
+            "list_gists",
+            "update_gist"
+		],
+		"description": "collection of tools to interact with GitHub repositories in a read-only manner, serving research and data-gathering purposes.",
+		"icon": "github"
+	}
+}

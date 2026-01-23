@@ -1,10 +1,10 @@
 # Copilot FC
 
-A workspace for building and publishing GitHub Copilot customizations: Custom Agents, Custom Instructions, Prompts, and Agent Skills.
+A workspace for building and publishing GitHub Copilot customizations: Custom Agents, Custom Instructions, Prompts, Agent Skills, and Toolsets.
 
 ## 🚀 Quickstart
 
-1. Create or edit a customization in `agents/`, `instructions/`, `prompts/`, or `skills/`.
+1. Create or edit a customization in `agents/`, `instructions/`, `prompts/`, `skills/`, or `toolsets/`.
 2. Test locally in this workspace.
 3. Publish with the appropriate script in `scripts/`.
 
@@ -14,6 +14,7 @@ A workspace for building and publishing GitHub Copilot customizations: Custom Ag
 - **Custom Instructions**: `instructions/*.instructions.md`
 - **Prompts**: `prompts/`
 - **Agent Skills**: `skills/<skill-name>/`
+- **Toolsets**: `toolsets/*.toolsets.jsonc`
 - **Publishing**: `scripts/publish/`
 
 ## 🎯 Scope by Artifact
@@ -23,6 +24,7 @@ A workspace for building and publishing GitHub Copilot customizations: Custom Ag
 - **Prompts**:
   - **Copilot**: Author prompts in `prompts/` (files end with `.prompt.md`).
 - **Skills**: Shared across multi-agent platforms (Copilot, Codex, Claude).
+- **Toolsets**: Copilot chat toolsets for grouping related tools.
 
 ## 🧭 Why These Folders
 
@@ -34,6 +36,7 @@ Customizations live in workspace root folders (not `.github/` scan paths) to avo
 - Instructions: `scripts/publish/publish-instructions.ps1`
 - Prompts: `scripts/publish/publish-prompts.ps1`
 - Skills: `scripts/publish/publish-skills.ps1`
+- Toolsets: `scripts/publish/publish-toolsets.ps1`
 
 ## 🧯 Troubleshooting
 
