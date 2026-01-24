@@ -34,7 +34,7 @@ function Publish-InstructionsToVSCode {
 
     Write-Host "Publishing instructions to VS Code..." -ForegroundColor Cyan
 
-    $projectInstructionsPath = Join-Path $PSScriptRoot "..\instructions"
+    $projectInstructionsPath = Join-Path $PSScriptRoot "..\..\instructions"
     $vscodePromptsPaths = @(
         (Join-Path $env:APPDATA "Code\User\prompts"),
         (Join-Path $env:APPDATA "Code - Insiders\User\prompts")

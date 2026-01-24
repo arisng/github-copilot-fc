@@ -29,7 +29,7 @@ function Publish-SkillsToPersonal {
 
     Write-Host "Publishing skills to personal folders" -ForegroundColor Cyan
 
-    $projectSkillsPath = Join-Path $PSScriptRoot "..\skills"
+    $projectSkillsPath = Join-Path $PSScriptRoot "..\..\skills"
     $personalSkillsPaths = @(
         (Join-Path $env:USERPROFILE ".claude\skills"),
         (Join-Path $env:USERPROFILE ".codex\skills"),

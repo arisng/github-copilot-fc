@@ -34,7 +34,7 @@ function Publish-PromptsToVSCode {
 
     Write-Host "Publishing prompts to VS Code..." -ForegroundColor Cyan
 
-    $projectPromptsPath = Join-Path $PSScriptRoot "..\prompts"
+    $projectPromptsPath = Join-Path $PSScriptRoot "..\..\prompts"
     $vscodePromptsPaths = @(
         (Join-Path $env:APPDATA "Code\User\prompts"),
         (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
