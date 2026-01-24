@@ -29,20 +29,20 @@ class AgentEvaluator:
                 "priority": "high",
                 "relevance_score": 0
             },
+            "Git-Committer": {
+                "description": "Handles git operations including atomic commits, conventional commit messages, and git workflow management",
+                "keywords": ["commit", "push", "git", "atomic commit", "atomic commits plan"],
+                "file_patterns": [],
+                "intent_patterns": [r"\b(commit|push|merge)\b.*\b(changes|code|files)\b", r"\b(git|version control)\b.*\b(operation|workflow)\b"],
+                "priority": "critical",
+                "relevance_score": 0
+            },
             "Instruction-Writer": {
                 "description": "Creates path-specific GitHub Copilot `*.instructions.md` files that follow the official frontmatter (`applyTo`) format, include examples, and validate common glob targets",
                 "keywords": ["instruction", "guideline", "rule", "coding standard", "best practice", "copilot", "instruction file", "revise custom instruction", "create custom instruction"],
                 "file_patterns": ["*.instructions.md", "**/instructions/**", ".github/**/*.md", ".vscode/**/*.md"],
                 "intent_patterns": [r"\b(create|write|generate)\b.*\b(instruction|coding standard|guideline)\b", r"\b(copilot|github)\b.*\b(instruction|rule)\b"],
                 "priority": "high",
-                "relevance_score": 0
-            },
-            "Issue-Writer": {
-                "description": "Drafts punchy, one-page technical documents (Issues, Features, RFCs, ADRs, Work Items) in the _docs/issues/ folder",
-                "keywords": ["issue", "feature", "rfc", "adr", "work item", "bug", "task", "documentation", "create new issue", "create an issue"],
-                "file_patterns": ["_docs/issues/**", ".docs/issues/**", "**/issues/**", "*.md"],
-                "intent_patterns": [r"\b(create|write|draft)\b.*\b(issue|feature|rfc|adr|work item)\b", r"\b(document|track)\b.*\b(bug|task|feature)\b"],
-                "priority": "medium",
                 "relevance_score": 0
             },
             "Knowledge-Graph-Agent": {
@@ -156,7 +156,7 @@ class AgentEvaluator:
                 base_score += 2  # File pattern match is contextual boost
 
             # Context-aware scoring boosts
-            if "create" in query_lower and agent_name in ["Meta-Agent", "Instruction-Writer", "Issue-Writer"]:
+            if "create" in query_lower and agent_name in ["Meta-Agent", "Instruction-Writer"]:
                 base_score += 1
             if "document" in query_lower and agent_name == "Diataxis-Documentation-Expert":
                 base_score += 1

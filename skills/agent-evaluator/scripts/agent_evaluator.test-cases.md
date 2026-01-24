@@ -138,34 +138,6 @@ This file contains test cases for the AgentEvaluator class. Test cases are organ
 	- Instruction-Writer should be activated (YES)
 	- Should have keyword matches > 0
 
-### Issue-Writer Keyword - Issue
-- **Description**: Test activation for issue keyword
-- **Input**: `"draft an issue"`
-- **Expected**:
-	- Issue-Writer should be activated (YES)
-	- Should have keyword matches > 0
-
-### Issue-Writer Keyword - RFC
-- **Description**: Test activation for RFC keyword
-- **Input**: `"write an RFC"`
-- **Expected**:
-	- Issue-Writer should be activated (YES)
-	- Should have keyword matches > 0
-
-### Issue-Writer Keyword - Create New Issue
-- **Description**: Test activation for create new issue phrase
-- **Input**: `"create new issue"`
-- **Expected**:
-	- Issue-Writer should be activated (YES)
-	- Should have keyword matches > 0
-
-### Issue-Writer Keyword - Create An Issue
-- **Description**: Test activation for create an issue phrase
-- **Input**: `"create an issue"`
-- **Expected**:
-	- Issue-Writer should be activated (YES)
-	- Should have keyword matches > 0
-
 ### Mermaid-Agent Keyword - Diagram
 - **Description**: Test activation for diagram keyword
 - **Input**: `"create a diagram"`
@@ -353,7 +325,7 @@ This file contains test cases for the AgentEvaluator class. Test cases are organ
 
 - **Description**: Test that AgentEvaluator initializes with correct agent definitions
 - **Expected**:
-	- Should have 9 agents
+	- Should have 8 agents
 	- All agents should have required fields: description, keywords, file_patterns, intent_patterns, priority, relevance_score
 
 ### Priority Distribution

@@ -220,7 +220,7 @@ class TestAgentEvaluator(unittest.TestCase):
     def test_initialization(self):
         """Test that AgentEvaluator initializes with correct agent definitions."""
         self.assertIsInstance(self.evaluator.agents, dict)
-        self.assertEqual(len(self.evaluator.agents), 9)
+        self.assertEqual(len(self.evaluator.agents), 8)
 
         # Check that all agents have required fields
         required_fields = ["description", "keywords", "file_patterns", "intent_patterns", "priority", "relevance_score"]
@@ -278,7 +278,7 @@ class TestAgentEvaluator(unittest.TestCase):
         # Git-Committer should be activated
         self.assertIn("Git-Committer", result["activated_agents"])
         self.assertIn("Git-Committer", result["required_agents"])
-        self.assertEqual(result["evaluations"]["Git-Committer"]["keyword_matches"], 3)
+        self.assertEqual(result["evaluations"]["Git-Committer"]["keyword_matches"], 2)
         self.assertEqual(result["evaluations"]["Git-Committer"]["yes_no"], "YES")
 
     def test_evaluate_query_intent_matching(self):

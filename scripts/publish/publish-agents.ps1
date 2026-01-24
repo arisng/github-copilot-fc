@@ -13,9 +13,9 @@
     If omitted, publishes all agents found.
 
     Accepted formats:
-    - Array: -Agents @('git-committer','issue-writer','meta')
-    - Comma-separated: -Agents 'git-committer,issue-writer,meta'
-    - String array: -Agents 'git-committer','issue-writer','meta'
+    - Array: -Agents @('git-committer','meta')
+    - Comma-separated: -Agents 'git-committer,meta'
+    - String array: -Agents 'git-committer','meta'
 
 .PARAMETER Force
     Overwrite existing agents without prompting for confirmation.
@@ -26,12 +26,11 @@
 
 .EXAMPLE
     # Publish specific agents using array (recommended)
-    ./publish-agents.ps1 -Agents @('git-committer','issue-writer','meta') -Force
+    ./publish-agents.ps1 -Agents @('git-committer', 'meta') -Force
 
 .EXAMPLE
     # Publish specific agents using comma-separated string
-    ./publish-agents.ps1 -Agents 'git-committer,issue-writer,meta' -Force
-
+    ./publish-agents.ps1 -Agents 'git-committer,meta' -Force
 .EXAMPLE
     # Publish a single agent with prompts for overwrite
     ./publish-agents.ps1 -Agents 'meta'
@@ -48,7 +47,7 @@ function Publish-AgentsToVSCode {
 
     Write-Host "Publishing agents to VS Code..." -ForegroundColor Cyan
 
-    $projectAgentsPath = Join-Path $PSScriptRoot "..\agents"
+    $projectAgentsPath = Join-Path $PSScriptRoot "..\..\agents"
     $vscodePromptsPaths = @(
         (Join-Path $env:APPDATA "Code\User\prompts"),
         (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
