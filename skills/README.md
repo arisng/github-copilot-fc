@@ -34,7 +34,7 @@ Publishing copies skills from `skills/` to personal skill folders for Copilot, C
 .\scripts\publish\publish-skills.ps1
 
 # Publish specific skills
-.\scripts\publish\publish-skills.ps1 -Skills "git-committer", "issue-writer"
+.\scripts\publish\publish-skills.ps1 -Skills "git-atomic-commit", "md-issue-writer"
 
 # Force overwrite
 .\scripts\publish\publish-skills.ps1 -Force
@@ -60,7 +60,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 └── skills/                    # Project skills (factory)
     ├── git-committer/         # Individual skill
     │   └── SKILL.md          # Required skill definition
-    ├── issue-writer/
+    ├── md-issue-writer/
     │   ├── SKILL.md
     │   └── references/
     └── ...
@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 ~/.claude/
 └── skills/                    # Personal skills (published)
     ├── git-committer/         # Copied from factory
-    └── issue-writer/
+    └── md-issue-writer/
 
 ~/.codex/
 └── skills/                    # Personal skills (published)

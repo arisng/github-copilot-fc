@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create Issue Script for issue-writer skill
+Create MD Issue Script for md-issue-writer skill
 
 Usage:
     python create_issue.py --type "Bug" --title "Fix login timeout" --description "Users are logged out after 5 minutes" --severity "High" --status "Investigating"
@@ -274,10 +274,11 @@ def main():
     print(f"Created issue document: {filepath}")
 
     # Optionally run metadata extraction
-    script = Path.cwd() / 'scripts' / 'extract-issue-metadata.ps1'
+    script_dir = Path(__file__).parent
+    script = script_dir / 'extract_issue_metadata.py'
     if script.exists():
         print("Running metadata extraction...")
-        os.system(f'powershell -File {script}')
+        os.system(f'python {script}')
 
 if __name__ == "__main__":
     main()
