@@ -15,22 +15,33 @@ A workspace for building and publishing GitHub Copilot customizations: Custom Ag
 - **Prompts**: `prompts/`
 - **Agent Skills**: `skills/<skill-name>/`
 - **Toolsets**: `toolsets/*.toolsets.jsonc`
+- **Documentation**: `.docs/` (Diátaxis-structured)
 - **Publishing**: `scripts/publish/`
 
-## 🎯 Scope by Artifact
+## 📚 Documentation
+
+Documentation is organized using the [Diátaxis framework](https://diataxis.fr/) in `.docs/`:
+
+- **Tutorials**: Learning-oriented guides for beginners
+- **How-to Guides**: Goal-oriented instructions for specific tasks
+- **Reference**: Technical descriptions of features and APIs
+- **Explanation**: Background and conceptual information
+
+Start with [.docs/index.md](.docs/index.md) for the documentation index.
+
+## Scope by Artifact
 
 - **Custom Agents**: Copilot only.
 - **Custom Instructions**: Copilot only.
-- **Prompts**:
-  - **Copilot**: Author prompts in `prompts/` (files end with `.prompt.md`).
+- **Prompts**: Copilot only.
 - **Skills**: Shared across multi-agent platforms (Copilot, Codex, Claude).
-- **Toolsets**: Copilot chat toolsets for grouping related tools.
+- **Toolsets**: Copilot only. Chat toolsets for grouping related tools.
 
 ## 🧭 Why These Folders
 
 Customizations live in workspace root folders (not `.github/` scan paths) to avoid duplicates when VS Code also scans synced user settings.
 
-## 🛠️ Publish (Common)
+## 🛠️ Publishing
 
 - Agents: `scripts/publish/publish-agents.ps1`
 - Instructions: `scripts/publish/publish-instructions.ps1`

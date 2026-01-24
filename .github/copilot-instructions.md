@@ -13,6 +13,7 @@ Use these instructions when working in this workspace (not for external publishi
 - Skills live in [skills](skills) (e.g., [skills/README.md](skills/README.md)).
 - Prompts live in [prompts](prompts) (files end with .prompt.md).
 - Toolsets live in [toolsets](toolsets) (files end with .toolsets.jsonc).
+- Documentation lives in [.docs](.docs) (Diátaxis-structured: tutorials, how-to, reference, explanation).
 
 ## Project-specific conventions
 - Agent YAML frontmatter must include `name`, `description`, and `tools`.
@@ -27,6 +28,7 @@ Use these instructions when working in this workspace (not for external publishi
   - New instruction: use [agents/instruction-writer.agent.md](agents/instruction-writer.agent.md) or follow [instructions/meta.instructions.md](instructions/meta.instructions.md).
   - New skill: create skills/<skill-name>/ with SKILL.md.
   - New toolset: create toolsets/<name>.toolsets.jsonc following the toolset JSONC structure.
+- Documenting: add to [.docs](.docs) following Diátaxis structure (tutorials, how-to, reference, explanation).
 - Publishing: run the appropriate script in [scripts/publish](scripts/publish) (agents, instructions, prompts, skills, toolsets).
 - Testing: Python tooling runs via scripts/run_tests.py; PowerShell tests use Pester (see scripts for patterns).
 
