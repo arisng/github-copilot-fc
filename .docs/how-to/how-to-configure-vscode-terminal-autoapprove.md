@@ -20,7 +20,7 @@ Use this guide if you need to automatically approve terminal commands executed b
 3. Type "Preferences: Open Settings (JSON)" and select it to edit settings.json directly, or use the Settings UI.
 4. Add or modify the following setting to enable auto-approval:
 
-```
+```json
 "chat.tools.terminal.enableAutoApprove": true
 ```
 
@@ -29,7 +29,7 @@ Use this guide if you need to automatically approve terminal commands executed b
 1. In the same settings file, add or modify the `chat.tools.terminal.autoApprove` setting as an object.
 2. To auto-approve Python commands (including those with dynamic arguments), set:
 
-```
+```json
 "chat.tools.terminal.autoApprove": {
   "python": true
 }
@@ -47,7 +47,7 @@ Solution: Ensure the command name matches exactly (e.g., "python" for Python int
 
 Solution: Use regex patterns instead of simple strings. For example, to approve only Python scripts in the skills/ directory:
 
-```
+```json
 "chat.tools.terminal.autoApprove": {
   "/^python\\s+skills\\//": true
 }
@@ -59,7 +59,7 @@ Note: Regex support may vary; test with your specific commands.
 
 If you need to auto-approve other commands with dynamic arguments (e.g., Node.js scripts), add them to the object:
 
-```
+```json
 "chat.tools.terminal.autoApprove": {
   "python": true,
   "node": true

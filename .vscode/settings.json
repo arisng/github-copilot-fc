@@ -4,5 +4,12 @@
             "file": "skills/git-atomic-commit/SKILL.md"
         }
     ],
+    "chat.tools.terminal.autoApprove": {
+        "/^powershell.*publish-skills\\.ps1/": true,
+        "/^powershell.*publish-agents\\.ps1/": true,
+        "/^powershell.*publish-instructions\\.ps1/": true,
+        "/^powershell.*publish-prompts\\.ps1/": true,
+        "/^powershell.*publish-toolsets\\.ps1/": true
+    },
     "chatgpt.openOnStartup": false
 }
