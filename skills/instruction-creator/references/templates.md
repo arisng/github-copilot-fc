@@ -2,58 +2,65 @@
 
 ## Minimal Template
 
-```markdown
+This is a minimal markdown template for creating new instruction files. Copy the fenced code block below:
+
+````markdown
 ---
 description: 'Brief description of purpose'
 applyTo: '**/*.ext'
 ---
 
-# [Instruction Title]
+# [Instruction Title/Project Name]
 
 ## Overview
-Brief introduction and context.
+Brief "elevator pitch" of the project or scope.
 
-## Workflow
+## Tech Stack
+- **Backend**: List tech (e.g., Node.js, Python, Flask)
+- **Frontend**: List tech (e.g., React, Tailwind)
+- **APIs/Tools**: Key integrations (e.g., PostgreSQL, Stripe)
+
+## Project Structure
+- `src/`: Core logic
+- `scripts/`: Task automation
+- `docs/`: Project documentation
+
+## Workflow / Tasks
 1. Step 1: Analyze the input.
 2. Step 2: Execute the [Skill Name](skills/<skill-name>/SKILL.md).
 3. Step 3: Verify the output.
 
-## Rules & Constraints
-- Rule 1
-- Rule 2
-
-## Best Practices
-
-- Specific practice 1
-- Specific practice 2
-
-## Code Standards
+## Coding Guidelines
 
 ### Naming Conventions
 - Rule 1
 - Rule 2
 
-## Common Patterns
-
-### Pattern 1
-Description and example
-
+### Best Practices & Style
+- **Pattern 1**: Description
 ```language
-code example
+// Good example
 ```
+
+- **Avoid**: Context on what to skip
+```language
+// Bad example
+```
+
+## Resources & Automation
+- Scripts: `scripts/test.ps1`
+- Tools: Mention relevant MCP servers if applicable.
 
 ## Validation
-
-- Build command: `command to verify`
-- Linting: `command to lint`
-- Testing: `command to test`
-```
+- Build: `npm run build`
+- Test: `npm test`
+````
 
 ## Frontmatter Only
 
-```yaml
+````yaml
 ---
 description: 'Brief description of the instruction purpose and scope'
 applyTo: 'glob pattern for target files (e.g., **/*.ts, **/*.py)'
 ---
-```
+````

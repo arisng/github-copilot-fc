@@ -22,10 +22,11 @@ This skill guides the creation of effective custom instruction files that help G
 
 ## Core Principles
 
--   **Policy Maker**: Instructions define the "What" and "How" (decision logic).
--   **Concise**: Avoid fluff; use imperative language.
--   **Actionable**: Provide concrete examples and clear steps.
--   **Linked**: Connect instructions to the skills that execute them.
+-   **Policy Maker**: Instructions define the "What" and "How" (decision logic and standards).
+-   **The 5 Sections**: Effective instructions include: Overview, Tech Stack, Structure, Guidelines, and Resources.
+-   **Concise & focused**: Avoid fluff; use imperative language. Limit files to ~500 lines.
+-   **Actionable**: Provide concrete "Good" and "Bad" code examples and clear steps.
+-   **Linked**: Connect instructions to the skills that execute them and internal automation scripts.
 
 ## Resources
 
