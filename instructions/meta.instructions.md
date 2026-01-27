@@ -1,7 +1,7 @@
 ---
 name: meta
 description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
-applyTo: '**/*.instructions.md'
+##applyTo: '**/*.instructions.md'
 ---
 
 # Custom Instructions File Guidelines
@@ -32,7 +32,7 @@ applyTo: 'glob pattern for target files (e.g., **/*.ts, **/*.py)'
 ---
 ```
 
-### Frontmatter Guidelines
+### Frontmatter Guidelines    
 
 - **description**: Single-quoted string, 1-500 characters, clearly stating the purpose
 - **applyTo**: Glob pattern(s) specifying which files these instructions apply to
