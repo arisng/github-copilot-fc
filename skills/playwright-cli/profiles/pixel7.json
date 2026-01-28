@@ -1,0 +1,17 @@
+{
+  "device": "Pixel 7",
+  "browser": {
+    "browserName": "chromium",
+    "contextOptions": {
+      "ignoreHTTPSErrors": true,
+      "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36",
+      "viewport": {
+        "width": 412,
+        "height": 915
+      },
+      "deviceScaleFactor": 2.625,
+      "isMobile": true,
+      "hasTouch": true
+    }
+  }
+}
