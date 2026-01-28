@@ -1,12 +1,22 @@
 import os
 import argparse
+import platform
 
-def create_instruction(name, description, apply_to):
+def detect_environment():
+    """Detect the current environment and return the appropriate skills base path."""
+    if os.name == 'nt' and 'WSL_DISTRO_NAME' not in os.environ:
+        # Native Windows
+        return os.path.expanduser(r'~\.copilot\skills')
+    else:
+        # WSL, Linux, or other Unix-like
+        return os.path.expanduser('~/.copilot/skills')
+
+def create_instruction(name, description, apply_to, output_dir='instructions'):
     if not name.endswith('.instructions.md'):
         name += '.instructions.md'
-    
-    path = os.path.join('instructions', name)
-    
+
+    path = os.path.join(output_dir, name)
+
     if os.path.exists(path):
         print(f"Error: File {path} already exists.")
         return
@@ -22,9 +32,17 @@ applyTo: '{apply_to}'
 Brief introduction and context.
 
 ## Workflow
-1. Step 1: Analyze the input.
-2. Step 2: Execute the [Skill Name](skills/<skill-name>/SKILL.md).
-3. Step 3: Verify the output.
+1. **Detect Environment**: Set `skills_source` based on environment.
+   ```python
+   import os
+   skills_source = os.path.expanduser(r'~\.copilot\skills') if os.name == 'nt' else os.path.expanduser('~/.copilot/skills')
+   ```
+
+2. **Analyze Input**: Understand the requirements.
+
+3. **Execute Skill**: Run the appropriate skill from `{skills_source}/<skill-name>/SKILL.md`.
+
+4. **Verify Output**: Validate results against requirements.
 
 ## Rules & Constraints
 - Rule 1
@@ -49,17 +67,43 @@ code example
 - Build command: `npm run build`
 """
     
-    os.makedirs('instructions', exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     with open(path, 'w') as f:
         f.write(content)
-    
+
     print(f"Created {path}")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Initialize a new instruction file.')
+def main():
+    parser = argparse.ArgumentParser(
+        description='Initialize a new instruction file. Auto-detects environment for skills path.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    # Create in current directory
+    python init_instruction.py my-rules --description "My custom rules" --applyTo "**/*.py"
+
+    # Create in specific output directory
+    python init_instruction.py my-rules -o ./custom-instructions
+
+    # Use specific skills base path
+    python init_instruction.py my-rules --skills-path ~/.codex/skills
+        """
+    )
     parser.add_argument('name', help='Name of the instruction file (e.g., react-best-practices)')
     parser.add_argument('--description', default='Brief description of purpose', help='Description for frontmatter')
     parser.add_argument('--applyTo', default='**', help='Glob pattern for applyTo')
-    
+    parser.add_argument('-o', '--output', default='instructions', help='Output directory (default: instructions)')
+    parser.add_argument('--skills-path', default=None, help='Override skills base path (default: auto-detect)')
+
     args = parser.parse_args()
-    create_instruction(args.name, args.description, args.applyTo)
+
+    # Auto-detect skills path if not provided
+    if args.skills_path is None:
+        args.skills_path = detect_environment()
+        print(f"Auto-detected environment: {platform.system()}")
+        print(f"Skills path: {args.skills_path}")
+
+    create_instruction(args.name, args.description, args.applyTo, args.output)
+
+if __name__ == "__main__":
+    main()
