@@ -153,10 +153,14 @@ function Publish-SkillsToPersonal {
                     }
 
                     # Copy skill to WSL using wsl command with Windows path converted to WSL path
-                    $windowsSourcePath = $sourcePath -replace '\\', '/' -replace '^([A-Za-z]):', '/mnt/$1'
-                    wsl bash -c "cp -r '$windowsSourcePath' '$wslTargetPath'" 2>$null
+                    $windowsSourcePath = [regex]::Replace(($sourcePath -replace '\\', '/'), '^([A-Za-z]):', { param($m) "/mnt/" + $m.Groups[1].Value.ToLower() })
+                    wsl bash -c "cp -r '$windowsSourcePath' '$wslTargetPath'"
 
-                    Write-Host "Copied: $($skillDir.Name) to WSL/$agent" -ForegroundColor Green
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "Copied: $($skillDir.Name) to WSL/$agent" -ForegroundColor Green
+                    } else {
+                        Write-Error "Failed to copy $($skillDir.Name) to WSL/$agent (cp exited with code $LASTEXITCODE)"
+                    }
                 }
                 catch {
                     Write-Error "Failed to publish $($skillDir.Name) to WSL/$agent : $_"
