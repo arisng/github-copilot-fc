@@ -4,14 +4,9 @@ import platform
 
 def detect_environment():
     """Detect the current environment and return the appropriate skills base path."""
-    if os.name == 'nt' and 'WSL_DISTRO_NAME' not in os.environ:
-        # Native Windows
-        return os.path.expanduser(r'~\.copilot\skills')
-    else:
-        # WSL, Linux, or other Unix-like
-        return os.path.expanduser('~/.copilot/skills')
+    return os.path.expanduser('~/.copilot/skills')
 
-def create_instruction(name, description, apply_to, output_dir='instructions'):
+def create_instruction(name, description, apply_to, skills_path, output_dir='instructions'):
     if not name.endswith('.instructions.md'):
         name += '.instructions.md'
 
@@ -35,12 +30,12 @@ Brief introduction and context.
 1. **Detect Environment**: Set `skills_source` based on environment.
    ```python
    import os
-   skills_source = os.path.expanduser(r'~\.copilot\skills') if os.name == 'nt' else os.path.expanduser('~/.copilot/skills')
+   skills_source = os.path.expanduser('~/.copilot/skills')
    ```
 
 2. **Analyze Input**: Understand the requirements.
 
-3. **Execute Skill**: Run the appropriate skill from `{skills_source}/<skill-name>/SKILL.md`.
+3. **Execute Skill**: Run the appropriate skill from `{skills_path}/<skill-name>/SKILL.md`.
 
 4. **Verify Output**: Validate results against requirements.
 
@@ -103,7 +98,7 @@ Examples:
         print(f"Auto-detected environment: {platform.system()}")
         print(f"Skills path: {args.skills_path}")
 
-    create_instruction(args.name, args.description, args.applyTo, args.output)
+    create_instruction(args.name, args.description, args.applyTo, args.skills_path, args.output)
 
 if __name__ == "__main__":
     main()
