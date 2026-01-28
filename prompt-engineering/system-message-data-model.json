@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/system-message.json",
+  "title": "SystemMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "role", "blocks", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "role": { "type": "string", "const": "system" },
+    "description": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "priorityModel": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ordered list of block types by priority."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/InstructionBlock" }
+    }
+  },
+  "$defs": {
+    "InstructionBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "content"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "identity",
+            "safety",
+            "behavior",
+            "tooling",
+            "editing",
+            "formatting",
+            "project",
+            "skills",
+            "agents",
+            "mode",
+            "attachments",
+            "advisory"
+          ]
+        },
+        "title": { "type": "string" },
+        "priority": { "type": "integer", "minimum": 0 },
+        "scope": { "$ref": "#/$defs/Scope" },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Condition" }
+        },
+        "content": { "$ref": "#/$defs/Content" },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/InstructionBlock" }
+        }
+      }
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "applyTo": { "type": "array", "items": { "type": "string" } },
+        "modes": { "type": "array", "items": { "type": "string" } },
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "files": { "type": "array", "items": { "type": "string" } }
+      },
+      "anyOf": [
+        { "required": ["applyTo"] },
+        { "required": ["modes"] },
+        { "required": ["tools"] },
+        { "required": ["files"] }
+      ]
+    },
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "value": { "type": ["string", "number", "boolean", "object", "array"] }
+      }
+    },
+    "Content": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": ["plain", "markdown", "json", "yaml"]
+            },
+            "text": { "type": "string", "minLength": 1 },
+            "data": { "type": "object" }
+          },
+          "required": ["format", "text"]
+        }
+      ]
+    }
+  }
+}
