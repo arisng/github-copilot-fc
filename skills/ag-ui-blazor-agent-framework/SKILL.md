@@ -49,6 +49,49 @@ description: Build AG-UI integrations in .NET/C# with Microsoft Agent Framework 
 - [AG-UI protocol overview](references/ag-ui-protocol-overview.md)
 - [Blazor UI patterns for AG-UI + GenUI](references/blazor-ag-ui-genui-patterns.md)
 
+## Maintenance & Update Workflow
+
+Run this workflow weekly or at custom intervals to ensure the skill stays current:
+
+1. **Check Package Versions**
+   - Query latest NuGet releases: `Microsoft.Extensions.AI.*`, `Microsoft.AgentFramework.*`, `Microsoft.AspNetCore.Components.*`
+   - Flag major/minor version bumps; review changelog/breaking changes
+   - Update version constraints in references if needed
+
+2. **Monitor Official Documentation**
+   - Scan Microsoft Learn for updates: [AG-UI docs](https://learn.microsoft.com/ai/), [Blazor docs](https://learn.microsoft.com/aspnet/core/blazor/)
+   - Check [AG-UI GitHub repo](https://github.com/microsoft/ag-ui) for protocol spec changes
+   - Review [Microsoft Agent Framework releases](https://github.com/microsoft/semantic-kernel) for tool rendering updates
+
+3. **Validate Code Examples**
+   - Run smoke tests on workflow steps (if automated test harness exists)
+   - Verify protocol event structures match current spec (especially streaming deltas)
+   - Check Blazor component patterns against latest templates (`dotnet new blazor`)
+
+4. **Update References**
+   - Re-fetch updated Microsoft Learn articles into `references/`
+   - Archive deprecated references with `[DEPRECATED YYYY-MM-DD]` prefix
+   - Add new references for emerging patterns (e.g., new GenUI components, protocol extensions)
+
+5. **Protocol Compatibility Check**
+   - Compare current AG-UI protocol version vs skill assumptions
+   - Test tool metadata serialization (ensure backward compatibility)
+   - Validate event transport compatibility (SignalR/SSE version alignment)
+
+6. **Industry Standards Audit**
+   - Cross-reference with CopilotKit/Vercel AI SDK patterns (GenUI best practices)
+   - Review accessibility standards (WCAG updates, ARIA patterns)
+   - Check security advisories for dependencies
+
+7. **Update Workflow & Guardrails**
+   - Revise workflow steps if protocol/framework changes require new patterns
+   - Add new guardrails for discovered pitfalls or anti-patterns
+   - Remove obsolete steps or notes
+
+8. **Version & Changelog**
+   - Increment skill version in frontmatter if updates are substantial
+   - Document changes in a `CHANGELOG.md` (if maintained) or commit message
+
 ## Guardrails
 
 - Prefer prerelease packages only when required; validate version compatibility.
