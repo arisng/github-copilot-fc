@@ -9,7 +9,10 @@
         "/^powershell.*publish-agents\\.ps1/": true,
         "/^powershell.*publish-instructions\\.ps1/": true,
         "/^powershell.*publish-prompts\\.ps1/": true,
-        "/^powershell.*publish-toolsets\\.ps1/": true
+        "/^powershell.*publish-toolsets\\.ps1/": true,
+        "powershell": true,
+        "Get-Item": true,
+        "Test-Path": true
     },
     "chatgpt.openOnStartup": false
 }
