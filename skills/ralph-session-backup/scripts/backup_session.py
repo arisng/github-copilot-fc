@@ -18,11 +18,8 @@ def main():
 
     session_name = sys.argv[1]
 
-    # Paths relative to the script location
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    skill_dir = os.path.dirname(script_dir)
-    workspace_root = os.path.dirname(os.path.dirname(skill_dir))
-
+    # Paths relative to the current working directory (repository root)
+    workspace_root = os.getcwd()
     source = os.path.join(workspace_root, '.ralph-sessions', session_name)
     if platform.system() == 'Linux' and 'microsoft' in platform.uname().release.lower():
         # WSL: Get Windows username and backup to Windows filesystem
