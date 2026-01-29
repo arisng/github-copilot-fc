@@ -13,7 +13,7 @@ This skill provides a script to backup Ralph sessions using an overwrite strateg
 To backup a specific session:
 
 1. Navigate to the repository root directory
-2. Run the backup script: `python skills/ralph-session-backup/scripts/backup_session.py <session_name>`
+2. Run the backup script: `python3 skills/ralph-session-backup/scripts/backup_session.py <session_name>`
 
 The script will copy the entire session folder from `.ralph-sessions/<session_name>` to the user's Google Drive SwarmSessions folder (e.g., `C:\Users\<username>\GoogleDrive\SwarmSessions\<session_name>`), including all nested folders and files.
 
