@@ -18,6 +18,9 @@ def main():
 
     session_name = sys.argv[1]
 
+    # Get repository name from current working directory
+    repo_name = os.path.basename(os.getcwd())
+
     # Paths relative to the current working directory (repository root)
     workspace_root = os.getcwd()
     source = os.path.join(workspace_root, '.ralph-sessions', session_name)
@@ -33,7 +36,10 @@ def main():
         # Windows
         dest_base = os.path.join(os.path.expanduser('~'), 'GoogleDrive', 'SwarmSessions')
     os.makedirs(dest_base, exist_ok=True)
-    dest = os.path.join(dest_base, session_name)
+    # Create repo-specific folder and place session inside it
+    repo_folder = os.path.join(dest_base, repo_name)
+    os.makedirs(repo_folder, exist_ok=True)
+    dest = os.path.join(repo_folder, session_name)
 
     print(f"Backing up session '{session_name}' from {source} to {dest}")
 
