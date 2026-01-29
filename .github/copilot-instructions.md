@@ -2,6 +2,9 @@
 
 Use these instructions when working in this workspace (not for external publishing).
 
+## Conventions
+- using python3 instead of python to run Python scripts
+
 ## Big picture
 - This repo is a factory for Copilot customizations: Agents, Instructions, Prompts, Skills, and Toolsets. See [README.md](README.md).
 - Customizations live at the workspace root (not under .github or user settings) to avoid duplication when VS Code also scans synced user settings.
