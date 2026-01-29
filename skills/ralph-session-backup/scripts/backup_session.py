@@ -9,6 +9,7 @@ import os
 import shutil
 import sys
 import platform
+import subprocess
 
 def main():
     if len(sys.argv) != 2:
@@ -24,13 +25,15 @@ def main():
 
     source = os.path.join(workspace_root, '.ralph-sessions', session_name)
     if platform.system() == 'Linux' and 'microsoft' in platform.uname().release.lower():
-        # WSL: Use Windows USERPROFILE and convert to WSL path
-        userprofile = os.environ.get('USERPROFILE', os.path.expanduser('~'))
-        if userprofile.startswith('C:'):
-            userprofile = '/mnt/c' + userprofile[2:].replace('\\', '/')
-        dest_base = os.path.join(userprofile, 'GoogleDrive', 'SwarmSessions')
+        # WSL: Get Windows username and backup to Windows filesystem
+        try:
+            windows_user = subprocess.run(['cmd.exe', '/c', 'echo %USERNAME%'], capture_output=True, text=True, check=True).stdout.strip()
+        except subprocess.CalledProcessError:
+            print("Error: Could not determine Windows username in WSL")
+            sys.exit(1)
+        dest_base = f'/mnt/c/Users/{windows_user}/GoogleDrive/SwarmSessions'
     else:
-        # Windows or other systems
+        # Windows
         dest_base = os.path.join(os.path.expanduser('~'), 'GoogleDrive', 'SwarmSessions')
     os.makedirs(dest_base, exist_ok=True)
     dest = os.path.join(dest_base, session_name)
@@ -46,14 +49,10 @@ def main():
         sys.exit(1)
 
     try:
-        # Remove destination if it exists
-        if os.path.exists(dest):
-            shutil.rmtree(dest)
-            print(f"Removed existing backup at {dest}")
-
-        # Copy the entire directory tree
-        shutil.copytree(source, dest)
+        # Copy the entire directory tree, overwriting existing files
+        shutil.copytree(source, dest, dirs_exist_ok=True)
         print(f"Successfully backed up session '{session_name}' to {dest}")
+        print("Existing files in the destination were overwritten.")
 
     except Exception as e:
         print(f"Error during backup: {e}")
