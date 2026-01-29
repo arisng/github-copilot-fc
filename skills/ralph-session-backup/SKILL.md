@@ -1,7 +1,7 @@
 ---
 name: ralph-session-backup
 description: Backup a specific Ralph session directory from .ralph-sessions to the Google Drive SwarmSessions folder. Use when archiving or copying Ralph session data with all nested files and folders.
-version: 1.1.0
+version: 1.1.1
 ---
 
 # Ralph Session Backup
@@ -12,8 +12,11 @@ This skill provides a script to backup Ralph sessions using an overwrite strateg
 
 To backup a specific session:
 
-1. Navigate to the repository root directory
-2. Run the backup script: `python3 skills/ralph-session-backup/scripts/backup_session.py <session_name>`
+1. First, resolve the skill directory location (this skill's folder containing SKILL.md)
+2. Navigate to the repository root directory where .ralph-sessions exists
+3. Run the backup script with a path resolved relative to the skill directory: `python3 <skill_directory>/scripts/backup_session.py <session_name>`
+
+**Important**: The script path must be resolved relative to the current skill directory location. This requires first determining where this skill is installed (e.g., in personal Copilot folders like .claude, .copilot, etc.) before executing the script.
 
 The script will copy the entire session folder from `.ralph-sessions/<session_name>` to the user's Google Drive SwarmSessions folder under a repository-specific subfolder (e.g., `C:\Users\<username>\GoogleDrive\SwarmSessions\<repo_name>\<session_name>`), including all nested folders and files.
 
