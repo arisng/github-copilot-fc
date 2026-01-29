@@ -2,12 +2,13 @@
 """
 Ralph Session Backup Script
 
-Copies a specific session folder from .ralph-sessions to OneDrive SwarmSessions.
+Copies a specific session folder from .ralph-sessions to GoogleDrive SwarmSessions.
 """
 
 import os
 import shutil
 import sys
+import platform
 
 def main():
     if len(sys.argv) != 2:
@@ -22,7 +23,15 @@ def main():
     workspace_root = os.path.dirname(os.path.dirname(skill_dir))
 
     source = os.path.join(workspace_root, '.ralph-sessions', session_name)
-    dest_base = os.path.join(os.path.expanduser('~'), 'OneDrive', 'SwarmSessions')
+    if platform.system() == 'Linux' and 'microsoft' in platform.uname().release.lower():
+        # WSL: Use Windows USERPROFILE and convert to WSL path
+        userprofile = os.environ.get('USERPROFILE', os.path.expanduser('~'))
+        if userprofile.startswith('C:'):
+            userprofile = '/mnt/c' + userprofile[2:].replace('\\', '/')
+        dest_base = os.path.join(userprofile, 'GoogleDrive', 'SwarmSessions')
+    else:
+        # Windows or other systems
+        dest_base = os.path.join(os.path.expanduser('~'), 'GoogleDrive', 'SwarmSessions')
     os.makedirs(dest_base, exist_ok=True)
     dest = os.path.join(dest_base, session_name)
 
