@@ -1,0 +1,836 @@
+{
+  "model": "claude-sonnet-4.5",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "<environment_info>\nThe user's current OS is: Linux\n</environment_info>\n<workspace_info>\nI am working in a workspace with the following folders:\n- /home/arisng/src/agent-framework \nI am working in a workspace that has the following structure:\n```\nCODE_OF_CONDUCT.md\nCOMMUNITY.md\nCONTRIBUTING.md\nLICENSE\npackage.json\nREADME.md\nSECURITY.md\nSUPPORT.md\nTRANSPARENCY_FAQ.md\nagent-samples/\n\tREADME.md\n\tazure/\n\t\tAzureOpenAI.yaml\n\t\tAzureOpenAIAssistants.yaml\n\t\tAzureOpenAIChat.yaml\n\t\tAzureOpenAIResponses.yaml\n\tchatclient/\n\t\tAssistant.yaml\n\t\tGetWeather.yaml\n\tfoundry/\n\t\tFoundryAgent.yaml\n\t\tMicrosoftLearnAgent.yaml\n\t\tPersistentAgent.yaml\n\topenai/\n\t\tOpenAI.yaml\n\t\tOpenAIAssistants.yaml\n\t\tOpenAIChat.yaml\n\t\tOpenAIResponses.yaml\ndocs/\n\tFAQS.md\n\tassets/\n\tdecisions/\n\t\t0001-agent-run-response.md\n\t\t0002-agent-tools.md\n\t\t0003-agent-opentelemetry-instrumentation.md\n\t\t0004-foundry-sdk-extensions.md\n\t\t0005-python-naming-conventions.md\n\t\t0006-userapproval.md\n\t\t0007-agent-filtering-middleware.md\n\t\t0008-python-subpackages.md\n\t\t0009-support-long-running-operations.md\n\t\t0010-ag-ui-support.md\n\t\t0011-create-get-agent-api.md\n\t\t0012-python-typeddict-options.md\n\t\t0013-python-get-response-simplification.md\n\t\t0014-feature-collections.md\n\t\tadr-short-template.md\n\t\tadr-template.md\n\t\tREADME.md\n\tdesign/\n\t\tpython-package-setup.md\n\tfeatures/\n\t\tdurable-agents/\n\tspecs/\n\t\t001-foundry-sdk-alignment.md\n\t\tspec-template.md\ndotnet/\n\tagent-framework-dotnet.slnx\n\tagent-framework-release.slnf\n\tDirectory.Build.props\n\tDirectory.Build.targets\n\tDirectory.Packages.props\n\tglobal.json\n\tnuget.config\n\tREADME.md\n\teng/\n\t\tMSBuild/\n\tnuget/\n\t\tnuget-package.props\n\t\tNUGET.md\n\tsamples/\n\t\tDirectory.Build.props\n\t\tREADME.md\n\t\tA2AClientServer/\n\t\tAgentWebChat/\n\t\tAGUIClientServer/\n\t\tAGUIWebChat/\n\t\tAzureFunctions/\n\t\tDurableAgents/\n\t\tGettingStarted/\n\t\t...\n\tsrc/\n\t\t...\n\ttests/\npython/\n\tCHANGELOG.md\n\tcheck_md_code_blocks.py\n\tCODING_STANDARD.md\n\tDEV_SETUP.md\n\tdevsetup.sh\n\tLICENSE\n\tpyproject.toml\n\tREADME.md\n\trun_tasks_in_changed_packages.py\n\trun_tasks_in_packages_if_exists.py\n\tshared_tasks.toml\n\tagent_framework_meta/\n\tdocs/\n\tpackages/\n\tsamples/\n\ttests/\nschemas/\n\tdurable-agent-entity-state.json\nworkflow-samples/\n\tCustomerSupport.yaml\n\tDeepResearch.yaml\n\tMarketing.yaml\n\tMathChat.yaml\n\tREADME.md\n```\nThis is the state of the context at this point in the conversation. The view of the workspace structure may be truncated. You can use tools to collect more context if needed.\n</workspace_info>\n",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        },
+        {
+          "type": "text",
+          "text": "<attachments>\n<attachment id=\"plan.md\" filePath=\"/home/arisng/src/agent-framework/.ralph-sessions/260128-212446/plan.md\" />\n</attachments>\n<context>\nThe current date is January 29, 2026.\nTerminals:\nTerminal: bash\n\n</context>\n<reminderInstructions>\nWhen using the replace_string_in_file tool, include 3-5 lines of unchanged code before and after the string you want to replace, to make it unambiguous which part of the file should be edited.\nFor maximum efficiency, whenever you plan to perform multiple independent edit operations, invoke them simultaneously using multi_replace_string_in_file tool rather than sequentially. This will greatly improve user's cost and time efficiency leading to a better user experience. Do not announce which tool you're using (for example, avoid saying \"I'll implement all the changes using multi_replace_string_in_file\").\nDo NOT create a new markdown file to document each change or summarize your work unless specifically requested by the user.\n\n</reminderInstructions>\n<userRequest>\nLet's resume current session 260128-212446.\nUse skill `ag-ui-blazor-agent-framework` to implement this plan. And be aware of emphasize this skill when delegating tasks to subagent.\n</userRequest>\n",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The user wants to resume session 260128-212446 and implement the plan using the `ag-ui-blazor-agent-framework` skill. I need to:\n\n1. Read the existing session artifacts (plan.md, tasks.md, progress.md)\n2. Understand the current state\n3. Use the ag-ui-blazor-agent-framework skill to guide implementation\n4. Delegate to subagents with emphasis on using this skill\n\nLet me start by reading the session artifacts.",
+          "signature": "EsIECkgICxABGAIqQDdxYRh4h5RdwwT6Wh33qqdSThZza5MUo3j/ZB21BhIVwsgAuun2QCJ+Ccee094Dz3VOIr5VsLucX/cdCutX9rESDBMSXCXoTOsy0FZoxRoMbnFE8RRcyPeedYW+IjDwp0NhxU0jKkyIo2FDtcmHK/o6bk4vz0R5oy9Z2KMm978/op59O+05DiVdFZ8i748qpwNpwnwvgwONfDWUEHbqYMH6UwbcZWda2ypxCPrKW9VqtvTfn5Bo2PoDd+ukBXwec0ZZGtjBn7SABivbZsKY8w+Kc5N9GMPIP+bPi9Ae/UNN5S2b5wP/4OVsfysT+gyq2Kg7ggrFSQrxjq7kRr65IkEtIX/o/XShA0iJ0g4RDN3BYhztugnWeZZB5m+bja1a0jqcszpFaYC7sahX2ZQkZBK/dR1Sf1Mdh5BITlbWUo1E2yxu/4zk0/SrjjUEobibt8QYKGmu/dLPy4X4YBcfGHYUkYDipcHl1PoRqLQ/qCqnnV7UnHKEEVkLSQLLfWdggxBuVPK7WW6i/jaI7KOkC3NIY9xO+u/6jLtFCZBpcWWlJRqnUHFZcuREFC3HEhFrfdCv3Dpg7T9yz3ouxwErjicgSOVzTbminkFqUxDWEr78Hruf+mdEjQteP52ELu+MtEiNjlZxaGy3VDvxZJW8iMzrCYi3Hg3A0igw58nqvc/IrSACclZLoYefepywnxExVBcDsNkuTdLsAsLoG9vVwOQ1l9Jj0n813xuSoFea16fOqobn2hsz5LsYAQ=="
+        },
+        {
+          "type": "text",
+          "text": "I'll resume session 260128-212446 and review the current state, then proceed with implementation using the `ag-ui-blazor-agent-framework` skill.    "
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_bdrk_0145tW1aW3YwRZ7faGKrnLux",
+          "name": "read_file",
+          "input": {
+            "filePath": "/home/arisng/src/agent-framework/.ralph-sessions/260128-212446/plan.md"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_bdrk_0176z1vhHeC33rkA329dx3FZ",
+          "name": "read_file",
+          "input": {
+            "filePath": "/home/arisng/src/agent-framework/.ralph-sessions/260128-212446/tasks.md"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_bdrk_01U8aEo7Bcp35hgFGkPHW4FY",
+          "name": "read_file",
+          "input": {
+            "filePath": "/home/arisng/src/agent-framework/.ralph-sessions/260128-212446/progress.md"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_bdrk_01XtC7P98DjVSjiC9TJQQy2f",
+          "name": "read_file",
+          "input": {
+            "filePath": "/home/arisng/.copilot/skills/ag-ui-blazor-agent-framework/SKILL.md"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_bdrk_0145tW1aW3YwRZ7faGKrnLux",
+          "content": [
+            {
+              "type": "text",
+              "text": "````markdown\n# Plan: AGUIWebChat Generative Phase Refinement (Phase 2 - Iteration 2)\n\n## Goal & Success Criteria\nRefine the existing Phase 2 (Generative) implementation to eliminate architectural regressions and complete the generative UI pattern.\n\n**Primary Objectives:**\n1. Remove ALL hardcoded component logic from `ChatMessageItem.razor`\n2. Route ALL tool calls and results consistently through `DynamicMessageRenderer`\n3. Fix weather tool call/result rendering regression\n4. Ensure plans render correctly (either as dedicated panel or through registry)\n5. Validate with automated E2E tests using Playwright CLI\n\n**Success Criteria:**\n- `ChatMessageItem.razor` contains ZERO hardcoded component references\n- All tool calls (weather, search, etc.) render via `DynamicMessageRenderer` + registry\n- All tool results render via `DynamicMessageRenderer` + registry\n- Weather tool displays loading state during call, weather card on result\n- Plan updates display in the plan panel\n- Build succeeds: `dotnet build dotnet/samples/AGUIWebChat/AGUIWebChat.slnx`\n- Automated UI tests pass using Playwright CLI for all scenarios\n\n## Target Files\n- dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatMessageItem.razor (refactor)\n- dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatWeatherTool.razor (convert to registry component)\n- dotnet/samples/AGUIWebChat/Client/Services/ComponentRegistry.cs (add weather registrations)\n- dotnet/samples/AGUIWebChat/Client/Program.cs (update registrations)\n- dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ToolContentMediaTypes.cs (add weather media types)\n\n## Context & Analysis\n\n**Current State (After First Implementation Attempt):**\n- ✅ `IComponentRegistry` interface exists and is working\n- ✅ `ComponentRegistry` implementation exists\n- ✅ `DynamicMessageRenderer.razor` exists and correctly resolves components\n- ✅ Three media types registered: `plan`, `tool-call`, `tool-result`\n- ✅ `ToolCallComponent`, `ToolResultComponent`, `PlanComponent` exist\n\n**Discovered Architectural Issues:**\n\n1. **Hardcoded Weather Logic in ChatMessageItem.razor**:\n   ```csharp\n   else if (content is FunctionCallContent { Name: \"get_weather\" } weatherCall)\n   {\n       TrackFunctionCall(weatherCall);\n       FunctionResultContent? result = GetMatchingResult(weatherCall.CallId);\n       if (result == null)\n       {\n           <ChatWeatherTool Call=\"@weatherCall\" Result=\"@result\" InProgress=\"true\" />\n       }\n       else\n       {\n           <ChatWeatherTool Call=\"@weatherCall\" Result=\"@result\" InProgress=\"false\" />\n       }\n   }\n   ```\n   This bypasses the registry entirely.\n\n2. **Result Suppression for Weather**:\n   ```csharp\n   if (TryGetMatchingCall(funcResult.CallId, out FunctionCallContent? call) && call?.Name == \"get_weather\")\n   {\n       // Empty - suppresses rendering\n   }\n   else\n   {\n       <DynamicMessageRenderer Data=\"@funcResult\" MediaType=\"@ToolContentMediaTypes.ToolResult\" />\n   }\n   ```\n   Weather results are suppressed from normal rendering.\n\n3. **Inconsistent Routing**: Some tools use DynamicMessageRenderer (search), weather uses ChatWeatherTool directly.\n\n4. **Mixed Responsibilities**: `ChatMessageItem` contains both dispatching logic AND hardcoded rendering components.\n\n**Root Cause:**\nThe generative pattern (registry + DynamicMessageRenderer) was implemented, but the existing hardcoded rendering logic was not removed. This creates two parallel rendering paths that conflict.\n\n**Architectural Goals:**\n1. **Single Responsibility**: `ChatMessageItem.razor` should ONLY dispatch content to `DynamicMessageRenderer`\n2. **Registry-Driven**: ALL components (including weather) must be registered and resolved via the registry\n3. **Media Type Consistency**: Each content type should have a well-defined media type\n4. **Extensibility**: Adding new tool visualizations should only require registering a new component, not editing ChatMessageItem\n\n## Proposed Design/Changes\n\n### Phase 1: Define Weather Media Types\n- Add weather-specific media types to `ToolContentMediaTypes.cs`:\n  - `application/vnd.microsoft.agui.weather-call+json`\n  - `application/vnd.microsoft.agui.weather-result+json`\n\n### Phase 2: Convert ChatWeatherTool to Registry Component\n- Rename `ChatWeatherTool.razor` to `WeatherToolComponent.razor`\n- Update component to accept `Data` and `MediaType` parameters (registry contract)\n- Support both call-only and call-with-result scenarios\n\n### Phase 3: Register Weather Components\n- Register weather call media type → `WeatherToolComponent`\n- Register weather result media type → `WeatherToolComponent` (same component handles both)\n\n### Phase 4: Refactor ChatMessageItem.razor\n- Remove ALL hardcoded weather logic\n- Remove special case suppression for weather results\n- Route weather calls/results through `DynamicMessageRenderer` like all other tools\n- Simplify to pure dispatcher pattern\n\n### Phase 5: Testing & Validation\n- Build the solution\n- Run Playwright CLI automated tests for:\n  - Weather tool call → loading state\n  - Weather tool result → weather card display\n  - Search tool call/result\n  - Plan updates\n  - Text-only responses\n\n## Verification & Testing\n- **Build**: `dotnet build dotnet/samples/AGUIWebChat/AGUIWebChat.slnx`\n- **E2E Tests**: Use Playwright CLI skill (`skills/playwright-cli/SKILL.md`) for:\n  1. Weather query test\n  2. Plan query test\n  3. Search query test\n  4. Mixed conversation test\n\n## Risks & Assumptions\n- **Assumption**: The weather tool component can determine its state (loading vs result) from the data it receives\n- **Risk**: Breaking existing weather tool rendering during refactor\n- **Mitigation**: Incremental refactor with build validation at each step\n- **Assumption**: Current AG-UI protocol continues to work through `AGUIProtocolService`\n- **Assumption**: Plan rendering in Chat.razor's SupplementalContent is the correct pattern (not as tool calls)\n\n## Integration Points / Contracts\n\n### Component Registry Contract\nAll registry components must implement:\n```csharp\n[Parameter, EditorRequired]\npublic required object Data { get; set; }\n\n[Parameter]\npublic string MediaType { get; set; } = \"<default-media-type>\";\n```\n\n### Media Type Naming Convention\n- Pattern: `application/vnd.microsoft.agui.<content-type>+json`\n- Examples:\n  - `application/vnd.microsoft.agui.tool-call+json` (generic)\n  - `application/vnd.microsoft.agui.tool-result+json` (generic)\n  - `application/vnd.microsoft.agui.weather-call+json` (specific)\n  - `application/vnd.microsoft.agui.weather-result+json` (specific)\n  - `application/vnd.microsoft.agui.plan+json` (specific)\n\n### DynamicMessageRenderer Dispatch Logic\n1. Check registry for media type\n2. If found: render registered component with `Data` and `MediaType` parameters\n3. If not found: render \"Unsupported content\" fallback with preview\n\n\n````"
+            }
+          ]
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_bdrk_0176z1vhHeC33rkA329dx3FZ",
+          "content": [
+            {
+              "type": "text",
+              "text": "```markdown\n# Task List - Phase 2 Refinement (From Scratch)\n\n## Sequential Tasks (Must be done in order)\n\n- task-1: Audit and document current ChatMessageItem rendering behavior\n  - **Type**: Sequential (prerequisite for all refactoring)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatMessageItem.razor, dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatWeatherTool.razor, dotnet/samples/AGUIWebChat/Client/Components/DynamicMessageRenderer.razor\n  - **Objective**: Document exactly which code paths handle weather, search, plans, and generic tools before making changes\n  - **Success Criteria**: Report file with clear documentation of current behavior\n\n- task-2: Define weather-specific media types\n  - **Type**: Sequential (required by task-3)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ToolContentMediaTypes.cs\n  - **Objective**: Add `WeatherCall` and `WeatherResult` constants following AG-UI media type conventions\n  - **Success Criteria**: Constants added, solution builds successfully\n\n- task-3: Convert ChatWeatherTool to registry-compatible WeatherToolComponent\n  - **Type**: Sequential (required by task-4)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatWeatherTool.razor → WeatherToolComponent.razor\n  - **Objective**: Rename and refactor to implement registry component contract (`Data`, `MediaType` parameters)\n  - **Success Criteria**: Component accepts registry parameters, handles both call-only and call-with-result states, solution builds\n\n- task-4: Register weather components in Program.cs\n  - **Type**: Sequential (required by task-5)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Program.cs\n  - **Objective**: Register weather call and result media types to WeatherToolComponent in ComponentRegistry\n  - **Success Criteria**: Registrations added, solution builds successfully\n\n- task-5: Refactor ChatMessageItem - Remove all hardcoded weather logic\n  - **Type**: Sequential (critical refactoring)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatMessageItem.razor\n  - **Objective**: Delete all `if (content is FunctionCallContent { Name: \"get_weather\" })` blocks and weather result suppression, route weather through DynamicMessageRenderer\n  - **Success Criteria**: Zero weather-specific code in ChatMessageItem, solution builds successfully\n  - **Dependencies**: Requires task-2, task-3, task-4 completed\n\n- task-6: Refactor ChatMessageItem - Remove hardcoded Search rendering  \n  - **Type**: Sequential (cleanup)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatMessageItem.razor\n  - **Objective**: Remove hardcoded search tool rendering if it exists, ensure it uses DynamicMessageRenderer\n  - **Success Criteria**: Search rendering uses registry pattern, solution builds successfully\n\n- task-7: Simplify ChatMessageItem - Final cleanup\n  - **Type**: Sequential (final simplification)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/Components/Pages/Chat/ChatMessageItem.razor\n  - **Objective**: Remove redundant tracking logic, ensure ChatMessageItem is pure dispatcher to DynamicMessageRenderer\n  - **Success Criteria**: ChatMessageItem is minimal dispatcher, contains no component markup, solution builds successfully\n\n## Parallelizable Tasks (Can run after task-7 completes)\n\n- task-8: Build validation checkpoint\n  - **Type**: Parallelizable (validation)\n  - **Files**: dotnet/samples/AGUIWebChat/AGUIWebChat.slnx\n  - **Objective**: Full solution build to ensure all refactoring is correct\n  - **Success Criteria**: `dotnet build dotnet/samples/AGUIWebChat/AGUIWebChat.slnx` succeeds with zero errors\n  - **Depends on**: task-7\n\n- task-9: E2E test - Weather tool scenario\n  - **Type**: Parallelizable (testing)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/**\n  - **Objective**: Use Playwright CLI skill to test weather query end-to-end (loading state → weather card)\n  - **Success Criteria**: Weather tool displays loading during call, weather card on result, no errors\n  - **Depends on**: task-8\n\n- task-10: E2E test - Plan update scenario\n  - **Type**: Parallelizable (testing)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/**\n  - **Objective**: Use Playwright CLI skill to test plan query end-to-end (plan panel updates)\n  - **Success Criteria**: Plan panel displays and updates correctly, no duplicate plan bubbles\n  - **Depends on**: task-8\n\n- task-11: E2E test - Search tool scenario\n  - **Type**: Parallelizable (testing)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/**\n  - **Objective**: Use Playwright CLI skill to test search query end-to-end (search tool call/result)\n  - **Success Criteria**: Search displays correctly through registry pattern, no errors\n  - **Depends on**: task-8\n\n- task-12: E2E test - Mixed conversation scenario\n  - **Type**: Parallelizable (testing)\n  - **Files**: dotnet/samples/AGUIWebChat/Client/**\n  - **Objective**: Use Playwright CLI skill to test comprehensive conversation with multiple tool types\n  - **Success Criteria**: All tool types render correctly in mixed conversation, no regressions\n  - **Depends on**: task-8\n\n## Knowledge Inheritance Rules\n- **tasks-3, 4, 5**: Must use media type constants from task-2\n- **task-5**: Must use WeatherToolComponent from task-3 and registrations from task-4\n- **tasks-9 to 12**: Must inherit Playwright CLI patterns from task-8 or first test task completed\n\n## Restart Policy\n- Any task marked **Failed** by orchestrator can be restarted after analysis and re-planning\n- If task-5 fails, may require rollback and additional subtasks to reduce scope\n\n\n```"
+            }
+          ]
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_bdrk_01U8aEo7Bcp35hgFGkPHW4FY",
+          "content": [
+            {
+              "type": "text",
+              "text": "```markdown\n# Execution Progress - Phase 2 Refinement (From Scratch)\n\n## Sequential Tasks\n- [ ] task-1: Audit and document current ChatMessageItem rendering behavior\n- [ ] task-2: Define weather-specific media types\n- [ ] task-3: Convert ChatWeatherTool to registry-compatible WeatherToolComponent\n- [ ] task-4: Register weather components in Program.cs\n- [ ] task-5: Refactor ChatMessageItem - Remove all hardcoded weather logic\n- [ ] task-6: Refactor ChatMessageItem - Remove hardcoded Search rendering\n- [ ] task-7: Simplify ChatMessageItem - Final cleanup\n\n## Parallelizable Tasks (After task-7)\n- [ ] task-8: Build validation checkpoint\n- [ ] task-9: E2E test - Weather tool scenario\n- [ ] task-10: E2E test - Plan update scenario\n- [ ] task-11: E2E test - Search tool scenario\n- [ ] task-12: E2E test - Mixed conversation scenario\n\n## Legend\n- [ ] Not Started\n- [/] In Progress\n- [P] Review Pending (waiting for orchestrator review)\n- [x] Completed\n- [F] Failed (needs re-planning)\n\n\n```"
+            }
+          ]
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_bdrk_01XtC7P98DjVSjiC9TJQQy2f",
+          "content": [
+            {
+              "type": "text",
+              "text": "ERROR while calling tool: File /home/arisng/.copilot/skills/ag-ui-blazor-agent-framework/SKILL.md is outside of the workspace, and not open in an editor, and can't be read\nPlease check your input and try again.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "Good, I have the session artifacts. Now I need to read the ag-ui-blazor-agent-framework skill. Let me try to use grep or semantic search instead.",
+          "signature": "ErwCCkgICxABGAIqQGINlFO3PAY6dKFcJZtdKvr3K5e9ifFqyyb7L01pbpGUZaNZotTz/Hq8uZluKjWenOhq1+QOWkwXu9sw8LqqV7YSDEOs37f82hiCq2SsNBoMl4aZIca1I7eRMF1SIjCsxKTVNIMjwuP6A35YhpSE2pPS8u4RizOBKXjxeRdsNcgmJHrabWzYc1iC5eVNwkYqoQEs9kpiKaIdUC5CLGRkVd75uncCHU9loFoT3hwSeWyhAolb2I3vOELoRWjgQmirrSYqokyrVsb0f2L7ogibkcArM1gz654McsumEi6KJCVUxR5hYcYT9IoSWyEtw2yaDDCmKnlrThGbi16qsJuHCdPGWPcdulg0l/wTPSJ9JNamqFNwQXuK+hD9FpzrYkooKqMzBE/fsf4rOomrr023HSfRjhgB"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_bdrk_01A3Se4pNessV4vjaMJ25qYx",
+          "name": "run_in_terminal",
+          "input": {
+            "command": "cat ~/.copilot/skills/ag-ui-blazor-agent-framework/SKILL.md",
+            "explanation": "Reading the ag-ui-blazor-agent-framework skill documentation",
+            "goal": "Load skill instructions",
+            "isBackground": false,
+            "timeout": 5000
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_bdrk_01A3Se4pNessV4vjaMJ25qYx",
+          "content": [
+            {
+              "type": "text",
+              "text": "Note: The tool simplified the command to ` cat ~/.copilot/skills/ag-ui-blazor-agent-framework/SKILL.md`, and this is the output of running that command instead:\n---\nname: ag-ui-blazor-agent-framework\ndescription: Build AG-UI integrations in .NET/C# with Microsoft Agent Framework \nand Blazor, including backend tool rendering, frontend tools, and generative UI context. Use when implementing the AG-UI protocol or wiring agent tools into Blazor UIs.                                                                        ---\n\n# AG-UI Blazor + Agent Framework\n\n## Workflow\n\n1. Identify the hosting/integration surface (server-only, Blazor Server, or Blaz\nor WASM with a backend).                                                        2. Choose the event transport for agent ⇄ UI communication.\n\n    - Blazor Server: align with the existing SignalR circuit model.\n    - Blazor WASM: prefer SignalR for bidirectional events; consider SSE for ser\nver → client streaming plus HTTP for user actions.                              \n3. Design the client state store + event stream.\n\n    - Treat agent output as an append-only event stream (chat deltas, tool-call \nlifecycle, tool results).                                                           - Keep a per-session/per-circuit store and a projection model (timeline/mess\nages/tool panels).                                                                  - Throttle/coalesce streaming updates to avoid render thrash.\n\n4. Implement AG-UI protocol endpoints and map protocol events into your store.\n5. Implement backend tool rendering from Agent Framework tool metadata.\n6. Implement dynamic tool UI rendering in Blazor.\n\n    - Maintain a tool renderer registry (tool id/name/version → component type/d\nescriptor).                                                                         - Render tool panels via `DynamicComponent` with a `Parameters` dictionary (\nincluding callbacks).                                                               - Provide a safe fallback renderer (structured JSON/markdown view) when no c\nustom renderer exists.                                                          \n7. Add GenUI context and interaction patterns.\n\n    - Use slots (templated components / `RenderFragment`) for consistent tool pa\nnel layouts.                                                                        - Use one-way data flow (state down, `EventCallback<T>` up) for approvals/re\ntries/edits.                                                                    \n8. Validate UX and accessibility.\n\n    - Don’t steal focus during streaming; use `aria-live=\"polite\"` for increment\nal text where appropriate.                                                          - Ensure keyboard navigation and clear status for tool calls (queued/running\n/succeeded/failed).                                                                 - Avoid rendering untrusted HTML; sanitize or prefer restricted markdown ren\ndering.                                                                         \n9. Verify protocol compatibility and UI behavior end-to-end.\n\n## References (load as needed)\n\n- [Microsoft Learn: AG-UI getting started (C#)](references/mslearn-ag-ui-getting\n-started.md)                                                                    - [Microsoft Learn: backend tool rendering](references/mslearn-backend-tool-rend\nering.md)                                                                       - [Microsoft Learn: frontend tools](references/mslearn-frontend-tools.md)\n- [CopilotKit: generative UI patterns](references/copilotkit-generative-ui.md)\n- [AG-UI protocol overview](references/ag-ui-protocol-overview.md)\n- [Blazor UI patterns for AG-UI + GenUI](references/blazor-ag-ui-genui-patterns.\nmd)                                                                             \n## Guardrails\n\n- Prefer prerelease packages only when required; validate version compatibility.\n- Keep AG-UI protocol messages typed and validated.\n- Isolate tool UI components in Blazor and pass agent context via cascading para\nmeters.                                                                         - Log tool invocations and results for debugging and traceability.\n- When updates originate off the renderer thread, dispatch UI refresh via `Invok\neAsync(...)` (avoid dispatcher errors).                                         ",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "system": [
+    {
+      "type": "text",
+      "text": "You are an expert AI programming assistant, working with a user in the VS Code editor.\nWhen asked for your name, you must respond with \"GitHub Copilot\". When asked about the model you are using, you must state that you are using Claude Sonnet 4.5.\nFollow the user's requirements carefully & to the letter.\nFollow Microsoft content policies.\nAvoid content that violates copyrights.\nIf you are asked to generate content that is harmful, hateful, racist, sexist, lewd, or violent, only respond with \"Sorry, I can't assist with that.\"\nKeep your answers short and impersonal.\n<instructions>\nYou are a highly sophisticated automated coding agent with expert-level knowledge across many different programming languages and frameworks and software engineering tasks - this encompasses debugging issues, implementing new features, restructuring code, and providing code explanations, among other engineering activities.\nThe user will ask a question, or ask you to perform a task, and it may require lots of research to answer correctly. There is a selection of tools that let you perform actions or retrieve helpful context to answer the user's question.\nBy default, implement changes rather than only suggesting them. If the user's intent is unclear, infer the most useful likely action and proceed with using tools to discover any missing details instead of guessing. When a tool call (like a file edit or read) is intended, make it happen rather than just describing it.\nYou can call tools repeatedly to take actions or gather as much context as needed until you have completed the task fully. Don't give up unless you are sure the request cannot be fulfilled with the tools you have. It's YOUR RESPONSIBILITY to make sure that you have done all you can to collect necessary context.\nContinue working until the user's request is completely resolved before ending your turn and yielding back to the user. Only terminate your turn when you are certain the task is complete. Do not stop or hand back to the user when you encounter uncertainty — research or deduce the most reasonable approach and continue.\n\n</instructions>\n<workflowGuidance>\nFor complex projects that take multiple steps to complete, maintain careful tracking of what you're doing to ensure steady progress. Make incremental changes while staying focused on the overall goal throughout the work. When working on tasks with many parts, systematically track your progress to avoid attempting too many things at once or creating half-implemented solutions. Save progress appropriately and provide clear, fact-based updates about what has been completed and what remains.\n\nWhen working on multi-step tasks, combine independent read-only operations in parallel batches when appropriate. After completing parallel tool calls, provide a brief progress update before proceeding to the next step.\nFor context gathering, parallelize discovery efficiently - launch varied queries together, read results, and deduplicate paths. Avoid over-searching; if you need more context, run targeted searches in one parallel batch rather than sequentially.\nGet enough context quickly to act, then proceed with implementation. Balance thorough understanding with forward momentum.\n\n<taskTracking>\nUtilize the manage_todo_list tool extensively to organize work and provide visibility into your progress. This is essential for planning and ensures important steps aren't forgotten.\n\nBreak complex work into logical, actionable steps that can be tracked and verified. Update task status consistently throughout execution using the manage_todo_list tool:\n- Mark tasks as in-progress when you begin working on them\n- Mark tasks as completed immediately after finishing each one - do not batch completions\n\nTask tracking is valuable for:\n- Multi-step work requiring careful sequencing\n- Breaking down ambiguous or complex requests\n- Maintaining checkpoints for feedback and validation\n- When users provide multiple requests or numbered tasks\n\nSkip task tracking for simple, single-step operations that can be completed directly without additional planning.\n\n</taskTracking>\n\n</workflowGuidance>\n<toolUseInstructions>\nIf the user is requesting a code sample, you can answer it directly without using any tools.\nWhen using a tool, follow the JSON schema very carefully and make sure to include ALL required properties.\nNo need to ask permission before using a tool.\nNEVER say the name of a tool to a user. For example, instead of saying that you'll use the run_in_terminal tool, say \"I'll run the command in a terminal\".\nIf you think running multiple tools can answer the user's question, prefer calling them in parallel whenever possible, but do not call semantic_search in parallel.\nFor codebase exploration, prefer search_subagent to search and gather data instead of directly calling grep_search, semantic_search or file_search.\nWhen using the read_file tool, prefer reading a large section over calling the read_file tool many times in sequence. You can also think of all the pieces you may be interested in and read them in parallel. Read large enough context to ensure you get what you need.\nIf semantic_search returns the full contents of the text files in the workspace, you have all the workspace context.\nYou can use the grep_search to get an overview of a file by searching for a string within that one file, instead of using read_file many times.\nIf you don't know exactly the string or filename pattern you're looking for, use semantic_search to do a semantic search across the workspace.\nDon't call the run_in_terminal tool multiple times in parallel. Instead, run one command and wait for the output before running the next command.\nWhen creating files, be intentional and avoid calling the create_file tool unnecessarily. Only create files that are essential to completing the user's request. \nWhen invoking a tool that takes a file path, always use the absolute file path. If the file has a scheme like untitled: or vscode-userdata:, then use a URI with the scheme.\nNEVER try to edit a file by running terminal commands unless the user specifically asks for it.\nTools can be disabled by the user. You may see tools used previously in the conversation that are not currently available. Be careful to only use the tools that are currently available to you.\n\n</toolUseInstructions>\n<communicationStyle>\nMaintain clarity and directness in all responses, delivering complete information while matching response depth to the task's complexity.\nFor straightforward queries, keep answers brief - typically a few lines excluding code or tool invocations. Expand detail only when dealing with complex work or when explicitly requested.\nOptimize for conciseness while preserving helpfulness and accuracy. Address only the immediate request, omitting unrelated details unless critical. Target 1-3 sentences for simple answers when possible.\nAvoid extraneous framing - skip unnecessary introductions or conclusions unless requested. After completing file operations, confirm completion briefly rather than explaining what was done. Respond directly without phrases like \"Here's the answer:\", \"The result is:\", or \"I will now...\".\nExample responses demonstrating appropriate brevity:\n<communicationExamples>\nUser: `what's the square root of 144?`\nAssistant: `12`\nUser: `which directory has the server code?`\nAssistant: [searches workspace and finds backend/]\n`backend/`\n\nUser: `how many bytes in a megabyte?`\nAssistant: `1048576`\n\nUser: `what files are in src/utils/?`\nAssistant: [lists directory and sees helpers.ts, validators.ts, constants.ts]\n`helpers.ts, validators.ts, constants.ts`\n\n</communicationExamples>\n\nWhen executing non-trivial commands, explain their purpose and impact so users understand what's happening, particularly for system-modifying operations.\nDo NOT use emojis unless explicitly requested by the user.\n\n</communicationStyle>\n<instruction forToolsWithPrefix=\"mcp_context7\">\nUse this server to retrieve up-to-date documentation and code examples for any library.\n</instruction>\n<instruction forToolsWithPrefix=\"mcp_microsoftdocs\">\nUse this server to search official Microsoft/Azure documentation, fetch full page content, and search code samples. Workflow: Use 'microsoft_docs_search' first for overview, then 'microsoft_docs_fetch' for complete page content when needed. Use 'microsoft_code_sample_search' when generating Microsoft/Azure code. Search gives breadth, fetch gives depth, code search gives examples.\n</instruction>\n<outputFormatting>\nUse proper Markdown formatting: - Wrap symbol names (classes, methods, variables) in backticks: `MyClass`, `handleClick()`\n- When mentioning files or line numbers, always follow the rules in fileLinkification section below:<fileLinkification>\nWhen mentioning files or line numbers, always convert them to markdown links using workspace-relative paths and 1-based line numbers.\nNO BACKTICKS ANYWHERE:\n- Never wrap file names, paths, or links in backticks.\n- Never use inline-code formatting for any file reference.\n\nREQUIRED FORMATS:\n- File: [path/file.ts](path/file.ts)\n- Line: [file.ts](file.ts#L10)\n- Range: [file.ts](file.ts#L10-L12)\n\nPATH RULES:\n- Without line numbers: Display text must match the target path.\n- With line numbers: Display text can be either the path or descriptive text.\n- Use '/' only; strip drive letters and external folders.\n- Do not use these URI schemes: file://, vscode://\n- Encode spaces only in the target (My File.md → My%20File.md).\n- Non-contiguous lines require separate links. NEVER use comma-separated line references like #L10-L12, L20.\n- Valid formats: [file.ts](file.ts#L10) only. Invalid: ([file.ts#L10]) or [file.ts](file.ts)#L10\n\nUSAGE EXAMPLES:\n- With path as display: The handler is in [src/handler.ts](src/handler.ts#L10).\n- With descriptive text: The [widget initialization](src/widget.ts#L321) runs on startup.\n- Bullet list: [Init widget](src/widget.ts#L321)\n- File only: See [src/config.ts](src/config.ts) for settings.\n\nFORBIDDEN (NEVER OUTPUT):\n- Inline code: `file.ts`, `src/file.ts`, `L86`.\n- Plain text file names: file.ts, chatService.ts.\n- References without links when mentioning specific file locations.\n- Specific line citations without links (\"Line 86\", \"at line 86\", \"on line 25\").\n- Combining multiple line references in one link: [file.ts#L10-L12, L20](file.ts#L10-L12, L20)\n\n\n</fileLinkification>\nUse KaTeX for math equations in your answers.\nWrap inline math equations in $.\nWrap more complex blocks of math equations in $$.\n\n</outputFormatting>\n\n<instructions>\n<attachment filePath=\"/home/arisng/src/agent-framework/.ralph-sessions/260128-212446.instructions.md\">\n---\ndescription: 'Ralph session instructions for AGUIWebChat Generative Phase (Phase 2)'\napplyTo: 'dotnet/samples/AGUIWebChat/**, .ralph-sessions/260128-212446/**'\n---\n\n# Ralph Session 260128-212446 Instructions\n\n## Overview\nImplement AGUIWebChat Generative Phase (Phase 2) based on the iteration plan. Focus on extracting dynamic component rendering via an `IComponentRegistry`, `DynamicMessageRenderer`, and `PlanComponent` registration without regressing existing AG-UI protocol handling.\n\n## Target Files\n- dotnet/samples/AGUIWebChat/.docs/ag-ui-feature-iteration-plan.md\n- dotnet/samples/AGUIWebChat/Client/**\n- dotnet/samples/AGUIWebChat/Server/** (only if protocol wiring requires changes)\n- dotnet/samples/AGUIWebChat/README.md (if documentation updates are needed)\n\n## Session Artifacts\n- .ralph-sessions/260128-212446/plan.md\n- .ralph-sessions/260128-212446/tasks.md\n- .ralph-sessions/260128-212446/progress.md\n\n## Workflow\n1. Review the Generative Phase tasks in dotnet/samples/AGUIWebChat/.docs/ag-ui-feature-iteration-plan.md.\n2. Draft a scoped plan and atomic task list for Phase 2 (Tasks 4.1–4.3).\n3. Implement tasks iteratively in the Client while preserving existing AG-UI state handling.\n4. For each UI task, run fully automated interactive UI testing using the Playwright CLI skill.\n5. Validate via build when appropriate.\n\n## Rules & Constraints\n- Preserve existing AGUIWebChat behavior; add generative UI rendering incrementally.\n- Client must render content via a registry, not hardcoded content types.\n- Follow AG-UI protocol expectations and existing sample patterns.\n- Use environment variables for configuration and secrets.\n- Keep the UI elegant and modern in Blazor.\n\n## Validation\n- Build AGUIWebChat solution: dotnet build dotnet/samples/AGUIWebChat/AGUIWebChat.slnx\n- For each UI task, execute automated UI testing with the Playwright CLI skill (no manual steps).\n\n</attachment>\n<attachment filePath=\"/home/arisng/src/agent-framework/.github/copilot-instructions.md\">\n# GitHub Copilot Instructions\n\nThis repository contains the `AGUIWebChat` sample project.\nAll relevant code for this sample resides under `dotnet/samples/AGUIWebChat/`.\n\n- **Server-side**: [dotnet/samples/AGUIWebChat/Server/](dotnet/samples/AGUIWebChat/Server/) - ASP.NET Core AG-UI host.\n- **Client-side**: [dotnet/samples/AGUIWebChat/Client/](dotnet/samples/AGUIWebChat/Client/) - Blazor Server web UI.\n\n## AGUIWebChat Guidelines\n\n- The top of all `*.cs` files should have a copyright notice: `// Copyright (c) Microsoft. All rights reserved.`\n- Configuration settings should be read from environment variables (e.g., `AZURE_OPENAI_ENDPOINT`, `OPENAI_API_KEY`).\n- Use the solution file [dotnet/samples/AGUIWebChat/AGUIWebChat.slnx](dotnet/samples/AGUIWebChat/AGUIWebChat.slnx) for this sample.\n- **NEVER** build the root Solution file (`dotnet/agent-framework-dotnet.slnx`).\n- When making changes, ensure the server and client remain compatible via the AG-UI protocol.\n- Follow the structure and patterns established in [dotnet/samples/AGUIWebChat/Server/Program.cs](dotnet/samples/AGUIWebChat/Server/Program.cs) and [dotnet/samples/AGUIWebChat/Client/Program.cs](dotnet/samples/AGUIWebChat/Client/Program.cs).\n\n### Development Workflow\n\n1.  **Modify Server/Client**: Edit files within [dotnet/samples/AGUIWebChat/](dotnet/samples/AGUIWebChat/).\n2.  **Build Sample Solution**: Run `dotnet build dotnet/samples/AGUIWebChat/AGUIWebChat.slnx`.\n3.  **Run Server**: In a terminal, run `dotnet run --project dotnet/samples/AGUIWebChat/Server/Server.csproj`.\n4.  **Run Client**: In a separate terminal, run `dotnet run --project dotnet/samples/AGUIWebChat/Client/Client.csproj`.\n5.  **Format Code**: Run `dotnet format dotnet/samples/AGUIWebChat/AGUIWebChat.slnx`.\n\n### Coding Standards\n\n- Prefer defining variables using types rather than `var`.\n- Use the `Async` suffix for all async methods returning `Task` or `ValueTask`.\n- All private classes that are not subclassed should be `sealed`.\n- Maintain the Agentic UI state handling (snapshots and JSON Patch deltas) logic within the server.\n\n</attachment>\n<instructions>\nHere is a list of instruction files that contain rules for working with this codebase.\nThese files are important for understanding the codebase structure, conventions, and best practices.\nPlease make sure to follow the rules specified in these files when working with the codebase.\nIf the file is not already available as attachment, use the 'read_file' tool to acquire it.\nMake sure to acquire the instructions before working with the codebase.\n<instruction>\n<file>\\home\\arisng\\src\\agent-framework\\.github\\instructions\\durabletask-dotnet.instructions.md</file>\n<applyTo>dotnet/src/Microsoft.Agents.AI.DurableTask/**,dotnet/src/Microsoft.Agents.AI.Hosting.AzureFunctions/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat breakdown</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-104934.instructions.md</file>\n<applyTo>.ralph-sessions/260126-104934/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AG-UI and MAF research</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-113029.instructions.md</file>\n<applyTo>.ralph-sessions/260126-113029/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat Agentic UI integration</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-123147.instructions.md</file>\n<applyTo>.ralph-sessions/260126-123147/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat OpenAI provider support</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-130500.instructions.md</file>\n<applyTo>.ralph-sessions/260126-130500/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat AG-UI feature breakdown docs</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-133629.instructions.md</file>\n<applyTo>.ralph-sessions/260126-133629/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat AG-UI feature iteration plans</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-135739.instructions.md</file>\n<applyTo>.ralph-sessions/260126-135739/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat AG-UI feature 4 implementation</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260126-142756.instructions.md</file>\n<applyTo>dotnet/samples/AGUIWebChat/**, .ralph-sessions/260126-142756/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat AG-UI feature 2 implementation</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260127-121047.instructions.md</file>\n<applyTo>.ralph-sessions/260127-121047/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat Review and Planning</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260128-090000.instructions.md</file>\n<applyTo>dotnet/samples/AGUIWebChat/**, .ralph-sessions/260128-090000/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat Deep Dive Review (Redo)</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260128-091500.instructions.md</file>\n<applyTo>dotnet/samples/AGUIWebChat/**, .ralph-sessions/260128-091500/**</applyTo>\n</instruction>\n<instruction>\n<description>Ralph session instructions for AGUIWebChat Generative Phase (Phase 2)</description>\n<file>\\home\\arisng\\src\\agent-framework\\.ralph-sessions\\260128-212446.instructions.md</file>\n<applyTo>dotnet/samples/AGUIWebChat/**, .ralph-sessions/260128-212446/**</applyTo>\n</instruction>\n</instructions>\n\n\n<skills>\nHere is a list of skills that contain domain specific knowledge on a variety of topics.\nEach skill comes with a description of the topic and a file path that contains the detailed instructions.\nWhen a user asks you to perform a task that falls within the domain of a skill, use the 'read_file' tool to acquire the full instructions from the file URI.\n<skill>\n<name>ag-ui-blazor-agent-framework</name>\n<description>Build AG-UI integrations in .NET/C</description>\n<file>\\home\\arisng\\.copilot\\skills\\ag-ui-blazor-agent-framework\\SKILL.md</file>\n</skill>\n<skill>\n<name>agent-evaluator</name>\n<description>Deterministic custom subagent selection helper. Use when you need a reproducible, auditable decision on which custom subagents to activate for a user query (runs scripts/agent_evaluator.py).</description>\n<file>\\home\\arisng\\.copilot\\skills\\agent-evaluator\\SKILL.md</file>\n</skill>\n<skill>\n<name>aspire-cli</name>\n<description>Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache), or when upgrading to Aspire 13.1 CLI behaviors. Excludes MCP-focused workflows unless explicitly requested.</description>\n<file>\\home\\arisng\\.copilot\\skills\\aspire-cli\\SKILL.md</file>\n</skill>\n<skill>\n<name>beads</name>\n<description>Track complex, multi-session work with dependency graphs using beads issue tracker. Use when work spans multiple sessions, has complex dependencies, or requires persistent context across compaction cycles. For simple single-session linear tasks, TodoWrite remains appropriate.</description>\n<file>\\home\\arisng\\.copilot\\skills\\beads\\SKILL.md</file>\n</skill>\n<skill>\n<name>diataxis</name>\n<description>Create and evaluate documentation using the Diátaxis framework. Use when writing, organizing, or auditing documentation to ensure it serves distinct user needs through four systematic categories (Tutorials, How-to Guides, Reference, Explanation). Ideal for diagnosing documentation problems, separating mixed content, and ensuring each piece serves a single, clear purpose.</description>\n<file>\\home\\arisng\\.copilot\\skills\\diataxis\\SKILL.md</file>\n</skill>\n<skill>\n<name>git-atomic-commit</name>\n<description>Skill for analyzing git changes, grouping them into logical atomic commits, generating conventional commit messages, and guiding through the commit process. Use when committing changes with proper conventional commit format and maintaining atomic commits.</description>\n<file>\\home\\arisng\\.copilot\\skills\\git-atomic-commit\\SKILL.md</file>\n</skill>\n<skill>\n<name>instruction-creator</name>\n<description>Create and manage high-quality custom instruction files for GitHub Copilot. Use when you need to define new project-specific guidelines, workflows, or coding standards in the instructions/ directory.</description>\n<file>\\home\\arisng\\.copilot\\skills\\instruction-creator\\SKILL.md</file>\n</skill>\n<skill>\n<name>md-issue-writer</name>\n<description>Skill for creating and drafting markdown-based issue documents in the specified format, including bugs, features, RFCs, ADRs, tasks, retrospectives, etc. Use when you need to document software issues, features, decisions, or work items in .docs/issues/ or _docs/issues/ folders. This is distinct from the beads issue tracker system.</description>\n<file>\\home\\arisng\\.copilot\\skills\\md-issue-writer\\SKILL.md</file>\n</skill>\n<skill>\n<name>pdf</name>\n<description>Comprehensive PDF manipulation toolkit for extracting text and tables, creating new PDFs, merging/splitting documents, and handling forms. When Claude needs to fill in a PDF form or programmatically process, generate, or analyze PDF documents at scale.</description>\n<file>\\home\\arisng\\.copilot\\skills\\pdf\\SKILL.md</file>\n</skill>\n<skill>\n<name>playwright-cli</name>\n<description>Automates browser interactions for web testing, form filling, screenshots, and data extraction. Use when the user needs to navigate websites, interact with web pages, fill forms, take screenshots, test web applications, or extract information from web pages.</description>\n<file>\\home\\arisng\\.copilot\\skills\\playwright-cli\\SKILL.md</file>\n</skill>\n<skill>\n<name>skill-creator</name>\n<description>Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.</description>\n<file>\\home\\arisng\\.copilot\\skills\\skill-creator\\SKILL.md</file>\n</skill>\n<skill>\n<name>speckit-task-grounding</name>\n<description>Task grounding validation framework for ensuring development tasks are properly specified in planning artifacts before implementation. Use when validating feature specifications, checking task grounding against artifacts like spec.md, plan.md, data-model.md, api-contracts.md, research.md, and quickstart.md, or when performing parallel task validation for feature readiness assessment.</description>\n<file>\\home\\arisng\\.copilot\\skills\\speckit-task-grounding\\SKILL.md</file>\n</skill>\n<skill>\n<name>vn-payroll</name>\n<description>Calculates Net Income, Personal Income Tax (PIT), and Social Insurance (BHXH) based on Vietnam's progressive tax brackets.</description>\n<file>\\home\\arisng\\.copilot\\skills\\vn-payroll\\SKILL.md</file>\n</skill>\n<skill>\n<name>vscode-terminal-autoapprove</name>\n<description>Guidance on configuring VS Code's terminal auto-approve settings for commands with dynamic arguments.</description>\n<file>\\home\\arisng\\.copilot\\skills\\vscode-terminal-autoapprove\\SKILL.md</file>\n</skill>\n</skills>\n\n\n<agents>\nHere is a list of agents that can be used when running a subagent.\nEach agent has optionally a description with the agent's purpose and expertise. When asked to run a subagent, choose the most appropriate agent from this list.\nUse the 'runSubagent' tool with the agent name to run the subagent.\n</agents>\n\n\n</instructions>\n<modeInstructions>\nYou are currently running in \"Ralph\" mode. Below are your instructions for this mode, they must take precedence over any instructions above.\n\n# Ralph - Orchestrator\r\n\r\n## Version\r\nVersion: 1.3.3\r\nCreated At: 2026-01-29T00:00:00Z\r\n\r\n## Persona\r\nYou are an orchestration agent. Your role is to trigger subagents that will execute the complete implementation of a project logic. Your goal is NOT to perform the implementation yourself but to verify that the subagents do it correctly.\r\n\r\n## File Locations\r\nEverything related to your state is stored in a session directory within `.ralph-sessions/`.\r\n\r\n1.  **Session Detection**: Check `.ralph-sessions/` for any existing relevant session. Prioritize resuming the most recent session if it aligns with the user's current request or context.\r\n2.  **Session Creation**: If no relevant session exists, generate a unique session identifier based on the current timestamp (e.g., `YYMMDD-HHMMSS`) and create the directory `.ralph-sessions/<SESSION_ID>/`.\r\n3.  **Paths per Session**:\r\n    -   **Plan**: `.ralph-sessions/<SESSION_ID>/plan.md`\r\n    -   **Tasks**: `.ralph-sessions/<SESSION_ID>/tasks.md`\r\n    -   **Progress**: `.ralph-sessions/<SESSION_ID>/progress.md`\r\n    -   **Task Reports**: `.ralph-sessions/<SESSION_ID>/tasks.<TASK_ID>-report.md` (VS Code nested under `tasks.md`)\r\n    -   **Instructions**: `.ralph-sessions/<SESSION_ID>.instructions.md` (Custom session-specific instructions file)\r\n\r\n## Artifact Templates\r\n\r\n### 1. Plan (`plan.md`)\r\n```markdown\r\n# Plan: [Title]\r\n\r\n## Goal & Success Criteria\r\n[Specific objective and what 'done' looks like]\r\n\r\n## Target Files\r\n[List specific files referenced in user input or identified as primary targets for this session]\r\n\r\n## Context & Analysis\r\n[Context, problem breakdown, research findings, and constraints]\r\n\r\n## Proposed Design/Changes\r\n[Detailed breakdown of file changes, logic updates, or new components]\r\n\r\n## Verification & Testing\r\n[Specific steps to validate the implementation, including unit tests and manual checks. For E2E testing of web interfaces, emphasize using the `playwright-cli` skill (skills/playwright-cli/SKILL.md) and avoid `npx playwright` or node-based Playwright usage in agent workflows.]\r\n\r\n## Risks & Assumptions (Optional)\r\n[Potential side-effects, edge cases, and assumptions made]\r\n```\r\n\r\n### 2. Tasks (`tasks.md`)\r\n```markdown\r\n# Task List\r\n- task-1: [Clear, actionable description]\r\n  - **Type**: Sequential | Parallelizable\r\n  - **Files**: [path/to/file1, path/to/file2]\r\n  - **Objective**: [Clear objective statement]\r\n  - **Success Criteria**: [Specific, measurable, testable outcomes that define \"done\"]\r\n- task-2: [Clear, actionable description]\r\n  - **Type**: Sequential | Parallelizable\r\n  - **Files**: [path/to/file3]\r\n  - **Objective**: [Clear objective statement]\r\n  - **Success Criteria**: [Specific, measurable, testable outcomes that define \"done\"]\r\n```\r\n\r\n**Examples of Good Success Criteria:**\r\n- ✅ \"Report file documents 3+ code paths with file:line references\"\r\n- ✅ \"Unit tests pass with 80%+ coverage for new functions\"\r\n- ✅ \"playwright-cli script successfully completes login flow without errors\"\r\n\r\n**Examples of Bad Success Criteria:**\r\n- ❌ \"Code looks good\" (not measurable)\r\n- ❌ \"Implement the feature\" (not an outcome)\r\n- ❌ \"Do your best\" (not verifiable)\r\n\r\n### Playwright CLI Quick-Start (Reference)\r\nAlways use `playwright-cli` for browser automation in this workflow. Do not use `npx playwright` or any node-based Playwright usage.\r\n```bash\r\nplaywright-cli open https://playwright.dev\r\nplaywright-cli click e15\r\nplaywright-cli type \"page.click\"\r\nplaywright-cli press Enter\r\n```\r\n\r\n### 3. Progress (`progress.md`)\r\n```markdown\r\n# Execution Progress\r\n- [x] task-1 (Completed)\r\n- [P] task-2 (Review Pending)\r\n- [/] task-3 (In Progress)\r\n- [ ] task-4 (Not Started)\r\n```\r\n\r\n### 4. Task Report (`tasks.<TASK_ID>-report.md`)\r\n```markdown\r\n# Task Report: <TASK_ID>\r\n\r\n## Objective Recap\r\n[Restate the objective from tasks.md]\r\n\r\n## Success Criteria Status\r\n[Explicitly address each success criterion and whether it was met]\r\n- ✅ Criterion 1: [Met/Not Met - Evidence]\r\n- ✅ Criterion 2: [Met/Not Met - Evidence]\r\n\r\n## Summary of Changes\r\n[Describe files edited and logic implemented]\r\n\r\n## Verification Results\r\n[List tests run and their results]\r\n\r\n## Discovered Tasks\r\n[List any new tasks or requirements identified for the orchestrator to review]\r\n\r\n## Status\r\n[To be marked by Orchestrator: Qualified / Failed]\r\n```\r\n\r\n## Workflow\r\n\r\n### 1. Initialization (ordered by priority)\r\n- **Resolve Session Strategy**:\r\n    - **Prioritize Resumption**: Proactively look for an active or most recent session in `.ralph-sessions/`. If the user's message is a follow-up to previous work within the workspace, automatically resume that session instead of creating a new one.\r\n    - **Session Creation**: Only create a new `.ralph-sessions/<SESSION_ID>/` if no relevant session exists or if the user explicitly initiates a new decoupled task.\r\n- **Initialize or Sync Artifacts** (ordered by priority):\r\n    - **New Session**: Write the initial `plan.md` and `tasks.md` using the templates.\r\n    - **Resume Session**: Read the existing `plan.md`, `tasks.md`, and `progress.md`. Update them with the new context or requirements provided in the user's follow-up message.\r\n    - **Extract File References**: Proactively extract any specific file paths or names mentioned in the user's request and document them in the `## Target Files` section of `plan.md`.\r\n    - **Task Breakdown Loop**:\r\n        - **Pro tip**: Identify integration points/contracts first (APIs, data models, interfaces, schema, CLI entrypoints). Then loop through each integration point to derive tasks.\r\n        - **Classify Each Task**: Every task must be either **sequential** or **parallelizable**.\r\n        - **Make the Split Explicit**: Clearly label tasks as **Sequential** or **Parallelizable** in `tasks.md`.\r\n        - **Knowledge Inheritance**: Allow later tasks to explicitly inherit knowledge, insights, or lessons learned from earlier tasks to improve productivity.\r\n        - **Restart Policy**: A task can be restarted if it is validated as failed or not qualified by the Orchestrator.\r\n        - **Task Atomicity**: Ensure that the generated or updated tasks in `tasks.md` are **atomic, minimimal scope, and verifiable**. Break down complex requirements into the smallest possible actionable units.\r\n        - **File Association**: Associate specific related files to each task in `tasks.md` to provide clear scope.\r\n    - **Task Review Loop**:\r\n        - Loop through all tasks to validate compliance with the defined rules.\r\n        - Confirm **Sequential** vs **Parallelizable** labeling is explicit and consistent.\r\n        - Verify **Knowledge Inheritance** is captured where needed.\r\n        - Re-check **Restart Policy** coverage for failed or unqualified tasks.\r\n        - Confirm **Task Atomicity** (minimimal the scope and verifiable units).\r\n        - Validate **File Association** links for each task in `tasks.md`.\r\n- **Initialize/Update Progress**: \r\n    - For new sessions, create `progress.md` with all tasks as `[ ]`.\r\n    - For resumed sessions, append new tasks to `progress.md` as `[ ]`.\r\n- **Session Instructions**:\r\n    - If new: Consult the `instruction-creator` skill (`skills/instruction-creator/SKILL.md`) and run the `python skills/instruction-creator/scripts/init_instruction.py` script to generate the boilerplate.\r\n    - If resumed: Ensure the existing `<SESSION_ID>.instructions.md` is updated if new target files or context are identified.\r\n    - **Context Injection**: Refine the boilerplate/file to include target files and session artifact paths.\r\n    - **Scope (applyTo)**: Ensure `applyTo` includes `.ralph-sessions/<SESSION_ID>/**`.\r\n\r\n### 2. Implementation Loop (The PAR Cycle)\r\nIterate until all tasks in `progress.md` are marked as completed `[x]`:\r\n\r\n#### Step A: Plan (Orchestrator)\r\n- Read `progress.md` and `tasks.md` to identify the next priority task that is NOT already marked as in-progress `[/]` or completed `[x]`.\r\n- **Pre-flight Refinement**: Proactively verify the task quality:\r\n  - Is the task atomic and actionable?\r\n  - Are **Success Criteria** defined, measurable, and testable?\r\n  - Are all required **Files** listed?\r\n  - Is the **Objective** clear?\r\n  - If any element is missing or unclear, update `tasks.md` before invoking the subagent.\r\n  - If the task is too broad, or if environment analysis reveals missed prerequisites, decompose the task or add new tasks to `tasks.md` and `progress.md`.\r\n- **Backlog Grooming**: Verify if any previous task was marked \"failed\" during review and needs re-planning. If re-planning involves adding new corrective tasks, update the artifacts immediately.\r\n\r\n#### Step B: Act (Subagent)\r\n- **Invoke Subagent**: Call `'runSubagent'agent` to activate the `Ralph-Subagent` with the following parameters:\r\n    -   `agentName`: \"Ralph-Subagent\"\r\n    -   `description`: \"Implementation of task: <TASK_ID>\"\r\n    -   `prompt`: \"Please run as subagent for session `.ralph-sessions/<SESSION_ID>`. Your assigned task ID is: <TASK_ID>. Read `tasks.md` to identify the **Type**, **Files**, **Objective**, and **Success Criteria** for this task. Implement the task, verify it meets ALL Success Criteria (run tests, validations), update `progress.md` to `[P]` (Review Pending) ONLY if all criteria are met, CREATE the report file `tasks.<TASK_ID>-report.md` with explicit Success Criteria status, and exit. Do not mark as `[P]` if any Success Criterion is unmet.\"\r\n\r\n#### Step C: Review (Orchestrator)\r\n- **Verify Completion**: Read `.ralph-sessions/<SESSION_ID>/progress.md` to ensure the subagent transitioned the task from `[/]` to `[P]` (Review Pending).\r\n- **Quality Check**: \r\n  - Read the task definition from `tasks.md` to identify the **Success Criteria**.\r\n  - Read the task-specific report file `.ralph-sessions/<SESSION_ID>/tasks.<TASK_ID>-report.md`.\r\n  - Cross-check the **Success Criteria Status** section in the report against the criteria defined in `tasks.md`.\r\n  - Verify each criterion is addressed with evidence (file changes, test results, logs).\r\n  - Examine the actual changes made to confirm they align with the objective.\r\n  - Run relevant tests or validation scripts if available. For web-based features, prioritize using the `playwright-cli` skill (`skills/playwright-cli/SKILL.md`) to perform E2E verification, not `npx playwright` or node-based Playwright.\r\n- **Mark Status**: Update the `## Status` section in `tasks.<TASK_ID>-report.md` to `Qualified` (if all Success Criteria are met with evidence) or `Failed` (if any criterion is unmet or evidence is insufficient).\r\n- **Identify Missing Tasks**: Proactively assess the **Discovered Tasks** section in the subagent's report and the updated state to identify additional tasks (e.g., missed edge cases, required refactoring, or new sub-components) necessary to fulfill the `plan.md` goals.\r\n- **Decision**:\r\n    - If the implementation is **Qualified**: \r\n        - Update the task status in `progress.md` from `[P]` to `[x]` (Completed).\r\n        - If new tasks were identified, append them to `tasks.md` and `progress.md` before proceeding.\r\n        - Move to the next iteration.\r\n    - If the implementation is **Failed/Unqualified**: Mark the task status in `progress.md` as unimplemented `[ ]` (or add a \"failed\" note), analyze the reason, update the status in the report file, and return to Step A to re-plan the fix.\r\n\r\n### 3. Completion\r\n- **Holistic Goal Check**: Before stopping, perform a final review of the entire implementation against the **Goal & Success Criteria** defined in `plan.md`.\r\n- **Final Decision**:\r\n    - If any criteria are unfulfilled or if the implementation is incomplete, identify the missing work, add it as new tasks to `tasks.md` and `progress.md`, and return to **Step A**.\r\n    - If all goals and success criteria are fully met, exit with a concise success message summarizing the implementation.\r\n\r\n## Rules & Constraints\r\n- **Session Continuity**: Prioritize the continuation of existing sessions. Do not create a new session if a relevant one already exists in `.ralph-sessions/`.\r\n- **Autonomous Delegation**: Do NOT prompt the user during the implementation loop unless a critical unrecoverable error occurs.\r\n- **Review Responsibility**: You are strictly responsible for the quality of the output. If a subagent's work is subpar, you MUST reject it and trigger a retry.\r\n- **Syntax**: Always use `'runSubagent'agent` with the exact `agentName: \"Ralph-Subagent\"`.\r\n\r\n## Capabilities\r\n- **Session Management**: Tracks progress via unique session directories in `.ralph-sessions/`.\r\n- **Subagent Delegation**: Uses `'runSubagent'agent` to delegate implementation tasks.\r\n- **Quality Assurance**: Proactively reviews and validates subagent output before progressing.\r\n\n</modeInstructions>\n"
+    }
+  ],
+  "stream": true,
+  "tools": [
+    {
+      "name": "activate_jupyter_notebook_tools",
+      "description": "Call this tool when you need access to a new category of tools. The category of tools is described as follows:\n\nCall tools from this group when you need to work with Jupyter notebooks - creating, editing, running cells, and managing notebook operations.\n\nBe sure to call this tool if you need a capability related to the above.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "fetch_webpage",
+      "description": "Fetches the main content from a web page. This tool is useful for summarizing or analyzing the content of a webpage. You should use this tool when you think the user is looking for information from a specific webpage.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "An array of URLs to fetch content from."
+          },
+          "query": {
+            "type": "string",
+            "description": "The query to search for in the web page's content. This should be a clear and concise description of the content you want to find."
+          }
+        },
+        "required": [
+          "urls",
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "activate_vs_code_interaction",
+      "description": "Call this tool when you need access to a new category of tools. The category of tools is described as follows:\n\nCall tools from this group when you need to interact with the VS Code workspace and access VS Code features.\n\nBe sure to call this tool if you need a capability related to the above.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "create_directory",
+      "description": "Create a new directory structure in the workspace. Will recursively create all directories in the path, like mkdir -p. You do not need to use this tool before using create_file, that tool will automatically create the needed directories.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "dirPath": {
+            "type": "string",
+            "description": "The absolute path to the directory to create."
+          }
+        },
+        "required": [
+          "dirPath"
+        ]
+      }
+    },
+    {
+      "name": "create_file",
+      "description": "This is a tool for creating a new file in the workspace. The file will be created with the specified content. The directory will be created if it does not already exist. Never use this tool to edit a file that already exists.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "description": "The absolute path to the file to create."
+          },
+          "content": {
+            "type": "string",
+            "description": "The content to write to the file."
+          }
+        },
+        "required": [
+          "filePath",
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "file_search",
+      "description": "Search for files in the workspace by glob pattern. This only returns the paths of matching files. Use this tool when you know the exact filename pattern of the files you're searching for. Glob patterns match from the root of the workspace folder. Examples:\n- **/*.{js,ts} to match all js/ts files in the workspace.\n- src/** to match all files under the top-level src folder.\n- **/foo/**/*.js to match all js files under any foo folder in the workspace.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search for files with names or paths matching this glob pattern."
+          },
+          "maxResults": {
+            "type": "number",
+            "description": "The maximum number of results to return. Do not use this unless necessary, it can slow things down. By default, only some matches are returned. If you use this and don't see what you're looking for, you can try again with a more specific query or a larger maxResults."
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "grep_search",
+      "description": "Do a fast text search in the workspace. Use this tool when you want to search with an exact string or regex. If you are not sure what words will appear in the workspace, prefer using regex patterns with alternation (|) or character classes to search for multiple potential words at once instead of making separate searches. For example, use 'function|method|procedure' to look for all of those words at once. Use includePattern to search within files matching a specific pattern, or in a specific file, using a relative path. Use 'includeIgnoredFiles' to include files normally ignored by .gitignore, other ignore files, and `files.exclude` and `search.exclude` settings. Warning: using this may cause the search to be slower, only set it when you want to search in ignored folders like node_modules or build outputs. Use this tool when you want to see an overview of a particular file, instead of using read_file many times to look for code within a file.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The pattern to search for in files in the workspace. Use regex with alternation (e.g., 'word1|word2|word3') or character classes to find multiple potential words in a single search. Be sure to set the isRegexp property properly to declare whether it's a regex or plain text pattern. Is case-insensitive."
+          },
+          "isRegexp": {
+            "type": "boolean",
+            "description": "Whether the pattern is a regex."
+          },
+          "includePattern": {
+            "type": "string",
+            "description": "Search files matching this glob pattern. Will be applied to the relative path of files within the workspace. To search recursively inside a folder, use a proper glob pattern like \"src/folder/**\". Do not use | in includePattern."
+          },
+          "maxResults": {
+            "type": "number",
+            "description": "The maximum number of results to return. Do not use this unless necessary, it can slow things down. By default, only some matches are returned. If you use this and don't see what you're looking for, you can try again with a more specific query or a larger maxResults."
+          },
+          "includeIgnoredFiles": {
+            "type": "boolean",
+            "description": "Whether to include files that would normally be ignored according to .gitignore, other ignore files and `files.exclude` and `search.exclude` settings. Warning: using this may cause the search to be slower. Only set it when you want to search in ignored folders like node_modules or build outputs."
+          }
+        },
+        "required": [
+          "query",
+          "isRegexp"
+        ]
+      }
+    },
+    {
+      "name": "list_dir",
+      "description": "List the contents of a directory. Result will have the name of the child. If the name ends in /, it's a folder, otherwise a file",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The absolute path to the directory to list."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
+      "name": "multi_replace_string_in_file",
+      "description": "This tool allows you to apply multiple replace_string_in_file operations in a single call, which is more efficient than calling replace_string_in_file multiple times. It takes an array of replacement operations and applies them sequentially. Each replacement operation has the same parameters as replace_string_in_file: filePath, oldString, newString, and explanation. This tool is ideal when you need to make multiple edits across different files or multiple edits in the same file. The tool will provide a summary of successful and failed operations.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "explanation": {
+            "type": "string",
+            "description": "A brief explanation of what the multi-replace operation will accomplish."
+          },
+          "replacements": {
+            "type": "array",
+            "description": "An array of replacement operations to apply sequentially.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "An absolute path to the file to edit."
+                },
+                "oldString": {
+                  "type": "string",
+                  "description": "The exact literal text to replace, preferably unescaped. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string is not the exact literal text or does not match exactly, this replacement will fail."
+                },
+                "newString": {
+                  "type": "string",
+                  "description": "The exact literal text to replace `oldString` with, preferably unescaped. Provide the EXACT text. Ensure the resulting code is correct and idiomatic."
+                }
+              },
+              "required": [
+                "filePath",
+                "oldString",
+                "newString"
+              ]
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "explanation",
+          "replacements"
+        ]
+      }
+    },
+    {
+      "name": "read_file",
+      "description": "Read the contents of a file. Line numbers are 1-indexed. This tool will truncate its output at 2000 lines and may be called repeatedly with offset and limit parameters to read larger files in chunks.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "description": "The absolute path of the file to read.",
+            "type": "string"
+          },
+          "offset": {
+            "description": "Optional: the 1-based line number to start reading from. Only use this if the file is too large to read at once. If not specified, the file will be read from the beginning.",
+            "type": "number"
+          },
+          "limit": {
+            "description": "Optional: the maximum number of lines to read. Only use this together with `offset` if the file is too large to read at once.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "filePath"
+        ]
+      }
+    },
+    {
+      "name": "replace_string_in_file",
+      "description": "This is a tool for making edits in an existing file in the workspace. For moving or renaming files, use run in terminal tool with the 'mv' command instead. For larger edits, split them into smaller edits and call the edit tool multiple times to ensure accuracy. Before editing, always ensure you have the context to understand the file's contents and context. To edit a file, provide: 1) filePath (absolute path), 2) oldString (MUST be the exact literal text to replace including all whitespace, indentation, newlines, and surrounding code etc), and 3) newString (MUST be the exact literal text to replace \\`oldString\\` with (also including all whitespace, indentation, newlines, and surrounding code etc.). Ensure the resulting code is correct and idiomatic.). Each use of this tool replaces exactly ONE occurrence of oldString.\n\nCRITICAL for \\`oldString\\`: Must uniquely identify the single instance to change. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string matches multiple locations, or does not match exactly, the tool will fail. Never use 'Lines 123-456 omitted' from summarized documents or ...existing code... comments in the oldString or newString.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "description": "An absolute path to the file to edit."
+          },
+          "oldString": {
+            "type": "string",
+            "description": "The exact literal text to replace, preferably unescaped. For single replacements (default), include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. For multiple replacements, specify expected_replacements parameter. If this string is not the exact literal text (i.e. you escaped it) or does not match exactly, the tool will fail."
+          },
+          "newString": {
+            "type": "string",
+            "description": "The exact literal text to replace `old_string` with, preferably unescaped. Provide the EXACT text. Ensure the resulting code is correct and idiomatic."
+          }
+        },
+        "required": [
+          "filePath",
+          "oldString",
+          "newString"
+        ]
+      }
+    },
+    {
+      "name": "semantic_search",
+      "description": "Run a natural language search for relevant code or documentation comments from the user's current workspace. Returns relevant code snippets from the user's current workspace if it is large, or the full contents of the workspace if it is small.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The query to search the codebase for. Should contain all relevant context. Should ideally be text that might appear in the codebase, such as function names, variable names, or comments."
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "get_task_output",
+      "description": "Get the output of a task",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The task ID for which to get the output."
+          },
+          "workspaceFolder": {
+            "type": "string",
+            "description": "The workspace folder path containing the task"
+          }
+        },
+        "required": [
+          "id",
+          "workspaceFolder"
+        ]
+      }
+    },
+    {
+      "name": "get_terminal_output",
+      "description": "Get the output of a terminal command previously started with run_in_terminal",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the terminal to check."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "manage_todo_list",
+      "description": "Manage a structured todo list to track progress and plan tasks throughout your coding session. Use this tool VERY frequently to ensure task visibility and proper planning.\n\nWhen to use this tool:\n- Complex multi-step work requiring planning and tracking\n- When user provides multiple tasks or requests (numbered/comma-separated)\n- After receiving new instructions that require multiple steps\n- BEFORE starting work on any todo (mark as in-progress)\n- IMMEDIATELY after completing each todo (mark completed individually)\n- When breaking down larger tasks into smaller actionable steps\n- To give users visibility into your progress and planning\n\nWhen NOT to use:\n- Single, trivial tasks that can be completed in one step\n- Purely conversational/informational requests\n- When just reading files or performing simple searches\n\nCRITICAL workflow:\n1. Plan tasks by writing todo list with specific, actionable items\n2. Mark ONE todo as in-progress before starting work\n3. Complete the work for that specific todo\n4. Mark that todo as completed IMMEDIATELY\n5. Move to next todo and repeat\n\nTodo states:\n- not-started: Todo not yet begun\n- in-progress: Currently working (limit ONE at a time)\n- completed: Finished successfully\n\nIMPORTANT: Mark todos completed as soon as they are done. Do not batch completions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "todoList": {
+            "type": "array",
+            "description": "Complete array of all todo items. Must include ALL items - both existing and new.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number",
+                  "description": "Unique identifier for the todo. Use sequential numbers starting from 1."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Concise action-oriented todo label (3-7 words). Displayed in UI."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "not-started",
+                    "in-progress",
+                    "completed"
+                  ],
+                  "description": "not-started: Not begun | in-progress: Currently working (max 1) | completed: Fully finished with no blockers"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "status"
+              ]
+            }
+          }
+        },
+        "required": [
+          "todoList"
+        ]
+      }
+    },
+    {
+      "name": "run_in_terminal",
+      "description": "This tool allows you to execute shell commands in a persistent bash terminal session, preserving environment variables, working directory, and other context across multiple commands.\n\nCommand Execution:\n- Use && to chain simple commands on one line\n- Prefer pipelines | over temporary files for data flow\n- Never create a sub-shell (eg. bash -c \"command\") unless explicitly asked\n\nDirectory Management:\n- Prefer relative paths when navigating directories, only use absolute when the path is far away or the current cwd is not expected\n- Remember when isBackground=false is specified, that shell and cwd is reused until it is moved to the background\n- Use $PWD for current directory references\n- Consider using pushd/popd for directory stack management\n- Supports directory shortcuts like ~ and -\n\nProgram Execution:\n- Supports Python, Node.js, and other executables\n- Install packages via package managers (brew, apt, etc.)\n- Use which or command -v to verify command availability\n\nBackground Processes:\n- For long-running tasks (e.g., servers), set isBackground=true\n- Returns a terminal ID for checking status and runtime later\n\nOutput Management:\n- Output is automatically truncated if longer than 60KB to prevent context overflow\n- Use head, tail, grep, awk to filter and limit output size\n- For pager commands, disable paging: git --no-pager or add | cat\n- Use wc -l to count lines before displaying large outputs\n\nBest Practices:\n- Quote variables: \"$var\" instead of $var to handle spaces\n- Use find with -exec or xargs for file operations\n- Be specific with commands to avoid excessive output\n- Avoid printing credentials unless absolutely required\n- Use [[ ]] for conditional tests instead of [ ]\n- Prefer $() over backticks for command substitution\n- Use set -e at start of complex commands to exit on errors",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "The command to run in the terminal."
+          },
+          "explanation": {
+            "type": "string",
+            "description": "A one-sentence description of what the command does. This will be shown to the user before the command is run."
+          },
+          "goal": {
+            "type": "string",
+            "description": "A short description of the goal or purpose of the command (e.g., \"Install dependencies\", \"Start development server\")."
+          },
+          "isBackground": {
+            "type": "boolean",
+            "description": "Whether the command starts a background process.\n\n- If true, a new shell will be spawned where the cwd is the workspace directory and will run asynchronously in the background and you will not see the output.\n\n- If false, a single shell is shared between all non-background terminals where the cwd starts at the workspace directory and is remembered until that terminal is moved to the background, the tool call will block on the command finishing and only then you will get the output.\n\nExamples of background processes: building in watch mode, starting a server. You can check the output of a background process later on by using get_terminal_output."
+          },
+          "timeout": {
+            "type": "number",
+            "description": "An optional timeout in milliseconds. When provided, the tool will stop tracking the command after this duration and return the output collected so far. Be conservative with the timeout duration, give enough time that the command would complete on a low-end machine. Use 0 for no timeout. If it's not clear how long the command will take then use 0 to avoid prematurely terminating it, never guess too low."
+          }
+        },
+        "required": [
+          "command",
+          "explanation",
+          "goal",
+          "isBackground",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "name": "runSubagent",
+      "description": "Launch a new agent to handle complex, multi-step tasks autonomously. This tool is good at researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries, use this agent to perform the search for you.\n\n- Agents do not run async or in the background, you will wait for the agent's result.\n- When the agent is done, it will return a single message back to you. The result returned by the agent is not visible to the user. To show the user the result, you should send a text message back to the user with a concise summary of the result.\n- Each agent invocation is stateless. You will not be able to send additional messages to the agent, nor will the agent be able to communicate with you outside of its final report. Therefore, your prompt should contain a highly detailed task description for the agent to perform autonomously and you should specify exactly what information the agent should return back to you in its final and only message to you.\n- The agent's outputs should generally be trusted\n- Clearly tell the agent whether you expect it to write code or just to do research (search, file reads, web fetches, etc.), since it is not aware of the user's intent\n- If the user asks for a certain agent, you MUST provide that EXACT agent name (case-sensitive) to invoke that specific agent.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "A detailed description of the task for the agent to perform"
+          },
+          "description": {
+            "type": "string",
+            "description": "A short (3-5 word) description of the task"
+          },
+          "agentName": {
+            "type": "string",
+            "description": "Optional name of a specific agent to invoke. If not provided, uses the current agent."
+          }
+        },
+        "required": [
+          "prompt",
+          "description"
+        ]
+      }
+    },
+    {
+      "name": "search_subagent",
+      "description": "Launch an iterative search-focused subagent that orchestrates semantic_search, grep_search, file_search and read_file tool calls to explore and gather relevant workspace code for a natural language query.\n CALL THIS FOR ANY TASK THAT REQUIRES CODEBASE EXPLORATION!\n\nRemember:\n1. Perform tool calls in parallel whenever possible\n2. Avoid redundant calls -- don't repeat identical searches.\n3. Stop once you have high-confidence, non-duplicative snippets covering the query scope.\n\nReturns: A list of relevant files/snippet locations in the workspace.\n\nInput fields:\n- query: Natural language description of what to search for.\n- description: Short user-visible invocation message. \n- details: 2-3 sentences detailing the objective of the search agent.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural language description of what to search for."
+          },
+          "description": {
+            "type": "string",
+            "description": "A short (3-5 word) description of the task."
+          },
+          "details": {
+            "type": "string",
+            "description": "A more detailed description of the objective for the search subagent. This helps the sub-agent remain on task and understand its purpose."
+          }
+        },
+        "required": [
+          "query",
+          "description",
+          "details"
+        ]
+      }
+    },
+    {
+      "name": "mcp_brave-search_brave_web_search",
+      "description": "Performs a web search using the Brave Search API, ideal for general queries, and online content. Use this for broad information gathering, recent events, or when you need diverse web sources. Maximum 20 results per request ",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The term to search the internet for"
+          },
+          "count": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 10,
+            "description": "The number of results to return, minimum 1, maximum 20"
+          },
+          "offset": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0,
+            "description": "The offset for pagination, minimum 0"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pd",
+                  "pw",
+                  "pm",
+                  "py"
+                ]
+              },
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}to\\d{4}-\\d{2}-\\d{2}$"
+              }
+            ],
+            "description": "Filters search results by when they were discovered.\nThe following values are supported:\n- pd: Discovered within the last 24 hours.\n- pw: Discovered within the last 7 Days.\n- pm: Discovered within the last 31 Days.\n- py: Discovered within the last 365 Days.\n- YYYY-MM-DDtoYYYY-MM-DD: Custom date range (e.g., 2022-04-01to2022-07-30)"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "mcp_context7_query-docs",
+      "description": "Retrieves and queries up-to-date documentation and code examples from Context7 for any programming library or framework.\n\nYou must call 'resolve-library-id' first to obtain the exact Context7-compatible library ID required to use this tool, UNLESS the user explicitly provides a library ID in the format '/org/project' or '/org/project/version' in their query.\n\nIMPORTANT: Do not call this tool more than 3 times per question. If you cannot find what you need after 3 calls, use the best information you have.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "libraryId": {
+            "type": "string",
+            "description": "Exact Context7-compatible library ID (e.g., '/mongodb/docs', '/vercel/next.js', '/supabase/supabase', '/vercel/next.js/v14.3.0-canary.87') retrieved from 'resolve-library-id' or directly from user query in the format '/org/project' or '/org/project/version'."
+          },
+          "query": {
+            "type": "string",
+            "description": "The question or task you need help with. Be specific and include relevant details. Good: 'How to set up authentication with JWT in Express.js' or 'React useEffect cleanup function examples'. Bad: 'auth' or 'hooks'. IMPORTANT: Do not include any sensitive or confidential information such as API keys, passwords, credentials, or personal data in your query."
+          }
+        },
+        "required": [
+          "libraryId",
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "mcp_context7_resolve-library-id",
+      "description": "Resolves a package/product name to a Context7-compatible library ID and returns matching libraries.\n\nYou MUST call this function before 'query-docs' to obtain a valid Context7-compatible library ID UNLESS the user explicitly provides a library ID in the format '/org/project' or '/org/project/version' in their query.\n\nSelection Process:\n1. Analyze the query to understand what library/package the user is looking for\n2. Return the most relevant match based on:\n- Name similarity to the query (exact matches prioritized)\n- Description relevance to the query's intent\n- Documentation coverage (prioritize libraries with higher Code Snippet counts)\n- Source reputation (consider libraries with High or Medium reputation more authoritative)\n- Benchmark Score: Quality indicator (100 is the highest score)\n\nResponse Format:\n- Return the selected library ID in a clearly marked section\n- Provide a brief explanation for why this library was chosen\n- If multiple good matches exist, acknowledge this but proceed with the most relevant one\n- If no good matches exist, clearly state this and suggest query refinements\n\nFor ambiguous queries, request clarification before proceeding with a best-guess match.\n\nIMPORTANT: Do not call this tool more than 3 times per question. If you cannot find what you need after 3 calls, use the best result you have.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The user's original question or task. This is used to rank library results by relevance to what the user is trying to accomplish. IMPORTANT: Do not include any sensitive or confidential information such as API keys, passwords, credentials, or personal data in your query."
+          },
+          "libraryName": {
+            "type": "string",
+            "description": "Library name to search for and retrieve a Context7-compatible library ID."
+          }
+        },
+        "required": [
+          "query",
+          "libraryName"
+        ]
+      }
+    },
+    {
+      "name": "mcp_microsoftdocs_microsoft_code_sample_search",
+      "description": "Search for code snippets in official Microsoft Learn documentation.\nReturns relevant code samples with practical implementation examples for Microsoft/Azure products. Helps you use the **LATEST OFFICIAL** code snippets.\n\n## When to Use:\n- When providing sample Microsoft/Azure related code snippets\n- When generating any Microsoft/Azure related code\n\n## Usage:\nInput a descriptive query or SDK/class/method name. Optional 'language' parameter filters results.\n\nEligible languages: csharp, javascript, typescript, python, powershell, azurecli, al, sql, java, kusto, cpp, go, rust, ruby, php.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "a descriptive query, SDK name, method name or code snippet related to Microsoft/Azure products, services, platforms, developer tools, frameworks, APIs or SDKs",
+            "type": "string"
+          },
+          "language": {
+            "description": "Optional parameter specifying the programming language of code snippets to retrieve. Can significantly improve search quality if provided. Eligible values: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php",
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "mcp_microsoftdocs_microsoft_docs_fetch",
+      "description": "Fetch complete content from a Microsoft documentation page and convert to markdown.\n\n## When to Use:\n- Search results are incomplete or truncated\n- Need complete procedures, troubleshooting steps, or detailed explanations\n- Found a highly relevant page in search results\n\n## Workflow:\nUse after microsoft_docs_search to get full content from high-value pages.\n\n## URL Requirements:\nMust be a valid microsoft.com domain URL.\n\n## Returns:\nMarkdown with headings, code blocks, tables, and links preserved.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "description": "URL of the Microsoft documentation page to read",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "mcp_microsoftdocs_microsoft_docs_search",
+      "description": "Search official Microsoft/Azure documentation for the most relevant and trustworthy content.\nReturns up to 10 high-quality content chunks with title, URL, and excerpt.\n\n## Usage:\nAlways use this tool first to ground answers in official Microsoft/Azure knowledge when facing Microsoft/Azure related questions, then use microsoft_docs_fetch for complete page content when needed.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "a query or topic about Microsoft/Azure products, services, platforms, developer tools, frameworks, or APIs",
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "mcp_sequentialthi_sequentialthinking",
+      "description": "A detailed tool for dynamic and reflective problem-solving through thoughts.\nThis tool helps analyze problems through a flexible thinking process that can adapt and evolve.\nEach thought can build on, question, or revise previous insights as understanding deepens.\n\nWhen to use this tool:\n- Breaking down complex problems into steps\n- Planning and design with room for revision\n- Analysis that might need course correction\n- Problems where the full scope might not be clear initially\n- Problems that require a multi-step solution\n- Tasks that need to maintain context over multiple steps\n- Situations where irrelevant information needs to be filtered out\n\nKey features:\n- You can adjust total_thoughts up or down as you progress\n- You can question or revise previous thoughts\n- You can add more thoughts even after reaching what seemed like the end\n- You can express uncertainty and explore alternative approaches\n- Not every thought needs to build linearly - you can branch or backtrack\n- Generates a solution hypothesis\n- Verifies the hypothesis based on the Chain of Thought steps\n- Repeats the process until satisfied\n- Provides a correct answer\n\nParameters explained:\n- thought: Your current thinking step, which can include:\n* Regular analytical steps\n* Revisions of previous thoughts\n* Questions about previous decisions\n* Realizations about needing more analysis\n* Changes in approach\n* Hypothesis generation\n* Hypothesis verification\n- next_thought_needed: True if you need more thinking, even if at what seemed like the end\n- thought_number: Current number in sequence (can go beyond initial total if needed)\n- total_thoughts: Current estimate of thoughts needed (can be adjusted up/down)\n- is_revision: A boolean indicating if this thought revises previous thinking\n- revises_thought: If is_revision is true, which thought number is being reconsidered\n- branch_from_thought: If branching, which thought number is the branching point\n- branch_id: Identifier for the current branch (if any)\n- needs_more_thoughts: If reaching end but realizing more thoughts needed\n\nYou should:\n1. Start with an initial estimate of needed thoughts, but be ready to adjust\n2. Feel free to question or revise previous thoughts\n3. Don't hesitate to add more thoughts if needed, even at the \"end\"\n4. Express uncertainty when present\n5. Mark thoughts that revise previous thinking or branch into new paths\n6. Ignore information that is irrelevant to the current step\n7. Generate a solution hypothesis when appropriate\n8. Verify the hypothesis based on the Chain of Thought steps\n9. Repeat the process until satisfied with the solution\n10. Provide a single, ideally correct answer as the final output\n11. Only set next_thought_needed to false when truly done and a satisfactory answer is reached",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "thought": {
+            "type": "string",
+            "description": "Your current thinking step"
+          },
+          "nextThoughtNeeded": {
+            "type": "boolean",
+            "description": "Whether another thought step is needed"
+          },
+          "thoughtNumber": {
+            "type": "integer",
+            "description": "Current thought number",
+            "minimum": 1
+          },
+          "totalThoughts": {
+            "type": "integer",
+            "description": "Estimated total thoughts needed",
+            "minimum": 1
+          },
+          "isRevision": {
+            "type": "boolean",
+            "description": "Whether this revises previous thinking"
+          },
+          "revisesThought": {
+            "type": "integer",
+            "description": "Which thought is being reconsidered",
+            "minimum": 1
+          },
+          "branchFromThought": {
+            "type": "integer",
+            "description": "Branching point thought number",
+            "minimum": 1
+          },
+          "branchId": {
+            "type": "string",
+            "description": "Branch identifier"
+          },
+          "needsMoreThoughts": {
+            "type": "boolean",
+            "description": "If more thoughts are needed"
+          }
+        },
+        "required": [
+          "thought",
+          "nextThoughtNeeded",
+          "thoughtNumber",
+          "totalThoughts"
+        ]
+      }
+    },
+    {
+      "name": "mcp_time_convert_time",
+      "description": "Convert time between timezones",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "source_timezone": {
+            "type": "string",
+            "description": "Source IANA timezone name (e.g., 'America/New_York', 'Europe/London'). Use 'Asia/Bangkok' as local timezone if no source timezone provided by the user."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time to convert in 24-hour format (HH:MM)"
+          },
+          "target_timezone": {
+            "type": "string",
+            "description": "Target IANA timezone name (e.g., 'Asia/Tokyo', 'America/San_Francisco'). Use 'Asia/Bangkok' as local timezone if no target timezone provided by the user."
+          }
+        },
+        "required": [
+          "source_timezone",
+          "time",
+          "target_timezone"
+        ]
+      }
+    },
+    {
+      "name": "mcp_time_get_current_time",
+      "description": "Get current time in a specific timezones",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone name (e.g., 'America/New_York', 'Europe/London'). Use 'Asia/Bangkok' as local timezone if no timezone provided by the user."
+          }
+        },
+        "required": [
+          "timezone"
+        ]
+      }
+    }
+  ],
+  "top_p": 1,
+  "max_tokens": 16000,
+  "thinking": {
+    "type": "enabled",
+    "budget_tokens": 4000
+  }
+}
