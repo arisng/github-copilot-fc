@@ -6,8 +6,6 @@ The Playwright CLI can be configured using a JSON configuration file. You can sp
 playwright-cli --config path/to/config.json open example.com
 ```
 
-Playwright CLI will load config from `playwright-cli.json` by default so that you did not need to specify it every time.
-
 ## Configuration File Schema
 
 ```typescript

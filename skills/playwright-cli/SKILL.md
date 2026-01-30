@@ -2,6 +2,7 @@
 name: playwright-cli
 description: Automates browser interactions for web testing, form filling, screenshots, and data extraction. Use when the user needs to navigate websites, interact with web pages, fill forms, take screenshots, test web applications, or extract information from web pages.
 allowed-tools: Bash(playwright-cli:*)
+version: 2.0.0
 ---
 
 # Browser Automation with playwright-cli
@@ -9,225 +10,52 @@ allowed-tools: Bash(playwright-cli:*)
 ## Quick start
 
 ```bash
-playwright-cli open https://playwright.dev
-playwright-cli click e15
-playwright-cli type "page.click"
+playwright-cli --config profiles/chromium.json open https://example.com
+playwright-cli snapshot
+playwright-cli click e3
+playwright-cli fill e5 "user@example.com"
 playwright-cli press Enter
 ```
+
+**Note on Blazor apps**: For Interactive Server render mode, Playwright auto-waits for the SignalR circuit. The next command after an interaction (like click) will wait for the server to process. See [BLAZOR_TESTING.md](references/BLAZOR_TESTING.md) for timing strategies.
 
 ## Core workflow
 
-1. Navigate: `playwright-cli --config profiles/chromium.json open https://example.com`
-2. Interact using refs from the snapshot
-3. Re-snapshot after significant changes
-4. Always use a profile from `profiles/`. Default to `profiles/chromium.json` unless the user specifies a browser or device.
+1. **Navigate**: `playwright-cli --config profiles/chromium.json open https://example.com`
+2. **Interact**: Use element references from the snapshot (e.g., `e3`, `e5`)
+3. **Inspect**: Re-snapshot after significant changes to see the DOM
+4. **Always profile-first**: Use explicit profiles from `profiles/` (default: `chromium.json`)
+5. **Mobile-first testing**: Start with device profiles (`iphone15`, `pixel7`) for responsive validation
 
-## HTTPS/SSL for localhost (self-signed certs)
+## When to use
 
-If your app uses a self-signed certificate on `https://localhost`, auto-trust the cert (recommended) or allow Playwright to ignore HTTPS errors to avoid browser blocking.
+- **POC/Exploratory**: Manual testing, debugging, form filling, data extraction
+- **Production**: Use E2E scripts instead (Playwright Test Framework)
+- **Hybrid**: Explore with CLI, then convert to scripts for automation
 
-### Trust the localhost certificate (recommended)
+For detailed decision guidance, see [BOUNDARIES.md](references/BOUNDARIES.md).
 
-```bash
-dotnet dev-certs https --trust
-```
+## Command reference
 
-### Ignore HTTPS errors in Playwright
+All Playwright CLI commands organized by type:
 
-Use a config file and set `browser.contextOptions.ignoreHTTPSErrors: true`:
+- [**COMMANDS.md**](references/COMMANDS.md) - Core, navigation, keyboard, mouse, save, tabs, DevTools
+- [**CONFIGURATION.md**](references/CONFIGURATION.md) - Profiles, HTTPS/SSL, sessions, config manager script
+- [**WORKFLOWS.md**](references/WORKFLOWS.md) - Form submission, multi-tab, debugging, responsive testing examples
+- [**BLAZOR_TESTING.md**](references/BLAZOR_TESTING.md) - Blazor Interactive Server with SignalR, readiness signals, best practices
 
-```json
-{
-	"browser": {
-		"browserName": "chromium",
-		"contextOptions": {
-			"ignoreHTTPSErrors": true
-		}
-	}
-}
-```
+## E2E scripts & integration
 
-```bash
-playwright-cli config my-config.json
-playwright-cli open --config=my-config.json https://localhost:5001
-```
+Playwright CLI complements code-based E2E test scripts. When to integrate:
 
-## Commands
+- **Exploratory Testing**: Use CLI for manual flows before scripting
+- **Debugging Failures**: Reproduce script issues interactively
+- **Prototyping**: Quick validations or data setup
+- **CI/CD**: Pre-checks or parallel sessions alongside suites
 
-### Core
+See [**INTEGRATION.md**](references/INTEGRATION.md) for 10 solid workflows, best practices, and hybrid approach patterns.
 
-```bash
-playwright-cli open https://example.com/
-playwright-cli close
-playwright-cli type "search query"
-playwright-cli click e3
-playwright-cli dblclick e7
-playwright-cli fill e5 "user@example.com"
-playwright-cli drag e2 e8
-playwright-cli hover e4
-playwright-cli select e9 "option-value"
-playwright-cli upload ./document.pdf
-playwright-cli check e12
-playwright-cli uncheck e12
-playwright-cli snapshot
-playwright-cli eval "document.title"
-playwright-cli eval "el => el.textContent" e5
-playwright-cli dialog-accept
-playwright-cli dialog-accept "confirmation text"
-playwright-cli dialog-dismiss
-playwright-cli resize 1920 1080
-```
+## Glossary & boundaries
 
-### Navigation
-
-```bash
-playwright-cli go-back
-playwright-cli go-forward
-playwright-cli reload
-```
-
-### Keyboard
-
-```bash
-playwright-cli press Enter
-playwright-cli press ArrowDown
-playwright-cli keydown Shift
-playwright-cli keyup Shift
-```
-
-### Mouse
-
-```bash
-playwright-cli mousemove 150 300
-playwright-cli mousedown
-playwright-cli mousedown right
-playwright-cli mouseup
-playwright-cli mouseup right
-playwright-cli mousewheel 0 100
-```
-
-### Save as
-
-```bash
-playwright-cli screenshot
-playwright-cli screenshot e5
-playwright-cli pdf
-```
-
-### Tabs
-
-```bash
-playwright-cli tab-list
-playwright-cli tab-new
-playwright-cli tab-new https://example.com/page
-playwright-cli tab-close
-playwright-cli tab-close 2
-playwright-cli tab-select 0
-```
-
-### DevTools
-
-```bash
-playwright-cli console
-playwright-cli console warning
-playwright-cli network
-playwright-cli run-code "async page => await page.context().grantPermissions(['geolocation'])"
-playwright-cli tracing-start
-playwright-cli tracing-stop
-```
-
-### Configuration
-
-```bash
-# Configure the session
-playwright-cli config my-config.json
-# Configure named session
-playwright-cli --session=mysession config my-config.json
-# Start with configured session
-playwright-cli open --config=my-config.json
-# Preferred default for agents (profile-first)
-playwright-cli open --config=profiles/chromium.json
-```
-
-## Configuration Profiles
-
-Use the pre-defined profiles in the `profiles/` directory for common testing scenarios like cross-browser and cross-device coverage. These high-fidelity profiles simulate exact platforms and devices (User Agent, viewport, device pixel ratio, and touch support) so E2E runs match real environments and keep cross-browser and cross-platform testing consistent.
-
-Tip: Use the device profiles to validate responsive layouts and platform-specific behaviors such as touch interactions, hover fallbacks, and UA-gated code paths.
-
-Default for agents: when the user has not specified a browser or device, use `profiles/chromium.json` as the explicit starting profile to keep runs consistent. Do not rely on implicit defaults.
-
-### Examples
-
-```bash
-# Recommended: desktop Chromium baseline
-playwright-cli --config profiles/chromium.json open https://example.com
-# Recommended: Firefox compatibility pass
-playwright-cli --config profiles/firefox.json open https://example.com
-# Recommended: iPhone 15 responsive + touch checks
-playwright-cli --config profiles/iphone15.json open https://example.com
-```
-
-### Available profiles
-
-- chromium
-- firefox
-- webkit
-- iphone15
-- pixel7
-
-### Configuration profiles only
-
-Always run Playwright CLI with an explicit profile from `profiles/`. For agent-driven workflows, default to [profiles/chromium.json](profiles/chromium.json) unless the user requests a specific browser or device.
-
-### Sessions
-
-```bash
-playwright-cli --session=mysession open example.com
-playwright-cli --session=mysession click e6
-playwright-cli session-list
-playwright-cli session-stop mysession
-playwright-cli session-stop-all
-playwright-cli session-delete
-playwright-cli session-delete mysession
-```
-
-## Example: Form submission
-
-```bash
-playwright-cli --config profiles/chromium.json open https://example.com/form
-playwright-cli snapshot
-
-playwright-cli fill e1 "user@example.com"
-playwright-cli fill e2 "password123"
-playwright-cli click e3
-playwright-cli snapshot
-```
-
-## Example: Multi-tab workflow
-
-```bash
-playwright-cli --config profiles/chromium.json open https://example.com
-playwright-cli tab-new https://example.com/other
-playwright-cli tab-list
-playwright-cli tab-select 0
-playwright-cli snapshot
-```
-
-## Example: Debugging with DevTools
-
-```bash
-playwright-cli open https://example.com
-playwright-cli click e4
-playwright-cli fill e7 "test"
-playwright-cli console
-playwright-cli network
-```
-
-```bash
-playwright-cli open https://example.com
-playwright-cli tracing-start
-playwright-cli click e4
-playwright-cli fill e7 "test"
-playwright-cli tracing-stop
-```
+- [**GLOSSARY.md**](references/GLOSSARY.md) - Domain terminology (assertions, E2E, flaky tests, etc.)
+- [**BOUNDARIES.md**](references/BOUNDARIES.md) - POC vs Production decision matrix and rules
