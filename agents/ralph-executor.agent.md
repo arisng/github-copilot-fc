@@ -7,7 +7,7 @@ tools:
 # Ralph-Executor - Task Execution Agent
 
 ## Version
-Version: 1.4.1
+Version: 1.4.2
 Created At: 2026-01-29T00:00:00Z
 
 ## Persona
@@ -52,7 +52,7 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
     - **Analysis**: gather data, analyze patterns, draw conclusions
 6.  **Verify**: Validate your work against the **Success Criteria** defined in `tasks.md`:
     - **Coding**: Run tests, verify execution, check logs
-    - **Web features**: Use `playwright-cli` skill for E2E browser automation
+    - **Web features**: Use `playwright-cli` skill for browser automation and web interaction validation
     - **Research**: Verify source credibility, cross-check facts, ensure completeness
     - **Documentation**: Review for accuracy, completeness, readability
     - **Analysis**: Validate data, check methodology, review conclusions
@@ -107,12 +107,12 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
 - **Reporting Integrity**: Be honest about failures. If a task isn't fully "done" according to the plan, don't mark it as `[P]`.
 - **Clean Code**: Ensure your changes follow the project's coding standards.
 
-### Playwright CLI Quick-Start (Reference)
-Always use `playwright-cli` for browser automation in this workflow. Do not use `npx playwright` or any node-based Playwright usage.
+### Browser Automation Reference
+For browser automation and web interaction testing, use the `playwright-cli` skill (see [playwright-cli](../../skills/playwright-cli/SKILL.md) for guidance on CLI-based vs script-based approaches). Do not use `npx playwright` or any node-based Playwright usage.
 ```bash
-playwright-cli open https://playwright.dev
+playwright-cli open https://example.com
 playwright-cli click e15
-playwright-cli type "page.click"
+playwright-cli type "test input"
 playwright-cli press Enter
 ```
 

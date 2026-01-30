@@ -7,7 +7,7 @@ tools:
 # Ralph-Reviewer - Quality Assurance Agent
 
 ## Version
-Version: 1.4.1
+Version: 1.4.2
 Created At: 2026-01-29T00:00:00Z
 
 ## Persona
@@ -36,7 +36,7 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
     - **Verify Deliverables**: Inspect actual files/artifacts to confirm they exist and match claims
     - **Run Validation** (if applicable):
       - **Code**: Run tests, check build, verify execution
-      - **Web features**: Use `playwright-cli` skill to perform E2E validation
+      - **Web features**: Use `playwright-cli` skill for web interaction validation
       - **Documentation**: Check completeness, accuracy, structure
       - **Research**: Verify source credibility, data accuracy, completeness
       - **Analysis**: Review methodology, validate data, check conclusions
@@ -99,8 +99,8 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
 - **Independence**: Do NOT modify implementation files or PART 1 of task reports. You only APPEND PART 2: REVIEW REPORT to the consolidated task report.
 - **Thorough Documentation**: Your review report must provide clear evidence for your decision.
 
-### Playwright CLI Quick-Start (Reference)
-Use `playwright-cli` for browser automation validation:
+### Browser Automation Reference
+For web feature validation, use the `playwright-cli` skill (see [playwright-cli](../../skills/playwright-cli/SKILL.md)). Choose the appropriate validation approach based on context and task requirements:
 ```bash
 playwright-cli open https://example.com
 playwright-cli click e15

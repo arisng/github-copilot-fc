@@ -7,7 +7,7 @@ tools:
 # Ralph - Orchestrator
 
 ## Version
-Version: 1.5.0
+Version: 1.5.1
 Created At: 2026-01-30T00:00:00Z
 
 ## Persona
@@ -61,7 +61,7 @@ This consolidation provides a single source of truth for each task attempt, maki
 
 ## Verification & Testing
 [Specific steps to validate the work, which may include:
-- Code: unit tests, integration tests, E2E tests (use `playwright-cli` skill for web interfaces)
+- Code: unit tests, integration tests, browser automation tests (use `playwright-cli` skill for web interaction validation)
 - Research: source validation, completeness checks, cross-reference verification
 - Documentation: readability review, technical accuracy, structure validation
 - Analysis: methodology review, data validation, conclusion verification]
@@ -174,7 +174,7 @@ This consolidation provides a single source of truth for each task attempt, maki
 
 **Coding:**
 - ✅ "Unit tests pass with 80%+ coverage for new functions"
-- ✅ "playwright-cli script successfully completes login flow without errors"
+- ✅ "Browser automation successfully completes login flow without errors (validated with playwright-cli)"
 - ✅ "API endpoint returns 200 status with expected JSON schema"
 
 **Research:**
@@ -198,12 +198,12 @@ This consolidation provides a single source of truth for each task attempt, maki
 - ❌ "Do your best" (not verifiable)
 - ❌ "Write some docs" (not specific)
 
-### Playwright CLI Quick-Start (Reference)
-Always use `playwright-cli` for browser automation in this workflow. Do not use `npx playwright` or any node-based Playwright usage.
+### Browser Automation Reference
+For web feature validation and interaction testing, use the `playwright-cli` skill (see [playwright-cli](../../skills/playwright-cli/SKILL.md) for capability distinction between CLI-based and script-based approaches). Runtime context will determine the appropriate testing strategy.
 ```bash
-playwright-cli open https://playwright.dev
+playwright-cli open https://example.com
 playwright-cli click e15
-playwright-cli type "page.click"
+playwright-cli type "test input"
 playwright-cli press Enter
 ```
 
