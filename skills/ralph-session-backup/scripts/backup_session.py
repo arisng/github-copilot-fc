@@ -17,11 +17,51 @@ def get_current_timestamp():
     """Generate timestamp in YYMMDD-HHMMSS format"""
     return datetime.now().strftime("%y%m%d-%H%M%S")
 
+def create_cross_platform_links(session_folder, backup_dest, backup_name):
+    """
+    Create platform-specific link variants for cross-platform accessibility:
+    - latest-win: Windows junction point (always a link, never a copy)
+    - latest-linux: Linux symlink (always a link, never a copy)
+    """
+    latest_win = os.path.join(session_folder, "latest-win")
+    latest_linux = os.path.join(session_folder, "latest-linux")
+
+    # Clean up existing links
+    for link_path in [latest_win, latest_linux]:
+        try:
+            if os.path.islink(link_path):
+                os.unlink(link_path)
+            elif os.path.exists(link_path):
+                try:
+                    os.rmdir(link_path)  # Try junction removal first
+                except OSError:
+                    shutil.rmtree(link_path)  # Fallback for directories
+        except OSError:
+            pass
+
+    # Create Windows junction (always try link first, fallback to error)
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['cmd', '/c', 'mklink', '/J', latest_win, os.path.abspath(backup_dest)],
+            capture_output=True, text=True, check=True
+        )
+        print(f"Created Windows junction: {latest_win} -> {backup_name}")
+    except (subprocess.CalledProcessError, OSError, FileNotFoundError):
+        print(f"Warning: Could not create Windows junction: {latest_win}")
+
+    # Create Linux symlink (always try link first, fallback to error)
+    try:
+        os.symlink(os.path.abspath(backup_dest), latest_linux)
+        print(f"Created Linux symlink: {latest_linux} -> {backup_name}")
+    except OSError:
+        print(f"Warning: Could not create Linux symlink: {latest_linux}")
+
 def create_versioned_backup(source, dest_base, session_name, repo_name):
     """
     Create a versioned backup structure:
     dest_base/repo_name/session_name/backup_YYMMDD-HHMMSS
-    Also maintains a 'latest' symlink/copy
+    Also creates cross-platform latest links
     """
     # Create session-specific folder
     session_folder = os.path.join(dest_base, repo_name, session_name)
@@ -37,30 +77,8 @@ def create_versioned_backup(source, dest_base, session_name, repo_name):
     # Copy the session to the versioned backup
     shutil.copytree(source, backup_dest, dirs_exist_ok=True)
 
-    # Create/update latest symlink (platform-aware)
-    latest_path = os.path.join(session_folder, "latest")
-    try:
-        if os.path.exists(latest_path) or os.path.islink(latest_path):
-            if platform.system() == 'Windows':
-                os.remove(latest_path)  # Windows doesn't have symlinks in older versions
-            else:
-                os.unlink(latest_path)
-    except OSError:
-        pass  # Ignore if removal fails
-
-    try:
-        if platform.system() == 'Windows':
-            # On Windows, create a copy instead of symlink
-            if os.path.exists(latest_path):
-                shutil.rmtree(latest_path)
-            shutil.copytree(backup_dest, latest_path, dirs_exist_ok=True)
-            print(f"Created latest copy: {latest_path}")
-        else:
-            # Create symlink on Unix-like systems
-            os.symlink(backup_name, latest_path)
-            print(f"Created latest symlink: {latest_path} -> {backup_name}")
-    except OSError as e:
-        print(f"Warning: Could not create latest link/copy: {e}")
+    # Create cross-platform latest links
+    create_cross_platform_links(session_folder, backup_dest, backup_name)
 
     return backup_dest
 
@@ -77,6 +95,27 @@ def list_session_versions(dest_base, repo_name, session_name):
             versions.append(item)
 
     return sorted(versions, reverse=True)  # Most recent first
+
+def get_latest_session_path(dest_base, repo_name, session_name):
+    """Get the path to the latest session version for current platform"""
+    session_folder = os.path.join(dest_base, repo_name, session_name)
+
+    # Determine which link to use based on platform
+    if platform.system() == 'Windows':
+        latest_link = os.path.join(session_folder, "latest-win")
+    else:  # Linux/WSL
+        latest_link = os.path.join(session_folder, "latest-linux")
+
+    if os.path.exists(latest_link):
+        return os.path.abspath(latest_link)
+    else:
+        # Fallback: find the most recent backup directory
+        versions = list_session_versions(dest_base, repo_name, session_name)
+        if versions:
+            latest_backup = os.path.join(session_folder, versions[0])
+            return os.path.abspath(latest_backup)
+        else:
+            return None
 
 def cleanup_old_versions(dest_base, repo_name, session_name, keep_count=5):
     """Keep only the most recent N versions"""
@@ -102,19 +141,23 @@ def cleanup_old_versions(dest_base, repo_name, session_name, keep_count=5):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python backup_session.py <session_name> [--cleanup N] [--list]")
+        print("Usage: python backup_session.py <session_name> [--cleanup N] [--list] [--get-latest-path]")
         print("  --cleanup N: Keep only the last N versions (default: 5)")
         print("  --list: List existing versions for the session")
+        print("  --get-latest-path: Print the path to the latest session version")
         sys.exit(1)
 
     session_name = sys.argv[1]
     cleanup_count = 5  # Default to keep 5 versions
     list_only = False
+    get_latest_path = False
 
     # Parse additional arguments
     for arg in sys.argv[2:]:
         if arg == "--list":
             list_only = True
+        elif arg == "--get-latest-path":
+            get_latest_path = True
         elif arg.startswith("--cleanup="):
             try:
                 cleanup_count = int(arg.split("=")[1])
@@ -147,6 +190,15 @@ def main():
     print(f"Session: {session_name}")
     print(f"Source: {source}")
     print(f"Destination base: {dest_base}")
+
+    if get_latest_path:
+        latest_path = get_latest_session_path(dest_base, repo_name, session_name)
+        if latest_path:
+            print(latest_path)
+        else:
+            print(f"Error: No versions found for session '{session_name}'", file=sys.stderr)
+            sys.exit(1)
+        return
 
     if list_only:
         versions = list_session_versions(dest_base, repo_name, session_name)
