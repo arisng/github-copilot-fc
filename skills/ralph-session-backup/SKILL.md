@@ -1,12 +1,12 @@
 ---
 name: ralph-session-backup
-description: Backup a specific Ralph session directory from .ralph-sessions to the Google Drive SwarmSessions folder. Use when archiving or copying Ralph session data with all nested files and folders.
-version: 1.1.1
+description: Backup a specific Ralph session directory from .ralph-sessions to the Google Drive SwarmSessions folder with versioning support. Use when archiving or copying Ralph session data with all nested files and folders.
+version: 1.2.0
 ---
 
 # Ralph Session Backup
 
-This skill provides a script to backup Ralph sessions using an overwrite strategy for existing destination folders. Sessions are organized under a repository-specific folder to avoid naming conflicts between different repositories.
+This skill provides a script to backup Ralph sessions with versioning support. Each session maintains multiple timestamped backups, organized under repository-specific folders to avoid naming conflicts between different repositories.
 
 ## Usage
 
@@ -18,9 +18,31 @@ To backup a specific session:
 
 **Important**: The script path must be resolved relative to the current skill directory location. This requires first determining where this skill is installed (e.g., in personal Copilot folders like .claude, .copilot, etc.) before executing the script.
 
-The script will copy the entire session folder from `.ralph-sessions/<session_name>` to the user's Google Drive SwarmSessions folder under a repository-specific subfolder (e.g., `C:\Users\<username>\GoogleDrive\SwarmSessions\<repo_name>\<session_name>`), including all nested folders and files.
+### Versioning Structure
 
-If the destination already exists, existing files will be overwritten with the new backup.
+The script creates a versioned backup structure:
+
+```txt
+SwarmSessions/
+└── <repo_name>/
+    └── <session_name>/           # Session folder (YYMMDD-HHMMSS)
+        ├── backup_YYMMDD-HHMMSS/    # Individual backup versions
+        ├── backup_YYMMDD-HHMMSS/    # Another backup version
+        └── latest/                  # Latest backup (symlink on Unix, copy on Windows)
+```
+
+### Command Options
+
+- `python3 backup_session.py <session_name>` - Create a new versioned backup
+- `python3 backup_session.py <session_name> --list` - List all existing versions
+- `python3 backup_session.py <session_name> --cleanup=N` - Keep only the last N versions (default: 5)
+
+### Recovery
+
+To restore from a specific version:
+1. Navigate to `SwarmSessions/<repo_name>/<session_name>/`
+2. Copy the desired `backup_YYMMDD-HHMMSS` folder back to `.ralph-sessions/<session_name>`
+3. Or use the `latest` folder for the most recent backup
 
 ## Requirements
 
