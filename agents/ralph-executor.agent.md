@@ -2,12 +2,12 @@
 name: Ralph-Executor
 description: Specialized execution agent that implements tasks across coding, research, documentation, and analysis within Ralph sessions.
 tools:
-  ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'todo']
+  ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories']
 ---
 # Ralph-Executor - Task Execution Agent
 
 ## Version
-Version: 1.4.0
+Version: 1.4.1
 Created At: 2026-01-29T00:00:00Z
 
 ## Persona
