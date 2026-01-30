@@ -1,6 +1,7 @@
 ---
 name: skill-creator
 description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.
+version: 1.1.0
 ---
 
 # Skill Creator
@@ -322,3 +323,17 @@ After testing the skill, users may request improvements. Often this happens righ
 2. Notice struggles or inefficiencies
 3. Identify how SKILL.md or bundled resources should be updated
 4. Implement changes and test again
+
+## Context Window Benefits Comparison
+
+Here is a sample comparison of a skill before and after applying these principles:
+
+| Metric                 | Current          | Refined           |
+| ---------------------- | ---------------- | ----------------- |
+| SKILL.md               | load	~400 lines  | ~120-150 lines    |
+| Token overhead         | ~3,000-4,000     | ~600-800          |
+| Content discovery      | Linear scrolling | Structured links  |
+| Progressive disclosure | All-at-once      | On-demand loading |
+| Maintenance            | Single monolith  | Modular by topic  |
+
+Use this as a benchmark to evaluate skill design effectiveness.
