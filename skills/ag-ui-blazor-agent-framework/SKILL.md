@@ -1,101 +1,107 @@
 ---
 name: ag-ui-blazor-agent-framework
-description: Build AG-UI integrations in .NET/C# with Microsoft Agent Framework and Blazor, including backend tool rendering, frontend tools, and generative UI context. Use when implementing the AG-UI protocol or wiring agent tools into Blazor UIs.
+description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework and ASP.NET Core. Use when implementing the 7 AG-UI protocol features: agentic chat, backend tools, human-in-the-loop approvals, generative UI (async tools), tool-based UI rendering, shared state, and predictive state updates. Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, and SSE streaming architecture.
+version: 1.3.0
 ---
 
 # AG-UI Blazor + Agent Framework
 
-## Workflow
+## Quick Start
 
-1. Identify the hosting/integration surface (server-only, Blazor Server, or Blazor WASM with a backend).
-2. Choose the event transport for agent ⇄ UI communication.
+For a basic ASP.NET Core agent with Blazor frontend:
 
-    - Blazor Server: align with the existing SignalR circuit model.
-    - Blazor WASM: prefer SignalR for bidirectional events; consider SSE for server → client streaming plus HTTP for user actions.
+1. Install NuGet package: `Microsoft.Agents.AI.Hosting.AGUI.AspNetCore`
+2. Create an `AIAgent` using `IChatClient` (Azure OpenAI, OpenAI, Ollama)
+3. Map the AG-UI endpoint: `app.MapAGUI("/api/chat", agent)` in ASP.NET Core startup
+4. In Blazor: Connect via HTTP POST + Server-Sent Events (SSE)
+5. Parse AG-UI protocol events; render messages and tool UIs dynamically
 
-3. Design the client state store + event stream.
+For approval workflows, generative UI, or shared state, see full workflow below.
 
-    - Treat agent output as an append-only event stream (chat deltas, tool-call lifecycle, tool results).
-    - Keep a per-session/per-circuit store and a projection model (timeline/messages/tool panels).
-    - Throttle/coalesce streaming updates to avoid render thrash.
+## The 7 AG-UI Protocol Features & Agent Framework Support
 
-4. Implement AG-UI protocol endpoints and map protocol events into your store.
-5. Implement backend tool rendering from Agent Framework tool metadata.
-6. Implement dynamic tool UI rendering in Blazor.
+Agent Framework's AG-UI integration supports all 7 standardized protocol features:
 
-    - Maintain a tool renderer registry (tool id/name/version → component type/descriptor).
-    - Render tool panels via `DynamicComponent` with a `Parameters` dictionary (including callbacks).
-    - Provide a safe fallback renderer (structured JSON/markdown view) when no custom renderer exists.
+1. **Agentic Chat** — Streaming chat with automatic tool calling (no manual parsing)
+2. **Backend Tool Rendering** — Tools execute server-side via `AIFunctionFactory`; results stream to client
+3. **Human-in-the-Loop** — `ApprovalRequiredAIFunction` middleware converts to approval protocol events
+4. **Agentic Generative UI** — Async tools with progress updates for long-running operations
+5. **Tool-Based UI Rendering** — Custom Blazor components render based on tool definitions
+6. **Shared State** — Bidirectional state synchronization between agent and Blazor client
+7. **Predictive State Updates** — Stream tool arguments as optimistic updates before execution
 
-7. Add GenUI context and interaction patterns.
+Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatClient`, `AIFunctionFactory`, `ApprovalRequiredAIFunction`, `ConversationId`, and tool metadata serialization.
 
-    - Use slots (templated components / `RenderFragment`) for consistent tool panel layouts.
-    - Use one-way data flow (state down, `EventCallback<T>` up) for approvals/retries/edits.
+## Full Workflow
 
-8. Validate UX and accessibility.
+1. **Install AG-UI hosting package**
+   - `dotnet add package Microsoft.Agents.AI.Hosting.AGUI.AspNetCore`
+   - Includes all dependencies: Agent Framework, Extensions.AI, protocol implementation
 
-    - Don’t steal focus during streaming; use `aria-live="polite"` for incremental text where appropriate.
-    - Ensure keyboard navigation and clear status for tool calls (queued/running/succeeded/failed).
-    - Avoid rendering untrusted HTML; sanitize or prefer restricted markdown rendering.
+2. **Create an AIAgent** from IChatClient
+   - Wire a chat client (Azure OpenAI, OpenAI, Ollama, etc.)
+   - Add tools using `AIFunctionFactory.Create()`
+   - Optional: wrap with middleware for approvals or state management
+   - See [mslearn-ag-ui-getting-started.md](references/mslearn-ag-ui-getting-started.md)
 
-9. Verify protocol compatibility and UI behavior end-to-end.
+3. **Map the AG-UI endpoint** in ASP.NET Core
+   - Use `app.MapAGUI("/api/chat", agent)` to expose agent as HTTP endpoint
+   - Handles HTTP POST requests + Server-Sent Events (SSE) streaming automatically
+   - Manages ConversationId for session context
 
-## References (load as needed)
+4. **Implement backend tools** (optional)
+   - Define tools that execute server-side: search, database queries, API calls
+   - Results stream to client via AG-UI protocol
+   - See [mslearn-backend-tool-rendering.md](references/mslearn-backend-tool-rendering.md)
 
-- [Microsoft Learn: AG-UI getting started (C#)](references/mslearn-ag-ui-getting-started.md)
-- [Microsoft Learn: backend tool rendering](references/mslearn-backend-tool-rendering.md)
-- [Microsoft Learn: frontend tools](references/mslearn-frontend-tools.md)
-- [CopilotKit: generative UI patterns](references/copilotkit-generative-ui.md)
-- [AG-UI protocol overview](references/ag-ui-protocol-overview.md)
-- [Blazor UI patterns for AG-UI + GenUI](references/blazor-ag-ui-genui-patterns.md)
+5. **Add approval workflows** (optional)
+   - Wrap functions with `ApprovalRequiredAIFunction` for sensitive actions
+   - Middleware converts to human-in-the-loop protocol events
+   - Client displays approval UI and sends user confirmation back
 
-## Maintenance & Update Workflow
+6. **Build frontend UI in Blazor**
+   - Connect to HTTP endpoint + SSE stream via `HttpClient` and event parsing
+   - Implement Blazor components that parse AG-UI protocol events
+   - Display chat messages, tool calls, approval requests, and progress updates
+   - Handle SSE streaming: append-only event stream, throttle for performance
+   - See [blazor-ag-ui-genui-patterns.md](references/blazor-ag-ui-genui-patterns.md) for component patterns
+   - Reference: [copilotkit-generative-ui.md](references/copilotkit-generative-ui.md) for UX/GenUI design patterns (framework-agnostic)
 
-Run this workflow weekly or at custom intervals to ensure the skill stays current:
+7. **Implement generative UI in Blazor** (optional)
+   - Use async tools for long-running operations with progress callbacks
+   - Render custom Blazor components based on tool definitions (slots, templates)
+   - Implement shared state synchronization: parse state events, update Blazor component state bidirectionally
+   - Use predictive updates: render tool arguments optimistically before confirmation
+   - See [blazor-ag-ui-genui-patterns.md](references/blazor-ag-ui-genui-patterns.md) for Blazor-specific implementation
 
-1. **Check Package Versions**
-   - Query latest NuGet releases: `Microsoft.Extensions.AI.*`, `Microsoft.AgentFramework.*`, `Microsoft.AspNetCore.Components.*`
-   - Flag major/minor version bumps; review changelog/breaking changes
-   - Update version constraints in references if needed
+8. **Validate protocol compliance and UX**
+   - Test event serialization and SSE streaming
+   - Ensure session management via ConversationId
+   - Verify tool call lifecycle (queued → executing → succeeded/failed)
+   - Test accessibility: focus management, `aria-live`, keyboard nav
 
-2. **Monitor Official Documentation**
-   - Scan Microsoft Learn for updates: [AG-UI docs](https://learn.microsoft.com/ai/), [Blazor docs](https://learn.microsoft.com/aspnet/core/blazor/)
-   - Check [AG-UI GitHub repo](https://github.com/microsoft/ag-ui) for protocol spec changes
-   - Review [Microsoft Agent Framework releases](https://github.com/microsoft/semantic-kernel) for tool rendering updates
+## References
 
-3. **Validate Code Examples**
-   - Run smoke tests on workflow steps (if automated test harness exists)
-   - Verify protocol event structures match current spec (especially streaming deltas)
-   - Check Blazor component patterns against latest templates (`dotnet new blazor`)
+**When to read each reference:**
 
-4. **Update References**
-   - Re-fetch updated Microsoft Learn articles into `references/`
-   - Archive deprecated references with `[DEPRECATED YYYY-MM-DD]` prefix
-   - Add new references for emerging patterns (e.g., new GenUI components, protocol extensions)
+- **7 Features & Agent Framework support**: [ag-ui-protocol-overview.md](references/ag-ui-protocol-overview.md) — All 7 features, Agent Framework abstractions, protocol contracts
+- **Getting started** (Step 2-3): [mslearn-ag-ui-getting-started.md](references/mslearn-ag-ui-getting-started.md) — MapAGUI setup, IChatClient wiring, C# examples
+- **Backend tools** (Step 4): [mslearn-backend-tool-rendering.md](references/mslearn-backend-tool-rendering.md) — AIFunctionFactory usage, tool metadata, streaming results
+- **Blazor SSE & event parsing** (Step 6): [mslearn-frontend-tool-rendering.md](references/mslearn-frontend-tool-rendering.md) — SSE parsing, protocol event structures, Blazor integration
+- **Blazor component patterns** (Step 6-7): [blazor-ag-ui-genui-patterns.md](references/blazor-ag-ui-genui-patterns.md) — Component composition, DynamicComponent rendering, state flow, shared state in Blazor
+- **Approvals** (Step 5): [approvals-human-in-the-loop.md](references/approvals-human-in-the-loop.md) — ApprovalRequiredAIFunction, middleware, approval event protocol
+- **UX/GenUI design** (Step 7, reference only): [copilotkit-generative-ui.md](references/copilotkit-generative-ui.md) — Framework-agnostic UX patterns, async tool design, shared state concepts
 
-5. **Protocol Compatibility Check**
-   - Compare current AG-UI protocol version vs skill assumptions
-   - Test tool metadata serialization (ensure backward compatibility)
-   - Validate event transport compatibility (SignalR/SSE version alignment)
+## Skill Maintenance
 
-6. **Industry Standards Audit**
-   - Cross-reference with CopilotKit/Vercel AI SDK patterns (GenUI best practices)
-   - Review accessibility standards (WCAG updates, ARIA patterns)
-   - Check security advisories for dependencies
-
-7. **Update Workflow & Guardrails**
-   - Revise workflow steps if protocol/framework changes require new patterns
-   - Add new guardrails for discovered pitfalls or anti-patterns
-   - Remove obsolete steps or notes
-
-8. **Version & Changelog**
-   - Increment skill version in frontmatter if updates are substantial
-   - Document changes in a `CHANGELOG.md` (if maintained) or commit message
+To keep this skill current, run the [maintenance workflow](references/maintenance.md) weekly or when dependencies update.
+Checkpoints include: NuGet version changes, Microsoft Learn documentation updates, AG-UI protocol changes, and accessibility/security standards.
 
 ## Guardrails
 
-- Prefer prerelease packages only when required; validate version compatibility.
-- Keep AG-UI protocol messages typed and validated.
-- Isolate tool UI components in Blazor and pass agent context via cascading parameters.
-- Log tool invocations and results for debugging and traceability.
-- When updates originate off the renderer thread, dispatch UI refresh via `InvokeAsync(...)` (avoid dispatcher errors).
+- **Architecture**: Use `MapAGUI` for endpoint management. Session context flows via `ConversationId` — include in all Blazor requests.
+- **Transport**: AG-UI uses HTTP POST + Server-Sent Events (SSE). Blazor Server can use SignalR; ensure Blazor WASM uses SSE fallback.
+- **7 Features**: Verify all 7 AG-UI features are implemented (chat, backend tools, approvals, async tools, tool-based UI, shared state, predictive updates).
+- **Tools**: Define via `AIFunctionFactory.Create()`. Wrap sensitive tools with `ApprovalRequiredAIFunction`. Test JSON schema serialization.
+- **Blazor**: Parse AG-UI events safely (sanitize HTML, validate JSON). Use DynamicComponent for tool UI rendering. Don't block SSE reads; throttle updates to avoid render thrash.
+- **Debugging**: Log ConversationId with all tool invocations and approval requests for traceability.

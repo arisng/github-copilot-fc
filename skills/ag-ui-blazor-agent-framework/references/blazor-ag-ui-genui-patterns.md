@@ -1,14 +1,28 @@
 # Blazor UI Patterns for AG-UI + Generative UI (GenUI)
 
+## Quick Reference: 7 AG-UI Features in Blazor
+
+| Feature                | Blazor Pattern                                            | Component/Service         |
+| ---------------------- | --------------------------------------------------------- | ------------------------- |
+| **Agentic Chat**       | Parse chat-delta events; append to timeline               | Chat message component    |
+| **Backend Tools**      | Display tool-call events; stream results                  | Tool result renderer      |
+| **Human-in-the-Loop**  | Show approval dialog; send response back                  | Approval dialog component |
+| **Agentic GenUI**      | Display progress events; increment long-running UI        | Progress indicator        |
+| **Tool-Based UI**      | Registry + `DynamicComponent` for custom tool renderers   | Tool UI registry          |
+| **Shared State**       | Parse state events; update local model; send in next POST | State service (scoped)    |
+| **Predictive Updates** | Render tool arguments optimistically before results       | Optimistic UI update      |
+
+---
+
 ## Summary
 
 This reference captures practical Blazor UI development patterns for building **agent-driven** apps where:
 
-- An agent emits a stream of tokens/events (chat + tool calls + incremental tool output).
-- The UI must render **dynamic tool UIs** (tool metadata → UI component mapping).
-- The UI must stay responsive and accessible while updates stream in.
+- An agent emits a stream of AG-UI protocol events (chat deltas, tool calls, results, state, progress, approvals).
+- The UI must render **dynamic tool UIs** (tool metadata → Blazor component mapping).
+- The UI must stay responsive and accessible while updates stream in via SSE or SignalR.
 
-The core idea: treat agent output as an **event stream** feeding a **state store**, and render the UI as a projection of that state. Prefer well-defined “tool UI contracts” (schema + UI hints) and a controlled rendering pipeline (registry + `DynamicComponent`/templates), instead of ad-hoc conditional markup.
+The core idea: treat agent output as an **AG-UI event stream** feeding a **state store**, and render the UI as a projection of that state. Prefer well-defined "tool UI contracts" (schema + UI hints) and a controlled rendering pipeline (registry + `DynamicComponent`/templates), instead of ad-hoc conditional markup.
 
 ---
 
@@ -256,5 +270,4 @@ Agent/tool outputs are untrusted:
 - [ASP.NET Core 10.0 release notes](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0) - Notes on first-class SSE result support in ASP.NET Core (.NET 10).
 - [MDN: Server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events) - Browser-side SSE model (`EventSource`) for unidirectional streaming.
 - [WAI-ARIA keyboard interface practices](https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/) - Keyboard/focus management conventions for interactive panels and composite widgets.
-- [Blazor University: RenderFragment templating](https://blazor-university.com/templating-components-with-renderfragements/) - `RenderFragment` slot/templating patterns for reusable tool panels.
 - [Dynamic components in Blazor (Jon Hilton)](https://jonhilton.net/blazor-dynamic-components/) - Practical discussion of dynamic rendering approaches (types vs fragments) and why `DynamicComponent` is preferred.
