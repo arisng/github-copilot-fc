@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [Configuration Profiles](#configuration-profiles)
+- [Path Resolution](#path-resolution)
 - [Available Profiles](#available-profiles)
 - [HTTPS/SSL for localhost](#httpssl-for-localhost)
 - [Sessions Management](#sessions-management)
@@ -21,6 +22,12 @@ Use the pre-defined profiles in the `profiles/` directory for common testing sce
 - **UA-gated code**: Profiles include correct User Agents; verify code paths specific to browsers/devices
 - **Viewport precision**: Device profiles set accurate viewports and device pixel ratios
 - **Maintain consistency**: Reuse profiles between CLI and E2E scripts for matching environments
+
+## Path Resolution
+
+All configuration file paths (e.g., `profiles/chromium.json`) are resolved relative to the skill's root directory at runtime. This ensures that profiles work correctly regardless of where the skill is published (Windows personal folders or WSL).
+
+When using the playwright-cli tool, paths are automatically resolved based on the tool's execution context.
 
 ## Available Profiles
 
