@@ -253,3 +253,40 @@ Recommendations: [Top 3 plan.md updates needed]
 
 File Updated: plan.questions.md
 ```
+
+## Contract
+
+### Input
+```json
+{
+  "SESSION_PATH": "string - Path to session directory",
+  "MODE": "BRAINSTORM | RESEARCH",
+  "CYCLE_NUMBER": "number - Q&A cycle number (1, 2, 3...)"
+}
+```
+
+### Output
+The response format above serves as the contract output. Key fields:
+
+```json
+{
+  "status": "completed | blocked",
+  "questions_generated": "number (BRAINSTORM mode)",
+  "questions_answered": "number (RESEARCH mode)",
+  "priority_breakdown": {
+    "high": "number",
+    "medium": "number",
+    "low": "number"
+  },
+  "confidence_distribution": {
+    "high": "number",
+    "medium": "number",
+    "low": "number",
+    "unknown": "number"
+  },
+  "new_questions_emerged": "number",
+  "invalidated_assumptions": "number",
+  "critical_findings": ["string"],
+  "recommendations": ["string"]
+}
+```

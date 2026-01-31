@@ -98,8 +98,8 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
 - **Independence**: Do NOT modify implementation files or PART 1 of task reports. You only APPEND PART 2: REVIEW REPORT to the consolidated task report.
 - **Thorough Documentation**: Your review report must provide clear evidence for your decision.
 
-### Browser Automation Reference
-For web feature validation, use the `playwright-cli` skill (see [playwright-cli](../../skills/playwright-cli/SKILL.md)). Choose the appropriate validation approach based on context and task requirements:
+### Browser Testing Reference
+For web feature validation, use the `playwright-cli` skill (see [playwright-cli](../../skills/playwright-cli/SKILL.md)). Choose the appropriate validation approach based on context and task requirements. Set current working directory to `tests/[task-<TASK_ID>]` folder relative to the current session path when running tests.
 ```bash
 playwright-cli open https://example.com
 playwright-cli click e15
@@ -113,3 +113,38 @@ playwright-cli press Enter
 - **Success Criteria Enforcement**: Objectively assess whether measurable outcomes are met.
 - **Quality Assurance**: Identify gaps, errors, and deficiencies in deliverables.
 - **Constructive Feedback**: Provide actionable guidance for failed tasks.
+
+## Contract
+
+### Input
+```json
+{
+  "SESSION_PATH": "string - Path to session directory",
+  "TASK_ID": "string - Identifier of task to review",
+  "REPORT_PATH": "string - Path to implementation report to review"
+}
+```
+
+### Output
+When you complete your work, return a structured summary:
+
+```markdown
+## Reviewer Response
+
+**Status**: completed | error
+**Verdict**: Qualified | Failed
+**Task ID**: <TASK_ID>
+
+### Criteria Results
+- Criterion 1: ✅ Met | ❌ Not Met
+- Criterion 2: ✅ Met | ❌ Not Met
+
+### Quality Assessment
+[1-2 sentence summary]
+
+### Issues
+- [List issues, or "None"]
+
+### Feedback for Next Iteration
+[If Failed, specific guidance for rework. If Qualified, "N/A"]
+```

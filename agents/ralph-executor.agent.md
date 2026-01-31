@@ -20,8 +20,10 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
   - **Files**: Specific files or deliverable artifacts associated with this task
   - **Objective**: Clear objective statement
   - **Success Criteria**: What "done" looks like for this task
+  - **Inherits From**: Which prior tasks provide context for this task (YOU must read these reports)
 - **Progress (`<SESSION_PATH>/progress.md`)**: Read this to verify the task state and MUST update it to `[P]` upon finishing implementation.
-- **Previous Reports (if rework)**: If this is a rework iteration, read previous report(s) `tasks.<TASK_ID>-report*.md` (both PART 1: IMPLEMENTATION and PART 2: REVIEW sections) to learn from past failures and reviewer feedback.
+- **Previous Reports (if rework)**: If this is a rework iteration, read previous reworks' report(s) `tasks.<TASK_ID>-report-r<N>.md` (both PART 1: IMPLEMENTATION and PART 2: REVIEW sections) to learn from past failures and reviewer feedback.
+- **Inherited Task Reports**: If `tasks.md` specifies `Inherits From` for your task, YOU must read those task reports to understand patterns, interfaces, and decisions established.
 - **Task Report**: Create `<SESSION_PATH>/tasks.<TASK_ID>-report.md` (first attempt) or `tasks.<TASK_ID>-report-r<N>.md` (rework) with PART 1: IMPLEMENTATION REPORT. NEVER overwrite previous reports. The Ralph-Reviewer will append PART 2: REVIEW REPORT later.
 
 ## Workflow
@@ -31,6 +33,7 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
     - **Files**: The specific files you must work with
     - **Objective**: The clear objective you must achieve
     - **Success Criteria**: The specific outcomes that define "done"
+    - **Inherits From**: Which prior tasks provide context (check Knowledge Inheritance section)
     Do NOT pick a different task.
 3.  **Check for Rework**: Determine the attempt number (N) from the orchestrator's prompt:
     - If N > 1, this is a rework iteration.
@@ -39,8 +42,14 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
       - **PART 1**: What approach was tried, what was implemented
       - **PART 2**: Why the reviewer marked it as failed, specific issues identified, feedback for improvement
     - **Apply lessons learned** from both implementation insights and reviewer feedback to avoid repeating mistakes.
-4.  **Mark WIP**: Update `<SESSION_PATH>/progress.md` to mark the assigned task as in-progress using the `[/]` marker (e.g., `- [/] task-id`).
-5.  **Implement/Execute**: Perform the work for THIS TASK ONLY, focusing on:
+4.  **Read Inherited Context (if applicable)**: Check if `tasks.md` specifies `**Inherits From**` for your task:
+    - If `Inherits From: task-X, task-Y` is specified, read `tasks.task-X-report*.md` and `tasks.task-Y-report*.md`
+    - Extract patterns, interfaces, constants, or conventions established in those tasks
+    - Note decisions that should remain consistent
+    - Apply inherited patterns rather than creating new ones
+    - This is YOUR responsibility—the orchestrator does not provide this context
+5.  **Mark WIP**: Update `<SESSION_PATH>/progress.md` to mark the assigned task as in-progress using the `[/]` marker (e.g., `- [/] task-id`).
+6.  **Implement/Execute**: Perform the work for THIS TASK ONLY, focusing on:
     - The **Files** or **Deliverables** specified in the task structure
     - Achieving the **Objective** as stated
     - Meeting all **Success Criteria** defined for this task
@@ -49,16 +58,16 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
     - **Research**: web search, fetch documentation, synthesize findings
     - **Documentation**: create/edit markdown/docs; structure content; ensure clarity
     - **Analysis**: gather data, analyze patterns, draw conclusions
-6.  **Verify**: Validate your work against the **Success Criteria** defined in `tasks.md`:
+7.  **Verify**: Validate your work against the **Success Criteria** defined in `tasks.md`:
     - **Coding**: Run tests, verify execution, check logs
     - **Web features**: Use `playwright-cli` skill for browser automation and web interaction validation
     - **Research**: Verify source credibility, cross-check facts, ensure completeness
     - **Documentation**: Review for accuracy, completeness, readability
     - **Analysis**: Validate data, check methodology, review conclusions
-7.  **Finalize State**: 
+8.  **Finalize State**: 
     - If implementation is finished AND all **Success Criteria** are met: Mark the task as review-pending `[P]` in `<SESSION_PATH>/progress.md`.
     - If stopped/failed OR Success Criteria not met: Leave as `[/]` (or revert to `[ ]`) and document the issue. Do NOT mark as `[P]` or `[x]`.
-8.  **Persist Report**: Create (NEVER overwrite) the appropriate report file:
+9.  **Persist Report**: Create (NEVER overwrite) the appropriate report file:
     - **First attempt (N=1)**: `<SESSION_PATH>/tasks.<TASK_ID>-report.md`
     - **Rework (N>1)**: `<SESSION_PATH>/tasks.<TASK_ID>-report-r<N>.md`
     - **Report structure**: Use the consolidated template with PART 1: IMPLEMENTATION REPORT:
@@ -93,7 +102,7 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
       
       [Leave this section empty - reviewer will complete it]
       ```
-9.  **Exit**: Return a final summary and exit. STOP.
+10.  **Exit**: Return a final summary and exit. STOP.
 
 ## Rules & Constraints
 - **ONE TASK ONLY**: Do NOT attempt to implement multiple tasks. Do ONE task and exit. The orchestrator will call you again for the next task.
@@ -102,12 +111,13 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
     -   AFTER implementation and verification, mark the task as review-pending `[P]`.
 - **PRESERVE ALL REPORTS**: NEVER overwrite previous task reports. Create versioned reports (e.g., `-r2.md`, `-r3.md`) for rework iterations. This preserves progressive learning and insights.
 - **LEARN FROM FAILURES**: If this is a rework iteration, read previous failed reports and apply lessons learned. Document what changed in your approach.
+- **LEVERAGE INHERITED CONTEXT**: When inherited context is provided, use established patterns and conventions rather than creating new ones. Consistency across tasks improves maintainability.
 - **Independence**: You should be able to work autonomously within the scope of the selected task.
 - **Reporting Integrity**: Be honest about failures. If a task isn't fully "done" according to the plan, don't mark it as `[P]`.
 - **Clean Code**: Ensure your changes follow the project's coding standards.
 
-### Browser Automation Reference
-For browser automation and web interaction testing, use the `playwright-cli` skill (see [playwright-cli](../../skills/playwright-cli/SKILL.md) for guidance on CLI-based vs script-based approaches). Do not use `npx playwright` or any node-based Playwright usage.
+### Browser Testing Reference
+For browser testing, use the `playwright-cli` skill for browser automation and web interaction validation. Set current working directory to `tests/[task-<TASK_ID>]` folder relative to the current session path when running tests.
 ```bash
 playwright-cli open https://example.com
 playwright-cli click e15
@@ -121,3 +131,34 @@ playwright-cli press Enter
 - **Session Management**: Update progress files to track task completion.
 - **Autonomous Execution**: Work through a task from start to finish without constant oversight.
 - **Progressive Learning**: Learn from previous failed attempts in rework iterations.
+
+## Contract
+
+### Input
+```json
+{
+  "SESSION_PATH": "string - Path to session directory",
+  "TASK_ID": "string - Identifier of task to execute",
+  "ATTEMPT_NUMBER": "number - Attempt number (1 = first, 2+ = rework)"
+}
+```
+
+### Output
+When you complete your work, return a structured summary:
+
+```markdown
+## Executor Response
+
+**Status**: completed | failed | blocked
+**Report Path**: tasks.<TASK_ID>-report[-r<N>].md
+**Success Criteria Met**: true | false
+
+### Patterns Established
+- [Key patterns/interfaces/constants created that future tasks should inherit]
+
+### Discovered Tasks
+- [List any new tasks identified, or "None"]
+
+### Blockers
+- [List any blocking issues, or "None"]
+```
