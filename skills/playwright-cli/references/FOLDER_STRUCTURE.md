@@ -5,7 +5,7 @@ To maintain organization and reproducibility in playwright-cli testing, use this
 ## Recommended Structure
 
 ```txt
-test-session/                    # Root folder for a test session (e.g., quiz-rendering-test/) - set as cwd
+[current-working-directory]/     # Root folder for a test session - set as cwd
 ├── scripts/                     # Bash scripts (.sh files) for test execution
 │   ├── test.sh                  # Main test script
 │   └── setup.sh                 # Optional: Environment setup script
