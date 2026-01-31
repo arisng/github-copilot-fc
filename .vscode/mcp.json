@@ -1,15 +1,5 @@
 {
     "servers": {
-        // "filesystem": {
-        //     "command": "npx",
-        //     "args": [
-        //         "-y",
-        //         "@modelcontextprotocol/server-filesystem",
-        //         "${env:USERPROFILE}/.claude/skills",
-        //         "${env:APPDATA}/Code/User/prompts",
-        //         "${workspaceFolder}"
-        //     ]
-        // },
         "memory": {
             "command": "npx",
             "args": [
