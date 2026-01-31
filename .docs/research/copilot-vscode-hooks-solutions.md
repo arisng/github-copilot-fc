@@ -1,6 +1,7 @@
-# GitHub Copilot Hook-like Capabilities: Solutions Analysis
+# Copilot VS Code Hook-like Capabilities: Solutions Analysis
 
 ## Overview
+
 This document analyzes solutions to achieve Claude Code hook-like capabilities within GitHub Copilot for VS Code, based on the Claude Code hooks research. While Copilot lacks the deep integration of Claude Code hooks, VS Code's rich extensibility ecosystem provides multiple approaches to implement similar deterministic controls and automation.
 
 ## Mapping Claude Code Hooks to Copilot/VS Code
@@ -199,16 +200,19 @@ async def validate_code_security(code: str) -> dict:
 ## Implementation Roadmap
 
 ### Phase 1: Quick Wins (1-2 weeks)
+
 1. Create comprehensive `.github/copilot-instructions.md`
 2. Set up basic git hooks for linting
 3. Configure VS Code format-on-save
 
 ### Phase 2: Enhanced Automation (2-4 weeks)
+
 1. Develop custom agents for domain-specific validation
 2. Create VS Code tasks for common workflows
 3. Implement MCP servers for specialized tools
 
 ### Phase 3: Deep Integration (4-8 weeks)
+
 1. Build VS Code extension for completion interception
 2. Integrate with CI/CD pipelines
 3. Create dashboard for hook execution monitoring

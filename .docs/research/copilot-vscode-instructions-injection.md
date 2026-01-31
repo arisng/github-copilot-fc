@@ -1,4 +1,4 @@
-# Understanding GitHub Copilot Custom Instructions Injection
+# Understanding Copilot VS Code Custom Instructions Injection
 
 Based on the VS Code GitHub Copilot Chat codebase, I'll explain the mechanism and timing of custom instruction injection, focusing on pattern-matching via `applyTo`, and then provide a visualization to build your understanding. This will help inform your work on a custom AI Agentic System using Microsoft Agent Framework in .NET.
 
