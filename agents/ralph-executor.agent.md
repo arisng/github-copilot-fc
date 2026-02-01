@@ -138,28 +138,32 @@ playwright-cli press Enter
 ### Input
 ```json
 {
-  "SESSION_PATH": "string - Path to session directory",
-  "TASK_ID": "string - Identifier of task to execute",
-  "ATTEMPT_NUMBER": "number - Attempt number (1 = first, 2+ = rework)"
+  "SESSION_PATH": "string - Absolute path to session directory (e.g., .ralph-sessions/<SESSION_ID>/)",
+  "TASK_ID": "string - Identifier of task to execute (e.g., task-1, task-5)",
+  "ATTEMPT_NUMBER": "number - Attempt number: 1 for first attempt, 2+ for rework iterations"
 }
 ```
 
+**Preconditions:**
+- `SESSION_PATH` must exist and contain `plan.md`, `tasks.md`, `progress.md`
+- `TASK_ID` must exist in `tasks.md`
+- `progress.md` must mark the task as `[/]` (in-progress) before executor starts
+- For rework (ATTEMPT_NUMBER > 1), previous report `tasks.<TASK_ID>-report[-r<N-1>].md` must exist
+
 ### Output
-When you complete your work, return a structured summary:
-
-```markdown
-## Executor Response
-
-**Status**: completed | failed | blocked
-**Report Path**: tasks.<TASK_ID>-report[-r<N>].md
-**Success Criteria Met**: true | false
-
-### Patterns Established
-- [Key patterns/interfaces/constants created that future tasks should inherit]
-
-### Discovered Tasks
-- [List any new tasks identified, or "None"]
-
-### Blockers
-- [List any blocking issues, or "None"]
+```json
+{
+  "status": "completed | failed | blocked",
+  "report_path": "string - Path to created report file (tasks.<TASK_ID>-report[-r<N>].md)",
+  "success_criteria_met": "true | false",
+  "patterns_established": ["string - Key patterns/interfaces/constants for inherited tasks"],
+  "discovered_tasks": ["string - New tasks identified during execution, or empty if none"],
+  "blockers": ["string - Blocking issues encountered, or empty if none"]
+}
 ```
+
+**Postconditions:**
+- Task report file created at `SESSION_PATH/tasks.<TASK_ID>-report[-r<N>].md`
+- `progress.md` updated: task marked as `[P]` (review-pending) if SUCCESS_CRITERIA_MET
+- If report indicates failure, task remains `[/]` or reverts to `[ ]` for rework
+- All referenced files must follow naming conventions: `.md` extension, no special characters
