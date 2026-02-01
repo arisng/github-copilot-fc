@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Reviewer - Quality Assurance Agent
 
 ## Version
-Version: 2.2.0
+Version: 2.2.1
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -331,7 +331,7 @@ playwright-cli press Enter
   "goals_achieved": "number - Goals met / total goals",
   "gaps_identified": ["string - List of incomplete objectives or missing deliverables"],
   "new_tasks_created": "number - Tasks added to close gaps",
-  "activated_skills": ["skill-name-1", "skill-name-2"],
+  "activated_skills": ["<SKILLS_DIR>/skill-name-1", "<SKILLS_DIR>/skill-name-2"],
   "review_report_path": "progress.review[N].md",
   "next_action": "Session continues with EXECUTING | Session complete"
 }

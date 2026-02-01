@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Planner - Planning Agent
 
 ## Version
-Version: 2.3.0
+Version: 2.3.1
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -345,7 +345,7 @@ Return a structured summary to the orchestrator:
     "implementation": 5,
     "total": 9
   },
-  "activated_skills": ["skill-name-1", "skill-name-2"],
+  "activated_skills": ["<SKILLS_DIR>/skill-name-1", "<SKILLS_DIR>/skill-name-2"],
   "next_actions": ["execute_plan-brainstorm", "execute_plan-research", "execute_plan-breakdown"],
   "blockers": ["string - List of blocking issues if any"]
 }

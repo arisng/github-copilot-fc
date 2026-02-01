@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Questioner - Q&A Discovery Agent
 
 ## Version
-Version: 2.2.0
+Version: 2.2.1
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -292,7 +292,7 @@ The response format above serves as the contract output. Key fields:
   "invalidated_assumptions": "number",
   "critical_findings": ["string"],
   "recommendations": ["string"],
-  "activated_skills": ["skill-name-1", "skill-name-2"],
+  "activated_skills": ["<SKILLS_DIR>/skill-name-1", "<SKILLS_DIR>/skill-name-2"],
   "progress_updated": "plan-brainstorm or plan-research marked as [x]"
 }
 ```

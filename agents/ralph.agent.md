@@ -7,7 +7,7 @@ tools: ['read/problems', 'read/readFile', 'read/terminalSelection', 'read/termin
 # Ralph - Orchestrator (Pure Router)
 
 ## Version
-Version: 2.2.0
+Version: 2.2.1
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -100,6 +100,35 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - **COMPLETE → END**: If Ralph-Reviewer (SESSION_REVIEW) confirms completion
 
 ## Workflow
+
+### 0. Skills Directory Resolution
+**Discover available agent skills directories based on the current working environment:**
+
+- **Windows**: `$env:USERPROFILE\.claude\skills`, `$env:USERPROFILE\.codex\skills`, `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `$HOME/.claude/skills`, `$HOME/.codex/skills`, `$HOME/.copilot/skills`
+
+**Resolution Algorithm:**
+```powershell
+# Detect OS
+IF (Test-Path env:USERPROFILE):  # Windows
+    $skillsFolders = @(
+        "$env:USERPROFILE\.claude\skills",
+        "$env:USERPROFILE\.codex\skills",
+        "$env:USERPROFILE\.copilot\skills"
+    )
+ELSE:  # Linux/WSL
+    $skillsFolders = @(
+        "$HOME/.claude/skills",
+        "$HOME/.codex/skills",
+        "$HOME/.copilot/skills"
+    )
+
+# Find first existing directory
+FOREACH ($folder in $skillsFolders):
+    IF (Test-Path $folder):
+        SKILLS_DIR = $folder
+        BREAK
+```
 
 ### 1. Session Resolution
 ```
@@ -395,6 +424,7 @@ When Ralph-Executor receives `TASK_ID: task-3`, it:
   "current_state": "INITIALIZING | PLANNING | EXECUTING | REVIEWING | COMPLETE",
   "last_action": "string - Description of last routing action",
   "next_action": "string - What happens next",
+  "activated_skills": ["<SKILLS_DIR>/skill-name-1", "<SKILLS_DIR>/skill-name-2"],
   "summary": "string - Brief status summary"
 }
 ```
