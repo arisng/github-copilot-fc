@@ -1,10 +1,10 @@
 ---
 name: blazor-ag-ui-agent-framework
-description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework and ASP.NET Core. Use when implementing the 7 AG-UI protocol features: agentic chat, backend tools, human-in-the-loop approvals, generative UI (async tools), tool-based UI rendering, shared state, and predictive state updates. Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, and SSE streaming architecture.
-version: 1.4.2
+description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework (MAF) and ASP.NET Core. Use when implementing the 7 AG-UI protocol features: agentic chat, backend tools, human-in-the-loop approvals, generative UI (async tools), tool-based UI rendering, shared state, and predictive state updates. Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, and SSE streaming architecture.
+version: 1.5.0
 ---
 
-# AG-UI Blazor + Agent Framework
+# AG-UI Blazor + Agent Framework (MAF)
 
 ## Quick Start
 
@@ -15,6 +15,12 @@ For a basic ASP.NET Core agent with Blazor frontend:
 3. Map the AG-UI endpoint: `app.MapAGUI("/api/chat", agent)` in ASP.NET Core startup
 4. In Blazor: Connect via HTTP POST + Server-Sent Events (SSE)
 5. Parse AG-UI protocol events; render messages and tool UIs dynamically
+
+**Triggering Generative UI**: Use intent keywords in prompts:
+- "Make an interactive..." (highest success rate)
+- "Create an interactive..."
+- "Simulate... with adjustable..."
+- Keep interfaces focused: specify 2-4 controls per prompt for cleaner layouts
 
 For approval workflows, generative UI, or shared state, see full workflow below.
 
@@ -78,6 +84,8 @@ Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatCli
    - Implement Blazor components that parse AG-UI protocol events
    - Display chat messages, tool calls, approval requests, and progress updates
    - Handle SSE streaming: append-only event stream, throttle for performance
+   - **Validation**: Sanitize HTML, validate JSON structure before rendering
+   - **Error handling**: Display partial results on stream failure; provide clear error messages
    - See [blazor-ag-ui-genui-patterns.md](references/blazor-ag-ui-genui-patterns.md) for component patterns
    - Reference: [copilotkit-generative-ui.md](references/copilotkit-generative-ui.md) for UX/GenUI design patterns (framework-agnostic)
 
@@ -98,6 +106,28 @@ Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatCli
    - Ensure session management via ConversationId
    - Verify tool call lifecycle (queued → executing → succeeded/failed)
    - Test accessibility: focus management, `aria-live`, keyboard nav
+
+## Performance Optimization
+
+1. **Streaming for perceived speed**: Render components progressively as they become available—don't wait for complete responses
+2. **Token management**: Include only relevant context in agent calls (conversation history, state); trim unnecessary data
+3. **Model configuration**: Balance response quality vs latency based on use case:
+   - Interactive UI: prioritize speed (lower temperature, shorter max tokens)
+   - Complex reasoning: prioritize accuracy (higher temperature, allow longer responses)
+4. **Throttle rendering**: Batch rapid SSE updates to avoid render thrash in Blazor
+5. **Graceful degradation**: If tool execution fails, display cached/partial results with retry option
+
+## Real-World Applications
+
+**When to use AG-UI with Blazor + MAF:**
+
+1. **Rapid Prototyping**: Generate functional UIs in minutes for testing product concepts or client demos
+2. **Custom Dashboards**: Create personalized analytics interfaces tailored to specific metrics and user roles
+3. **Educational Tools**: Build interactive simulations and adaptive learning experiences
+4. **Internal Tools**: Generate admin panels, form builders, and workflow managers without dedicated frontend dev
+5. **Dynamic Forms**: Create context-aware forms that adapt based on user inputs and agent reasoning
+
+**Selection criteria**: Use static GenUI (prebuilt Blazor components) for high-risk workflows; consider declarative GenUI for flexibility with validation.
 
 ## References
 
@@ -123,6 +153,9 @@ Checkpoints include: NuGet version changes, Microsoft Learn documentation update
 - **Transport**: AG-UI uses HTTP POST + Server-Sent Events (SSE). Blazor Server can use SignalR; ensure Blazor WASM uses SSE fallback.
 - **7 Features**: Verify all 7 AG-UI features are implemented (chat, backend tools, approvals, async tools, tool-based UI, shared state, predictive updates).
 - **Tools**: Define via `AIFunctionFactory.Create()`. Wrap sensitive tools with `ApprovalRequiredAIFunction`. Test JSON schema serialization.
-- **Blazor**: Parse AG-UI events safely (sanitize HTML, validate JSON). Use DynamicComponent for tool UI rendering. Don't block SSE reads; throttle updates to avoid render thrash.
+- **Prompting**: Use intent keywords ("Make an interactive...", "Create...") to trigger GenUI. Specify 2-4 controls per prompt for cleaner layouts. Test prompt patterns for consistent GenUI activation.
+- **Validation**: Always sanitize HTML and validate JSON structure before rendering. Use JSON schema validation for structured outputs to ensure type-safe components.
+- **Blazor**: Parse AG-UI events safely. Use DynamicComponent for tool UI rendering. Don't block SSE reads; throttle updates to avoid render thrash. Implement graceful degradation for partial failures.
+- **Performance**: Stream progressively for perceived speed. Balance quality vs latency based on use case. Include only necessary context in agent calls.
 - **GenUI safety**: Default to Static GenUI for high-risk flows. If implementing declarative UI, validate against a schema and whitelist components. If embedding open-ended UI surfaces, isolate/sandbox and enforce strict origin allowlists + server-side authz.
 - **Debugging**: Log ConversationId with all tool invocations and approval requests for traceability.
