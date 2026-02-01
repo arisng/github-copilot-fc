@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Planner - Planning Agent
 
 ## Version
-Version: 2.0.1
+Version: 2.0.2
 Created At: 2026-01-31T00:00:00Z
 
 ## Persona
@@ -21,8 +21,8 @@ Complex Workflow (OLD - deprecated):
 
 Decomposed Workflow (NEW - correct):
   plan-init → Ralph-Planner(MODE: INITIALIZE)
-  plan-qa-brainstorm → Ralph-Planner(MODE: DISCOVERY, CYCLE: 1, PHASE: brainstorm)
-  plan-qa-research → Ralph-Planner(MODE: DISCOVERY, CYCLE: 1, PHASE: research)
+  plan-brainstorm → Ralph-Planner(MODE: DISCOVERY, CYCLE: 1, PHASE: brainstorm)
+  plan-research → Ralph-Planner(MODE: DISCOVERY, CYCLE: 1, PHASE: research)
   plan-breakdown → Ralph-Planner(MODE: TASK_BREAKDOWN) ✅
 ```
 
@@ -40,7 +40,7 @@ You will be provided with a `<SESSION_PATH>` and a `<MODE>`. Within this path, y
 **Scope**: Session initialization ONLY.
 - Create `plan.md` with goal, context, approach
 - Create `<SESSION_ID>.instructions.md`
-- Create `progress.md` with planning tasks (qa-brainstorm, qa-research, breakdown)
+- Create `progress.md` with planning tasks (plan-brainstorm, plan-research, breakdown)
 - Create `tasks.md` with ONLY planning tasks (implementation tasks come later via TASK_BREAKDOWN)
 - **Does NOT**: Execute Q&A or break down implementation tasks
 
@@ -136,26 +136,26 @@ Create or update `<SESSION_PATH>/tasks.md`:
     - **Success Criteria**: All artifacts exist and contain valid structure
     - **Inherits From**: None
 
-- plan-qa-brainstorm: Generate discovery questions
+- plan-brainstorm: Generate discovery questions
     - **Type**: Sequential (depends on plan-init)
     - **Files**: plan.questions.md
     - **Objective**: Identify hidden assumptions and knowledge gaps through comprehensive questioning
     - **Success Criteria**: 10+ categorized questions generated covering technical, requirements, constraints
     - **Inherits From**: plan-init
 
-- plan-qa-research: Answer discovery questions with evidence
-    - **Type**: Sequential (depends on plan-qa-brainstorm)
+- plan-research: Answer discovery questions with evidence
+    - **Type**: Sequential (depends on plan-brainstorm)
     - **Files**: plan.questions.md
     - **Objective**: Provide researched answers to critical questions
     - **Success Criteria**: All High priority questions answered with sources, plan.md updated with insights
-    - **Inherits From**: plan-qa-brainstorm
+    - **Inherits From**: plan-brainstorm
 
 - plan-breakdown: Decompose implementation tasks
-    - **Type**: Sequential (depends on plan-qa-research)
+    - **Type**: Sequential (depends on plan-research)
     - **Files**: tasks.md, progress.md
     - **Objective**: Break down plan into atomic, verifiable implementation tasks
     - **Success Criteria**: Each task has clear objective, success criteria, file associations, and inheritance links
-    - **Inherits From**: plan-init, plan-qa-research
+    - **Inherits From**: plan-init, plan-research
 
 ## Implementation Tasks
 [To be filled by plan-breakdown task]
@@ -252,8 +252,8 @@ Create or update `<SESSION_PATH>/progress.md`:
 
 ## Planning Progress
 - [ ] plan-init (Not Started)
-- [ ] plan-qa-brainstorm (Not Started)
-- [ ] plan-qa-research (Not Started)
+- [ ] plan-brainstorm (Not Started)
+- [ ] plan-research (Not Started)
 - [ ] plan-breakdown (Not Started)
 
 ## Implementation Progress
@@ -292,7 +292,7 @@ Return a structured summary to the orchestrator:
 - plan.questions.md: [Created | Updated | N/A]
 
 ### Next Actions for Orchestrator:
-- [What the orchestrator should route next, e.g., "Execute plan-qa-brainstorm task" or "Begin implementation execution"]
+- [What the orchestrator should route next, e.g., "Execute plan-brainstorm task" or "Begin implementation execution"]
 
 ### Blockers/Risks Identified:
 - [List any issues requiring user clarification, or "None"]
@@ -337,7 +337,7 @@ Return a structured summary to the orchestrator:
     "implementation": 5,
     "total": 7
   },
-  "next_actions": ["qa_brainstorm", "qa_research", "execute"],
+  "next_actions": ["plan_brainstorm", "plan_research", "execute"],
   "blockers": ["string - List of blocking issues if any"]
 }
 ```
