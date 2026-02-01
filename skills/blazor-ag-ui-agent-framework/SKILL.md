@@ -1,7 +1,7 @@
 ---
 name: blazor-ag-ui-agent-framework
 description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework and ASP.NET Core. Use when implementing the 7 AG-UI protocol features: agentic chat, backend tools, human-in-the-loop approvals, generative UI (async tools), tool-based UI rendering, shared state, and predictive state updates. Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, and SSE streaming architecture.
-version: 1.3.1
+version: 1.4.2
 ---
 
 # AG-UI Blazor + Agent Framework
@@ -17,6 +17,20 @@ For a basic ASP.NET Core agent with Blazor frontend:
 5. Parse AG-UI protocol events; render messages and tool UIs dynamically
 
 For approval workflows, generative UI, or shared state, see full workflow below.
+
+## Generative UI patterns (2026): pick the right level of freedom
+
+Generative UI (GenUI) is when the agent influences the interface at runtime (structured inputs, progress UI, dynamic panels), not just text.
+
+AG-UI is the **runtime event/state protocol** that enables GenUI; it is not a UI specification.
+
+Three practical patterns:
+
+1. **Static GenUI (AG-UI-style)** — Prebuilt UI components; the agent decides *when* to show them and *what data* they receive.
+2. **Declarative GenUI (A2UI / Open-JSON-UI)** — The agent returns a constrained UI description (JSON); the app renders it with validation/whitelisting.
+3. **Open-ended GenUI (MCP Apps)** — The agent can surface an external UI “surface” the app embeds; highest power, highest risk.
+
+This skill primarily focuses on **Static GenUI in Blazor** (tool lifecycle → Blazor components), while pointing to safe extension paths for declarative/open-ended approaches.
 
 ## The 7 AG-UI Protocol Features & Agent Framework Support
 
@@ -74,7 +88,12 @@ Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatCli
    - Use predictive updates: render tool arguments optimistically before confirmation
    - See [blazor-ag-ui-genui-patterns.md](references/blazor-ag-ui-genui-patterns.md) for Blazor-specific implementation
 
-8. **Validate protocol compliance and UX**
+8. **Extend beyond static GenUI** (optional)
+   - **Declarative GenUI**: add a validated, schema-versioned renderer for a constrained UI spec (e.g., cards/forms/tables)
+   - **Open-ended GenUI**: embed external UI surfaces only with strict origin allowlists and server-side authorization
+   - See [generative-ui-2026-patterns.md](references/generative-ui-2026-patterns.md) for selection guidance and mappings
+
+9. **Validate protocol compliance and UX**
    - Test event serialization and SSE streaming
    - Ensure session management via ConversationId
    - Verify tool call lifecycle (queued → executing → succeeded/failed)
@@ -91,6 +110,7 @@ Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatCli
 - **Blazor component patterns** (Step 6-7): [blazor-ag-ui-genui-patterns.md](references/blazor-ag-ui-genui-patterns.md) — Component composition, DynamicComponent rendering, state flow, shared state in Blazor
 - **Approvals** (Step 5): [approvals-human-in-the-loop.md](references/approvals-human-in-the-loop.md) — ApprovalRequiredAIFunction, middleware, approval event protocol
 - **UX/GenUI design** (Step 7, reference only): [copilotkit-generative-ui.md](references/copilotkit-generative-ui.md) — Framework-agnostic UX patterns, async tool design, shared state concepts
+- **GenUI pattern selection**: [generative-ui-2026-patterns.md](references/generative-ui-2026-patterns.md) — Static vs declarative vs open-ended GenUI, and how they map to Blazor + AG-UI
 
 ## Skill Maintenance
 
@@ -104,4 +124,5 @@ Checkpoints include: NuGet version changes, Microsoft Learn documentation update
 - **7 Features**: Verify all 7 AG-UI features are implemented (chat, backend tools, approvals, async tools, tool-based UI, shared state, predictive updates).
 - **Tools**: Define via `AIFunctionFactory.Create()`. Wrap sensitive tools with `ApprovalRequiredAIFunction`. Test JSON schema serialization.
 - **Blazor**: Parse AG-UI events safely (sanitize HTML, validate JSON). Use DynamicComponent for tool UI rendering. Don't block SSE reads; throttle updates to avoid render thrash.
+- **GenUI safety**: Default to Static GenUI for high-risk flows. If implementing declarative UI, validate against a schema and whitelist components. If embedding open-ended UI surfaces, isolate/sandbox and enforce strict origin allowlists + server-side authz.
 - **Debugging**: Log ConversationId with all tool invocations and approval requests for traceability.
