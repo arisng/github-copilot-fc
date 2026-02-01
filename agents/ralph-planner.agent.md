@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Planner - Planning Agent
 
 ## Version
-Version: 2.0.0
+Version: 2.0.1
 Created At: 2026-01-31T00:00:00Z
 
 ## Persona
@@ -260,20 +260,20 @@ Create or update `<SESSION_PATH>/progress.md`:
 [To be filled after plan-breakdown task]
 ```
 
-### 6. Session Instructions Setup
-If new session, create `<SESSION_PATH>.instructions.md` using this template:
+### 6. Session Custom Instructions Setup
+If new session, create `<SESSION_ID>.instructions.md` using this exact template, do not add or remove sections:
 ```markdown
 ---
-applyTo: '.ralph-sessions/<SESSION_ID>/**'
+applyTo: ".ralph-sessions/<SESSION_ID>/**"
 ---
 
-# Ralph Session <SESSION_ID> Instructions
+# Ralph Session <SESSION_ID> Custom Instructions
 
 ## Target Files
-[Explicitly specifying paths of target files and session artifacts. Subagents will reference these files during task execution.]
+[Explicitly specifying paths of target files and session artifacts in bullet points. Subagents will reference these files during task execution.]
 
 ## Agent Skills
-[If any relevant agent skills are available, list them here. Subagents will load these skills when executing tasks.]
+[If any relevant agent skills are available, list them here in bullet points. Subagents will load these skills when executing tasks.]
 ```
 
 ### 6. Return Planning Summary
