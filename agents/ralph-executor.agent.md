@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Executor - Task Execution Agent
 
 ## Version
-Version: 2.0.0
+Version: 2.1.0
 Created At: 2026-01-29T00:00:00Z
 
 ## Persona
@@ -28,10 +28,46 @@ You will be provided with a `<SESSION_PATH>`. Within this path, you must interac
 - **Session Custom Instructions** (`.ralph-sessions/<SESSION_ID>.instructions.md`): Read this for custom instructions specific to current working session. Especially, you must ensure the activation of listed agent skills (if any). These agent skills are essential for executing tasks effectively within the session context.
 
 ## Workflow
+
+### 0. Skills Directory Resolution
+**Discover available agent skills directories based on the current working environment:**
+
+- **Windows**: `$env:USERPROFILE\.claude\skills`, `$env:USERPROFILE\.codex\skills`, `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `$HOME/.claude/skills`, `$HOME/.codex/skills`, `$HOME/.copilot/skills`
+
+**Resolution Algorithm:**
+```powershell
+# Detect OS
+IF (Test-Path env:USERPROFILE):  # Windows
+    $skillsFolders = @(
+        "$env:USERPROFILE\.claude\skills",
+        "$env:USERPROFILE\.codex\skills",
+        "$env:USERPROFILE\.copilot\skills"
+    )
+ELSE:  # Linux/WSL
+    $skillsFolders = @(
+        "$HOME/.claude/skills",
+        "$HOME/.codex/skills",
+        "$HOME/.copilot/skills"
+    )
+
+# Find first existing directory
+FOREACH ($folder in $skillsFolders):
+    IF (Test-Path $folder):
+        SKILLS_DIR = $folder
+        BREAK
+```
+
+Once `SKILLS_DIR` is resolved, list available skills (each subfolder = one skill).
+
 ### 1. **Read Context**: 
 - Read all files defined in **Session Artifacts** within the provided `<SESSION_PATH>`.
-- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to activate any relevant listed agent skills.
 - Read `plan.md` thoroughly to ensure alignment with goals.
+
+**Skills Activation:**
+- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to identify agent skills listed in the "Agent Skills" section
+- For each listed skill, read `<SKILLS_DIR>/<skill-name>/SKILL.md` to activate skill knowledge
+- Document activated skills for output contract
 ### 2.  **Identify Assigned Task**: Locate the specific task ID assigned by the orchestrator in the prompt. Read `tasks.md` to identify:
 - **Type**: Whether this task is Sequential or Parallelizable (informational context)
 - **Files**: The specific files you must work with
@@ -173,6 +209,7 @@ playwright-cli press Enter
   "report_path": "string - Path to created report file (tasks.<TASK_ID>-report[-r<N>].md)",
   "success_criteria_met": "true | false",
   "patterns_established": ["string - Key patterns/interfaces/constants for inherited tasks"],
+  "activated_skills": ["skill-name-1", "skill-name-2"],
   "discovered_tasks": ["string - New tasks identified during execution, or empty if none"],
   "blockers": ["string - Blocking issues encountered, or empty if none"]
 }

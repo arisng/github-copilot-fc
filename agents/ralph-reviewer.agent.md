@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Reviewer - Quality Assurance Agent
 
 ## Version
-Version: 2.1.0
+Version: 2.2.0
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -42,11 +42,46 @@ You will be provided with a `<SESSION_PATH>` and optionally a `<MODE>`. Within t
 
 ## Workflow
 
+### 0. Skills Directory Resolution
+**Discover available agent skills directories based on the current working environment:**
+
+- **Windows**: `$env:USERPROFILE\.claude\skills`, `$env:USERPROFILE\.codex\skills`, `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `$HOME/.claude/skills`, `$HOME/.codex/skills`, `$HOME/.copilot/skills`
+
+**Resolution Algorithm:**
+```powershell
+# Detect OS
+IF (Test-Path env:USERPROFILE):  # Windows
+    $skillsFolders = @(
+        "$env:USERPROFILE\.claude\skills",
+        "$env:USERPROFILE\.codex\skills",
+        "$env:USERPROFILE\.copilot\skills"
+    )
+ELSE:  # Linux/WSL
+    $skillsFolders = @(
+        "$HOME/.claude/skills",
+        "$HOME/.codex/skills",
+        "$HOME/.copilot/skills"
+    )
+
+# Find first existing directory
+FOREACH ($folder in $skillsFolders):
+    IF (Test-Path $folder):
+        SKILLS_DIR = $folder
+        BREAK
+```
+
+Once `SKILLS_DIR` is resolved, list available skills (each subfolder = one skill).
+
 ### Mode: TASK_REVIEW
 
 1.  **Read Context**: 
     - Read `plan.md` to understand the session's overall goals and context
-    - Read `.ralph-sessions/<SESSION_ID>.instructions.md` to activate agent skills relevant to validation, testing, and domain-specific quality checks
+
+**Skills Activation:**
+- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to identify agent skills listed in the "Agent Skills" section
+- For each listed skill, read `<SKILLS_DIR>/<skill-name>/SKILL.md` to activate skill knowledge
+- Document activated skills for output contract
 2.  **Identify Task**: Locate the specific task ID assigned by the orchestrator in the prompt. Read `tasks.md` to extract:
     - **Objective**: What success looks like
     - **Success Criteria**: Measurable, testable outcomes
@@ -119,7 +154,11 @@ You will be provided with a `<SESSION_PATH>` and optionally a `<MODE>`. Within t
 
 1.  **Read All Artifacts**: 
     - Read `plan.md`, `tasks.md`, all task reports, and `plan.questions.md` (if exists)
-    - Read `.ralph-sessions/<SESSION_ID>.instructions.md` to activate agent skills relevant to holistic validation and gap analysis
+
+**Skills Activation:**
+- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to identify agent skills listed in the "Agent Skills" section
+- For each listed skill, read `<SKILLS_DIR>/<skill-name>/SKILL.md` to activate skill knowledge
+- Document activated skills for output contract
 2.  **Determine Iteration**: Orchestrator provides ITERATION parameter. This is the Nth review of the session (1 for initial, 2+ for refinements).
 3.  **Compare Against Goals**: Cross-check all task outputs against plan.md "Goal & Success Criteria":
     - Are all stated objectives achieved?
@@ -271,6 +310,7 @@ playwright-cli press Enter
   },
   "quality_assessment": "string - 1-2 sentence overall quality summary",
   "issues": ["string - Specific problems identified, or empty if none"],
+  "activated_skills": ["skill-name-1", "skill-name-2"],
   "feedback": "string - Guidance for rework (if Failed), or N/A (if Qualified)",
   "progress_updated": "task marked as [x] (Qualified) or [ ] (Failed)"
 }
@@ -291,6 +331,7 @@ playwright-cli press Enter
   "goals_achieved": "number - Goals met / total goals",
   "gaps_identified": ["string - List of incomplete objectives or missing deliverables"],
   "new_tasks_created": "number - Tasks added to close gaps",
+  "activated_skills": ["skill-name-1", "skill-name-2"],
   "review_report_path": "progress.review[N].md",
   "next_action": "Session continues with EXECUTING | Session complete"
 }

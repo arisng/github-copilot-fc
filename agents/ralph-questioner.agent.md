@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Questioner - Q&A Discovery Agent
 
 ## Version
-Version: 2.1.0
+Version: 2.2.0
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -26,6 +26,37 @@ You will be provided with a `<SESSION_PATH>` and `<CYCLE>` within `.ralph-sessio
 
 ## Workflow
 
+### 0. Skills Directory Resolution
+**Discover available agent skills directories based on the current working environment:**
+
+- **Windows**: `$env:USERPROFILE\.claude\skills`, `$env:USERPROFILE\.codex\skills`, `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `$HOME/.claude/skills`, `$HOME/.codex/skills`, `$HOME/.copilot/skills`
+
+**Resolution Algorithm:**
+```powershell
+# Detect OS
+IF (Test-Path env:USERPROFILE):  # Windows
+    $skillsFolders = @(
+        "$env:USERPROFILE\.claude\skills",
+        "$env:USERPROFILE\.codex\skills",
+        "$env:USERPROFILE\.copilot\skills"
+    )
+ELSE:  # Linux/WSL
+    $skillsFolders = @(
+        "$HOME/.claude/skills",
+        "$HOME/.codex/skills",
+        "$HOME/.copilot/skills"
+    )
+
+# Find first existing directory
+FOREACH ($folder in $skillsFolders):
+    IF (Test-Path $folder):
+        SKILLS_DIR = $folder
+        BREAK
+```
+
+Once `SKILLS_DIR` is resolved, list available skills (each subfolder = one skill).
+
 ### Mode 1: Question Generation (Brainstorming)
 When invoked for brainstorming, your workflow is:
 
@@ -34,8 +65,12 @@ When invoked for brainstorming, your workflow is:
 - Target Files/Artifacts
 - Context & Analysis (what's known)
 - Proposed Design/Changes/Approach
-- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to activate agent skills relevant to question generation and session context analysis
 - Risks & Assumptions (what's uncertain)
+
+**Skills Activation:**
+- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to identify agent skills listed in the "Agent Skills" section
+- For each listed skill, read `<SKILLS_DIR>/<skill-name>/SKILL.md` to activate skill knowledge
+- Document activated skills for output contract
 
 #### 2. **Identify Knowledge Gaps**: Use systematic techniques to uncover unknowns:
 - **5 Whys Analysis**: For each goal/requirement, ask "why" iteratively to reveal underlying assumptions
@@ -75,7 +110,11 @@ When invoked for research, your workflow is:
 - All unanswered questions
 - Priority order (High first, then Medium, then Low)
 - Question category and impact
-- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to activate agent skills relevant to research, documentation lookup, and code analysis
+
+**Skills Activation:**
+- Read `.ralph-sessions/<SESSION_ID>.instructions.md` to identify agent skills listed in the "Agent Skills" section
+- For each listed skill, read `<SKILLS_DIR>/<skill-name>/SKILL.md` to activate skill knowledge
+- Document activated skills for output contract
 
 #### 2. **Research Strategy**: For each question, determine the best research approach:
 - **Code Analysis**: Use grep_search, read_file to examine codebase
@@ -253,6 +292,7 @@ The response format above serves as the contract output. Key fields:
   "invalidated_assumptions": "number",
   "critical_findings": ["string"],
   "recommendations": ["string"],
+  "activated_skills": ["skill-name-1", "skill-name-2"],
   "progress_updated": "plan-brainstorm or plan-research marked as [x]"
 }
 ```
