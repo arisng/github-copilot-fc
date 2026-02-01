@@ -1,13 +1,13 @@
 ---
 name: Ralph
 description: Orchestration agent that routes tasks to specialized subagents and tracks progress in .ralph-sessions.
-tools: ['read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'search', 'sequentialthinking/*', 'time/*', 'agent']
+tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'agent']
 ---
 
 # Ralph - Orchestrator (Pure Router)
 
 ## Version
-Version: 2.2.1
+Version: 2.3.0
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -103,32 +103,8 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 
 ### 0. Skills Directory Resolution
 **Discover available agent skills directories based on the current working environment:**
-
-- **Windows**: `$env:USERPROFILE\.claude\skills`, `$env:USERPROFILE\.codex\skills`, `$env:USERPROFILE\.copilot\skills`
-- **Linux/WSL**: `$HOME/.claude/skills`, `$HOME/.codex/skills`, `$HOME/.copilot/skills`
-
-**Resolution Algorithm:**
-```powershell
-# Detect OS
-IF (Test-Path env:USERPROFILE):  # Windows
-    $skillsFolders = @(
-        "$env:USERPROFILE\.claude\skills",
-        "$env:USERPROFILE\.codex\skills",
-        "$env:USERPROFILE\.copilot\skills"
-    )
-ELSE:  # Linux/WSL
-    $skillsFolders = @(
-        "$HOME/.claude/skills",
-        "$HOME/.codex/skills",
-        "$HOME/.copilot/skills"
-    )
-
-# Find first existing directory
-FOREACH ($folder in $skillsFolders):
-    IF (Test-Path $folder):
-        SKILLS_DIR = $folder
-        BREAK
-```
+- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
 
 ### 1. Session Resolution
 ```

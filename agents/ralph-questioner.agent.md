@@ -28,34 +28,8 @@ You will be provided with a `<SESSION_PATH>` and `<CYCLE>` within `.ralph-sessio
 
 ### 0. Skills Directory Resolution
 **Discover available agent skills directories based on the current working environment:**
-
-- **Windows**: `$env:USERPROFILE\.claude\skills`, `$env:USERPROFILE\.codex\skills`, `$env:USERPROFILE\.copilot\skills`
-- **Linux/WSL**: `$HOME/.claude/skills`, `$HOME/.codex/skills`, `$HOME/.copilot/skills`
-
-**Resolution Algorithm:**
-```powershell
-# Detect OS
-IF (Test-Path env:USERPROFILE):  # Windows
-    $skillsFolders = @(
-        "$env:USERPROFILE\.claude\skills",
-        "$env:USERPROFILE\.codex\skills",
-        "$env:USERPROFILE\.copilot\skills"
-    )
-ELSE:  # Linux/WSL
-    $skillsFolders = @(
-        "$HOME/.claude/skills",
-        "$HOME/.codex/skills",
-        "$HOME/.copilot/skills"
-    )
-
-# Find first existing directory
-FOREACH ($folder in $skillsFolders):
-    IF (Test-Path $folder):
-        SKILLS_DIR = $folder
-        BREAK
-```
-
-Once `SKILLS_DIR` is resolved, list available skills (each subfolder = one skill).
+- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
 
 ### Mode 1: Question Generation (Brainstorming)
 When invoked for brainstorming, your workflow is:
