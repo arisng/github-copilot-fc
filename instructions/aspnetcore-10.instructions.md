@@ -1,6 +1,6 @@
 ---
 description: 'Guidelines for developing web applications with ASP.NET Core on .NET 10.0, including Minimal APIs, Blazor, and Native AOT'
-applyTo: '**/Program.cs, **/Startup.cs, **/*.razor, **/*.cshtml, **/appsettings.json, **/*.csproj'
+applyTo: '**/Program.cs, **/Startup.cs, **/*.razor, **/*.cshtml, **/appsettings.json, **/*.csproj, **/*.slnx, **/*.sln'
 ---
 
 # ASP.NET Core (.NET 10.0) Development Guidelines
@@ -44,6 +44,16 @@ This guide provides best practices for developing web applications and APIs usin
 ```csharp
 [JsonSerializable(typeof(Todo))]
 internal partial class AppJsonContext : JsonSerializerContext { }
+```
+
+### Solution Files
+Starting in .NET 10, `dotnet new sln` defaults to creating SLNX format solution files instead of SLN format. The SLNX format is XML-based, more readable, and easier to maintain. Use SLNX for new ASP.NET Core solutions to benefit from better mergeability and tooling support. If you need SLN format, use `dotnet new sln --format sln`.
+
+Example SLNX structure:
+```xml
+<Solution xmlns="http://schemas.microsoft.com/vs/2022/solution">
+  <Project Path="MyAspNetCoreApp.csproj" />
+</Solution>
 ```
 
 ## Common Patterns
@@ -97,7 +107,7 @@ async IAsyncEnumerable<SseItem<string>> GetUpdatesAsync()
 
 ## Notes on globs
 
-This guidance applies to ASP.NET Core specific files (`Program.cs`, `.razor`, `appsettings.json`) and project configurations (`.csproj`) for apps targeting .NET 10.0.
+This guidance applies to ASP.NET Core specific files (`Program.cs`, `.razor`, `appsettings.json`), project configurations (`.csproj`), and solution files (`.slnx`, `.sln`) for apps targeting .NET 10.0.
 
 ## References
 
@@ -105,3 +115,4 @@ This guidance applies to ASP.NET Core specific files (`Program.cs`, `.razor`, `a
 - [Native AOT in ASP.NET Core](https://learn.microsoft.com/aspnet/core/fundamentals/native-aot)
 - [Minimal APIs Overview](https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis)
 - [Blazor Documentation](https://learn.microsoft.com/aspnet/core/blazor/)
+- [`dotnet new sln` defaults to SLNX](https://learn.microsoft.com/en-us/dotnet/core/compatibility/sdk/10.0/dotnet-new-sln-slnx-default) - .NET 10 change for default solution format

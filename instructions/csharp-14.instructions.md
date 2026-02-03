@@ -88,6 +88,8 @@ counts[key]++;
 ```
 
 ### .slnx Solution File Structure
+Starting in .NET 10, `dotnet new sln` defaults to creating SLNX format solution files instead of SLN format. The SLNX format is XML-based, more readable, and easier to maintain compared to the legacy SLN format. It's well-supported by all major .NET tooling and is much easier for developers to maintain. If you need to create an SLN-formatted solution file, use `dotnet new sln --format sln`.
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Solution xmlns="http://schemas.microsoft.com/vs/2022/solution">
@@ -111,3 +113,4 @@ This guidance applies to C# files, project files, and .slnx solutions targeting 
 
 - [C# 14 Language Features](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-14) - C# 14 specifications
 - [.slnx Solution Files](https://learn.microsoft.com/visualstudio/extensibility/internals/solution-dot-slnx-file) - .slnx format documentation
+- [`dotnet new sln` defaults to SLNX](https://learn.microsoft.com/en-us/dotnet/core/compatibility/sdk/10.0/dotnet-new-sln-slnx-default) - .NET 10 change for default solution format
