@@ -6,7 +6,7 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 # Ralph-Planner - Planning Agent
 
 ## Version
-Version: 2.3.1
+Version: 2.3.2
 Created At: 2026-02-01T00:00:00Z
 
 ## Persona
@@ -105,12 +105,6 @@ Create or update `<SESSION_PATH>/tasks.md`:
 **For INITIALIZE mode**, create tasks.md with planning tasks ONLY:
 ```markdown
 # Tasks
-
-## Legend
-- `[ ]` Not started
-- `[/]` In progress
-- `[P]` Pending review
-- `[x]` Completed
 
 ## Planning Tasks
 - plan-init: Initialize session artifacts
@@ -233,6 +227,13 @@ Create or update `<SESSION_PATH>/progress.md`:
 
 ```markdown
 # Progress Tracking
+
+## Legend
+- `[ ]` Not started
+- `[/]` In progress
+- `[P]` Pending review
+- `[x]` Completed
+- `[F]` Failed (for usage in future iteration and mark previously completed tasks as failed, then create new tasks to remediate)
 
 ## Planning Progress
 - [ ] plan-init (Not Started)
