@@ -1,6 +1,7 @@
 ---
 name: git-atomic-commit
 description: Skill for analyzing git changes, grouping them into logical atomic commits, generating conventional commit messages, and guiding through the commit process. Use when committing changes with proper conventional commit format and maintaining atomic commits.
+version: 1.1.0
 ---
 
 # Git Atomic Commit
@@ -62,11 +63,41 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 
 **MANDATORY: For each changed file, determine its exact commit type using the mapping table above. Document this assignment - it drives the entire commit strategy.**
 
-### 3. Pre-Commit Verification Checklist
+### 3. Select Appropriate Scopes
+
+**MANDATORY: After commit types are assigned, select appropriate scopes for each commit.**
+
+**Scope Selection Process:**
+1. Check if repository has a scope constitution at `.github/scope-constitution.md`
+2. If constitution exists, use it to select approved scopes for each commit type
+3. If no constitution exists, use the `commit-scope-constitution` skill to:
+   - Analyze repository structure (folders, modules, domains)
+   - Extract historical scopes from git history
+   - Propose appropriate scopes based on project structure
+4. Ensure scope names follow conventions:
+   - Kebab-case, lowercase, singular form
+   - Domain/module/feature-based (not file-path-based)
+   - Concise and descriptive (1-3 words)
+
+**Scope Cross-Reference:**
+- Commit type determines WHAT kind of change (via file path mapping)
+- Scope specifies WHERE in the project (via repository structure)
+- Together they form: `type(scope): subject`
+
+**Example:**
+```
+File: skills/pdf/SKILL.md
+  → Type: ai(skill)        [from file path mapping]
+  → Scope: pdf             [from .github/scope-constitution.md]
+  → Result: ai(skill): add table extraction
+```
+
+### 4. Pre-Commit Verification Checklist
 
 **MANDATORY: Complete this checklist before presenting any commit plan:**
 
 - [ ] **Type Mapping**: Every file path mapped to correct project-specific type using the table above
+- [ ] **Scope Selection**: Every commit has an appropriate scope (check constitution if available)
 - [ ] **No Generic Types**: No commits using `feat`, `fix`, `docs` without project-specific scope
 - [ ] **Atomic Grouping**: Changes grouped by logical feature/module boundaries
 - [ ] **Dependency Order**: Commit order maintains buildable state
@@ -74,7 +105,7 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 
 **If any checklist item fails, revise the plan before proceeding.**
 
-### 4. Group Changes into Logical Commits
+### 5. Group Changes into Logical Commits
 
 **CRITICAL CONSTRAINT: Files with different commit types CANNOT be grouped together - they must be in separate commits.**
 
@@ -89,17 +120,18 @@ Group remaining related changes based on:
 
 Create a todo list tracking each planned commit with their assigned types.
 
-### 5. Validate Commit Plan
+### 6. Validate Commit Plan
 
 **MANDATORY VALIDATION: Review each planned commit to ensure:**
 - All files in a commit share the same commit type
 - No commit mixes different types
 - Each commit represents one logical change within its type
 - Commits can be applied in sequence without conflicts
+- Scopes are valid per the constitution (if available)
 
 **If validation fails, revise the grouping immediately.**
 
-### 6. Generate Conventional Commit Messages
+### 7. Generate Conventional Commit Messages
 
 For each group, generate a commit message following **Conventional Commits** format:
 
@@ -140,7 +172,13 @@ For each group, generate a commit message following **Conventional Commits** for
 
 **CRITICAL:** Use project-specific types (e.g., `ai(skill)`) instead of generic types (`feat`, `fix`) when a mapping exists.
 
-### Commit Message Quality Standards
+**Scope Selection:**
+- Prefer scopes from `.github/scope-constitution.md` if available
+- Ensure scope aligns with repository structure (module, domain, feature)
+- Follow kebab-case, lowercase naming conventions
+- Use `commit-scope-constitution` skill if unclear
+
+### 8. Commit Message Quality Standards
 
 **KEY:** Provide sufficient detail for accurate changelog generation and knowledge graph tracking. Vague messages lead to misleading summaries.
 
@@ -163,7 +201,7 @@ Streamlines agent portfolio and reduces maintenance overhead.
 refactor: update agent definitions
 ```
 
-### 7. Execution & Review
+### 9. Execution & Review
 
 **Interactive Mode (User-Guided):**
 1. Present the complete commit plan with all details.
@@ -184,7 +222,7 @@ refactor: update agent definitions
 - Never discard or reset changes without consent.
 - If validation fails, stop and report the issue.
 
-### 8. Completion
+### 10. Completion
 
 After all commits are done, show a summary of all commits created.
 
@@ -195,9 +233,51 @@ After all commits are done, show a summary of all commits created.
 - **MANDATORY: Use project-specific commit types - no exceptions**
 - **MANDATORY: Complete pre-commit verification checklist**
 - **MANDATORY: Different commit types require separate commits** - No exceptions for atomicity
+- **MANDATORY: Use approved scopes from constitution** - Check `.github/scope-constitution.md` if available
 - Keep commits atomic: one logical change per commit
 - Ensure commit order maintains a buildable state
 - Use English for all commit messages unless instructed otherwise
+
+## Integration with commit-scope-constitution Skill
+
+This skill works in tandem with the `commit-scope-constitution` skill to ensure complete commit message consistency:
+
+**Division of Responsibility:**
+- **git-atomic-commit** (this skill):
+  - Maps file paths to commit types
+  - Groups changes into atomic commits
+  - Validates commit structure and ordering
+  - Executes commits with user approval
+
+- **commit-scope-constitution**:
+  - Defines valid scopes for each commit type
+  - Maintains scope naming conventions
+  - Aligns scopes with repository structure
+  - Provides scope selection guidelines
+
+**Workflow Integration:**
+```
+Changed Files
+    ↓
+git-atomic-commit: Map files → Commit types
+    ↓
+commit-scope-constitution: Select scopes for each type
+    ↓
+git-atomic-commit: Generate commit messages
+    ↓
+Final Commits: type(scope): subject
+```
+
+**When to Use Each:**
+- Use `git-atomic-commit` for every commit workflow
+- Use `commit-scope-constitution` when:
+  - Repository lacks `.github/scope-constitution.md`
+  - Need to add new scopes
+  - Weekly constitution refinement
+  - Scope selection is unclear
+
+**Constitution Location:** `.github/scope-constitution.md`
+**Scopes Inventory:** `.github/scopes-inventory.md`
 
 ## Commands Reference
 
