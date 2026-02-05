@@ -82,7 +82,8 @@ function Publish-AgentsToVSCode {
 
     if ($agentList.Count -gt 0) {
         $agentFiles = $agentFiles | Where-Object { 
-            ($_.Name -replace '\.agent\.md$') -in $agentList 
+            $basename = $_.Name -replace '\.agent\.md$'
+            $agentList | Where-Object { $basename -like $_ } | Select-Object -First 1
         }
         
         if ($agentFiles.Count -eq 0) {
