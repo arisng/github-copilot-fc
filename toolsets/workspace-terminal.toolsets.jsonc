@@ -1,0 +1,12 @@
+{
+	"workspace-terminal": {
+		"tools": [
+			"getTerminalOutput",
+			"awaitTerminal",
+			"killTerminal",
+			"runInTerminal"
+		],
+		"description": "my custom workspace terminal tool set",
+		"icon": "terminal"
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"workspace-search": {
+		"tools": [
+			"search"
+		],
+		"description": "my custom workspace search tool set",
+		"icon": "search"
+	}
+}
