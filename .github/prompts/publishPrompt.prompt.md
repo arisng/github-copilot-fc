@@ -2,7 +2,9 @@
 name: publishPrompt
 description: Publish specified prompts to VS Code user prompts directories.
 argument-hint: One or more prompt names to publish, separated by spaces (e.g., prompt1 prompt2)
-version: 1.0.0
+model: Grok Code Fast 1 (copilot)
+metadata:
+  version: 1.0.0
 ---
 Publish the prompts named `{arguments}` to VS Code user prompts directories.
 
