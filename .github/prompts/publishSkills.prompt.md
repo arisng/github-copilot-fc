@@ -2,6 +2,7 @@
 name: publishSkills
 description: Publish specified skills to personal Copilot folders.
 argument-hint: Skill names to publish (comma-separated if multiple)
+model: Grok Code Fast 1 (copilot)
 metadata:
   version: 1.0.0
 ---
