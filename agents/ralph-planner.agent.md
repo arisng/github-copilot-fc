@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'read/getTaskOutput', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'sequentialthinking/*', 'time/*', 'agent', 'microsoftdocs/mcp/*']
 metadata:
-  version: 3.0.0
+  version: 3.2.0
   created_at: 2026-02-01T00:00:00Z
-  updated_at: 2026-02-05T00:00:00Z
+  updated_at: 2026-02-06T00:00:00Z
 ---
 # Ralph-Planner - Planning Agent
 
@@ -401,15 +401,6 @@ Create or update `<SESSION_PATH>/progress.md`:
 
 ## Implementation Progress
 [To be filled after plan-breakdown task]
-
-## Current Wave
-[Active wave tracking - updated by orchestrator during execution]
-Wave: N/A
-Tasks: []
-Status: not_started
-
-## Wave History
-[Completed waves - updated after each wave finishes]
 ```
 
 ### 6. Session Custom Instructions Setup
@@ -417,6 +408,10 @@ If new session, create `.ralph-sessions/<SESSION_ID>.instructions.md` using this
 ```markdown
 ---
 applyTo: ".ralph-sessions/<SESSION_ID>/**"
+concurrency:
+  max_parallel_executors: 3
+  max_parallel_reviewers: 3
+  max_parallel_questioners: 3
 ---
 
 # Ralph Session <SESSION_ID> Custom Instructions

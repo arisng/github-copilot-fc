@@ -7,9 +7,9 @@ target: vscode
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'agent']
 agents: ['Ralph-Planner', 'Ralph-Questioner', 'Ralph-Executor', 'Ralph-Reviewer']
 metadata:
-  version: 3.0.0
+  version: 3.1.0
   created_at: 2026-02-01T00:00:00Z
-  updated_at: 2026-02-05T00:00:00Z
+  updated_at: 2026-02-06T00:00:00Z
 ---
 
 # Ralph - Orchestrator (Pure Router)
@@ -41,8 +41,8 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 | Plan | `plan.md` | Ralph-Planner |
 | Q&A Discovery | `plan.questions.<category>.md` (per category) | Ralph-Questioner |
 | Tasks | `tasks.md` | Ralph-Planner |
-| Progress | `progress.md` | All subagents (Ralph-Planner, Ralph-Questioner, Ralph-Executor, Ralph-Reviewer) |
 | Task Reports | `tasks.<TASK_ID>-report[-r<N>].md` | Ralph-Executor creates, Ralph-Reviewer appends |
+| Progress | `progress.md` | All subagents (Ralph-Planner, Ralph-Questioner, Ralph-Executor, Ralph-Reviewer) |
 | Session Review | `progress.review[N].md` | Ralph-Reviewer (N = iteration number: 1, 2, 3, etc.) |
 | Instructions | `<SESSION_ID>.instructions.md` | Ralph-Planner |
 
@@ -54,7 +54,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 └──────┬──────┘
        │ Invoke Ralph-Planner (MODE: INITIALIZE)
        │ → Creates: plan.md, tasks.md, progress.md, <SESSION_ID>.instructions.md
-       │ → Marks plan-init as [x] in progress.md
+       │ → Ralph-Planner marks plan-init as [x] in progress.md
        ▼
 ┌─────────────┐
 │  PLANNING   │ ─── Execute planning tasks by invoking specialized agents
@@ -159,14 +159,13 @@ INVOKE Ralph-Planner
     
 Planner creates: plan.md, tasks.md, progress.md, <SESSION_ID>.instructions.md
 tasks.md includes planning tasks: plan-init, plan-brainstorm, plan-research, plan-breakdown
-
-UPDATE progress.md: Mark plan-init as [x] (completed by INITIALIZE)
 THEN: STATE = PLANNING
 ```
 
 **STATE: PLANNING**
 ```
 READ progress.md
+READ concurrency limits from .ralph-sessions/<SESSION_ID>.instructions.md frontmatter
 FIND next planning task: plan-brainstorm, plan-research, or plan-breakdown with status [ ]
 
 IF no planning tasks remain [ ]:
@@ -184,22 +183,22 @@ ELSE:
     
     IF plan-brainstorm:
         OPTION A (Sequential): Single Ralph-Questioner covering all categories
-        OPTION B (Parallel): 5 Ralph-Questioners, one per category
+        OPTION B (Parallel): Up to max_parallel_questioners Ralph-Questioners (one per category)
             - INVOKE PARALLEL: Ralph-Questioner(CATEGORY: technical)
             - INVOKE PARALLEL: Ralph-Questioner(CATEGORY: requirements)
             - INVOKE PARALLEL: Ralph-Questioner(CATEGORY: constraints)
             - INVOKE PARALLEL: Ralph-Questioner(CATEGORY: assumptions)
             - INVOKE PARALLEL: Ralph-Questioner(CATEGORY: risks)
-        Choose OPTION B for faster brainstorming on complex projects
+        Choose OPTION B for faster brainstorming if max_parallel_questioners >= 5
     
     IF plan-research:
         OPTION A (Sequential): Single Ralph-Questioner answering all questions
-        OPTION B (Parallel): Multiple Ralph-Questioners, partitioned by question set
+        OPTION B (Parallel): Multiple Ralph-Questioners (up to max_parallel_questioners), partitioned by question set
             - Read plan.questions.md to get unanswered questions
             - Partition questions by priority or category
             - INVOKE PARALLEL: Ralph-Questioner(QUESTIONS: [q1, q2, q3])
             - INVOKE PARALLEL: Ralph-Questioner(QUESTIONS: [q4, q5, q6])
-        Choose OPTION B when many questions need research
+        Choose OPTION B when many questions need research and max_parallel_questioners allows
     
     IF plan-breakdown:
         INVOKE Ralph-Planner
@@ -213,6 +212,7 @@ ELSE:
 **STATE: BATCHING**
 ```
 READ progress.md and tasks.md
+READ concurrency limits from .ralph-sessions/<SESSION_ID>.instructions.md frontmatter
 
 1. READ PRE-COMPUTED PARALLEL GROUPS:
    - Parse "## Parallel Groups" section from tasks.md
@@ -228,9 +228,13 @@ READ progress.md and tasks.md
    - Include all tasks from current wave with status [ ]
    - These tasks are guaranteed safe to run in parallel
 
-4. UPDATE WAVE TRACKING:
-   - Record current wave number in progress.md
-   - Record batch tasks in "## Current Wave" section
+4. APPLY CONCURRENCY LIMITS:
+   - Read max_parallel_executors from session instructions
+   - IF CURRENT_BATCH.length > max_parallel_executors:
+       SPLIT CURRENT_BATCH into sub-batches of size max_parallel_executors
+       Store remaining tasks for subsequent sub-batch iterations
+   - ELSE:
+       Use full CURRENT_BATCH
 
 IF CURRENT_BATCH is empty AND incomplete tasks exist:
     ERROR: Malformed parallel groups or circular dependency
@@ -244,7 +248,7 @@ ELSE:
 
 **STATE: EXECUTING_BATCH**
 ```
-READ CURRENT_BATCH from progress.md ("## Current Wave" section)
+USE CURRENT_BATCH computed in BATCHING state
 
 IF CURRENT_BATCH.length > 1:
     # PARALLEL EXECUTION
@@ -274,11 +278,19 @@ THEN: STATE = REVIEWING_BATCH
 **STATE: REVIEWING_BATCH**
 ```
 READ progress.md
+READ concurrency limits from .ralph-sessions/<SESSION_ID>.instructions.md frontmatter
 FIND ALL tasks with [P] (review-pending) status from CURRENT_BATCH
 
 IF multiple tasks have [P] status:
-    # PARALLEL REVIEW
-    FOR EACH task-id with [P] status (in parallel):
+    # PARALLEL REVIEW WITH CONCURRENCY LIMIT
+    APPLY max_parallel_reviewers limit:
+        IF [P] tasks count > max_parallel_reviewers:
+            SPLIT into sub-batches of size max_parallel_reviewers
+            Review sub-batches sequentially
+        ELSE:
+            Review all [P] tasks in parallel
+    
+    FOR EACH task-id in review batch (in parallel):
         INVOKE Ralph-Reviewer (parallel invocation)
             SESSION_PATH: .ralph-sessions/<SESSION_ID>/
             TASK_ID: <task-id>
@@ -296,8 +308,7 @@ ELSE:
         TASK_ID: <task-id>
         REPORT_PATH: tasks.<TASK_ID>-report[-r<N>].md
 
-CLEAR "## Current Wave" section in progress.md
-STATE = BATCHING (determine next wave)
+STATE = BATCHING (compute next wave)
 ```
 
 **STATE: COMPLETE**
@@ -521,7 +532,7 @@ prompt: "SESSION_PATH: ...\nTASK_ID: task-3\nREPORT_PATH: ..."
 - Make all runSubagent calls in the SAME response (tool call block)
 - Do NOT wait between calls - invoke all simultaneously
 - After all complete, aggregate results and continue state machine
-- If any executor fails, collect partial results and document in progress.md
+- If any executor fails, collect partial results and report them; executor/reviewer handle progress.md updates
 
 **Contract Compliance Notes:**
 - **Ralph-Planner**: Requires MODE (INITIALIZE | UPDATE | TASK_BREAKDOWN). No longer handles DISCOVERY.
@@ -563,7 +574,7 @@ When Ralph-Executor receives `TASK_ID: task-3`, it:
   - **Ralph-Planner**: Always provide required MODE (INITIALIZE | UPDATE | TASK_BREAKDOWN).
   - **Ralph-Questioner**: Always provide MODE (brainstorm | research) and CYCLE (calculated from plan.questions.md).
   - **Ralph-Executor**: Always provide SESSION_PATH, TASK_ID, ATTEMPT_NUMBER (count existing report files).
-  - **Ralph-Reviewer**: For task review, provide SESSION_PATH, TASK_ID, REPORT_PATH. For session review, provide MODE: SESSION_REVIEW.
+  - **Ralph-Reviewer**: For task review, provide SESSION_PATH, TASK_ID, REPORT_PATH. For session review, provide MODE: SESSION_REVIEW and ITERATION.
 - **CYCLE Calculation**: For Ralph-Questioner invocations, count "## Cycle N" headers in plan.questions.md. CYCLE = count + 1. If file doesn't exist, CYCLE = 1.
 - **State Inference**: Use documented algorithm to infer STATE from progress.md task statuses.
 - **Minimal Prompts**: Pass only essential routing parameters. Subagents read details from artifacts.
@@ -572,6 +583,23 @@ When Ralph-Executor receives `TASK_ID: task-3`, it:
 - **Autonomous Loop**: Do NOT prompt user during execution unless critical unrecoverable error.
 - **Exclusive Invocation Right**: Only the Orchestrator invokes subagents. Subagents CANNOT invoke other subagents - all routing is centralized through Ralph.
 - **Dependency Respect**: NEVER execute a task before ALL its dependencies (Inherits From) are [x].
+
+## Concurrency Control
+
+To prevent resource exhaustion and maintain system stability, the orchestrator can enforce limits on parallel subagent execution.
+
+**User-Configured Concurrency**
+Add concurrency config to session instructions (<SESSION_ID>.instructions.md) frontmatter:
+
+---
+concurrency:
+  max_parallel_executors: 3
+  max_parallel_reviewers: 3
+  max_parallel_questioners: 3
+---
+```
+
+Ralph-Orchestrator enforces these limits when building CURRENT_BATCH, splitting large waves into sequential sub-batches if needed.
 
 ## Contract
 
