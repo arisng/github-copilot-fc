@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'read/getTaskOutput', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'sequentialthinking/*', 'time/*', 'agent', 'microsoftdocs/mcp/*']
 metadata:
-  version: 3.2.1
+  version: 3.2.2
   created_at: 2026-02-01T00:00:00Z
   updated_at: 2026-02-06T00:00:00Z
 ---
@@ -421,7 +421,7 @@ concurrency:
 
 ## Agent Skills
 [If any relevant agent skills are available, list them here in bullet points. Subagents will load these skills when executing tasks.]
-Use #tool:execute/runInTerminal to read from `<SKILLS_DIR>/<skill-name>/SKILL.md` for each skill.
+Use #tool:execute/runInTerminal with relevant shell commands to read from `<SKILLS_DIR>/<skill-name>/SKILL.md` for each skill to avoid file access restrictions outside workspace.
 ```
 
 ### 7. Return Planning Summary
