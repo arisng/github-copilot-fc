@@ -1,8 +1,8 @@
 ---
 name: aspire-cli
-description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache), or when upgrading to Aspire 13.1 CLI behaviors. Excludes MCP-focused workflows unless explicitly requested.
+description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. MCP commands (aspire mcp init) are included when explicitly requested.
 metadata:
-  version: 1.1.0
+  version: 1.3.0
   author: arisng
 ---
 
@@ -33,6 +33,7 @@ Use this skill to pick the right Aspire CLI command, outline the workflow, and p
 - Run a tool inside a resource context → `aspire exec --resource <name> -- <command>`
 - Configure CLI settings → `aspire config`
 - Clear cache → `aspire cache clear`
+- Initialize MCP for AI coding agents → `aspire mcp init` (configures VS Code, GitHub Copilot CLI, Claude Code, Open Code)
 
 ## Context checklist
 
@@ -120,7 +121,57 @@ When users need to run multiple AppHost instances simultaneously (git worktrees,
 
 - Prefer interactive-first `aspire new` and `aspire init` guidance unless automation is requested.
 - Require .NET SDK 10.0.100+ for Aspire 13.x CLI usage.
-- Avoid MCP commands and guidance (`aspire mcp ...`) unless the user explicitly asks for MCP.
+- MCP commands (`aspire mcp init`) are now included when explicitly requested; the skill description has been updated to reflect this.
+- When users mention Azure Redis, note the breaking change: `AddAzureRedisEnterprise` renamed to `AddAzureManagedRedis` in 13.1.
+- Channel selection (`--channel`) persists globally after `aspire update --self` in 13.1.
+
+## Aspire 13.1 new features
+
+### MCP for AI coding agents
+
+Aspire 13.1 introduces `aspire mcp init` for configuring AI coding agents:
+
+```bash
+aspire mcp init
+```
+
+This command:
+- Detects your development environment
+- Configures MCP servers for VS Code, GitHub Copilot CLI, Claude Code, or Open Code
+- Optionally creates an agent instructions file (AGENTS.md)
+- Optionally configures Playwright MCP server
+
+### CLI enhancements
+
+- **Channel persistence**: When you run `aspire update --self` and select a channel, your selection is saved to `~/.aspire/globalsettings.json` and becomes the default for future `aspire new` and `aspire init` commands.
+- **Automatic instance detection**: Running `aspire run` when an instance is already running now automatically terminates the previous instance.
+- **Installation path option**: Install scripts support `--skip-path` to install without modifying PATH.
+
+### Azure Managed Redis (breaking change)
+
+`AddAzureRedisEnterprise` has been renamed to `AddAzureManagedRedis`:
+
+```csharp
+// Before (Aspire 13.0)
+var redis = builder.AddAzureRedisEnterprise("cache");
+
+// After (Aspire 13.1)
+var redis = builder.AddAzureManagedRedis("cache");
+```
+
+`AddAzureRedis` is now obsolete. Migrate to `AddAzureManagedRedis` for new projects.
+
+### Container registry resource
+
+New `ContainerRegistryResource` for general-purpose container registries:
+
+```csharp
+var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+The deployment pipeline now includes a `push` step: `aspire do push`.
 
 ## Reference files
 
