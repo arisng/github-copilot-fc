@@ -2,7 +2,7 @@
 name: aspire-cli
 description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. MCP commands (aspire mcp init) are included when explicitly requested.
 metadata:
-  version: 1.3.0
+  version: 1.3.1
   author: arisng
 ---
 
@@ -18,6 +18,36 @@ Use this skill to pick the right Aspire CLI command, outline the workflow, and p
 4. Call out required context (AppHost location, channel selection, SDK requirements).
 5. Provide minimal example commands and flags.
 6. Mention any Aspire 13.1 CLI behavior changes that affect the request.
+
+## Incremental adoption workflow (adding Aspire to existing apps or Aspirify an existing app)
+
+Use this 5-step pattern when helping users adopt Aspire in existing applications:
+
+1. **Initialize Aspire support** → `aspire init`
+   - Interactive mode by default
+   - Analyzes solution structure and suggests projects to add
+   - Creates `{SolutionName}.AppHost/` project with `AppHost.cs`
+   - May offer to add ServiceDefaults project
+
+2. **Add applications to AppHost** → Edit `AppHost.cs`
+   - Use `AddProject<Projects.ProjectName>("resource-name")`
+   - Chain `.WithHttpHealthCheck("/health")` for health monitoring
+   - Chain `.WithReference(dependency)` for service-to-service communication
+   - Chain `.WaitFor(dependency)` for startup ordering
+
+3. **Configure telemetry** (optional) → `dotnet new aspire-servicedefaults`
+   - Creates ServiceDefaults project for observability, resilience, health checks
+   - Reference from service projects
+   - Add `builder.AddServiceDefaults()` and `app.MapDefaultEndpoints()` in Program.cs
+
+4. **Add integrations** (optional) → `aspire add <package-id>`
+   - Adds hosting packages (Redis, PostgreSQL, etc.)
+   - Configure in AppHost with `.WithReference(integration)`
+
+5. **Run and verify** → `aspire run`
+   - Builds AppHost/resources, starts dashboard
+   - Dashboard URL appears in terminal output
+   - Verify resources, logs, traces in dashboard
 
 ## Command selection (decision guide)
 
@@ -109,6 +139,96 @@ When users need to run multiple AppHost instances simultaneously (git worktrees,
 2. Reference [aspire-isolation.md](references/aspire-isolation.md) for implementation patterns
 3. Discuss MCP proxy architecture only if AI agent integration is mentioned
 4. Highlight distributed testing as alternative for test-focused isolation
+
+## Code patterns for existing app adoption
+
+### AppHost.cs patterns
+
+Basic project registration with health checks and external endpoints:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithHttpHealthCheck("/health");
+
+var web = builder.AddProject<Projects.MyWeb>("web")
+    .WithExternalHttpEndpoints()
+    .WithReference(api)
+    .WaitFor(api);
+
+builder.Build().Run();
+```
+
+Adding Redis and sharing across services:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithReference(cache)
+    .WithHttpHealthCheck("/health");
+
+builder.Build().Run();
+```
+
+### ServiceDefaults configuration
+
+Add to service project's `Program.cs`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Add Aspire ServiceDefaults for observability and resilience
+builder.AddServiceDefaults();
+
+// ... existing service configuration ...
+
+var app = builder.Build();
+
+// Map Aspire ServiceDefaults endpoints
+app.MapDefaultEndpoints();
+
+// ... existing middleware ...
+
+app.Run();
+```
+
+Install ServiceDefaults project:
+
+```bash
+dotnet new aspire-servicedefaults -n MyProject.ServiceDefaults
+dotnet sln add MyProject.ServiceDefaults
+dotnet add MyProject reference MyProject.ServiceDefaults
+```
+
+### Polyglot orchestration
+
+Aspire supports C#, Python, and JavaScript in the same AppHost:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+// .NET API
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithReference(cache);
+
+// Python worker
+var pythonWorker = builder.AddPythonApp("worker", "../python-worker", "worker.py")
+    .WithReference(cache);
+
+// Node.js service
+var nodeService = builder.AddNodeApp("service", "../node-service", "index.js")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+When referencing integrations, Aspire automatically injects environment variables (e.g., `CACHE_HOST`, `CACHE_PORT`) for each language.
 
 ## Troubleshooting guidance
 
