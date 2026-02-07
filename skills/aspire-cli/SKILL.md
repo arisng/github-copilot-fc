@@ -2,7 +2,7 @@
 name: aspire-cli
 description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. MCP commands (aspire mcp init) are included when explicitly requested.
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   author: arisng
 ---
 
@@ -106,6 +106,93 @@ Use this 5-step pattern when helping users adopt Aspire in existing applications
 - Pause for debugger attach: add `--wait-for-debugger` to `aspire run`, `aspire exec`, or `aspire do`.
 - If AppHost detection is ambiguous, pass `--project <path-to-apphost.csproj>` to `aspire run`.
 - For pipeline step diagnostics, add `--include-exception-details` and `--log-level <level>` to `aspire do` when troubleshooting failures.
+
+## HTTPS certificate handling
+
+### Automatic certificate trust (default behavior)
+
+`aspire run` **automatically** installs and verifies that Aspire's local hosting certificates are installed and trusted. This happens as part of the startup sequence:
+
+1. Creates/modifies `.aspire/settings.json`
+2. **Installs or verifies local hosting certificates** ← automatic
+3. Builds AppHost and resources
+4. Starts AppHost and dashboard
+
+No manual action is typically required.
+
+### Manual certificate management (when auto-trust fails)
+
+If you encounter certificate trust warnings or HTTPS errors:
+
+**Check certificate status:**
+```bash
+dotnet dev-certs https --check
+```
+
+**Trust the certificate manually:**
+```bash
+# Trust the ASP.NET Core HTTPS development certificate
+dotnet dev-certs https --trust
+```
+
+**Clean and re-trust (nuclear option):**
+```bash
+# Remove existing certificates
+dotnet dev-certs https --clean
+
+# Generate and trust new certificate
+dotnet dev-certs https --trust
+```
+
+**Verify after trusting:**
+```bash
+dotnet dev-certs https --check --verbose
+```
+
+### Platform-specific notes
+
+**Windows:**
+- Certificate is stored in Current User > Personal > Certificates
+- May require administrator elevation for first trust
+- Browser may still show warnings until restart
+
+**macOS:**
+- Certificate is added to Keychain Access > login > Certificates
+- May require password prompt for keychain access
+- Safari/Chrome may need restart to recognize
+
+**Linux:**
+- Certificate location varies by distribution
+- May require manual import to browser or system store
+- Firefox uses its own certificate store: Settings > Privacy & Security > View Certificates > Authorities > Import
+
+### Troubleshooting HTTPS issues
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| "Your connection is not private" | Certificate not trusted | Run `dotnet dev-certs https --trust` |
+| NET::ERR_CERT_AUTHORITY_INVALID | Certificate expired/invalid | Run `dotnet dev-certs https --clean` then `--trust` |
+| Dashboard loads over HTTP only | Certificate generation failed | Check `dotnet dev-certs https --check` |
+| Works in one browser but not another | Browser-specific cert store | Import certificate to problematic browser |
+| Works after `aspire run` restart | Initial trust delay | Normal; first run may need browser refresh |
+
+### CI/CD and container environments
+
+In automated environments where interactive trust is not possible:
+
+```bash
+# Skip HTTPS in tests (not recommended for production)
+ASPNETCORE_ENVIRONMENT=Development
+ASPNETCORE_Kestrel__Certificates__Default__Path=/path/to/cert.pfx
+ASPNETCORE_Kestrel__Certificates__Default__Password=password
+```
+
+Or use HTTP-only for internal testing:
+```csharp
+// In AppHost.cs - for testing only
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpEndpoint(name: "http");  // No HTTPS
+```
 
 ## E2E testing facilitation
 
