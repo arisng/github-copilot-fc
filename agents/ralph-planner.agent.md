@@ -421,7 +421,7 @@ concurrency:
 
 ## Agent Skills
 [If any relevant agent skills are available, list them here in bullet points. Subagents will load these skills when executing tasks.]
-Use #tool:execute/runInTerminal with relevant shell commands to read from `<SKILLS_DIR>/<skill-name>/SKILL.md` for each skill to avoid file access restrictions outside workspace.
+Use `#tool:execute/runInTerminal` with relevant shell commands to read from `<SKILLS_DIR>/<skill-name>/SKILL.md` for each skill to avoid file access restrictions outside workspace.
 ```
 
 ### 7. Return Planning Summary
