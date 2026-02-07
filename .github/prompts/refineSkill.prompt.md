@@ -3,10 +3,10 @@ name: refineSkill
 description: Refine an existing skill using skill-creator based on provided resources or input.
 argument-hint: Specify the skill name to refine and the resources or user input for refinement.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   author: arisng
 ---
-Use the skill-creator skill to refine an existing skill based on given resources or user input.
+Use the skill-creator skill to refine an existing skill (in skills folder of current workspace) based on given resources or user input.
 
 1. Identify the skill to refine: [skill name]
 2. Review the provided resources or user input: [describe resources or input]
