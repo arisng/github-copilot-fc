@@ -2,7 +2,7 @@
 name: aspire-cli
 description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. MCP commands (aspire mcp init) are included when explicitly requested.
 metadata:
-  version: 1.3.1
+  version: 1.4.0
   author: arisng
 ---
 
@@ -109,13 +109,73 @@ Use this 5-step pattern when helping users adopt Aspire in existing applications
 
 ## E2E testing facilitation
 
+### When to use Aspire testing vs alternatives
+
+Use **Aspire testing** (via `DistributedApplicationTestingBuilder`) when you want to:
+- Verify end-to-end functionality of your distributed application
+- Ensure interactions between multiple services and resources behave correctly in realistic conditions
+- Confirm data persistence and integration with real external dependencies (PostgreSQL, Redis, etc.)
+
+Use **`WebApplicationFactory<T>`** instead when you want to:
+- Test a single project in isolation
+- Run components in-memory
+- Mock external dependencies
+
+### Aspire testing characteristics
+
+- **Closed-box testing**: Tests run your application as separate processes—you don't have direct access to internal DI services or components from test code
+- **Influence via configuration**: You can influence behavior through environment variables or configuration settings, but internal state remains encapsulated
+- **Real dependencies**: Tests use actual resources (databases, caches) orchestrated by the AppHost
+
+### Testing builder configuration patterns
+
+Default test setup (dashboard disabled, ports randomized):
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>();
+```
+
+Enable dashboard for debugging tests:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        args: [],
+        configureBuilder: (appOptions, hostSettings) =>
+        {
+            appOptions.DisableDashboard = false;
+        });
+```
+
+Disable port randomization for stable endpoints:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        ["DcpPublisher:RandomizePorts=false"]);
+```
+
+Combined configuration (dashboard enabled + stable ports):
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        ["DcpPublisher:RandomizePorts=false"],
+        (appOptions, hostSettings) =>
+        {
+            appOptions.DisableDashboard = false;
+        });
+```
+
+### CLI-based E2E testing workflows
+
 - Orchestrate dependencies before tests: run `aspire run` to start services, then wait for resources to be healthy in the dashboard.
 - Capture endpoints from `aspire run` output or dashboard and pass them to the test runner (keep test config in sync with Aspire-provided URLs).
 - Run setup steps as isolated pipeline steps (migrations, seeding, data reset): `aspire do <step>`.
 - Execute the test command inside a resource context to inherit connection strings and env vars: `aspire exec --resource <name> -- <command>`.
 - Keep the AppHost folder as the working directory to ensure the right resource graph is used.
 - Stop the orchestration when tests finish to avoid orphaned resources.
-- For Aspire testing (AppHost-driven E2E), remember defaults: dashboard is disabled and ports are randomized; set `DisableDashboard=false` and `DcpPublisher:RandomizePorts=false` when tests require visibility or stable ports.
 
 ## Parallel worktrees and isolation
 

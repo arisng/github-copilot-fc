@@ -8,6 +8,9 @@ Sources:
 - https://aspire.dev/reference/cli/commands/aspire-config/
 - https://aspire.dev/testing/overview/
 - https://aspire.dev/get-started/pipelines/
+- https://aspire.dev/testing/write-your-first-test/
+- https://aspire.dev/testing/manage-app-host/
+- https://aspire.dev/testing/accessing-resources/
 
 ## Debugging-oriented CLI behaviors
 
@@ -32,11 +35,60 @@ Sources:
 - Options include `--log-level`, `--include-exception-details`, `--environment`, `-d, --debug`, `--wait-for-debugger`, and `--` for AppHost args.
 
 ## E2E testing implications (Aspire testing)
-- Aspire testing is designed for closed-box integration/E2E testing of the full distributed application.
-- Testing runs AppHost and resources as separate processes; test code can only influence behavior via configuration/environment, not internal DI services.
-- Defaults: dashboard disabled; ports randomized for concurrent runs.
-- Testing builder can disable port randomization via `DcpPublisher:RandomizePorts=false`.
-- Testing builder can enable the dashboard by setting `DisableDashboard=false`.
+
+### When to use Aspire testing
+
+Use Aspire testing when you want to:
+- Verify end-to-end functionality of your distributed application
+- Ensure interactions between multiple services and resources (databases, caches) behave correctly in realistic conditions
+- Confirm data persistence and integration with real external dependencies like PostgreSQL
+
+Use `WebApplicationFactory<T>` instead when testing a single project in isolation, running components in-memory, or mocking external dependencies.
+
+### Testing architecture
+
+Aspire tests run your application as separate processes—you don't have direct access to internal services or components from test code. The test project starts the AppHost, which orchestrates all dependent resources.
+
+Test flow:
+1. Test project starts the AppHost
+2. AppHost process starts
+3. AppHost runs Database, API, Front end applications
+4. Test project sends HTTP requests to applications
+5. Successful requests confirm service-to-service communication works
+
+### Configuration options
+
+**Default behavior:**
+- Dashboard is disabled
+- Ports are randomized for concurrent test runs
+- Uses Aspire service discovery for endpoint resolution
+
+**Disable port randomization:**
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        ["DcpPublisher:RandomizePorts=false"]);
+```
+
+**Enable the dashboard:**
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        args: [],
+        configureBuilder: (appOptions, hostSettings) =>
+        {
+            appOptions.DisableDashboard = false;
+        });
+```
+
+### Aspire.Hosting.Testing package
+
+The `Aspire.Hosting.Testing` NuGet package provides `DistributedApplicationTestingBuilder`:
+- Creates a test host for your application
+- Launches AppHost in a background thread
+- Manages application lifecycle
+- Allows controlling and manipulating application resources
+- Cleans up resources when disposed
 
 ## Pipeline behaviors relevant to testing workflows
 - Pipelines are step-based with dependencies; use `aspire do <step>` to run only required steps.
