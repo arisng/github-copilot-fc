@@ -180,6 +180,7 @@ planning_complete: false
 - `[P]` Pending review
 - `[x]` Completed
 - `[F]` Failed
+- `[C]` Cancelled
 
 ## Planning Progress (Iteration 1)
 - [ ] plan-init

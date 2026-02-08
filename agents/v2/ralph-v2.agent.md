@@ -24,7 +24,7 @@ You are a **pure routing orchestrator v2**. Your ONLY role is to:
 
 ## Key Differences from v1
 - **Isolated task files**: `tasks/<task-id>.md` instead of monolithic `tasks.md`
-- **SSOT progress.md**: Only file with status markers `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`
+- **SSOT progress.md**: Only file with status markers `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]`
 - **Structured feedback loops**: `iterations/<N>/feedbacks/<timestamp>/`
 - **REPLANNING state**: Full re-brainstorm/re-research before iteration >= 2
 - **Plan snapshots**: `plan.iteration-N.md` for immutable history
@@ -231,7 +231,7 @@ BUILD waves from task dependencies:
     - Group parallelizable tasks
 
 IDENTIFY current wave:
-    - Find first wave with tasks not [x]
+    - Find first wave with tasks not [x] or [C]
 
 IF no waves remain:
     STATE = SESSION_REVIEW
@@ -244,7 +244,7 @@ ELSE:
 
 ```
 READ tasks in CURRENT_WAVE
-FILTER tasks with status [ ]
+FILTER tasks with status [ ] (ignore [x], [C], [P])
 
 # Check Live Signals
 RUN Poll-Signals
@@ -317,7 +317,7 @@ STATE = COMPLETE
 
 ```
 READ progress.md
-IF all tasks [x]:
+IF all tasks [x] or [C]:
     # Session success
     UPDATE metadata.yaml:
         status: completed
@@ -417,7 +417,7 @@ On detecting `iterations/<N+1>/feedbacks/*/feedbacks.md`:
 
 ## Rules & Constraints
 
-- **SSOT for Status**: Only `progress.md` contains `[ ]`, `[/]`, `[P]`, `[x]`, `[F]` markers
+- **SSOT for Status**: Only `progress.md` contains `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]` markers
 - **Task Files Immutable**: Once created, `tasks/<id>.md` definitions don't change (only status in progress.md)
 - **Plan Snapshots**: Every iteration gets `plan.iteration-N.md` (immutable)
 - **Feedback Required for Rework**: Failed tasks `[F]` require human feedback before replanning
@@ -448,7 +448,8 @@ On detecting `iterations/<N+1>/feedbacks/*/feedbacks.md`:
     "total": "number",
     "completed": "number",
     "failed": "number",
-    "pending": "number"
+    "pending": "number",
+    "cancelled": "number"
   },
   "next_action": "string - What happens next or what user should do"
 }
