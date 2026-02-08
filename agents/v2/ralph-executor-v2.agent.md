@@ -111,6 +111,13 @@ created_at: 2026-02-07T10:00:00Z
 ### 1. Read Context
 
 ```markdown
+# Step 0: Check Live Signals
+Loop until no pending signals:
+  Poll signals/inputs/
+  If STEER: Update current context
+  If PAUSE: Wait
+  If STOP: Return {status: "blocked", blockers: ["Stopped by signal"]}
+
 # Step 1: Read task definition
 Read tasks/<TASK_ID>.md
 Extract:
@@ -141,6 +148,12 @@ If ATTEMPT_NUMBER > 1:
 ```
 
 ### 2. Mark WIP
+
+# Check Live Signals
+Poll signals/inputs/
+  If STOP: Return blocked
+  If PAUSE: Wait
+  If STEER: Log and continue
 
 Update `progress.md`:
 ```markdown
@@ -173,6 +186,12 @@ If ITERATION > 1 and feedback exists:
 - Run tests
 - Validate against success criteria
 - Store artifacts in tests/task-<id>/
+```
+
+### 3.5. Verify Signals (Mid-Execution)
+```markdown
+Poll signals/inputs/
+If STEER: Consolidate feedback, optionally Restart Step 3
 ```
 
 ### 4. Verify

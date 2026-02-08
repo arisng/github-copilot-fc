@@ -113,6 +113,7 @@ updated_at: 2026-02-07T10:00:00Z
 **Process:**
 1. Read all `iterations/<N>/feedbacks/*/feedbacks.md`
 2. For each critical issue:
+   - Poll signals/inputs/ (Act on STEER/PAUSE/STOP)
    - Generate root cause questions
    - Generate "how to fix" questions
    - Generate prevention questions
@@ -152,6 +153,12 @@ Identify knowledge gaps in category:
 - Assumptions: Unstated beliefs, dependencies
 - Risks: Failure modes, edge cases, dependencies
 
+# Step 1.5: Check Live Signals
+Poll signals/inputs/
+  If STEER: Update analysis context
+  If PAUSE: Wait
+  If STOP: Return early
+
 # Step 2: Generate Questions
 Aim for 5-8 specific, answerable questions
 
@@ -190,6 +197,7 @@ Load questions/<category>.md
 
 # Step 2: Research each unanswered question
 For each question with Status: Unanswered:
+  - Poll signals/inputs/ (Act on STEER/PAUSE/STOP)
   - Use web search, docs, code analysis
   - Find authoritative sources
   - Assess confidence level

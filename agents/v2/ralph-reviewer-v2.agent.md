@@ -107,6 +107,15 @@ If ITERATION > 1:
 Read plan.md for overall session goals
 ```
 
+### 1.5. Check Live Signals
+
+```markdown
+Poll signals/inputs/
+  If STEER: Adjust validation context or restart read
+  If PAUSE: Wait
+  If STOP: Return early
+```
+
 ### 2. Validate Success Criteria
 
 ```markdown

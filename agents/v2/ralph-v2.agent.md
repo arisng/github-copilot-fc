@@ -158,6 +158,12 @@ THEN: STATE = PLANNING
 ### 3. State: PLANNING
 
 ```
+# Check Live Signals
+RUN Poll-Signals
+    IF STOP: EXIT
+    IF PAUSE: WAIT
+    IF STEER: Update plan notes
+
 READ progress.md
 FIND next planning task with status [ ]:
     - plan-init
@@ -240,6 +246,14 @@ ELSE:
 READ tasks in CURRENT_WAVE
 FILTER tasks with status [ ]
 
+# Check Live Signals
+RUN Poll-Signals
+    IF STOP: EXIT
+    IF PAUSE: WAIT
+    IF STEER:
+        LOG "Steering signal received: <message>"
+        PASS signal message to Executor context in next invocation
+
 FOR EACH task (respect max_parallel_executors):
     CHECK if tasks/<task-id>.md exists
     IF NOT exists:
@@ -268,6 +282,11 @@ STATE = REVIEWING_BATCH
 ```
 READ progress.md
 FIND tasks with status [P]
+
+# Check Live Signals
+RUN Poll-Signals
+    IF STOP: EXIT
+    IF PAUSE: WAIT
 
 FOR EACH task (respect max_parallel_reviewers):
     # Ensure no two reviewers review the same task simultaneously
@@ -316,6 +335,23 @@ ELSE IF any tasks [F]:
         completed_at: <timestamp>
     EXIT with instructions for next iteration
 ```
+
+## Live Signals Protocol (Mailbox Pattern)
+
+### Signal Artifacts
+- **Inputs**: `.ralph-sessions/<SESSION_ID>/signals/inputs/`
+- **Processed**: `.ralph-sessions/<SESSION_ID>/signals/processed/`
+
+### Poll-Signals Routine
+1. **List** files in `signals/inputs/` (sort by timestamp ascending)
+2. **Move** oldest file to `signals/processed/` (Atomic concurrency handling)
+    - If move fails, skip (another agent took it)
+3. **Read** content
+4. **Act**:
+    - **STEER**: Adjust immediate context
+    - **PAUSE**: Suspend execution until new signal or user resume
+    - **STOP**: Gracefully terminate
+    - **INFO**: Log to context
 
 ## Feedback Loop Protocol
 

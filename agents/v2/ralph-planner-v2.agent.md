@@ -263,6 +263,10 @@ timestamp: <now>
 #### TASK_BREAKDOWN Mode
 
 ```markdown
+# Step 0: Check Live Signals
+Poll signals/inputs/
+If STEER: Adjust plan context
+
 # Step 1: Multi-Pass Breakdown
 
 ## Pass 1: Task Identification
