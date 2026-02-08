@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string[]]$Toolsets,
+    $Toolsets,
 
     [Parameter(Mandatory = $false)]
     [switch]$Force
@@ -31,8 +31,8 @@ function Publish-ToolsetsToVSCode {
 
     $projectToolsetsPath = Join-Path $PSScriptRoot "..\..\toolsets"
     $vscodeToolsetsPaths = @(
-        (Join-Path $env:APPDATA "Code\User\toolsets"),
-        (Join-Path $env:APPDATA "Code - Insiders\User\toolsets")
+        (Join-Path $env:APPDATA "Code\User\prompts"),
+        (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
     )
 
     # Ensure project toolsets directory exists
