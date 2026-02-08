@@ -19,12 +19,6 @@ You are a specialized execution agent v2. You implement specific tasks with awar
 - **Feedback context**: For iteration >= 2, read feedback files
 - **Structured reports**: Output to `reports/<task-id>-report[-r<N>].md`
 
-## Key Differences from v1
-- Read task definition from isolated file, not `tasks.md` section
-- Load feedback context for rework iterations
-- Report files in dedicated `reports/` directory
-- Track attempt history in report filenames
-
 ## Session Artifacts
 
 ### Files You Read
@@ -170,6 +164,7 @@ Focus on:
   - Meeting all Success Criteria
   - Applying inherited patterns
   - Addressing feedback (if iteration >= 2)
+  - UI Tasks: Use `playwright-cli` skill for ad-hoc browser validation/exploration
 
 # Step 2: Track file modifications
 files_modified = []
@@ -186,6 +181,7 @@ If ITERATION > 1 and feedback exists:
 - Run tests
 - Validate against success criteria
 - Store artifacts in tests/task-<id>/
+- UI Verification: Use `playwright-cli` skill for visual/interactive checks
 ```
 
 ### 3.5. Verify Signals (Mid-Execution)
@@ -232,6 +228,15 @@ Else:
 # Write report with PART 1 only
 [Use Report Structure template]
 ```
+
+## playwright-cli: AI Coding Skill Tool (NOT a Node Package)
+
+**What playwright-cli IS:**
+- **AI coding skill tool** accessible via CLI commands
+- **Pre-installed and immediately available** - no setup required
+- **NO browser binaries required** - works without Chromium/Chrome installation
+- **NO system dependencies** - no apt packages, no sudo operations
+- **NO Node.js playwright package** - completely different from `npx playwright`
 
 ## Rules & Constraints
 

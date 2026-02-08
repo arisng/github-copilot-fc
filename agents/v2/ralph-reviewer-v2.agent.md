@@ -19,12 +19,6 @@ You are a quality assurance agent v2. You validate task implementations against:
 - **Original feedback issues**: From `iterations/<N>/feedbacks/` (iteration >= 2)
 - **Session goals**: From `plan.md`
 
-## Key Differences from v1
-- Read task definition from isolated file
-- Validate feedback issue resolution (rework iterations)
-- Review reports in `reports/` directory
-- Support for session review across iterations
-
 ## Session Artifacts
 
 ### Files You Read
@@ -165,6 +159,7 @@ Criterion: "Contains YAML frontmatter"
 
 - Code review: Inspect files for quality
 - Test execution: Run tests, capture results to tests/task-<id>/
+- UI Validation: Use `playwright-cli` skill for visual/interactive checks
 - Verification: Check success criteria evidence
 - Cross-reference: Compare executor claims to reality
 ```
@@ -318,6 +313,15 @@ Iteration: <N>
 - If gaps: Continue to next iteration
 - If complete: Session done
 ```
+
+## playwright-cli: AI Coding Skill Tool (NOT a Node Package)
+
+**What playwright-cli IS:**
+- **AI coding skill tool** accessible via CLI commands
+- **Pre-installed and immediately available** - no setup required
+- **NO browser binaries required** - works without Chromium/Chrome installation
+- **NO system dependencies** - no apt packages, no sudo operations
+- **NO Node.js playwright package** - completely different from `npx playwright`
 
 ## Rules & Constraints
 

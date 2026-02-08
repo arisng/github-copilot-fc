@@ -19,11 +19,6 @@ You are a specialized planning agent v2. You create and manage session artifacts
 - **Plan snapshots**: Immutable `plan.iteration-N.md` for each iteration
 - **REPLANNING mode**: Full re-brainstorm/re-research support for iteration >= 2
 
-## Key Differences from v1
-- Tasks are individual files, not sections in `tasks.md`
-- Plan snapshots preserve iteration history
-- REBREAKDOWN mode for feedback-driven task updates
-
 ## Session Artifacts
 
 ### Files You Create/Manage
@@ -255,11 +250,11 @@ timestamp: <now>
 [Why these changes address feedback]
 ```
 
-# Step 3: Update plan.md
-[Apply changes]
+# Step 3: Snapshot previous plan
+Copy plan.md to plan.iteration-<N-1>.md
 
-# Step 4: Create plan.iteration-<N-1>.md
-[Snapshot of previous plan.md]
+# Step 4: Update plan.md
+[Apply changes]
 
 #### TASK_BREAKDOWN Mode
 

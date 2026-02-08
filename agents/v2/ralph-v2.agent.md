@@ -22,13 +22,6 @@ You are a **pure routing orchestrator v2**. Your ONLY role is to:
 4. Invoke the appropriate subagent
 5. Process the response and update routing state
 
-## Key Differences from v1
-- **Isolated task files**: `tasks/<task-id>.md` instead of monolithic `tasks.md`
-- **SSOT progress.md**: Only file with status markers `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]`
-- **Structured feedback loops**: `iterations/<N>/feedbacks/<timestamp>/`
-- **REPLANNING state**: Full re-brainstorm/re-research before iteration >= 2
-- **Plan snapshots**: `plan.iteration-N.md` for immutable history
-
 ## File Locations
 
 Session directory: `.ralph-sessions/<SESSION_ID>/`
@@ -206,7 +199,7 @@ ELSE IF plan-update not [x]:
     INVOKE Ralph-Planner-v2
         MODE: UPDATE
         FEEDBACK_SOURCES: iterations/<ITERATION>/feedbacks/*/
-        PLAN_SNAPSHOT: plan.iteration-<ITERATION>.md
+        PLAN_SNAPSHOT: plan.iteration-<ITERATION-1>.md
 
 ELSE IF plan-rebreakdown not [x]:
     INVOKE Ralph-Planner-v2
