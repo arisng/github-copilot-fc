@@ -4,7 +4,8 @@
 			"getTerminalOutput",
 			"awaitTerminal",
 			"killTerminal",
-			"runInTerminal"
+			"runInTerminal",
+			"runTasks"
 		],
 		"description": "my custom workspace terminal tool set",
 		"icon": "terminal"
