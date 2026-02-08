@@ -44,7 +44,8 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 | Iterations | `iterations/<N>/` | All | Per-iteration container |
 | Feedbacks | `iterations/<N>/feedbacks/<timestamp>/` | Human + Agents | Structured feedback |
 | Replanning | `iterations/<N>/replanning/` | Ralph-Planner-v2 | Delta docs |
-| State | `state/current.yaml` | Orchestrator | Quick lookup |
+| Metadata | `metadata.yaml` | Orchestrator | Session metadata |
+| Iteration Metadata | `iterations/<N>/metadata.yaml` | Orchestrator | Per-iteration state with timing |
 
 ## State Machine
 
@@ -53,7 +54,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 │ INITIALIZING│ ─── No session exists
 └──────┬──────┘
        │ Invoke Ralph-Planner-v2 (MODE: INITIALIZE)
-       │ → Creates: plan.md, tasks/*, progress.md, state/current.yaml
+       │ → Creates: plan.md, tasks/*, progress.md, metadata.yaml, iterations/1/metadata.yaml
        │ → Ralph-Planner-v2 marks plan-init as [x]
        ▼
 ┌─────────────┐
@@ -121,10 +122,10 @@ IF no .ralph-sessions/<SESSION_ID>/ exists:
     STATE = INITIALIZING
     ITERATION = 1
 ELSE:
-    READ state/current.yaml
-    IF state.current_yaml exists:
-        STATE = state.current_yaml.orchestrator.state
-        ITERATION = state.current_yaml.iteration
+    READ metadata.yaml
+    IF metadata.yaml exists:
+        STATE = metadata.yaml.orchestrator.state
+        ITERATION = metadata.yaml.iteration
     ELSE:
         INFER from progress.md and files (fallback)
     
@@ -148,8 +149,8 @@ Creates:
     - plan.md
     - tasks/task-*.md (one per task)
     - progress.md (with planning tasks)
-    - state/current.yaml
-    - iterations/1/state.yaml
+    - metadata.yaml
+    - iterations/1/metadata.yaml
 
 THEN: STATE = PLANNING
 ```
@@ -227,7 +228,7 @@ IDENTIFY current wave:
     - Find first wave with tasks not [x]
 
 IF no waves remain:
-    STATE = COMPLETE
+    STATE = SESSION_REVIEW
 ELSE:
     STATE = EXECUTING_BATCH
     CURRENT_WAVE = wave_number
@@ -240,6 +241,12 @@ READ tasks in CURRENT_WAVE
 FILTER tasks with status [ ]
 
 FOR EACH task (respect max_parallel_executors):
+    CHECK if tasks/<task-id>.md exists
+    IF NOT exists:
+        LOG ERROR "Task file missing: <task-id>"
+        MARK task [F] in progress.md with blocker: "Task definition missing"
+        CONTINUE
+
     DETERMINE attempt number:
         COUNT reports/<task-id>-report*.md files
         ATTEMPT_NUMBER = count + 1
@@ -252,7 +259,7 @@ FOR EACH task (respect max_parallel_executors):
         FEEDBACK_CONTEXT: iterations/<ITERATION>/feedbacks/*/ (if exists)
 
 WAIT for all to complete
-UPDATE progress.md: [ ] → [P]
+# Note: Ralph-Executor-v2 updates progress.md to [P] or [F]
 STATE = REVIEWING_BATCH
 ```
 
@@ -263,6 +270,7 @@ READ progress.md
 FIND tasks with status [P]
 
 FOR EACH task (respect max_parallel_reviewers):
+    # Ensure no two reviewers review the same task simultaneously
     INVOKE Ralph-Reviewer-v2
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
         TASK_ID: <task-id>
@@ -270,30 +278,42 @@ FOR EACH task (respect max_parallel_reviewers):
         ITERATION: <current iteration>
 
 WAIT for all to complete
-COLLECT verdicts:
-    UPDATE progress.md:
-        Qualified: [P] → [x]
-        Failed: [P] → [F]
+# Note: Ralph-Reviewer-v2 updates progress.md to [x] or [F]
 
 STATE = BATCHING
 ```
 
-### 8. State: COMPLETE
+### 8. State: SESSION_REVIEW
+
+```
+INVOKE Ralph-Reviewer-v2
+    MODE: SESSION_REVIEW
+    SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+    ITERATION: <current iteration>
+
+STATE = COMPLETE
+```
+
+### 9. State: COMPLETE
 
 ```
 READ progress.md
 IF all tasks [x]:
     # Session success
-    UPDATE state/current.yaml:
+    UPDATE metadata.yaml:
         status: completed
+        completed_at: <timestamp>
+    UPDATE iterations/<N>/metadata.yaml:
         completed_at: <timestamp>
     EXIT with success summary
     
 ELSE IF any tasks [F]:
     # Await human feedback for replanning
-    UPDATE state/current.yaml:
+    UPDATE metadata.yaml:
         status: awaiting_feedback
         message: "Create feedbacks in iterations/<N+1>/feedbacks/<timestamp>/"
+    UPDATE iterations/<N>/metadata.yaml:
+        completed_at: <timestamp>
     EXIT with instructions for next iteration
 ```
 
@@ -367,7 +387,8 @@ On detecting `iterations/<N+1>/feedbacks/*/feedbacks.md`:
 - **Feedback Required for Rework**: Failed tasks `[F]` require human feedback before replanning
 - **Replanning is Full Planning**: Iteration >= 2 requires re-brainstorm and re-research
 - **No Direct Work**: Always delegate to subagents
-- **Atomic Updates**: Update `state/current.yaml` and `progress.md` atomically
+- **Atomic Updates**: Update `metadata.yaml` and `progress.md` atomically
+- **Iteration Timing**: Track `started_at` and `completed_at` in `iterations/<N>/metadata.yaml`
 
 ## Contract
 

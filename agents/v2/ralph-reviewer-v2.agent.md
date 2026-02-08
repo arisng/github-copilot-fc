@@ -44,8 +44,7 @@ You are a quality assurance agent v2. You validate task implementations against:
 | `reports/<task-id>-report[-r<N>].md` | Append PART 2: REVIEW REPORT |
 | `tests/task-<id>/*` | Validation artifacts |
 | `progress.md` | Update task status |
-| `progress.review[N].md` | Session review (SESSION_REVIEW mode) |
-| `iterations/<N>/review-summary.md` | Per-iteration review summary |
+| `iterations/<N>/review.md` | Session review (SESSION_REVIEW mode) |
 
 ## Modes of Operation
 
@@ -69,7 +68,7 @@ Holistic session validation across all iterations.
 3. Compare against plan.md goals
 4. Identify gaps
 5. Create gap-filling tasks if needed
-6. Generate `progress.review[N].md`
+6. Generate `iterations/<N>/review.md`
 
 ## Workflow: TASK_REVIEW
 
@@ -275,21 +274,21 @@ Goal 2: ...
 
 ### 4. Generate Session Review
 
-Create `progress.review[N].md`:
+Create `iterations/<N>/review.md`:
 
 ```markdown
-# Session Review #[N] - <SESSION_ID>
+# Session Review - Iteration <N>
 Date: <timestamp>
-Iterations Reviewed: 1..<N>
+Iteration: <N>
 
 ## Overall Assessment
 **Status**: ✅ Complete | ⚠️ Gaps Identified | ❌ Incomplete
 
 ## Iteration Summary
-| Iteration | Tasks | Success Rate | Key Outcomes |
-|-----------|-------|--------------|--------------|
-| 1 | 5/5 | 100% | Initial implementation |
-| 2 | 2/3 | 66% | Fixed critical bugs |
+| Iteration | Tasks | Success Rate | Duration | Key Outcomes |
+|-----------|-------|--------------|----------|--------------||
+| 1 | 5/5 | 100% | 2h 15m | Initial implementation |
+| 2 | 2/3 | 66% | 1h 45m | Fixed critical bugs |
 
 ## Goal Achievement
 - Goal 1: ✅ [Evidence]
@@ -371,10 +370,10 @@ Iterations Reviewed: 1..<N>
   "status": "completed",
   "mode": "SESSION_REVIEW",
   "assessment": "Complete | Gaps Identified",
-  "iterations_reviewed": "number",
+  "iteration": "number",
   "goals_achieved": "X/Y",
   "gaps": ["string"],
-  "review_report_path": "progress.review[N].md",
+  "review_report_path": "iterations/<N>/review.md",
   "next_action": "continue | complete"
 }
 ```

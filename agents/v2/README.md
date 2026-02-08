@@ -2,6 +2,12 @@
 
 This directory contains version 2 of the Ralph agent system with significant architectural improvements over v1.
 
+## Documentation
+
+- **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Recent improvements (metadata naming, timing tracking, structure simplification)
+- **[Migration Guide](scripts/MIGRATION-GUIDE.md)** - How to upgrade old v2 sessions to new structure
+- **[Migration Script](scripts/Migrate-RalphV2Session.ps1)** - Automated migration tool
+
 ## Quick Comparison: v1 vs v2
 
 | Feature               | v1                                     | v2                                                    |
@@ -13,6 +19,9 @@ This directory contains version 2 of the Ralph agent system with significant arc
 | **Plan History**      | Single `plan.md`                       | `plan.md` + immutable `plan.iteration-N.md` snapshots |
 | **Task Reports**      | `tasks.<id>-report.md`                 | `reports/<id>-report[-r<N>].md`                       |
 | **Q&A Files**         | `plan.questions.<category>.md`         | `questions/<category>.md`                             |
+| **Session Metadata**  | `state/current.yaml` in folder         | `metadata.yaml` at session root                       |
+| **Iteration Metadata** | `iterations/N/state.yaml`             | `iterations/N/metadata.yaml` with timing              |
+| **Session Review**    | `progress.review[N].md` (v1)           | `iterations/<N>/review.md` (v2)                       |
 
 ## Directory Structure
 
@@ -36,8 +45,7 @@ agents/v2/
 ├── plan.iteration-1.md            # Immutable snapshot
 ├── plan.iteration-2.md            # Immutable snapshot
 ├── progress.md                    # SSOT for task status
-├── state/
-│   └── current.yaml               # Orchestrator state
+├── metadata.yaml                  # Session metadata (promoted from state/)
 │
 ├── tasks/                         # Isolated task files
 │   ├── task-1.md
@@ -63,13 +71,14 @@ agents/v2/
 │       └── screenshot.png
 │
 └── iterations/                    # Per-iteration container
-    ├── iteration-1/
-    │   ├── state.yaml
+    ├── 1/
+    │   ├── metadata.yaml          # Iteration state with timing
     │   ├── waves-completed.yaml
-    │   └── summary.md
+    │   └── review.md              # Session review (if conducted)
     │
-    └── iteration-2/               # NEW ITERATION
-        ├── state.yaml
+    └── 2/                         # NEW ITERATION
+        ├── metadata.yaml          # Iteration 2 state with timing
+        ├── review.md              # Iteration 2 review
         ├── feedbacks/             # Structured feedback
         │   ├── 20260207-105500/
         │   │   ├── feedbacks.md   # Required
@@ -235,9 +244,43 @@ Each iteration creates an immutable snapshot:
 plan.md              # Current mutable plan
 plan.iteration-1.md  # Snapshot after iteration 1
 plan.iteration-2.md  # Snapshot after iteration 2
+metadata.yaml        # Session metadata
 ```
 
 This preserves history and enables comparison between iterations.
+
+### 6. Iteration Timing
+
+Each iteration's `metadata.yaml` tracks start and end times:
+
+```yaml
+# iterations/1/metadata.yaml
+iteration: 1
+started_at: 2026-02-07T10:00:00Z
+planning_complete: true
+planning_completed_at: 2026-02-07T10:30:00Z
+completed_at: 2026-02-07T12:15:00Z
+tasks_defined: 5
+```
+
+**Duration calculation**: `completed_at - started_at`
+- Planning duration: `planning_completed_at - started_at`
+- Execution duration: `completed_at - planning_completed_at`
+
+### 7. Session Review per Iteration
+
+Each iteration can have a review document:
+
+```markdown
+# iterations/N/review.md
+
+Review for iteration N, documenting:
+- Goal achievement
+- Task success rates
+- Iteration duration
+- Gaps identified
+- Recommendations
+```
 
 ## Migration from v1
 
@@ -257,8 +300,10 @@ Option 2: **Migrate to v2** (for important sessions)
 Manual migration steps:
 1. Parse `tasks.md` into individual `tasks/<id>.md` files
 2. Move reports to `reports/` directory
-3. Create `state/current.yaml`
-4. Update `progress.md` to v2 format
+3. Promote `state/current.yaml` to `metadata.yaml` at session root
+4. Rename `iterations/*/state.yaml` to `iterations/*/metadata.yaml`
+5. Update `progress.md` to v2 format
+6. Add timing fields to iteration metadata
 
 ## Usage Examples
 

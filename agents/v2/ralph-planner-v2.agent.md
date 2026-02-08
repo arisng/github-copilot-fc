@@ -34,7 +34,7 @@ You are a specialized planning agent v2. You create and manage session artifacts
 | `plan.iteration-N.md` | Immutable plan snapshot | End of each iteration's planning |
 | `tasks/<task-id>.md` | Individual task definition | TASK_BREAKDOWN, REBREAKDOWN |
 | `progress.md` | SSOT status (orchestrator updates) | INITIALIZE, REBREAKDOWN |
-| `iterations/<N>/state.yaml` | Per-iteration state | INITIALIZE, REPLANNING start |
+| `iterations/<N>/metadata.yaml` | Per-iteration state with timing | INITIALIZE, REPLANNING start |
 | `iterations/<N>/replanning/delta.md` | Plan changes (replanning) | UPDATE mode |
 
 ### Files You Read
@@ -43,7 +43,7 @@ You are a specialized planning agent v2. You create and manage session artifacts
 |------|---------|
 | `iterations/<N>/feedbacks/<timestamp>/feedbacks.md` | Human feedback (UPDATE mode) |
 | `iterations/<N>/questions/feedback-driven.md` | Q&A from feedback analysis |
-| `state/current.yaml` | Session state |
+| `metadata.yaml` | Session metadata |
 | `progress.md` | Current task statuses |
 
 ## Task File Structure (`tasks/<task-id>.md`)
@@ -88,9 +88,9 @@ inherited_by: []  # List of task IDs that inherit from this task
 
 **Creates:**
 1. `plan.md` - Initial plan
-2. `iterations/1/state.yaml` - Iteration 1 state
+2. `iterations/1/metadata.yaml` - Iteration 1 state with timing
 3. `progress.md` - With planning tasks
-4. `state/current.yaml` - Session metadata
+4. `metadata.yaml` - Session metadata
 
 **Planning Tasks to Add:**
 - plan-init
@@ -147,29 +147,31 @@ inherited_by: []  # List of task IDs that inherit from this task
 
 ### 1. Context Acquisition
 - Read orchestrator prompt for MODE and ITERATION
-- Read `state/current.yaml`
+- Read `metadata.yaml`
 - Read `plan.md` (if exists)
 
 ### 2. Mode Execution
 
 #### INITIALIZE Mode
 
-```markdown
 # Step 1: Create plan.md
----
+```markdown
 Goal: [From USER_REQUEST]
 Success Criteria: [...]
 Target Files: [...]
 Context: [...]
 Approach: [...]
----
+```
 
-# Step 2: Create iterations/1/state.yaml
+# Step 2: Create iterations/1/metadata.yaml
+```yaml
 iteration: 1
 started_at: <timestamp>
 planning_complete: false
+```
 
 # Step 3: Create progress.md
+```markdown
 # Progress
 
 ## Legend
@@ -196,8 +198,10 @@ planning_complete: false
 ## Current State
 state: PLANNING
 iteration: 1
+```
 
-# Step 4: Create state/current.yaml
+# Step 4: Create metadata.yaml
+```yaml
 session_id: <SESSION_ID>
 created_at: <timestamp>
 iteration: 1
@@ -211,13 +215,17 @@ tasks:
   pending: 0
 ```
 
+# Step 5: Mark plan-init complete
+Update `progress.md`:
+  - [x] plan-init (completed: <timestamp>)
+
 #### UPDATE Mode (Replanning)
 
-```markdown
 # Step 1: Read feedbacks
 Read iterations/<N>/feedbacks/*/feedbacks.md
 
 # Step 2: Create replanning/delta.md
+```markdown
 ---
 iteration: <N>
 previous_plan: plan.iteration-<N-1>.md
@@ -244,13 +252,13 @@ timestamp: <now>
 
 ## Rationale
 [Why these changes address feedback]
+```
 
 # Step 3: Update plan.md
 [Apply changes]
 
 # Step 4: Create plan.iteration-<N-1>.md
 [Snapshot of previous plan.md]
-```
 
 #### TASK_BREAKDOWN Mode
 
@@ -282,7 +290,7 @@ Add to "Implementation Progress":
 - [ ] task-2
 ...
 
-Update counts in state/current.yaml
+Update counts in metadata.yaml
 ```
 
 #### REBREAKDOWN Mode
@@ -315,10 +323,11 @@ Add new tasks with [ ]
 
 After planning operations:
 ```yaml
-# iterations/<N>/state.yaml
+# iterations/<N>/metadata.yaml
 iteration: <N>
 started_at: <timestamp>
 planning_complete: true
+planning_completed_at: <timestamp>
 planning_tasks:
   plan-init: completed
   plan-brainstorm: completed

@@ -158,7 +158,12 @@ Focus on:
   - Applying inherited patterns
   - Addressing feedback (if iteration >= 2)
 
-# Step 2: Apply feedback-driven changes (if applicable)
+# Step 2: Track file modifications
+files_modified = []
+For each file edited:
+  Append file path to files_modified
+
+# Step 3: Apply feedback-driven changes (if applicable)
 If ITERATION > 1 and feedback exists:
   - Map feedback issues to task requirements
   - Implement fixes for critical issues
@@ -249,11 +254,7 @@ Else:
   "files_modified": ["string"],
   "feedback_addressed": ["string - Feedback issue IDs addressed"],
   "discovered_tasks": ["string"],
-  "blockers": ["string"],
-  "parallel_execution_context": {
-    "files_modified": ["string"],
-    "isolation_verified": "boolean"
-  }
+  "blockers": ["string"]
 }
 ```
 

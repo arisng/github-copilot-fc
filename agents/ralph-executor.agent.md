@@ -157,7 +157,7 @@ This includes:
 - Any verification artifacts
 
 **Browser Automation Reference:**
-For web testing, use the `playwright-cli` skill. Always set cwd to `<SESSION_PATH>/tests/task-<TASK_ID>/` before running tests:
+For web UI testing, use the `playwright-cli` skill. Always set cwd to `<SESSION_PATH>/tests/task-<TASK_ID>/` before running tests:
 ```bash
 playwright-cli open https://example.com
 playwright-cli click e15
