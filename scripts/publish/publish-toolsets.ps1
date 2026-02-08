@@ -50,8 +50,10 @@ function Publish-ToolsetsToVSCode {
 
     # Get toolsets to publish
     $toolsetFiles = Get-ChildItem -Path $projectToolsetsPath -Filter "*.toolsets.jsonc"
+    $jsoncFiles = Get-ChildItem -Path $projectToolsetsPath -Filter "*.jsonc"
+    $toolsetFiles = $toolsetFiles + $jsoncFiles | Where-Object { $_.Extension -eq '.jsonc' }
     if ($Toolsets) {
-        $toolsetFiles = $toolsetFiles | Where-Object { $_.BaseName -in $Toolsets }
+        $toolsetFiles = $toolsetFiles | Where-Object { ($_.BaseName -replace '\.toolsets$', '') -in $Toolsets }
     }
 
     if ($toolsetFiles.Count -eq 0) {
