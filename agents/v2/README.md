@@ -10,18 +10,18 @@ This directory contains version 2 of the Ralph agent system with significant arc
 
 ## Quick Comparison: v1 vs v2
 
-| Feature               | v1                                     | v2                                                    |
-| --------------------- | -------------------------------------- | ----------------------------------------------------- |
-| **Task Storage**      | Monolithic `tasks.md`                  | Isolated `tasks/<id>.md` files                        |
-| **Progress Tracking** | `progress.md` + inline `✅` in tasks.md | `progress.md` **only** (SSOT)                         |
-| **Feedback Loops**    | Manual, unstructured                   | Structured `iterations/<N>/feedbacks/<timestamp>/`    |
-| **Replanning**        | Not supported                          | Full `REPLANNING` state with re-brainstorm            |
-| **Plan History**      | Single `plan.md`                       | `plan.md` + immutable `plan.iteration-N.md` snapshots |
-| **Task Reports**      | `tasks.<id>-report.md`                 | `reports/<id>-report[-r<N>].md`                       |
-| **Q&A Files**         | `plan.questions.<category>.md`         | `questions/<category>.md`                             |
-| **Session Metadata**  | `state/current.yaml` in folder         | `metadata.yaml` at session root                       |
-| **Iteration Metadata** | `iterations/N/state.yaml`             | `iterations/N/metadata.yaml` with timing              |
-| **Session Review**    | `progress.review[N].md` (v1)           | `iterations/<N>/review.md` (v2)                       |
+| Feature                | v1                                     | v2                                                    |
+| ---------------------- | -------------------------------------- | ----------------------------------------------------- |
+| **Task Storage**       | Monolithic `tasks.md`                  | Isolated `tasks/<id>.md` files                        |
+| **Progress Tracking**  | `progress.md` + inline `✅` in tasks.md | `progress.md` **only** (SSOT)                         |
+| **Feedback Loops**     | Manual, unstructured                   | Structured `iterations/<N>/feedbacks/<timestamp>/`    |
+| **Replanning**         | Not supported                          | Full `REPLANNING` state with re-brainstorm            |
+| **Plan History**       | Single `plan.md`                       | `plan.md` + immutable `plan.iteration-N.md` snapshots |
+| **Task Reports**       | `tasks.<id>-report.md`                 | `reports/<id>-report[-r<N>].md`                       |
+| **Q&A Files**          | `plan.questions.<category>.md`         | `questions/<category>.md`                             |
+| **Session Metadata**   | `state/current.yaml` in folder         | `metadata.yaml` at session root                       |
+| **Iteration Metadata** | `iterations/N/state.yaml`              | `iterations/N/metadata.yaml` with timing              |
+| **Session Review**     | `progress.review[N].md` (v1)           | `iterations/<N>/review.md` (v2)                       |
 
 ## Directory Structure
 

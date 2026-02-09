@@ -37,7 +37,7 @@ You are a specialized execution agent v2. You implement specific tasks with awar
 |------|---------|
 | `reports/<task-id>-report.md` | First attempt report |
 | `reports/<task-id>-report-r<N>.md` | Rework attempt report (N >= 2) |
-| `tests/task-<id>/*` | Test artifacts |
+| `tests/task-<id>/*` | Ephemeral test artifacts (NO reports here) |
 
 ## Report Structure
 
@@ -180,7 +180,7 @@ If ITERATION > 1 and feedback exists:
 # Step 3: Verification
 - Run tests
 - Validate against success criteria
-- Store artifacts in tests/task-<id>/
+- Store ephemeral artifacts in tests/task-<id>/ (consolidate results in Task Report)
 - UI Verification: Use `playwright-cli` skill for visual/interactive checks
 ```
 
@@ -245,7 +245,7 @@ Else:
 - **Feedback Awareness**: For iteration >= 2, address relevant feedback
 - **Preserve Reports**: Never overwrite previous reports
 - **MANDATORY PROGRESS UPDATES**: Update `progress.md` twice (start and end)
-- **Testing Folder**: Store artifacts in `tests/task-<id>/`
+- **Testing Folder**: Store *ephemeral artifacts*(e.g. log, generated files, ...) in `tests/task-<id>/`. **NO** test reports in this folder; consolidate in Task Report
 - **Inheritance**: Read and apply patterns from dependency task reports
 - **Honest Assessment**: Don't mark as [P] if criteria not met
 
