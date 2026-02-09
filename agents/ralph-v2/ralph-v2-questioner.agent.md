@@ -4,11 +4,12 @@ description: Q&A discovery agent v2 with feedback-analysis mode for replanning a
 argument-hint: Specify the Ralph session path, MODE (brainstorm, research, feedback-analysis), CYCLE, and ITERATION
 user-invokable: false
 target: vscode
-tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'github/*']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-09T00:00:00Z
+  timezone: UTC+7
 ---
 
 # Ralph-v2-Questioner - Q&A Discovery with Feedback Analysis

@@ -4,11 +4,12 @@ description: Quality assurance agent v2 with isolated task files, feedback-aware
 argument-hint: Specify the Ralph session path, TASK_ID, REPORT_PATH, and ITERATION for review
 user-invokable: false
 target: vscode
-tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'github/*']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-09T00:00:00Z
+  timezone: UTC+7
 ---
 
 # Ralph-v2-Reviewer - Quality Assurance with Feedback Context
@@ -276,8 +277,9 @@ Goal 2: ...
 - Missing deliverables
 ```
 
-### 4. Generate Session Review
+### 4. Generate Session Review and Organize Artifacts
 
+**Action 1: Create Review Document**
 Create `iterations/<N>/review.md`:
 
 ```markdown
@@ -314,6 +316,22 @@ Iteration: <N>
 - If complete: Session done
 ```
 
+**Action 2: Consolidate Artifacts (Project Wiki Promotion)**
+Create directory `iterations/<N>/artifacts/` and copy key outputs (reports, diagrams, final docs) there.
+Structure:
+```
+iterations/<N>/artifacts/
+├── reports/          # Final task reports
+├── docs/             # Documentation generated
+├── diagrams/         # Diagrams generated
+└── assets/           # Other key assets
+```
+
+**Action 3: Update Iteration Metadata**
+If assessment is "Complete" or "Gaps Identified" (iteration finished):
+Update `iterations/<N>/metadata.yaml`:
+- Set `completed_at: <timestamp>`
+
 ## playwright-cli: AI Coding Skill Tool (NOT a Node Package)
 
 **What playwright-cli IS:**
@@ -322,6 +340,11 @@ Iteration: <N>
 - **NO browser binaries required** - works without Chromium/Chrome installation
 - **NO system dependencies** - no apt packages, no sudo operations
 - **NO Node.js playwright package** - completely different from `npx playwright`
+
+**Usage Instruction:**
+- **MUST Scope CWD**: When using `playwright-cli` for testing, you MUST set the current working directory to `tests/task-<id>/`
+- This ensures test artifacts (screenshots, traces) are saved in the correct task context
+- Example path: `.ralph-sessions/<SESSION_ID>/tests/task-<id>/`
 
 ## Rules & Constraints
 

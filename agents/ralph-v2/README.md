@@ -1,6 +1,6 @@
-# Ralph Agents v2
+# Ralph v2 Agents
 
-This directory contains version 2 of the Ralph agent system with significant architectural improvements over v1.
+This directory contains version 2 of the Ralph agents system with significant architectural improvements over v1.
 
 ## Documentation
 
@@ -37,13 +37,17 @@ agents/v2/
 
 ## Session Structure (v2)
 
+**Note:** `.ralph-sessions` directory is strictly relative to the **root of the current workspace**.
+
+Session ID Format: `<YYMMDD>-<hhmmss>` (e.g., `260209-143000`)
+
 ```
 .ralph-sessions/<SESSION_ID>/
 ├── plan.md                        # Current mutable plan
 ├── plan.iteration-1.md            # Immutable snapshot
 ├── plan.iteration-2.md            # Immutable snapshot
 ├── progress.md                    # SSOT for task status
-├── metadata.yaml                  # Session metadata (promoted from state/)
+├── metadata.yaml                  # Session metadata (Managed by Planner/Reviewer)
 │
 ├── tasks/                         # Isolated task files
 │   ├── task-1.md
@@ -70,13 +74,14 @@ agents/v2/
 │
 └── iterations/                    # Per-iteration container
     ├── 1/
-    │   ├── metadata.yaml          # Iteration state with timing
-    │   ├── waves-completed.yaml
-    │   └── review.md              # Session review (if conducted)
+    │   ├── metadata.yaml          # Iteration state with timing (Planner/Reviewer)
+    │   ├── review.md              # Session review (if conducted)
+    │   └── artifacts/             # Consolidated artifacts for wiki promotion
     │
     └── 2/                         # NEW ITERATION
         ├── metadata.yaml          # Iteration 2 state with timing
         ├── review.md              # Iteration 2 review
+        ├── artifacts/             # Consolidated artifacts
         ├── feedbacks/             # Structured feedback
         │   ├── 20260207-105500/
         │   │   ├── feedbacks.md   # Required
@@ -84,10 +89,9 @@ agents/v2/
         │   │   └── screenshot.png
         │   └── 20260207-110000/
         │       └── feedbacks.md
-        ├── replanning/
-        │   ├── delta.md           # Plan changes
-        │   └── rationale.md       # Why changes made
-        └── waves-completed.yaml
+        └── replanning/
+            ├── delta.md           # Plan changes
+            └── rationale.md       # Why changes made
 ```
 
 ## Key Improvements
@@ -279,6 +283,18 @@ Review for iteration N, documenting:
 - Gaps identified
 - Recommendations
 ```
+
+### 8. Live Signal Injection (Hot Steering)
+
+**v1 Problem**: Users can only intervene during replanning or after failure.
+
+**v2 Solution**: Asynchronous "Live Signals" (Mailbox Pattern) allowed during execution.
+
+- **Artifacts**: `signals/inputs/` and `signals/processed/`
+- **Actions**: `STEER` (correct), `PAUSE` (hold), `STOP` (abort), `INFO` (context)
+- **Documentation**:
+  - [Design](LIVE-SIGNALS-DESIGN.md)
+  - [Implementation Map](LIVE-SIGNALS-MAP.md)
 
 ## Migration from v1
 

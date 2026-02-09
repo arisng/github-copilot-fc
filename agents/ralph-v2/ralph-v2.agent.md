@@ -4,12 +4,13 @@ description: Orchestration agent v2 with structured feedback loops, isolated tas
 argument-hint: Outline the task or question to be handled by Ralph-v2 orchestrator
 user-invokable: true
 target: vscode
-tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'agent']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer']
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-09T00:00:00Z
+  timezone: UTC+7
 ---
 
 # Ralph-v2 - Orchestrator with Feedback Loops
@@ -37,14 +38,14 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 | Iterations | `iterations/<N>/` | All | Per-iteration container |
 | Feedbacks | `iterations/<N>/feedbacks/<timestamp>/` | Human + Agents | Structured feedback |
 | Replanning | `iterations/<N>/replanning/` | Ralph-v2-Planner | Delta docs |
-| Metadata | `metadata.yaml` | Orchestrator | Session metadata |
-| Iteration Metadata | `iterations/<N>/metadata.yaml` | Orchestrator | Per-iteration state with timing |
+| Metadata | `metadata.yaml` | Ralph-v2-Planner (Init), Reviewer (Update) | Session metadata |
+| Iteration Metadata | `iterations/<N>/metadata.yaml` | Ralph-v2-Planner (Init), Reviewer (Update) | Per-iteration state with timing |
 
 ## State Machine
 
 ```
 ┌─────────────┐
-│ INITIALIZING│ ─── No session exists
+│ INITIALIZING│ ─── No session exists, <SESSION_ID> MUST be <YYMMDD>-<hhmmss>
 └──────┬──────┘
        │ Invoke Ralph-v2-Planner (MODE: INITIALIZE)
        │ → Creates: plan.md, tasks/*, progress.md, metadata.yaml, iterations/1/metadata.yaml
@@ -81,6 +82,13 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │ Return to BATCHING
        ▼
 ┌─────────────┐
+│ SESSION_    │ ─── Final verdict for iteration
+│   REVIEW    │
+└──────┬──────┘
+       │ Invoke Ralph-v2-Reviewer (MODE: SESSION_REVIEW)
+       │ → Generates iterations/<N>/review.md
+       ▼
+┌─────────────┐
 │  COMPLETE   │ ─── All tasks [x] or [F]
 └──────┬──────┘
        │ (Human provides feedbacks/)
@@ -112,8 +120,12 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 
 ```
 IF no .ralph-sessions/<SESSION_ID>/ exists:
-    STATE = INITIALIZING
-    ITERATION = 1
+    VALIDATE <SESSION_ID> matches format <YYMMDD>-<hhmmss>
+    IF valid:
+        STATE = INITIALIZING
+        ITERATION = 1
+    ELSE:
+        EXIT with error "Session ID must follow format <YYMMDD>-<hhmmss>"
 ELSE:
     READ metadata.yaml
     IF metadata.yaml exists:
@@ -311,21 +323,11 @@ STATE = COMPLETE
 ```
 READ progress.md
 IF all tasks [x] or [C]:
-    # Session success
-    UPDATE metadata.yaml:
-        status: completed
-        completed_at: <timestamp>
-    UPDATE iterations/<N>/metadata.yaml:
-        completed_at: <timestamp>
+    # Session success (Metadata updated by Reviewer in SESSION_REVIEW)
     EXIT with success summary
     
 ELSE IF any tasks [F]:
     # Await human feedback for replanning
-    UPDATE metadata.yaml:
-        status: awaiting_feedback
-        message: "Create feedbacks in iterations/<N+1>/feedbacks/<timestamp>/"
-    UPDATE iterations/<N>/metadata.yaml:
-        completed_at: <timestamp>
     EXIT with instructions for next iteration
 ```
 
