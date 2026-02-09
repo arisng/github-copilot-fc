@@ -78,7 +78,7 @@ function Publish-AgentsToVSCode {
     }
 
     # Get agent files to publish
-    $agentFiles = Get-ChildItem -Path $projectAgentsPath -Filter "*.agent.md"
+    $agentFiles = Get-ChildItem -Path $projectAgentsPath -Filter "*.agent.md" -Recurse
 
     if ($agentList.Count -gt 0) {
         $agentFiles = $agentFiles | Where-Object { 
@@ -89,7 +89,7 @@ function Publish-AgentsToVSCode {
         if ($agentFiles.Count -eq 0) {
             Write-Host "Warning: No agents found matching: $($agentList -join ', ')" -ForegroundColor Yellow
             Write-Host "Available agents:" -ForegroundColor Cyan
-            Get-ChildItem -Path $projectAgentsPath -Filter "*.agent.md" | 
+            Get-ChildItem -Path $projectAgentsPath -Filter "*.agent.md" -Recurse | 
                 ForEach-Object { Write-Host "  - $($_.Name -replace '\.agent\.md$')" }
             return
         }
