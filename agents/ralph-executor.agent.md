@@ -4,7 +4,7 @@ description: Specialized execution agent that implements tasks across coding, re
 argument-hint: Specify the Ralph session path, TASK_ID, and ATTEMPT_NUMBER for task execution.
 user-invokable: false
 target: vscode
-tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit', 'search', 'web', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'memory/*', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
   version: 3.0.0
   created_at: 2026-01-29T00:00:00Z

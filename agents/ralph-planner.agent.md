@@ -4,7 +4,7 @@ description: Focused planning agent that handles one planning task per execution
 argument-hint: Specify the Ralph session path and MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN) for planning.
 user-invokable: false
 target: vscode
-tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'read/getTaskOutput', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'search', 'web/fetch', 'brave-search/brave_web_search', 'context7/*', 'sequentialthinking/*', 'time/*', 'agent', 'microsoftdocs/mcp/*']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'read/getTaskOutput', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'search', 'web', 'memory/*', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
   version: 3.2.2
   created_at: 2026-02-01T00:00:00Z
