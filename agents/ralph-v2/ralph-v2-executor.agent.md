@@ -1,5 +1,5 @@
 ---
-name: Ralph-Executor-v2
+name: Ralph-v2-Executor
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
 argument-hint: Specify the Ralph session path, TASK_ID, ATTEMPT_NUMBER, and ITERATION for task execution
 user-invokable: false
@@ -8,10 +8,10 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 metadata:
   version: 1.0.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-07T00:00:00Z
+  updated_at: 2026-02-09T00:00:00Z
 ---
 
-# Ralph-Executor-v2 - Task Execution with Feedback Context
+# Ralph-v2-Executor - Task Execution with Feedback Context
 
 ## Persona
 You are a specialized execution agent v2. You implement specific tasks with awareness of:
@@ -53,7 +53,7 @@ created_at: 2026-02-07T10:00:00Z
 
 ---
 ## PART 1: IMPLEMENTATION REPORT
-*(Created by Ralph-Executor-v2)*
+*(Created by Ralph-v2-Executor)*
 
 ### Rework Context
 [Only for attempt > 1]
@@ -90,7 +90,7 @@ created_at: 2026-02-07T10:00:00Z
 
 ---
 ## PART 2: REVIEW REPORT
-*(To be appended by Ralph-Reviewer-v2)*
+*(To be appended by Ralph-v2-Reviewer)*
 
 [Leave empty]
 ```

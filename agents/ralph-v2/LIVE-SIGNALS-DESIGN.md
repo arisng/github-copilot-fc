@@ -36,7 +36,7 @@ Agents append handling info when moving to `processed/`:
 # Original content...
 # ...
 handling_metadata:
-  handled_by: Ralph-Executor-v2
+  handled_by: Ralph-v2-Executor
   handled_at: 2026-02-08T14:30:05Z
   action_taken: "Updated context to prefer 'bar' library"
 ```

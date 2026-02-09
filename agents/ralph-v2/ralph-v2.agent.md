@@ -5,11 +5,11 @@ argument-hint: Outline the task or question to be handled by Ralph-v2 orchestrat
 user-invokable: true
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web/fetch', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'agent']
-agents: ['Ralph-Planner-v2', 'Ralph-Questioner-v2', 'Ralph-Executor-v2', 'Ralph-Reviewer-v2']
+agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer']
 metadata:
   version: 1.0.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-07T00:00:00Z
+  updated_at: 2026-02-09T00:00:00Z
 ---
 
 # Ralph-v2 - Orchestrator with Feedback Loops
@@ -28,15 +28,15 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 
 | Artifact | Path | Owner | Notes |
 |----------|------|-------|-------|
-| Plan | `plan.md` | Ralph-Planner-v2 | Mutable current plan |
-| Plan Snapshot | `plan.iteration-N.md` | Ralph-Planner-v2 | Immutable per iteration |
-| Tasks | `tasks/<task-id>.md` | Ralph-Planner-v2 | One file per task |
+| Plan | `plan.md` | Ralph-v2-Planner | Mutable current plan |
+| Plan Snapshot | `plan.iteration-N.md` | Ralph-v2-Planner | Immutable per iteration |
+| Tasks | `tasks/<task-id>.md` | Ralph-v2-Planner | One file per task |
 | Progress | `progress.md` | Orchestrator only | **SSOT for status** |
-| Task Reports | `reports/<task-id>-report[-r<N>].md` | Ralph-Executor-v2, Ralph-Reviewer-v2 | |
-| Questions | `questions/<category>.md` | Ralph-Questioner-v2 | Per category |
+| Task Reports | `reports/<task-id>-report[-r<N>].md` | Ralph-v2-Executor, Ralph-v2-Reviewer | |
+| Questions | `questions/<category>.md` | Ralph-v2-Questioner | Per category |
 | Iterations | `iterations/<N>/` | All | Per-iteration container |
 | Feedbacks | `iterations/<N>/feedbacks/<timestamp>/` | Human + Agents | Structured feedback |
-| Replanning | `iterations/<N>/replanning/` | Ralph-Planner-v2 | Delta docs |
+| Replanning | `iterations/<N>/replanning/` | Ralph-v2-Planner | Delta docs |
 | Metadata | `metadata.yaml` | Orchestrator | Session metadata |
 | Iteration Metadata | `iterations/<N>/metadata.yaml` | Orchestrator | Per-iteration state with timing |
 
@@ -46,17 +46,17 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 ┌─────────────┐
 │ INITIALIZING│ ─── No session exists
 └──────┬──────┘
-       │ Invoke Ralph-Planner-v2 (MODE: INITIALIZE)
+       │ Invoke Ralph-v2-Planner (MODE: INITIALIZE)
        │ → Creates: plan.md, tasks/*, progress.md, metadata.yaml, iterations/1/metadata.yaml
-       │ → Ralph-Planner-v2 marks plan-init as [x]
+       │ → Ralph-v2-Planner marks plan-init as [x]
        ▼
 ┌─────────────┐
 │  PLANNING   │ ─── Execute planning tasks
 └──────┬──────┘
        │ Loop through planning tasks:
-       │   - plan-brainstorm → Ralph-Questioner-v2 (MODE: brainstorm, CYCLE: N)
-       │   - plan-research → Ralph-Questioner-v2 (MODE: research, CYCLE: N)
-       │   - plan-breakdown → Ralph-Planner-v2 (MODE: TASK_BREAKDOWN)
+       │   - plan-brainstorm → Ralph-v2-Questioner (MODE: brainstorm, CYCLE: N)
+       │   - plan-research → Ralph-v2-Questioner (MODE: research, CYCLE: N)
+       │   - plan-breakdown → Ralph-v2-Planner (MODE: TASK_BREAKDOWN)
        │ All planning tasks [x]
        ▼
 ┌─────────────┐
@@ -69,14 +69,14 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 │ EXECUTING   │ ─── Execute batch of tasks
 │   _BATCH    │
 └──────┬──────┘
-       │ Invoke Ralph-Executor-v2 for each task
+       │ Invoke Ralph-v2-Executor for each task
        │ All mark [P] (review-pending)
        ▼
 ┌─────────────┐
 │ REVIEWING   │ ─── Validate batch implementations
 │   _BATCH    │
 └──────┬──────┘
-       │ Invoke Ralph-Reviewer-v2 for each [P] task
+       │ Invoke Ralph-v2-Reviewer for each [P] task
        │ Collect verdicts: Qualified [x], Failed [F]
        │ Return to BATCHING
        ▼
@@ -88,13 +88,13 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 ┌─────────────┐
 │ REPLANNING  │ ─── NEW: Feedback-driven replanning
 └──────┬──────┘
-       │ plan-rebrainstorm → Ralph-Questioner-v2
+       │ plan-rebrainstorm → Ralph-v2-Questioner
        │   → Analyze feedbacks, generate questions
-       │ plan-reresearch → Ralph-Questioner-v2
+       │ plan-reresearch → Ralph-v2-Questioner
        │   → Research solutions to feedback issues
-       │ plan-update → Ralph-Planner-v2 (MODE: UPDATE)
+       │ plan-update → Ralph-v2-Planner (MODE: UPDATE)
        │   → Update plan.md, create plan.iteration-N.md
-       │ plan-rebreakdown → Ralph-Planner-v2 (MODE: REBREAKDOWN)
+       │ plan-rebreakdown → Ralph-v2-Planner (MODE: REBREAKDOWN)
        │   → Update tasks/*.md, reset failed tasks [F] → [ ]
        │ Return to BATCHING
        ▼
@@ -132,7 +132,7 @@ ELSE:
 ### 2. State: INITIALIZING
 
 ```
-INVOKE Ralph-Planner-v2
+INVOKE Ralph-v2-Planner
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     MODE: INITIALIZE
     USER_REQUEST: [user's request]
@@ -168,9 +168,9 @@ IF no planning tasks remain:
     STATE = BATCHING
 ELSE:
     ROUTE to appropriate agent:
-        plan-brainstorm → Ralph-Questioner-v2 (MODE: brainstorm, CYCLE=N)
-        plan-research → Ralph-Questioner-v2 (MODE: research, CYCLE=N)
-        plan-breakdown → Ralph-Planner-v2 (MODE: TASK_BREAKDOWN)
+        plan-brainstorm → Ralph-v2-Questioner (MODE: brainstorm, CYCLE=N)
+        plan-research → Ralph-v2-Questioner (MODE: research, CYCLE=N)
+        plan-breakdown → Ralph-v2-Planner (MODE: TASK_BREAKDOWN)
 ```
 
 ### 4. State: REPLANNING (v2 Addition)
@@ -183,26 +183,26 @@ Triggered when:
 READ all feedbacks from iterations/<ITERATION>/feedbacks/*/
 
 IF plan-rebrainstorm not [x]:
-    INVOKE Ralph-Questioner-v2
+    INVOKE Ralph-v2-Questioner
         MODE: feedback-analysis
         CYCLE: 1
         FEEDBACK_PATHS: [list of feedback directories]
         OUTPUT: iterations/<ITERATION>/questions/feedback-driven.md
 
 ELSE IF plan-reresearch not [x]:
-    INVOKE Ralph-Questioner-v2
+    INVOKE Ralph-v2-Questioner
         MODE: research
         CYCLE: 1
         QUESTION_CATEGORY: feedback-driven
 
 ELSE IF plan-update not [x]:
-    INVOKE Ralph-Planner-v2
+    INVOKE Ralph-v2-Planner
         MODE: UPDATE
         FEEDBACK_SOURCES: iterations/<ITERATION>/feedbacks/*/
         PLAN_SNAPSHOT: plan.iteration-<ITERATION-1>.md
 
 ELSE IF plan-rebreakdown not [x]:
-    INVOKE Ralph-Planner-v2
+    INVOKE Ralph-v2-Planner
         MODE: REBREAKDOWN
         FAILED_TASKS: [from progress.md [F] markers]
 
@@ -258,7 +258,7 @@ FOR EACH task (respect max_parallel_executors):
         COUNT reports/<task-id>-report*.md files
         ATTEMPT_NUMBER = count + 1
     
-    INVOKE Ralph-Executor-v2
+    INVOKE Ralph-v2-Executor
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
         TASK_ID: <task-id>
         ATTEMPT_NUMBER: <N>
@@ -266,7 +266,7 @@ FOR EACH task (respect max_parallel_executors):
         FEEDBACK_CONTEXT: iterations/<ITERATION>/feedbacks/*/ (if exists)
 
 WAIT for all to complete
-# Note: Ralph-Executor-v2 updates progress.md to [P] or [F]
+# Note: Ralph-v2-Executor updates progress.md to [P] or [F]
 STATE = REVIEWING_BATCH
 ```
 
@@ -283,14 +283,14 @@ RUN Poll-Signals
 
 FOR EACH task (respect max_parallel_reviewers):
     # Ensure no two reviewers review the same task simultaneously
-    INVOKE Ralph-Reviewer-v2
+    INVOKE Ralph-v2-Reviewer
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
         TASK_ID: <task-id>
         REPORT_PATH: reports/<task-id>-report[-r<N>].md
         ITERATION: <current iteration>
 
 WAIT for all to complete
-# Note: Ralph-Reviewer-v2 updates progress.md to [x] or [F]
+# Note: Ralph-v2-Reviewer updates progress.md to [x] or [F]
 
 STATE = BATCHING
 ```
@@ -298,7 +298,7 @@ STATE = BATCHING
 ### 8. State: SESSION_REVIEW
 
 ```
-INVOKE Ralph-Reviewer-v2
+INVOKE Ralph-v2-Reviewer
     MODE: SESSION_REVIEW
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     ITERATION: <current iteration>

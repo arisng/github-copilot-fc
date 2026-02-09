@@ -1,5 +1,5 @@
 ---
-name: Ralph-Planner-v2
+name: Ralph-v2-Planner
 description: Planning agent v2 with isolated task files, plan snapshots, and REPLANNING mode for feedback-driven iteration support
 argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN), and ITERATION for planning
 user-invokable: false
@@ -8,10 +8,10 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 metadata:
   version: 1.0.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-07T00:00:00Z
+  updated_at: 2026-02-09T00:00:00Z
 ---
 
-# Ralph-Planner-v2 - Planning Agent with Isolated Tasks
+# Ralph-v2-Planner - Planning Agent with Isolated Tasks
 
 ## Persona
 You are a specialized planning agent v2. You create and manage session artifacts with a focus on:
@@ -55,16 +55,16 @@ updated_at: 2026-02-07T10:00:00Z
 # Task: task-1
 
 ## Title
-Create ralph-planner-v2.agent.md
+Create Ralph-v2-Planner.agent.md
 
 ## Files
-- agents/v2/ralph-planner-v2.agent.md
+- agents/v2/Ralph-v2-Planner.agent.md
 
 ## Objective
-Create a new Ralph-Planner-v2 subagent that handles isolated task files
+Create a new Ralph-v2-Planner subagent that handles isolated task files
 
 ## Success Criteria
-- [ ] File exists at `agents/v2/ralph-planner-v2.agent.md`
+- [ ] File exists at `agents/v2/Ralph-v2-Planner.agent.md`
 - [ ] Contains YAML frontmatter with name, description, tools
 - [ ] Defines workflow for creating isolated task files
 

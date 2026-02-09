@@ -18,20 +18,24 @@ The Ralph v2 architecture has been significantly hardened based on the "Delegate
 ## 1. Resolved Issues
 
 ### ✅ Orchestrator Read-Only Access
+
 The Orchestrator no longer writes to `progress.md` during execution or review loops.
 - **Proof**: `EXECUTING_BATCH` and `REVIEWING_BATCH` states now wait for completion, trusting subagents (Executor/Reviewer) to update `progress.md`.
 - **Benefit**: Eliminates "double-write" race conditions defined in the previous critique.
 
 ### ✅ Task Validation
+
 The Orchestrator now explicitly validates task file existence (`tasks/<task-id>.md`) before invocation.
 - **Benefit**: Prevents "blind execution" failures where the orchestrator would try to run a deleted or missing task.
 
 ### ✅ Session Review Segregation
-A dedicated `SESSION_REVIEW` state has been added, invoking `Ralph-Reviewer-v2` in `SESSION_REVIEW` mode.
+
+A dedicated `SESSION_REVIEW` state has been added, invoking `Ralph-v2-Reviewer` in `SESSION_REVIEW` mode.
 - **Benefit**: Ensures holistic consistency checks happen in a specialized agent, not implicitly in the Orchestrator's routing logic.
 
 ### ✅ Contract Redundancy Fix
-`Ralph-Executor-v2` output contract has been cleaned up.
+
+`Ralph-v2-Executor` output contract has been cleaned up.
 - **Change**: Removed redundant `parallel_execution_context` object.
 - **Result**: Output is now flat and unambiguous (`files_modified` at the root).
 
@@ -40,14 +44,17 @@ A dedicated `SESSION_REVIEW` state has been added, invoking `Ralph-Reviewer-v2` 
 ## 2. Remaining Improvements (Actionable)
 
 ### 🟡 Medium: Cycle Limits for Planning
+
 **Problem**: The `PLANNING` loop (`plan-brainstorm`, `plan-research`) theoretically allows infinite cycles if the Questioner keeps generating new questions.
 - **Recommendation**: Add a `MAX_CYCLES` guardrail in the Orchestrator or Planner to force a transition to `TASK_BREAKDOWN` after N cycles.
 
 ### 🟡 Medium: Metadata.yaml Optimistic Locking
+
 **Problem**: While `progress.md` is safe, `metadata.yaml` is still touched by both Planner (initialization) and Orchestrator (state tracking).
 - **Recommendation**: As a future enhancement, implement a `version` field in `metadata.yaml` to detect if the Planner updated the file while the Orchestrator was processing.
 
 ### 🟡 Medium: Input Sanitization
+
 **Problem**: `SESSION_ID` inputs are still used directly in file paths.
 - **Recommendation**: Add path traversal checks (`../`) in the Orchestrator before resolving `.ralph-sessions/<SESSION_ID>/`.
 
@@ -66,6 +73,7 @@ The following areas are acknowledged gaps but are deferred for future enhancemen
 ## 4. Final Verification
 
 ### Workflow Logic Check
+
 1. **Init**: Planner creates artifacts + marks `plan-init` [x]. -> **OK**
 2. **Planning**: Orchestrator routes based on `progress.md`. -> **OK**
 3. **Execution**: Orchestrator checks file -> Invokes Executor -> Executor updates [P]. -> **OK**
@@ -73,6 +81,7 @@ The following areas are acknowledged gaps but are deferred for future enhancemen
 5. **Session Review**: Orchestrator invokes Reviewer (Session Mode). -> **OK**
 
 ### Conclusion
+
 The architecture is now **Structurally Sound** for single-stream execution. The separation of concerns is strict:
 - **Orchestrator**: Routing & Read-Only Monitoring
 - **Planner**: Artifact Creation & Plan Mutable State

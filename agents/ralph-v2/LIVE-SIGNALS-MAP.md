@@ -11,7 +11,7 @@ This document maps all **Live Signal Checkpoints** currently implemented in the 
 | `EXECUTING_BATCH` | Pre-Loop          | `6. State: EXECUTING_BATCH` | **STOP**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Logs message and passes to Executor context. |
 | `REVIEWING_BATCH` | Pre-Loop          | `7. State: REVIEWING_BATCH` | **STOP**: Exit.<br>**PAUSE**: Wait.                                                            |
 
-## 2. Ralph-Executor-v2
+## 2. Ralph-v2-Executor
 
 | Workflow Section  | Step         | Code Block                            | Behavior                                                                                             |
 | ----------------- | ------------ | ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -19,13 +19,13 @@ This document maps all **Live Signal Checkpoints** currently implemented in the 
 | `2. Mark WIP`     | **Step 2**   | `2. Mark WIP`                         | **STOP**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Log and continue.                        |
 | `3. Implement`    | **Step 3.5** | `3.5. Verify Signals (Mid-Execution)` | **STEER**: Consolidate feedback, optionally restart implementation step before verification.         |
 
-## 3. Ralph-Planner-v2
+## 3. Ralph-v2-Planner
 
 | Mode             | Step       | Code Block                   | Behavior                                                                     |
 | ---------------- | ---------- | ---------------------------- | ---------------------------------------------------------------------------- |
 | `TASK_BREAKDOWN` | **Step 0** | `Step 0: Check Live Signals` | **STEER**: Adjust plan context and constraints before generating task files. |
 
-## 4. Ralph-Questioner-v2
+## 4. Ralph-v2-Questioner
 
 | Mode                | Loop            | Code Block                                  | Behavior                                                                                 |
 | ------------------- | --------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -33,7 +33,7 @@ This document maps all **Live Signal Checkpoints** currently implemented in the 
 | `research`          | Question Loop   | `Step 2: Research each unanswered question` | **Act on**: STEER/PAUSE/STOP inside loop.                                                |
 | `feedback-analysis` | Issue Loop      | `Process: 2. For each critical issue`       | **Act on**: STEER/PAUSE/STOP inside loop.                                                |
 
-## 5. Ralph-Reviewer-v2
+## 5. Ralph-v2-Reviewer
 
 | Workflow Section | Step          | Code Block                 | Behavior                                                                             |
 | ---------------- | ------------- | -------------------------- | ------------------------------------------------------------------------------------ |

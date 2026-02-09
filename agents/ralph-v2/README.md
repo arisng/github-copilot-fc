@@ -5,8 +5,6 @@ This directory contains version 2 of the Ralph agent system with significant arc
 ## Documentation
 
 - **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Recent improvements (metadata naming, timing tracking, structure simplification)
-- **[Migration Guide](scripts/MIGRATION-GUIDE.md)** - How to upgrade old v2 sessions to new structure
-- **[Migration Script](scripts/Migrate-RalphV2Session.ps1)** - Automated migration tool
 
 ## Quick Comparison: v1 vs v2
 
@@ -28,10 +26,10 @@ This directory contains version 2 of the Ralph agent system with significant arc
 ```
 agents/v2/
 ├── ralph-v2.agent.md              # Orchestrator
-├── ralph-planner-v2.agent.md      # Planning agent
-├── ralph-questioner-v2.agent.md   # Q&A discovery agent
-├── ralph-executor-v2.agent.md     # Task execution agent
-├── ralph-reviewer-v2.agent.md     # Quality assurance agent
+├── ralph-v2-planner.agent.md      # Planning agent
+├── ralph-v2-questioner.agent.md   # Q&A discovery agent
+├── ralph-v2-executor.agent.md     # Task execution agent
+├── Ralph-v2-Reviewer.agent.md     # Quality assurance agent
 ├── templates/
 │   └── feedbacks.template.md      # Feedback file template
 └── README.md                      # This file
@@ -215,16 +213,16 @@ iteration: 2
 ```
 COMPLETE → (feedbacks/) → REPLANNING
   ↓
-plan-rebrainstorm → Ralph-Questioner-v2
+plan-rebrainstorm → Ralph-v2-Questioner
   → Analyze feedbacks, generate questions
   ↓
-plan-reresearch → Ralph-Questioner-v2
+plan-reresearch → Ralph-v2-Questioner
   → Research solutions to feedback issues
   ↓
-plan-update → Ralph-Planner-v2
+plan-update → Ralph-v2-Planner
   → Update plan.md, create plan.iteration-N.md
   ↓
-plan-rebreakdown → Ralph-Planner-v2
+plan-rebreakdown → Ralph-v2-Planner
   → Update tasks, reset failed tasks [F] → [ ]
   ↓
 BATCHING → ...
@@ -314,7 +312,7 @@ User: "@Ralph-v2 Create a Blazor component library"
 
 Ralph-v2:
 1. STATE: INITIALIZING
-2. Invoke Ralph-Planner-v2 (MODE: INITIALIZE)
+2. Invoke Ralph-v2-Planner (MODE: INITIALIZE)
 3. Create v2 session structure
 4. Proceed to PLANNING
 ```
@@ -354,10 +352,10 @@ Ralph-v2:
 | Agent                          | Purpose      | Key Differences from v1               |
 | ------------------------------ | ------------ | ------------------------------------- |
 | `ralph-v2.agent.md`            | Orchestrator | REPLANNING state, feedback detection  |
-| `ralph-planner-v2.agent.md`    | Planning     | Isolated task files, REBREAKDOWN mode |
-| `ralph-questioner-v2.agent.md` | Q&A          | feedback-analysis mode                |
-| `ralph-executor-v2.agent.md`   | Execution    | Feedback context awareness            |
-| `ralph-reviewer-v2.agent.md`   | Review       | Feedback resolution validation        |
+| `ralph-v2-planner.agent.md`    | Planning     | Isolated task files, REBREAKDOWN mode |
+| `ralph-v2-questioner.agent.md` | Q&A          | feedback-analysis mode                |
+| `ralph-v2-executor.agent.md`   | Execution    | Feedback context awareness            |
+| `ralph-v2-reviewer.agent.md`   | Review       | Feedback resolution validation        |
 
 ## File Templates
 

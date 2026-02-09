@@ -1,5 +1,5 @@
 ---
-name: Ralph-Reviewer-v2
+name: Ralph-v2-Reviewer
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
 argument-hint: Specify the Ralph session path, TASK_ID, REPORT_PATH, and ITERATION for review
 user-invokable: false
@@ -8,10 +8,10 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/runInTerminal',
 metadata:
   version: 1.0.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-07T00:00:00Z
+  updated_at: 2026-02-09T00:00:00Z
 ---
 
-# Ralph-Reviewer-v2 - Quality Assurance with Feedback Context
+# Ralph-v2-Reviewer - Quality Assurance with Feedback Context
 
 ## Persona
 You are a quality assurance agent v2. You validate task implementations against:
@@ -171,7 +171,7 @@ Append to `reports/<TASK_ID>-report[-r<N>].md`:
 ```markdown
 ---
 ## PART 2: REVIEW REPORT
-*(Appended by Ralph-Reviewer-v2)*
+*(Appended by Ralph-v2-Reviewer)*
 
 ### Review Summary
 [Brief 2-3 sentence summary]
