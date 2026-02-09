@@ -1,7 +1,9 @@
 ---
 name: copilot-sdk
 description: Build applications with GitHub Copilot CLI SDKs across Node.js/TypeScript, Python, Go, and .NET. Use when integrating AI assistance into applications via CopilotClient, managing sessions, streaming responses, custom tools, MCP servers, permission handling, and custom agents. Covers SDK installation, client lifecycle, session management, message handling, tool execution, and advanced integration patterns.
-version: 1.0.0
+metadata:
+  version: 1.0.0
+  authors: arisng
 ---
 
 # GitHub Copilot CLI SDKs
