@@ -1,16 +1,16 @@
 {
     "servers": {
-        "memory": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-memory"
-            ],
-            "env": {
-                "MEMORY_FILE_PATH": "${workspaceFolder}/.github/memory.json"
-            },
-            "type": "stdio"
-        },
+        // "memory": {
+        //     "command": "npx",
+        //     "args": [
+        //         "-y",
+        //         "@modelcontextprotocol/server-memory"
+        //     ],
+        //     "env": {
+        //         "MEMORY_FILE_PATH": "${workspaceFolder}/.github/memory.json"
+        //     },
+        //     "type": "stdio"
+        // },
         "google-calendar": {
 			"command": "npx",
 			"args": [
