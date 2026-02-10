@@ -1,12 +1,12 @@
 ---
 name: Ralph-v2-Planner
 description: Planning agent v2 with isolated task files, plan snapshots, and REPLANNING mode for feedback-driven iteration support
-argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN), and ITERATION for planning
+argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, UPDATE_METADATA), and ITERATION for planning
 user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-09T00:00:00Z
   timezone: UTC+7
@@ -161,6 +161,13 @@ tasks_defined: 0
    - Update `updated_at`
 4. Create new tasks if feedback requires
 5. Reset failed tasks in `progress.md`: `[F]` → `[ ]`
+
+### Mode: UPDATE_METADATA
+**Scope**: Update global session `metadata.yaml` with status and timestamp.
+
+**Process:**
+1. Read `metadata.yaml`
+2. Update `status`, `updated_at`, and `iteration` (if necessary)
 
 ## Workflow
 
@@ -370,6 +377,21 @@ Change [F] task-<id> to [ ] task-<id> (Iteration <N>)
 Add new tasks with [ ]
 ```
 
+#### UPDATE_METADATA Mode
+
+```markdown
+# Step 1: Read metadata.yaml
+Read .ralph-sessions/<SESSION_ID>/metadata.yaml
+
+# Step 2: Update fields
+Update status = <STATUS> (from input)
+Update updated_at = <timestamp>
+If ITERATION provided: Update iteration = <ITERATION>
+
+# Step 3: Write back
+Write metadata.yaml
+```
+
 ### 3. Update Iteration State
 
 After planning operations:
@@ -392,7 +414,7 @@ tasks_defined: [count]
 ```json
 {
   "status": "completed",
-  "mode": "INITIALIZE | UPDATE | TASK_BREAKDOWN | REBREAKDOWN",
+  "mode": "INITIALIZE | UPDATE | TASK_BREAKDOWN | REBREAKDOWN | UPDATE_METADATA",
   "iteration": "number",
   "artifacts_created": ["plan.md", "tasks/task-1.md", ...],
   "artifacts_updated": ["progress.md", "state/current.yaml"],
@@ -416,7 +438,8 @@ tasks_defined: [count]
 ```json
 {
   "SESSION_PATH": "string - Path to session directory",
-  "MODE": "INITIALIZE | UPDATE | TASK_BREAKDOWN | REBREAKDOWN",
+  "MODE": "INITIALIZE | UPDATE | TASK_BREAKDOWN | REBREAKDOWN | UPDATE_METADATA",
+  "STATUS": "string - New session status (UPDATE_METADATA only)",
   "ITERATION": "number - Current iteration",
   "USER_REQUEST": "string - Original request (INITIALIZE only)",
   "UPDATE_REQUEST": "string - New requirements (UPDATE only)",
