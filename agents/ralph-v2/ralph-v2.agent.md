@@ -7,7 +7,7 @@ target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer']
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-09T00:00:00Z
   timezone: UTC+7
@@ -314,6 +314,17 @@ INVOKE Ralph-v2-Reviewer
     MODE: SESSION_REVIEW
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     ITERATION: <current iteration>
+
+# Update session status based on review outcome (Assessment -> Status)
+IF Reviewer output "assessment" == "Complete":
+    NEW_STATUS = "completed"
+ELSE:
+    NEW_STATUS = "awaiting_feedback"
+
+INVOKE Ralph-v2-Planner
+    MODE: UPDATE_METADATA
+    SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+    STATUS: NEW_STATUS
 
 STATE = COMPLETE
 ```
