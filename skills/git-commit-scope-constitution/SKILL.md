@@ -2,7 +2,7 @@
 name: git-commit-scope-constitution
 description: Build and refine a constitution defining valid scopes for atomic commits. Use this weekly to maintain an inventory of approved scopes, establish scope naming conventions, and guide consistent scope selection across commits. Supports constitutional updates, scope discovery from history, and validation of proposed scopes.
 metadata: 
-   version: 1.1.0
+   version: 1.2.0
    author: arisng
 ---
 
@@ -21,7 +21,7 @@ This skill enables building and maintaining a living constitution that defines t
 
 ## Repository Storage Convention
 
-**Scopes Inventory:** `.github/scopes-inventory.md`
+**Scopes Inventory:** `.github/scope-inventory.md`
 - **Purpose**: Machine-readable inventory of all scopes extracted from git history
 - **Content**: Simple structured list of scopes actually used in commits, organized by commit type
 - **Maintenance**: Updated automatically by running `extract_scopes.py`
@@ -96,7 +96,7 @@ Analyze git commit history to see what scopes have been used:
 
 ```bash
 # Extract all historical scopes
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py --format markdown --output .github/scopes-inventory.md
+python skills/git-commit-scope-constitution/scripts/extract_scopes.py --format markdown --output .github/scope-inventory.md
 
 # Or just recent scopes (last 3 months)
 python skills/git-commit-scope-constitution/scripts/extract_scopes.py --since "3 months ago" --format markdown
@@ -254,7 +254,7 @@ Record constitutional amendments:
 Save the finalized constitution and inventory:
 
 1. Write constitution to `.github/scope-constitution.md`
-2. Write scopes inventory to `.github/scopes-inventory.md`
+2. Write scopes inventory to `.github/scope-inventory.md`
 3. Update the "Last Updated" date in constitution
 4. Commit both files with a descriptive commit message
 
@@ -353,7 +353,7 @@ python scripts/extract_scopes.py --output inventory.md
 - Not used at runtime (reference only)
 - Copy to `.github/scope-constitution.md` in target repository
 
-**`references/scopes-inventory-template.md`**
+**`references/scope-inventory-template.md`**
 - Example of structured inventory format
 - Shows expected output structure
 - Used as reference for manual inventory creation
@@ -368,7 +368,7 @@ python scripts/extract_scopes.py --output inventory.md
 - **Usage**: Primary reference for developers and commit validation tooling
 - **Update Frequency**: Weekly reviews, amendments as repository evolves
 
-**`.github/scopes-inventory.md`** (in target repository)
+**`.github/scope-inventory.md`** (in target repository)
 - **Role**: Historical inventory of scopes actually used in the repository
 - **Content**: Machine-readable list of all scopes found in git commit history
 - **Purpose**: Tracks what scopes have been used (descriptive, not prescriptive)
@@ -490,7 +490,7 @@ File Changed → git-atomic-commit → Commit Type Assigned
 ```bash
 # Step 1: Extract historical scopes
 python skills/git-commit-scope-constitution/scripts/extract_scopes.py \
-  --output .github/scopes-inventory.md
+  --output .github/scope-inventory.md
 
 # Step 2: Analyze repository structure
 # List top-level directories
@@ -512,7 +512,7 @@ From structure analysis:
 - scripts/ → scope: "script" or "build"
 - docs/ → scope: "docs"
 
-From git history (.github/scopes-inventory.md):
+From git history (.github/scope-inventory.md):
 - feat(components): Used 15 times
 - feat(auth): Used 8 times
 - feat(billing): Used 12 times

@@ -1,4 +1,4 @@
-# Scopes Inventory
+# Scope Inventory
 
 **Repository:** [Repository Name]
 **Last Updated:** [DATE]
