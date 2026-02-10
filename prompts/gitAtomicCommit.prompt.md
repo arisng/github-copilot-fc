@@ -1,5 +1,5 @@
 ---
-name: git-atomic-commit
+name: gitAtomicCommit
 description: Create atomic commits with executive summaries and user review
 metdata:
   version: 1.0.0
