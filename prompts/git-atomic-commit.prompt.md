@@ -1,6 +1,9 @@
 ---
-name: atomic-commit
+name: git-atomic-commit
 description: Create atomic commits with executive summaries and user review
+metdata:
+  version: 1.0.0
+  author: arisng
 ---
 
 ## User Input
