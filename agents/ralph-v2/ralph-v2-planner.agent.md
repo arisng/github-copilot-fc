@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-09T00:00:00Z
   timezone: UTC+7
@@ -33,6 +33,7 @@ You are a specialized planning agent v2. You create and manage session artifacts
 | `metadata.yaml` | Session metadata | INITIALIZE |
 | `iterations/<N>/metadata.yaml` | Per-iteration state with timing | INITIALIZE, REPLANNING start |
 | `iterations/<N>/replanning/delta.md` | Plan changes (replanning) | UPDATE mode |
+| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific instructions | INITIALIZE |
 
 ### Forbidden Files
 **NEVER create the following files or files not mentioned in section "Files You Create/Manage":**
@@ -93,6 +94,7 @@ inherited_by: []  # List of task IDs that inherit from this task
 2. `iterations/1/metadata.yaml` - Iteration 1 state with timing
 3. `progress.md` - With planning tasks
 4. `metadata.yaml` - Session metadata
+5. `.ralph-sessions/<SESSION_ID>.instructions.md` - Session-specific instructions
 
 **Planning Tasks to Add:**
 - plan-init
@@ -175,6 +177,28 @@ tasks_defined: 0
 ### 2. Mode Execution
 
 #### INITIALIZE Mode
+
+# Step 0: Create session instructions
+Create .ralph-sessions/<SESSION_ID>.instructions.md
+Template:
+```markdown
+---
+applyTo: ".ralph-sessions/<SESSION_ID>/**"
+concurrency:
+  max_parallel_executors: 3
+  max_parallel_reviewers: 3
+  max_parallel_questioners: 3
+---
+
+# Ralph Session <SESSION_ID> Custom Instructions
+
+## Target Files
+[Explicitly specifying paths of target files and session artifacts in bullet points. Subagents will reference these files during task execution.]
+
+## Agent Skills
+[If any relevant agent skills are available, list them here in bullet points. Subagents will load these skills when executing tasks.]
+Use `#tool:execute/runInTerminal` with relevant shell commands to read from `<SKILLS_DIR>/<skill-name>/SKILL.md` for each skill to avoid file access restrictions outside workspace.
+```
 
 # Step 1: Create plan.md
 ```markdown
