@@ -33,7 +33,7 @@ You are a specialized planning agent v2. You create and manage session artifacts
 | `metadata.yaml` | Session metadata | INITIALIZE |
 | `iterations/<N>/metadata.yaml` | Per-iteration state with timing | INITIALIZE, REPLANNING start |
 | `iterations/<N>/replanning/delta.md` | Plan changes (replanning) | UPDATE mode |
-| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific instructions | INITIALIZE |
+| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific custom instructions | INITIALIZE |
 
 ### Forbidden Files
 **NEVER create the following files or files not mentioned in section "Files You Create/Manage":**

@@ -7,7 +7,7 @@ target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer']
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -394,7 +394,7 @@ RUN Poll-Signals
     IF PAUSE: WAIT
 
 FOR EACH task (respect max_parallel_reviewers):
-    # Ensure no two reviewers review the same task simultaneously
+    # Ensure each reviewer handles exactly one task per invocation
     INVOKE Ralph-v2-Reviewer
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
         TASK_ID: <task-id>

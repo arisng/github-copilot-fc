@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -32,6 +32,7 @@ You are a quality assurance agent v2. You validate task implementations against:
 | `plan.md` | Session plan |
 | `iterations/<N>/feedbacks/<timestamp>/feedbacks.md` | Human feedback (validation context) |
 | `progress.md` | Current status |
+| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific custom instructions |
 
 ### Files You Create/Update
 
@@ -54,6 +55,8 @@ Review a single task implementation.
 4. Check feedback resolution (if iteration >= 2)
 5. Append PART 2 to report
 6. Update `progress.md`
+
+**Scope:** Exactly one task per invocation. Never review multiple tasks in one run.
 
 ### Mode: SESSION_REVIEW
 Holistic session validation across all iterations.
@@ -381,6 +384,7 @@ Update `iterations/<N>/metadata.yaml`:
 - **Constructive Feedback**: Provide specific guidance for rework
 - **Single Mode Only**: Reject any request that asks for multiple modes in one invocation
 - **Runtime Validation Required**: Always perform runtime checks even if not explicitly requested
+- **Single Task Only**: Handle exactly one task per invocation
 
 ## Contract
 

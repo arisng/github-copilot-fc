@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -31,6 +31,7 @@ You are a specialized execution agent v2. You implement specific tasks with awar
 | `iterations/<N>/feedbacks/<timestamp>/feedbacks.md` | Human feedback (rework only) |
 | `reports/<task-id>-report[-r<N>].md` | Previous attempts (rework only) |
 | `tasks/<other-id>-report.md` | Inherited task reports |
+| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific custom instructions |
 
 ### Files You Create
 
