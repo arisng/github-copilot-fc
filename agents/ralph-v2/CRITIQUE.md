@@ -1,7 +1,7 @@
-# Ralph v2 Workflow Critique (Revision 3)
+# Ralph v2 Workflow Critique (Revision 4)
 
 **Date**: 2026-02-10  
-**Status**: Post-Remediation Review (Delta Focus)
+**Status**: Post-Remediation Review (Guardrail Closure)
 
 ## Executive Summary
 
@@ -11,9 +11,9 @@ Ralph v2 is structurally sound for single-stream execution and has resolved the 
 - ✅ **Critical Race Conditions**: Resolved via Delegated State Pattern
 - ✅ **Task Lifecycle**: Explicit task existence validation is in place
 - ✅ **Session Governance**: Dedicated Session Review state confirmed
-- ⚠️ **Operational Guardrails**: Missing cycle limits, state validation, and input hardening
-- ⚠️ **Resiliency**: No retries/rollback, limited observability
-- ⚠️ **Orchestrator Purity**: Observed fallback to self-execution on subagent timeouts
+- ✅ **Operational Guardrails**: Cycle limits, state validation, input hardening added
+- ✅ **Resiliency**: Timeout recovery policy, retry backoff, and task splitting added
+- ✅ **Orchestrator Purity**: Router-only behavior enforced with explicit rules
 
 ---
 
@@ -35,38 +35,37 @@ The v2 feedbacks directory layout and REPLANNING state enforce explicit feedback
 
 ## 2. Remaining Risks (Prioritized)
 
-### 🔴 High: State Machine Drift
+### 🟡 Medium: State Machine Drift
 
-**Risk**: Orchestrator decisions depend on `progress.md` and metadata fields without schema validation.
-Incorrect or partial edits can cause invalid transitions (e.g., REPLANNING with no feedback batch).
+**Risk**: Schema validation now exists, but malformed manual edits can still cause drift until repair runs.
 
-### 🟠 High: Path Injection via Session ID
+### 🟡 Medium: Path Injection via Session ID
 
-**Risk**: `SESSION_ID` is used to build file paths without sanitization, enabling traversal or invalid paths.
+**Risk**: Basic validation exists, but enforcement relies on orchestrator checks only.
 
-### 🟡 Medium: Planning Cycle Exhaustion
+### 🟢 Low: Planning Cycle Exhaustion
 
-**Risk**: `plan-brainstorm` and `plan-research` can loop indefinitely if new questions keep emerging.
+**Risk**: Guardrail is in place, but cycles can still be set too high for large sessions.
 
-### 🟡 Medium: Metadata Ownership Conflicts
+### 🟢 Low: Metadata Ownership Conflicts
 
-**Risk**: `metadata.yaml` can still be modified by multiple agents without optimistic locking or a revision check.
+**Risk**: Optimistic locking exists, but requires consistent usage by all writers.
 
 ### 🟡 Medium: Partial Failure Handling
 
-**Risk**: A subagent crash can leave `progress.md` in `[/]` with no timeout, forcing manual recovery.
+**Risk**: Timeout recovery exists, but repeated failures still depend on task splitting effectiveness.
 
-### 🟡 Medium: Orchestrator Role Drift
+### 🟢 Low: Orchestrator Role Drift
 
-**Risk**: On subagent timeout, the Orchestrator may attempt to complete the task itself, violating the router-only contract and mixing responsibilities.
+**Risk**: Explicit rules prohibit this, but regressions remain possible without tests.
 
-### 🟡 Medium: Multi-Mode Subagent Invocation
+### 🟢 Low: Multi-Mode Subagent Invocation
 
-**Risk**: A single subagent invocation may be asked to execute multiple modes (e.g., Planner `UPDATE` + `REBREAKDOWN`), increasing context overload and blending responsibilities.
+**Risk**: Enforcement is documented, but relies on orchestrator compliance.
 
-### 🟡 Medium: Dependency Enforcement
+### 🟢 Low: Dependency Enforcement
 
-**Risk**: Task dependency rules (`depends_on`) are not enforced by a hard pre-check before execution.
+**Risk**: Pre-check exists; remaining risk is inconsistent task metadata.
 
 ---
 
@@ -74,21 +73,31 @@ Incorrect or partial edits can cause invalid transitions (e.g., REPLANNING with 
 
 ### Guardrails and Validation
 
-1. **Add a state schema validator** for `progress.md` and `metadata.yaml` before transitions.
-2. **Introduce `MAX_CYCLES`** for planning loops; after N cycles, force `TASK_BREAKDOWN` with a warning note.
-3. **Sanitize `SESSION_ID`** by restricting to `^[0-9]{6}-[0-9]{6}$` and rejecting path separators.
+1. **Add regression tests** for orchestrator routing, single-mode enforcement, and schema validation.
+2. **Tighten SESSION_ID validation** to strict regex and enforce in every entry point.
+3. **Add a lightweight lint** for `tasks/<id>.md` metadata completeness.
 
 ### Resiliency and Recovery
 
-4. **Add a timeout rule** for `[/]` tasks (e.g., mark as `[F]` after TTL or prompt for recovery).
-5. **Add a retry slot** for failed subagent calls (single retry with backoff, then fail fast).
-6. **On timeout or error, re-spawn the same subagent** with the same single-mode request; never route the Orchestrator to execute the task.
+4. **Measure timeout recovery effectiveness** (rate of recovery vs. split). Adjust split thresholds if needed.
+5. **Add optional capped exponential backoff** for heavy tasks that repeatedly timeout.
 
 ### Consistency and Governance
 
-7. **Optimistic locking for `metadata.yaml`** using a `version` field incremented on each write.
-8. **Enforce one mode per subagent invocation**; chain modes via separate subagent calls.
-9. **Dependency pre-check**: block execution of a task if any `depends_on` tasks are not `[x]`.
+6. **Add a short governance checklist** for any manual edits to session files.
+7. **Document runtime validation expectations** as reviewer-owned, mandatory behavior.
+
+### State Normalization Strategy
+
+8. **Define normalization boundaries**:
+	- **Iteration scope (normalize)**: Treat iteration artifacts as SSOT, avoid duplication across iteration files.
+	- **Session scope (denormalize)**: Allow aggregated views for reporting and human consumption only.
+9. **Add a normalization guide**:
+	- Enumerate SSOT files (e.g., `progress.md`, `tasks/<id>.md`, `iterations/<N>/metadata.yaml`).
+	- Define derived artifacts (e.g., dashboards, summaries) as read-only, regenerate anytime.
+10. **Introduce a lightweight state index**:
+	- A generated `iterations/<N>/state.index.json` (or markdown) that summarizes normalized fields without becoming SSOT.
+	- Clearly mark as denormalized and non-authoritative.
 
 ---
 
@@ -109,12 +118,54 @@ Use this before rolling out changes to v2 agents:
 2. **Session ID sanitization** rejects invalid inputs (`../`, spaces, extra dots).
 3. **Planning cycle limit** triggers and reports the forced transition.
 4. **Dependency pre-check** blocks dependent tasks when prerequisites are not `[x]`.
-5. **Timeout recovery** converts stale `[/]` to `[F]` with a reason note.
-6. **Subagent retry** spawns the same role with the same single-mode request.
-7. **Single-mode enforcement** prevents `UPDATE` + `REBREAKDOWN` in one Planner call.
+5. **Timeout recovery** performs 30/60/60 sleeps before task split.
+6. **Task split path** creates smaller tasks and cancels the oversized one.
+7. **Runtime validation** is performed by Reviewer for every task.
+8. **Single-mode enforcement** prevents `UPDATE` + `REBREAKDOWN` in one Planner call.
 
 ---
 
 ## Conclusion
 
 Ralph v2 is ready for sustained use under its current architectural constraints. The next step is not structural change, but operational guardrails that prevent drift, enforce consistency, and improve recovery ergonomics. With those additions, the system would reach production-grade reliability for single-stream execution.
+
+---
+
+## 6. Appendix: Normalization Deep Dive
+
+This appendix clarifies how to normalize shared state at iteration scope while allowing denormalized session views for humans.
+
+### 6.1 Summary
+
+- **Normalize iteration scope**: keep SSOT artifacts minimal and canonical per iteration.
+- **Denormalize session scope**: allow read-only summaries for human consumption.
+- **Enforce boundaries**: SSOT files are authoritative; derived views are disposable.
+
+### 6.2 Detailed Design
+
+See [agents/ralph-v2/appendixes/normalization-deep-dive.md](agents/ralph-v2/appendixes/normalization-deep-dive.md) for the full guidance, boundary rules, and consistency checks.
+
+---
+
+## 7. Appendix: Hooks Integration Summary
+
+This appendix summarizes how GitHub Copilot Hooks can increase determinism in the Ralph v2 workflow.
+
+### 7.1 Targeted Hook Types
+
+- **Session start**: Initialize or validate session structure; record session header for audit.
+- **User prompt submitted**: Log prompt for deterministic replay and governance.
+- **Pre-tool use**: Enforce guardrails (allowlists, schema checks, single-mode rules).
+- **Post-tool use**: Log tool outcomes for metrics and failure detection.
+- **Error occurred**: Centralize error telemetry (timeouts, crashes, tool failures).
+
+### 7.2 Determinism Gains
+
+- **State correctness**: Block invalid writes to SSOT files.
+- **Replayability**: Stable logs of prompts and tool executions.
+- **Scope safety**: Enforce single-mode and single-task invariants.
+- **Recovery fidelity**: Measure and enforce timeout recovery behavior.
+
+### 7.3 Detailed Design
+
+See [agents/ralph-v2/appendixes/hooks-integrations.md](agents/ralph-v2/appendixes/hooks-integrations.md) for proposed hook policies, scripts, and governance notes.

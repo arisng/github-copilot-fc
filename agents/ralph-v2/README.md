@@ -5,6 +5,7 @@ This directory contains version 2 of the Ralph agents system with significant ar
 ## Documentation
 
 - **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Recent improvements (metadata naming, timing tracking, structure simplification)
+- **[CRITIQUE.md](CRITIQUE.md)** - Latest review notes and guardrail status
 
 ## Quick Comparison: v1 vs v2
 
@@ -296,6 +297,15 @@ Review for iteration N, documenting:
   - [Design](LIVE-SIGNALS-DESIGN.md)
   - [Implementation Map](LIVE-SIGNALS-MAP.md)
 
+### 9. Operational Guardrails (New)
+
+- **Schema validation** for `progress.md` and `metadata.yaml`
+- **Single-mode invocations** for all subagents
+- **Timeout recovery policy** with sleep backoff and task splitting
+- **Reviewer-owned runtime validation** (mandatory for every task)
+- **Executor compile-time validation only** (build/lint/tests)
+- **Single task per reviewer invocation**
+
 ## Migration from v1
 
 ### For New Sessions
@@ -332,6 +342,27 @@ Ralph-v2:
 3. Create v2 session structure
 4. Proceed to PLANNING
 ```
+
+### Timeout Recovery (Operational)
+
+If a subagent times out, the orchestrator uses sleep backoff before retrying:
+
+- **Windows (PowerShell):** `Start-Sleep -Seconds 30` then `Start-Sleep -Seconds 60`
+- **Linux/WSL (bash):** `sleep 30` then `sleep 60`
+
+After repeated failures, the orchestrator invokes `REBREAKDOWN_TASK` to split the task.
+
+### Local Timestamp Commands
+
+Use these commands for local timestamps across the workflow:
+
+- **SESSION_ID format `<YYMMDD>-<hhmmss>`**
+  - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
+  - **Linux/WSL (bash):** `date +"%y%m%d-%H%M%S"`
+
+- **ISO8601 local timestamp (with offset)**
+  - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
+  - **Linux/WSL (bash):** `date +"%Y-%m-%dT%H:%M:%S%z"`
 
 ### Providing Feedback for Failed Task
 
