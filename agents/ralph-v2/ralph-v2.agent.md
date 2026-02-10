@@ -7,7 +7,7 @@ target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer']
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -150,13 +150,15 @@ Apply to any subagent call (Planner, Questioner, Executor, Reviewer):
 
 Use these commands for local timestamps across the workflow (SESSION_ID, metadata timestamps):
 
+**Note:** These commands return local time in your system's timezone (UTC+7), not UTC.
+
 - **SESSION_ID format `<YYMMDD>-<hhmmss>`**
-    - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
-    - **Linux/WSL (bash):** `date +"%y%m%d-%H%M%S"`
+  - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
 
 - **ISO8601 local timestamp (with offset)**
-    - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
-    - **Linux/WSL (bash):** `date +"%Y-%m-%dT%H:%M:%S%z"`
+  - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
 
 ### 0. Skills Directory Resolution
 **Discover available agent skills directories:**

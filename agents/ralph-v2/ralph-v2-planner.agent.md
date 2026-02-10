@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -191,13 +191,15 @@ tasks_defined: 0
 
 Use these commands for local timestamps in plans, metadata, and task files:
 
+**Note:** These commands return local time in your system's timezone (UTC+7), not UTC.
+
 - **SESSION_ID format `<YYMMDD>-<hhmmss>`**
   - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
-  - **Linux/WSL (bash):** `date +"%y%m%d-%H%M%S"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
 
 - **ISO8601 local timestamp (with offset)**
   - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
-  - **Linux/WSL (bash):** `date +"%Y-%m-%dT%H:%M:%S%z"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
 
 ### 1. Context Acquisition
 - Read orchestrator prompt for MODE and ITERATION
@@ -214,19 +216,23 @@ Template:
 ```markdown
 ---
 applyTo: ".ralph-sessions/<SESSION_ID>/**"
-concurrency:
-  max_parallel_executors: 3
-  max_parallel_reviewers: 3
-  max_parallel_questioners: 3
-planning:
-  max_cycles: 2
-retries:
-  max_subagent_retries: 1
-timeouts:
-  task_wip_minutes: 60
 ---
 
 # Ralph Session <SESSION_ID> Custom Instructions
+
+## Concurrency
+- max_parallel_executors: 3
+- max_parallel_reviewers: 3
+- max_parallel_questioners: 3
+
+## Planning
+- max_cycles: 2
+
+## Retries
+- max_subagent_retries: 1
+
+## Timeouts
+- task_wip_minutes: 60
 
 ## Target Files
 [Explicitly specifying paths of target files and session artifacts in bullet points. Subagents will might reference these files during task execution (selectively choose among these files, not required to read all).]

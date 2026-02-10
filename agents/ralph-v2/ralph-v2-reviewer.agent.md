@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -90,13 +90,15 @@ Fail a task when the executor timed out or crashed and no report was produced.
 
 Use these commands for local timestamps in reviews, reports, and progress updates:
 
+**Note:** These commands return local time in your system's timezone (UTC+7), not UTC.
+
 - **SESSION_ID format `<YYMMDD>-<hhmmss>`**
   - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
-  - **Linux/WSL (bash):** `date +"%y%m%d-%H%M%S"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
 
 - **ISO8601 local timestamp (with offset)**
   - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
-  - **Linux/WSL (bash):** `date +"%Y-%m-%dT%H:%M:%S%z"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
 
 ### 1. Read Context
 
