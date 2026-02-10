@@ -8,19 +8,19 @@ param(
 
 switch ($Type.ToLower()) {
     "agent" {
-        & "$PSScriptRoot/publish-agents.ps1" -Agents ($Name -split ' ')
+        & "$PSScriptRoot/publish-agents.ps1" -Agents $Name
     }
     "instruction" {
-        & "$PSScriptRoot/publish-instructions.ps1" -Instructions ($Name -split ' ')
+        & "$PSScriptRoot/publish-instructions.ps1" -Instructions $Name
     }
     "prompt" {
-        & "$PSScriptRoot/publish-prompts.ps1" -Prompts ($Name -split ' ')
+        & "$PSScriptRoot/publish-prompts.ps1" -Prompts $Name
     }
     "skill" {
-        & "$PSScriptRoot/publish-skills.ps1" -Method $Method -Skills ($Name -split ' ')
+        & "$PSScriptRoot/publish-skills.ps1" -Method $Method -Skills $Name
     }
     "toolset" {
-        & "$PSScriptRoot/publish-toolsets.ps1" -Toolsets ($Name -split ' ')
+        & "$PSScriptRoot/publish-toolsets.ps1" -Toolsets $Name
     }
     default {
         Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset"

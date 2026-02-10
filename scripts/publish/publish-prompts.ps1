@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string[]]$Prompts,
+    [string]$Prompts,
 
     [Parameter(Mandatory = $false)]
     [switch]$Force
@@ -27,7 +27,7 @@ function Publish-PromptsToVSCode {
         Copies all prompts from project to VS Code user prompts.
 
     .EXAMPLE
-        Publish-PromptsToVSCode -Prompts "changelog", "conventional-commit"
+        Publish-PromptsToVSCode -Prompts "changelog conventional-commit"
 
         Copies specific prompts.
     #>
@@ -55,10 +55,11 @@ function Publish-PromptsToVSCode {
 
     # Get prompt files to publish
     $promptFiles = Get-ChildItem -Path $projectPromptsPath -Filter "*.prompt.md"
-    if ($Prompts) {
+    $promptNames = $Prompts -split ' ' | Where-Object { $_.Trim() }
+    if ($promptNames) {
         $promptFiles = $promptFiles | Where-Object {
             $baseName = $_.Name -replace '\.prompt\.md$'
-            $Prompts | Where-Object { $baseName -like $_ } | Select-Object -First 1
+            $promptNames | Where-Object { $baseName -like $_ } | Select-Object -First 1
         }
     }
 
