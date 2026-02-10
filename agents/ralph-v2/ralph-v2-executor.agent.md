@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.1.0
+  version: 1.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-09T00:00:00Z
+  updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
 ---
 
@@ -103,6 +103,18 @@ created_at: 2026-02-07T10:00:00Z
 - **Windows**: `$env:USERPROFILE\.copilot\skills`
 - **Linux/WSL**: `~/.copilot/skills`
 
+### Local Timestamp Commands
+
+Use these commands for local timestamps in reports and progress updates:
+
+- **SESSION_ID format `<YYMMDD>-<hhmmss>`**
+  - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
+  - **Linux/WSL (bash):** `date +"%y%m%d-%H%M%S"`
+
+- **ISO8601 local timestamp (with offset)**
+  - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
+  - **Linux/WSL (bash):** `date +"%Y-%m-%dT%H:%M:%S%z"`
+
 ### 1. Read Context
 
 ```markdown
@@ -152,7 +164,7 @@ Poll signals/inputs/
 
 Update `progress.md`:
 ```markdown
-- [/] task-1 (Attempt <N>, Iteration <I>)
+- [/] task-1 (Attempt <N>, Iteration <I>, started: <timestamp>)
 ```
 
 ### 3. Implement/Execute
@@ -165,7 +177,6 @@ Focus on:
   - Meeting all Success Criteria
   - Applying inherited patterns
   - Addressing feedback (if iteration >= 2)
-  - UI Tasks: Use `playwright-cli` skill for ad-hoc browser validation/exploration
 
 # Step 2: Track file modifications
 files_modified = []
@@ -182,7 +193,7 @@ If ITERATION > 1 and feedback exists:
 - Run tests
 - Validate against success criteria
 - Store ephemeral artifacts in tests/task-<id>/ (consolidate results in Task Report)
-- UI Verification: Use `playwright-cli` skill for visual/interactive checks
+- Compile-time validation only (build, lint, type checks, unit tests)
 ```
 
 ### 3.5. Verify Signals (Mid-Execution)
@@ -230,20 +241,6 @@ Else:
 [Use Report Structure template]
 ```
 
-## playwright-cli: AI Coding Skill Tool (NOT a Node Package)
-
-**What playwright-cli IS:**
-- **AI coding skill tool** accessible via CLI commands
-- **Pre-installed and immediately available** - no setup required
-- **NO browser binaries required** - works without Chromium/Chrome installation
-- **NO system dependencies** - no apt packages, no sudo operations
-- **NO Node.js playwright package** - completely different from `npx playwright`
-
-**Usage Instruction:**
-- **MUST Scope CWD**: When using `playwright-cli` for testing, you MUST set the current working directory to `tests/task-<id>/`
-- This ensures test artifacts (screenshots, traces) are saved in the correct task context
-- Example path: `.ralph-sessions/<SESSION_ID>/tests/task-<id>/`
-
 ## Rules & Constraints
 
 - **ONE TASK ONLY**: Do not implement multiple tasks
@@ -252,6 +249,7 @@ Else:
 - **Preserve Reports**: Never overwrite previous reports
 - **MANDATORY PROGRESS UPDATES**: Update `progress.md` twice (start and end)
 - **Testing Folder**: Store *ephemeral artifacts*(e.g. log, generated files, ...) in `tests/task-<id>/`. **NO** test reports in this folder; consolidate in Task Report
+- **No Runtime UI Validation**: Do not run browser or UI validation; reviewer owns runtime checks
 - **Inheritance**: Read and apply patterns from dependency task reports
 - **Honest Assessment**: Don't mark as [P] if criteria not met
 

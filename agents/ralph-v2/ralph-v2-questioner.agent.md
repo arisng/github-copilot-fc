@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.1.0
+  version: 1.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-09T00:00:00Z
+  updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
 ---
 
@@ -130,8 +130,22 @@ updated_at: 2026-02-07T10:00:00Z
 - **Windows**: `$env:USERPROFILE\.copilot\skills`
 - **Linux/WSL**: `~/.copilot/skills`
 
+### Local Timestamp Commands
+
+Use these commands for local timestamps in question files:
+
+- **SESSION_ID format `<YYMMDD>-<hhmmss>`**
+  - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
+  - **Linux/WSL (bash):** `date +"%y%m%d-%H%M%S"`
+
+- **ISO8601 local timestamp (with offset)**
+  - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
+  - **Linux/WSL (bash):** `date +"%Y-%m-%dT%H:%M:%S%z"`
+
 ### 1. Context Acquisition
 - Read orchestrator prompt for MODE, CYCLE, ITERATION, CATEGORY
+- Read .ralph-sessions/<SESSION_ID>.instructions.md (if exists)
+- Load planning.max_cycles (default 2)
 - Read `plan.md`
 - Read existing question files if continuing
 
@@ -140,6 +154,12 @@ updated_at: 2026-02-07T10:00:00Z
 #### brainstorm Mode
 
 ```markdown
+# Guardrail: Cycle Limit
+If CYCLE > planning.max_cycles:
+  - Append a short note to questions/<category>.md: "Cycle skipped due to max_cycles"
+  - Mark plan-brainstorm as [x] in progress.md
+  - Return status completed
+
 # Step 1: Analyze plan.md
 Identify knowledge gaps in category:
 - Technical: Architecture, tools, dependencies, APIs
@@ -187,6 +207,12 @@ updated_at: <timestamp>
 #### research Mode
 
 ```markdown
+# Guardrail: Cycle Limit
+If CYCLE > planning.max_cycles:
+  - Append a short note to questions/<category>.md: "Cycle skipped due to max_cycles"
+  - Mark plan-research as [x] in progress.md
+  - Return status completed
+
 # Step 1: Read questions file
 Load questions/<category>.md
 
@@ -338,6 +364,7 @@ After completing work:
 - **Question Types**: Use consistent types (Root Cause, Solution, Prevention, Verification)
 - **Cycle Isolation**: Never overwrite previous cycles, append new ones
 - **Tag Source Issues**: Feedback-driven questions must reference source issue IDs
+- **Single Mode Only**: Reject any request that asks for multiple modes in one invocation
 
 ## Contract
 

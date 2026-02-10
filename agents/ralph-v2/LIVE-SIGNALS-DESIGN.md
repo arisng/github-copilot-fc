@@ -1,6 +1,7 @@
 # Design: Live Feedback Implementation (Ralph v2)
 
 ## Problem Statement
+
 Current "Feedback Loops" in Ralph v2 are **iteration-based** (batch). Users can only influence the session during `REPLANNING` (between iterations) or when a task fails. 
 Users need a way to **intervene asynchronously** ("live") during potentially long-running states like `EXECUTING_BATCH` or `PLANNING` to steer direction, inject new constraints, or pause execution without waiting for failure.
 
@@ -9,6 +10,7 @@ Users need a way to **intervene asynchronously** ("live") during potentially lon
 To avoid concurrency conflicts (e.g., User writing while Agent consumes, or multiple Agents consuming simultaneously), we use a **Directory-Based Mailbox Pattern** instead of a single file.
 
 ### 1. Artifacts: `signals/` Directory
+
 Located at the session root: `.ralph-sessions/<SESSION_ID>/signals/`.
 
 **Structure:**
@@ -63,12 +65,14 @@ handling_metadata:
 ### 3. Agent Integration
 
 #### A. Orchestrator (Ralph-v2)
+
 **Role**: Global signal router and flow controller.
 **Checkpoints**:
 1. **Before Invoking Subagent**: Check signals. If `STOP/PAUSE`, active immediately. If `STEER/INFO`, pass to subagent context.
 2. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks).
 
 #### B. Subagents (Executor/Planner/Questioner)
+
 **Role**: Context consumers.
 **Checkpoints**:
 1. **Initialization**: Read `pending` signals. If `target` matches, ingest and acknowledge.
@@ -94,13 +98,16 @@ handling_metadata:
 ## Implementation Plan
 
 ### Phase 1: Artifact Support
+
 - Define `signals/` directory structure.
 - Create `Inject-Signal` skill (PowerShell script) to create timestamped files safely.
 
 ### Phase 2: Agent Updates
+
 - **Ralph-v2**: Add "Poll Signals" step in State Machine key loops (list, move, read).
 - **Subagents**: Add "Poll Signals" logic at step boundaries.
 
 
 ### Phase 3: "Hot Steering" (Advanced)
+
 - Allow agents to "restart" current step if a `STEER` signal invalidates previous work immediately.

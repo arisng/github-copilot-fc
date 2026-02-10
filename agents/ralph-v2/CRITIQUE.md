@@ -1,92 +1,120 @@
-# Ralph v2 Workflow Critique (Revision 2)
+# Ralph v2 Workflow Critique (Revision 3)
 
-**Date**: 2026-02-08  
-**Status**: Post-Remediation Review
+**Date**: 2026-02-10  
+**Status**: Post-Remediation Review (Delta Focus)
 
 ## Executive Summary
 
-The Ralph v2 architecture has been significantly hardened based on the "Delegated State" pattern. The Orchestrator is now correctly positioned as a read-only router for shared execution state, with write authority delegated to specialized subagents. This eliminates the primary race conditions identified in the previous review.
+Ralph v2 is structurally sound for single-stream execution and has resolved the prior critical race conditions through the Delegated State pattern. The remaining risks are no longer architectural correctness issues, but operational and governance gaps: lifecycle guardrails, state consistency, and resiliency controls. These are tractable with light-weight guardrails and validation, without altering the core architecture.
 
 **Status Overview:**
 - ✅ **Critical Race Conditions**: Resolved via Delegated State Pattern
-- ✅ **Task Lifecycle**: Improved task validation and `plan-init` handling
-- ✅ **Session Governance**: Centralized holistic review in Ralph-Reviewer
-- ⚠️ **Resiliency**: Error recovery and rollbacks are deferred (as per design constraints)
+- ✅ **Task Lifecycle**: Explicit task existence validation is in place
+- ✅ **Session Governance**: Dedicated Session Review state confirmed
+- ⚠️ **Operational Guardrails**: Missing cycle limits, state validation, and input hardening
+- ⚠️ **Resiliency**: No retries/rollback, limited observability
+- ⚠️ **Orchestrator Purity**: Observed fallback to self-execution on subagent timeouts
 
 ---
 
-## 1. Resolved Issues
+## 1. Strengths (Confirmed)
 
-### ✅ Orchestrator Read-Only Access
+### ✅ Read-Only Orchestrator
 
-The Orchestrator no longer writes to `progress.md` during execution or review loops.
-- **Proof**: `EXECUTING_BATCH` and `REVIEWING_BATCH` states now wait for completion, trusting subagents (Executor/Reviewer) to update `progress.md`.
-- **Benefit**: Eliminates "double-write" race conditions defined in the previous critique.
+The Orchestrator functions as a router and state observer only, preventing double-write contention.
 
-### ✅ Task Validation
+### ✅ Single Source of Truth (SSOT)
 
-The Orchestrator now explicitly validates task file existence (`tasks/<task-id>.md`) before invocation.
-- **Benefit**: Prevents "blind execution" failures where the orchestrator would try to run a deleted or missing task.
+`progress.md` is the sole progress state; tasks are isolated in `tasks/<id>.md` files.
 
-### ✅ Session Review Segregation
+### ✅ Structured Feedback Loops
 
-A dedicated `SESSION_REVIEW` state has been added, invoking `Ralph-v2-Reviewer` in `SESSION_REVIEW` mode.
-- **Benefit**: Ensures holistic consistency checks happen in a specialized agent, not implicitly in the Orchestrator's routing logic.
-
-### ✅ Contract Redundancy Fix
-
-`Ralph-v2-Executor` output contract has been cleaned up.
-- **Change**: Removed redundant `parallel_execution_context` object.
-- **Result**: Output is now flat and unambiguous (`files_modified` at the root).
+The v2 feedbacks directory layout and REPLANNING state enforce explicit feedback handling.
 
 ---
 
-## 2. Remaining Improvements (Actionable)
+## 2. Remaining Risks (Prioritized)
 
-### 🟡 Medium: Cycle Limits for Planning
+### 🔴 High: State Machine Drift
 
-**Problem**: The `PLANNING` loop (`plan-brainstorm`, `plan-research`) theoretically allows infinite cycles if the Questioner keeps generating new questions.
-- **Recommendation**: Add a `MAX_CYCLES` guardrail in the Orchestrator or Planner to force a transition to `TASK_BREAKDOWN` after N cycles.
+**Risk**: Orchestrator decisions depend on `progress.md` and metadata fields without schema validation.
+Incorrect or partial edits can cause invalid transitions (e.g., REPLANNING with no feedback batch).
 
-### 🟡 Medium: Metadata.yaml Optimistic Locking
+### 🟠 High: Path Injection via Session ID
 
-**Problem**: While `progress.md` is safe, `metadata.yaml` is still touched by both Planner (initialization) and Orchestrator (state tracking).
-- **Recommendation**: As a future enhancement, implement a `version` field in `metadata.yaml` to detect if the Planner updated the file while the Orchestrator was processing.
+**Risk**: `SESSION_ID` is used to build file paths without sanitization, enabling traversal or invalid paths.
 
-### 🟡 Medium: Input Sanitization
+### 🟡 Medium: Planning Cycle Exhaustion
 
-**Problem**: `SESSION_ID` inputs are still used directly in file paths.
-- **Recommendation**: Add path traversal checks (`../`) in the Orchestrator before resolving `.ralph-sessions/<SESSION_ID>/`.
+**Risk**: `plan-brainstorm` and `plan-research` can loop indefinitely if new questions keep emerging.
+
+### 🟡 Medium: Metadata Ownership Conflicts
+
+**Risk**: `metadata.yaml` can still be modified by multiple agents without optimistic locking or a revision check.
+
+### 🟡 Medium: Partial Failure Handling
+
+**Risk**: A subagent crash can leave `progress.md` in `[/]` with no timeout, forcing manual recovery.
+
+### 🟡 Medium: Orchestrator Role Drift
+
+**Risk**: On subagent timeout, the Orchestrator may attempt to complete the task itself, violating the router-only contract and mixing responsibilities.
+
+### 🟡 Medium: Multi-Mode Subagent Invocation
+
+**Risk**: A single subagent invocation may be asked to execute multiple modes (e.g., Planner `UPDATE` + `REBREAKDOWN`), increasing context overload and blending responsibilities.
+
+### 🟡 Medium: Dependency Enforcement
+
+**Risk**: Task dependency rules (`depends_on`) are not enforced by a hard pre-check before execution.
 
 ---
 
-## 3. Deferred capabilities (By Design)
+## 3. Recommendations (Actionable)
 
-The following areas are acknowledged gaps but are deferred for future enhancements:
-- **Rollback Mechanism**: No transaction logging or state rollback on failure.
-- **Advanced Concurrency**: No file-level locking or complex isolation checks (relying on user/planner discipline).
-- **Subagent Resilience**: No retry logic for crashed subagents; system fails fast.
-- **Feedback Validation**: `feedbacks.md` structure is treated as optional/flexible.
+### Guardrails and Validation
+
+1. **Add a state schema validator** for `progress.md` and `metadata.yaml` before transitions.
+2. **Introduce `MAX_CYCLES`** for planning loops; after N cycles, force `TASK_BREAKDOWN` with a warning note.
+3. **Sanitize `SESSION_ID`** by restricting to `^[0-9]{6}-[0-9]{6}$` and rejecting path separators.
+
+### Resiliency and Recovery
+
+4. **Add a timeout rule** for `[/]` tasks (e.g., mark as `[F]` after TTL or prompt for recovery).
+5. **Add a retry slot** for failed subagent calls (single retry with backoff, then fail fast).
+6. **On timeout or error, re-spawn the same subagent** with the same single-mode request; never route the Orchestrator to execute the task.
+
+### Consistency and Governance
+
+7. **Optimistic locking for `metadata.yaml`** using a `version` field incremented on each write.
+8. **Enforce one mode per subagent invocation**; chain modes via separate subagent calls.
+9. **Dependency pre-check**: block execution of a task if any `depends_on` tasks are not `[x]`.
 
 ---
 
-## 4. Final Verification
+## 4. Deferred Capabilities (By Design)
 
-### Workflow Logic Check
+These are acceptable gaps given the current scope, but should be explicit in docs:
+- **Rollback Mechanism**: No transaction rollback or revert of partial writes.
+- **Advanced Concurrency**: No file locking or transactional isolation across subagents.
+- **Deep Observability**: No structured event log for agent decisions and state transitions.
 
-1. **Init**: Planner creates artifacts + marks `plan-init` [x]. -> **OK**
-2. **Planning**: Orchestrator routes based on `progress.md`. -> **OK**
-3. **Execution**: Orchestrator checks file -> Invokes Executor -> Executor updates [P]. -> **OK**
-4. **Review**: Orchestrator invokes Reviewer -> Reviewer updates [x]/[F]. -> **OK**
-5. **Session Review**: Orchestrator invokes Reviewer (Session Mode). -> **OK**
+---
 
-### Conclusion
+## 5. Validation Checklist (Operational)
 
-The architecture is now **Structurally Sound** for single-stream execution. The separation of concerns is strict:
-- **Orchestrator**: Routing & Read-Only Monitoring
-- **Planner**: Artifact Creation & Plan Mutable State
-- **Executor**: Task Implementation & Progress Marking ([/], [P])
-- **Reviewer**: Quality Gating & Progress Marking ([x], [F])
+Use this before rolling out changes to v2 agents:
 
-**Rating**: 9/10 (Within constraints)
-The system is ready for implementation/usage of the v2 agents.
+1. **State validation** passes for a clean session and a REPLANNING session.
+2. **Session ID sanitization** rejects invalid inputs (`../`, spaces, extra dots).
+3. **Planning cycle limit** triggers and reports the forced transition.
+4. **Dependency pre-check** blocks dependent tasks when prerequisites are not `[x]`.
+5. **Timeout recovery** converts stale `[/]` to `[F]` with a reason note.
+6. **Subagent retry** spawns the same role with the same single-mode request.
+7. **Single-mode enforcement** prevents `UPDATE` + `REBREAKDOWN` in one Planner call.
+
+---
+
+## Conclusion
+
+Ralph v2 is ready for sustained use under its current architectural constraints. The next step is not structural change, but operational guardrails that prevent drift, enforce consistency, and improve recovery ergonomics. With those additions, the system would reach production-grade reliability for single-stream execution.
