@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -279,9 +279,6 @@ planning_complete: false
 |-----------|--------|-------|-----------|
 | 1 | Planning | 0/0 | N/A |
 
-## Current State
-state: PLANNING
-iteration: 1
 ```
 
 # Step 4: Create metadata.yaml
@@ -462,7 +459,6 @@ Read metadata.yaml (if exists)
   - Legend section
   - Planning Progress section (preserve existing statuses if present)
   - Implementation Progress listing all tasks from tasks/*.md
-  - Current State with state and iteration from metadata.yaml (if valid)
 
 # Step 3: Reconstruct metadata.yaml
 - If missing or malformed, recreate with:

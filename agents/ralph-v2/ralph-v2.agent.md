@@ -7,7 +7,7 @@ target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer']
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -124,7 +124,6 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - `## Legend` section with statuses `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]`
 - `## Planning Progress (Iteration N)` section
 - `## Implementation Progress (Iteration N)` section
-- `## Current State` with `state:` and `iteration:`
 
 **metadata.yaml must include:**
 - `version`, `session_id`, `created_at`, `updated_at`, `iteration`

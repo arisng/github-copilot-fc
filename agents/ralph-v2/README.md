@@ -164,11 +164,6 @@ inherited_by: [task-2]
 | 1         | Complete   | 1/2   | N/A             |
 | 2         | Replanning | 0/2   | 20260207-110000 |
 
-## Current State
-state: REPLANNING
-iteration: 2
-```
-
 ### 3. Structured Feedback Loops
 
 **v1 Problem**: No structured way to provide feedback for failed tasks.
