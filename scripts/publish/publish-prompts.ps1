@@ -56,7 +56,10 @@ function Publish-PromptsToVSCode {
     # Get prompt files to publish
     $promptFiles = Get-ChildItem -Path $projectPromptsPath -Filter "*.prompt.md"
     if ($Prompts) {
-        $promptFiles = $promptFiles | Where-Object { ($_.Name -replace '\.prompt\.md$') -in $Prompts }
+        $promptFiles = $promptFiles | Where-Object {
+            $baseName = $_.Name -replace '\.prompt\.md$'
+            $Prompts | Where-Object { $baseName -like $_ } | Select-Object -First 1
+        }
     }
 
     if ($promptFiles.Count -eq 0) {
