@@ -1,7 +1,9 @@
 ---
 name: git-atomic-commit
 description: Skill for analyzing git changes, grouping them into logical atomic commits, generating conventional commit messages, and guiding through the commit process. Use when committing changes with proper conventional commit format and maintaining atomic commits.
-version: 1.1.0
+metadata: 
+   version: 1.1.1
+   author: arisng
 ---
 
 # Git Atomic Commit
@@ -70,7 +72,7 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 **Scope Selection Process:**
 1. Check if repository has a scope constitution at `.github/scope-constitution.md`
 2. If constitution exists, use it to select approved scopes for each commit type
-3. If no constitution exists, use the `commit-scope-constitution` skill to:
+3. If no constitution exists, use the `git-commit-scope-constitution` skill to:
    - Analyze repository structure (folders, modules, domains)
    - Extract historical scopes from git history
    - Propose appropriate scopes based on project structure
@@ -176,7 +178,7 @@ For each group, generate a commit message following **Conventional Commits** for
 - Prefer scopes from `.github/scope-constitution.md` if available
 - Ensure scope aligns with repository structure (module, domain, feature)
 - Follow kebab-case, lowercase naming conventions
-- Use `commit-scope-constitution` skill if unclear
+- Use `git-commit-scope-constitution` skill if unclear
 
 ### 8. Commit Message Quality Standards
 
@@ -238,9 +240,9 @@ After all commits are done, show a summary of all commits created.
 - Ensure commit order maintains a buildable state
 - Use English for all commit messages unless instructed otherwise
 
-## Integration with commit-scope-constitution Skill
+## Integration with git-commit-scope-constitution Skill
 
-This skill works in tandem with the `commit-scope-constitution` skill to ensure complete commit message consistency:
+This skill works in tandem with the `git-commit-scope-constitution` skill to ensure complete commit message consistency:
 
 **Division of Responsibility:**
 - **git-atomic-commit** (this skill):
@@ -249,7 +251,7 @@ This skill works in tandem with the `commit-scope-constitution` skill to ensure 
   - Validates commit structure and ordering
   - Executes commits with user approval
 
-- **commit-scope-constitution**:
+- **git-commit-scope-constitution**:
   - Defines valid scopes for each commit type
   - Maintains scope naming conventions
   - Aligns scopes with repository structure
@@ -261,7 +263,7 @@ Changed Files
     ↓
 git-atomic-commit: Map files → Commit types
     ↓
-commit-scope-constitution: Select scopes for each type
+git-commit-scope-constitution: Select scopes for each type
     ↓
 git-atomic-commit: Generate commit messages
     ↓
@@ -270,7 +272,7 @@ Final Commits: type(scope): subject
 
 **When to Use Each:**
 - Use `git-atomic-commit` for every commit workflow
-- Use `commit-scope-constitution` when:
+- Use `git-commit-scope-constitution` when:
   - Repository lacks `.github/scope-constitution.md`
   - Need to add new scopes
   - Weekly constitution refinement
