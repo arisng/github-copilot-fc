@@ -13,19 +13,19 @@ Ralph v2 is structurally sound for single-stream execution and has resolved the 
 - ✅ **Session Governance**: Dedicated Session Review state confirmed
 - ✅ **Operational Guardrails**: Cycle limits, state validation, input hardening added
 - ✅ **Resiliency**: Timeout recovery policy, retry backoff, and task splitting added
-- ✅ **Orchestrator Purity**: Router-only behavior enforced with explicit rules
+- ✅ **Orchestrator Purity**: Router-only behavior enforced for content, but State Ownership granted for `metadata.yaml`
 
 ---
 
 ## 1. Strengths (Confirmed)
 
-### ✅ Read-Only Orchestrator
+### ✅ Orchestrator-Owned State
 
-The Orchestrator functions as a router and state observer only, preventing double-write contention.
+The Orchestrator directly updates `metadata.yaml` on state transitions, ensuring atomicity and eliminating sync drift.
 
 ### ✅ Single Source of Truth (SSOT)
 
-`progress.md` is the sole progress state; tasks are isolated in `tasks/<id>.md` files.
+`progress.md` is the sole progress SSOT; `metadata.yaml` is the sole state SSOT.
 
 ### ✅ Structured Feedback Loops
 

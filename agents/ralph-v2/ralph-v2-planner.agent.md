@@ -6,7 +6,7 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
 metadata:
-  version: 1.6.0
+  version: 1.7.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-10T00:00:00Z
   timezone: UTC+7
@@ -433,7 +433,7 @@ Read .ralph-sessions/<SESSION_ID>/metadata.yaml
 Capture current version
 
 # Step 2: Update fields
-Update status = <STATUS> (from input)
+Update status = <STATUS> (if provided)
 Update updated_at = <timestamp>
 If ITERATION provided: Update iteration = <ITERATION>
 Increment version by 1

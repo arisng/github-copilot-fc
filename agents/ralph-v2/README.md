@@ -48,7 +48,7 @@ Session ID Format: `<YYMMDD>-<hhmmss>` (e.g., `260209-143000`)
 ├── plan.iteration-1.md            # Immutable snapshot
 ├── plan.iteration-2.md            # Immutable snapshot
 ├── progress.md                    # SSOT for task status
-├── metadata.yaml                  # Session metadata (Managed by Planner/Reviewer)
+├── metadata.yaml                  # Session metadata (Managed by Orchestrator)
 │
 ├── tasks/                         # Isolated task files
 │   ├── task-1.md
@@ -295,6 +295,7 @@ Review for iteration N, documenting:
 ### 9. Operational Guardrails (New)
 
 - **Schema validation** for `progress.md` and `metadata.yaml`
+- **Orchestrator-owned state ownership** of `metadata.yaml` (atomic transitions)
 - **Single-mode invocations** for all subagents
 - **Timeout recovery policy** with sleep backoff and task splitting
 - **Reviewer-owned runtime validation** (mandatory for every task)
@@ -419,3 +420,8 @@ See `templates/` directory for:
 - REPLANNING state
 - Plan snapshots
 - SSOT progress tracking
+
+### v2.0.1 (2026-02-10)
+- Orchestrator assumes direct ownership of `metadata.yaml` state updates
+- Removed `## Current State` redundancy from `progress.md`
+- Simplification of state transition logic
