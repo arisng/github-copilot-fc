@@ -236,7 +236,7 @@ Scope: PDF ❌ (wrong case)
 - Change doesn't fit any existing scope
 
 **How to Propose:**
-1. Extract current scopes: `python3 skills/commit-scope-constitution/scripts/extract_scopes.py`
+1. Extract current scopes: `python3 skills/git-commit-scope-constitution/scripts/extract_scopes.py`
 2. Check if similar scope exists
 3. Draft scope definition following naming conventions
 4. Document rationale for new scope
@@ -331,6 +331,6 @@ This constitution should be:
 ## Related Skills
 
 - **git-atomic-commit**: Enforces commit type mappings (file path → commit type)
-- **commit-scope-constitution**: Defines valid scopes within each commit type (this skill)
+- **git-commit-scope-constitution**: Defines valid scopes within each commit type (this skill)
 
 Together they ensure commits follow: `correct_type(approved_scope): clear_message`
