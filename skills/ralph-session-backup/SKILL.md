@@ -1,7 +1,9 @@
 ---
 name: ralph-session-backup
-description: Backup a specific Ralph session directory from .ralph-sessions to the Google Drive SwarmSessions folder with versioning support. Use when archiving or copying Ralph session data with all nested files and folders.
-version: 1.6.0
+description: Backup a specific Ralph session directory from .ralph-sessions to the Google Drive SwarmSessions folder with versioning support. Use when archiving or copying Ralph session data with all nested files and folders. Auto-zips older backups to save space.
+metadata: 
+    version: 1.8.0
+    author: arisng
 ---
 
 # Ralph Session Backup
@@ -18,18 +20,21 @@ To backup a specific session:
 
 **Important**: The script path must be resolved relative to the current skill directory location. This requires first determining where this skill is installed (e.g., in personal Copilot folders like .claude, .copilot, etc.) before executing the script.
 
-### Versioning Structure
+### Versioning & Storage Optimization
 
-The script creates a versioned backup structure:
+The script creates a versioned backup structure and auto-zips older backups to optimize storage:
 
 ```txt
 SwarmSessions/
 └── <repo_name>/
     └── <session_name>/           # Session folder (YYMMDD-HHMMSS)
-        ├── backup_YYMMDD-HHMMSS/    # Individual backup versions
-        ├── latest-win/              # Windows junction point -> latest backup
-        └── latest-linux/            # Linux symlink -> latest backup
+        ├── backup_YYMMDD-HHMMSS/    # Latest backup (unzipped directory)
+        ├── backup_YYMMDD-HHMMSS.zip # Older backups (auto-zipped)
+        ├── latest-win/              # Windows junction point -> latest backup directory
+        └── latest-linux/            # Linux symlink -> latest backup directory
 ```
+
+**Auto-Zipping Logic**: When a new backup is created, the script automatically zips any existing unzipped backup directories in the session folder. Only the most recent backup remains as an unzipped directory for easy access via the `latest` links.
 
 ### Command Options
 

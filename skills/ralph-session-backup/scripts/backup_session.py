@@ -11,6 +11,7 @@ import shutil
 import sys
 import platform
 import subprocess
+import zipfile
 from datetime import datetime
 
 def get_current_timestamp():
@@ -82,19 +83,42 @@ def create_versioned_backup(source, dest_base, session_name, repo_name):
 
     return backup_dest
 
+def zip_directory(directory_path, zip_path):
+    """Zips a directory and removes the original directory if successful"""
+    print(f"Zipping {directory_path} to {zip_path}...")
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(directory_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, os.path.dirname(directory_path))
+                    zipf.write(file_path, arcname)
+        
+        # Verify zip file exists and has size before deleting original
+        if os.path.exists(zip_path) and os.path.getsize(zip_path) > 0:
+            shutil.rmtree(directory_path)
+            print(f"Successfully zipped and removed original: {directory_path}")
+        else:
+            print(f"Warning: Zip file {zip_path} seems empty or failed. Original directory kept.")
+    except Exception as e:
+        print(f"Error zipping directory {directory_path}: {e}")
+
 def list_session_versions(dest_base, repo_name, session_name):
-    """List all versions of a session"""
+    """List all versions of a session (both directories and zip files)"""
     session_folder = os.path.join(dest_base, repo_name, session_name)
     if not os.path.exists(session_folder):
         return []
 
-    versions = []
+    versions = set()
     for item in os.listdir(session_folder):
-        item_path = os.path.join(session_folder, item)
-        if os.path.isdir(item_path) and item.startswith("backup_"):
-            versions.append(item)
+        if item.startswith("backup_"):
+            # Remove .zip extension for version comparison
+            version_name = item
+            if item.endswith(".zip"):
+                version_name = item[:-4]
+            versions.add(version_name)
 
-    return sorted(versions, reverse=True)  # Most recent first
+    return sorted(list(versions), reverse=True)  # Most recent first
 
 def get_latest_session_path(dest_base, repo_name, session_name):
     """Get the path to the latest session version for current platform"""
@@ -118,7 +142,7 @@ def get_latest_session_path(dest_base, repo_name, session_name):
             return None
 
 def cleanup_old_versions(dest_base, repo_name, session_name, keep_count=5):
-    """Keep only the most recent N versions"""
+    """Keep only the most recent N versions (handles both directories and zip files)"""
     session_folder = os.path.join(dest_base, repo_name, session_name)
     versions = list_session_versions(dest_base, repo_name, session_name)
 
@@ -129,13 +153,28 @@ def cleanup_old_versions(dest_base, repo_name, session_name, keep_count=5):
     deleted_count = 0
 
     for version in versions_to_delete:
-        version_path = os.path.join(session_folder, version)
-        try:
-            shutil.rmtree(version_path)
+        # Check for both directory and zip file
+        dir_path = os.path.join(session_folder, version)
+        zip_path = dir_path + ".zip"
+        
+        deleted = False
+        if os.path.isdir(dir_path):
+            try:
+                shutil.rmtree(dir_path)
+                deleted = True
+            except OSError as e:
+                print(f"Warning: Could not delete directory {version}: {e}")
+        
+        if os.path.exists(zip_path):
+            try:
+                os.remove(zip_path)
+                deleted = True
+            except OSError as e:
+                print(f"Warning: Could not delete zip {version}: {e}")
+        
+        if deleted:
             deleted_count += 1
             print(f"Cleaned up old version: {version}")
-        except OSError as e:
-            print(f"Warning: Could not delete {version}: {e}")
 
     return deleted_count
 
@@ -219,6 +258,16 @@ def main():
         sys.exit(1)
 
     try:
+        # Zip existing backups before creating a new one
+        versions = list_session_versions(dest_base, repo_name, session_name)
+        session_folder = os.path.join(dest_base, repo_name, session_name)
+        for version in versions:
+            version_path = os.path.join(session_folder, version)
+            if os.path.isdir(version_path):
+                zip_path = version_path + ".zip"
+                if not os.path.exists(zip_path):
+                    zip_directory(version_path, zip_path)
+
         # Create versioned backup
         backup_path = create_versioned_backup(source, dest_base, session_name, repo_name)
         print(f"Successfully created versioned backup: {backup_path}")
