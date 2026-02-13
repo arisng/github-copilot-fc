@@ -4,7 +4,7 @@ function Invoke-CopilotWorkspaceCommand {
         Execute commands from the Copilot FC workspace configuration.
 
     .DESCRIPTION
-        Reads the workspace manifest (supports copilot-*.json; default is copilot-fc.json) and executes predefined commands for managing
+        Executes predefined terminal-first commands for managing
         the Copilot FC workspace components.
     .PARAMETER Command
         The command to execute (use 'list' to see available commands).
@@ -25,39 +25,17 @@ function Invoke-CopilotWorkspaceCommand {
         [string]$Command
     )
 
-    # Determine configuration file: prefer COPILOT_WORKSPACE_FILE env var, then a single copilot-*.json file, otherwise default to 'copilot-fc.json'
     $repoRoot = Split-Path $PSScriptRoot -Parent
 
-    if ($env:COPILOT_WORKSPACE_FILE) {
-        $configFilename = $env:COPILOT_WORKSPACE_FILE
-    }
-    else {
-        $matches = Get-ChildItem -Path $repoRoot -Filter 'copilot-*.json' -File -ErrorAction SilentlyContinue
-        if ($matches -and $matches.Count -eq 1) {
-            $configFilename = $matches[0].Name
-        }
-        elseif ($matches -and $matches.Count -gt 1) {
-            Write-Error "Multiple copilot-*.json files found. Set the COPILOT_WORKSPACE_FILE environment variable to specify which one to use."
-            return
-        }
-        else {
-            $configFilename = 'copilot-fc.json'
-        }
-    }
-
-    $configPath = Join-Path $repoRoot $configFilename
-
-    if (-not (Test-Path $configPath)) {
-        Write-Error "Configuration file not found: $configPath"
-        return
-    }
-
-    try {
-        $config = Get-Content $configPath -Raw | ConvertFrom-Json
-    }
-    catch {
-        Write-Error "Failed to parse configuration file: $_"
-        return
+    $commands = [ordered]@{
+        'agents:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-agents.ps1'
+        'instructions:publish' = 'pwsh -NoProfile -File scripts/publish/publish-instructions.ps1'
+        'prompts:publish'      = 'pwsh -NoProfile -File scripts/publish/publish-prompts.ps1'
+        'skills:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-skills.ps1'
+        'toolsets:publish'     = 'pwsh -NoProfile -File scripts/publish/publish-toolsets.ps1'
+        'issues:reindex'       = 'pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1'
+        'workspace:list-skills' = 'Get-ChildItem -Path skills -Directory | Select-Object Name'
+        'workspace:status'      = "Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
     }
 
     # If no command specified or 'list', show available commands
@@ -66,8 +44,8 @@ function Invoke-CopilotWorkspaceCommand {
         Write-Host "=================================" -ForegroundColor Cyan
         Write-Host ""
 
-        $config.commands.PSObject.Properties | ForEach-Object {
-            Write-Host "$($_.Name.PadRight(20)) : $($_.Value)" -ForegroundColor White
+        $commands.Keys | ForEach-Object {
+            Write-Host "$($_.PadRight(20)) : $($commands[$_])" -ForegroundColor White
         }
 
         Write-Host ""
@@ -76,8 +54,8 @@ function Invoke-CopilotWorkspaceCommand {
     }
 
     # Execute the specified command
-    if ($config.commands.PSObject.Properties.Name -contains $Command) {
-        $commandLine = $config.commands.$Command
+    if ($commands.Contains($Command)) {
+        $commandLine = $commands[$Command]
         Write-Host "Executing: $Command" -ForegroundColor Green
         Write-Host "Command: $commandLine" -ForegroundColor Gray
         Write-Host ""
@@ -95,8 +73,8 @@ function Invoke-CopilotWorkspaceCommand {
     }
 }
 
-# If script is run directly, execute the command
-if ($MyInvocation.InvocationName -eq $MyInvocation.MyCommand.Name) {
+# If script is run directly (not dot-sourced), execute the command
+if ($MyInvocation.InvocationName -ne '.') {
     if ($args.Count -eq 0) {
         Invoke-CopilotWorkspaceCommand -Command 'list'
     }
