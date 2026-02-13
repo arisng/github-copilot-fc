@@ -2,7 +2,10 @@
 	"web": {
 		"tools": [
 			"fetch",
-            "brave_web_search"
+			"mcp_docker/search", // duckduckgo
+			"mcp_docker/fetch_content", // duckduckgo
+			"brave_summarizer", 
+			"brave_web_search"
 		],
 		"description": "my web search toolset",
 		"icon": "globe"

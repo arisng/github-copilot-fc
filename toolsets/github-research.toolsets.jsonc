@@ -11,7 +11,8 @@
             "list_releases",
             "list_tags",
             "search_code",
-            "search_repositories"
+            "search_repositories",
+            "deepwiki"
 		],
 		"description": "collection of tools to interact with GitHub repositories in a read-only manner, serving research and data-gathering purposes.",
 		"icon": "github"

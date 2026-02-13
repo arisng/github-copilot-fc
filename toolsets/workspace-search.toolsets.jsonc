@@ -1,7 +1,8 @@
 {
 	"workspace-search": {
 		"tools": [
-			"search"
+			"search/changes",
+			"search/codebase"
 		],
 		"description": "my custom workspace search tool set",
 		"icon": "search"

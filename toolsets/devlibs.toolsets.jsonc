@@ -2,7 +2,8 @@
 	"devlibs": {
 		"tools": [
             "microsoftdocs/mcp",
-            "context7"
+			"get-library-docs",
+			"resolve-library-id"
 		],
 		"description": "my dev libraries toolset",
 		"icon": "library"

@@ -1,9 +1,7 @@
 {
 	"utils": {
 		"tools": [
-			"todo",
-            "sequentialthinking",
-            "time"
+            "sequentialthinking"
 		],
 		"description": "my utils toolset",
 		"icon": "tools"
