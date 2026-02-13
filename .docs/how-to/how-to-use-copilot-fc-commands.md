@@ -1,6 +1,6 @@
 # How to use Copilot FC commands
 
-This guide shows you how to use the commands declared in `copilot-fc.json` to publish agents/skills and maintain the workspace.
+This guide shows you how to use terminal-first workspace commands to publish artifacts and maintain the workspace.
 
 ## When to use this guide
 
@@ -15,22 +15,22 @@ Use this guide when you need to publish content (agents, prompts, skills) or run
 
 ### Run a pre-defined command
 
-1. From the repository root run the command defined in the `commands` object. Example: list skills
+1. From the repository root, run the command router. Example: list skills.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/workspace/run-command.ps1 "workspace:list-skills"
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 "workspace:list-skills"
 ```
 
-2. To publish skills:
+1. To publish skills:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
+pwsh -NoProfile -File scripts/publish/publish-skills.ps1
 ```
 
-### Add a new command to the manifest
+### Add a new command to the router
 
-1. Add an entry under `commands` in `copilot-fc.json` with a descriptive key and an executable PowerShell invocation. Setting `COPILOT_WORKSPACE_FILE` lets you override the filename if needed.
-2. Document the new command in `.docs/how-to/` with expected arguments and example usage.
+1. Add an entry to the `$commands` mapping in `scripts/workspace/run-command.ps1` with a descriptive key and executable command.
+1. Document the new command in `.docs/how-to/` with expected arguments and example usage.
 
 ## Troubleshooting
 
@@ -40,4 +40,4 @@ powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 ## Related
 
 - [Reference: Copilot FC Reference](../reference/copilot-fc-reference.md)
-- [Explanation: About `copilot-fc.json`](../explanation/about-copilot-fc.md)
+- [Explanation: About workspace commands](../explanation/about-copilot-fc.md)

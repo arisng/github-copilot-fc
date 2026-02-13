@@ -1,6 +1,6 @@
 # Copilot Workspace Documentation Index
 
-This index links Diátaxis-organized documentation for the `copilot-fc.json` manifest.
+This index links Diátaxis-organized documentation for the workspace.
 
 ## Tutorials
 
@@ -19,5 +19,5 @@ This index links Diátaxis-organized documentation for the `copilot-fc.json` man
 
 ## Explanation
 
-- [About `copilot-fc.json`](explanation/about-copilot-fc.md)
+- [About Copilot FC workspace commands](explanation/about-copilot-fc.md)
 
