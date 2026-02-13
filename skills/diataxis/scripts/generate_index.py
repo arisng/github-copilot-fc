@@ -34,7 +34,7 @@ def main(docs_root='.docs'):
 
     index_content = """# Copilot Workspace Documentation Index
 
-This index links Diátaxis-organized documentation for the `copilot-fc.json` manifest.
+This index links Diátaxis-organized documentation for the workspace.
 
 """
 
