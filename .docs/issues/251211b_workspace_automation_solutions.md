@@ -21,7 +21,7 @@ This repository now includes a comprehensive automation system for managing GitH
 
 ### 2. Workspace Configuration System
 
-- **`copilot-fc.json`**: Central configuration file defining workspace structure and commands (default filename; override with `COPILOT_WORKSPACE_FILE`).
+- **Built-in command mapping**: Centralized command definitions in `scripts/workspace/run-command.ps1`.
 - **Unified Commands**: Single interface for all workspace operations (skills, agents, issues, etc.)
 - **Extensible**: Easy to add new commands and components
 
@@ -77,11 +77,9 @@ This repository now includes a comprehensive automation system for managing GitH
 
 ## 📊 Method Comparison
 
-| Method | Cross-Platform | Auto-Updates | Admin Required | Best For          |
-| ------ | -------------- | ------------ | -------------- | ----------------- |
-| Copy   | ✅              | ❌            | ❌              | Production        |
-| Link   | ⚠️ Windows      | ✅            | ✅ Windows      | Development       |
-| Sync   | ❌ Windows      | ✅            | ❌              | Large Collections |
+- **Copy**: Cross-platform ✅, auto-updates ❌, admin required ❌, best for production.
+- **Link**: Cross-platform ⚠️ Windows, auto-updates ✅, admin required ✅ Windows, best for development.
+- **Sync**: Cross-platform ❌ Windows, auto-updates ✅, admin required ❌, best for large collections.
 
 ## 🔄 Automation Levels
 
