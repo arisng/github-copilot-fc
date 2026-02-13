@@ -4,11 +4,11 @@ description: Quality assurance agent v2 with isolated task files, feedback-aware
 argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL), TASK_ID, REPORT_PATH, and ITERATION for review
 user-invokable: false
 target: vscode
-tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'memory']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-10T00:00:00Z
+  updated_at: 2026-02-11T00:00:00Z
   timezone: UTC+7
 ---
 
@@ -139,6 +139,18 @@ Poll signals/inputs/
   If STOP: Return early
 ```
 
+### 1.6. Infer Workload Type
+
+Determine the workload category before selecting runtime validation steps.
+
+**Detection signals (non-exhaustive):**
+- Documentation workload: files in the workspace wiki (`.docs/`), or tasks that only edit `.md`/`.jsonc` with guidance text.
+- Frontend/UI workload: UI components, CSS/HTML/Blazor/React, or screenshots mentioned in criteria.
+- Backend/service workload: server-side code, APIs, data access, or runtime endpoints.
+- Script/automation workload: changes under `scripts/` or task focuses on CLI/tooling behavior.
+
+Record the inferred type in review notes and use it to pick runtime validation.
+
 ### 2. Validate Success Criteria
 
 ```markdown
@@ -188,10 +200,19 @@ Criterion: "Contains YAML frontmatter"
 
 - Code review: Inspect files for quality
 - Test execution: Run tests, capture results to tests/task-<id>/
-- Runtime validation (mandatory): Use `playwright-cli` skill for visual/interactive checks
+- Runtime validation (mandatory): Select by workload type (see mapping)
 - Verification: Check success criteria evidence
 - Cross-reference: Compare executor claims to reality
 ```
+
+**Workload-to-validation mapping:**
+
+| Workload type | Runtime validation expectations |
+| --- | --- |
+| Documentation | No playwright-cli. Validate links/paths, structure, and accuracy by inspection; ensure guidance matches task criteria. |
+| Frontend/UI | Use `playwright-cli` for interactive or visual checks when applicable; save test results under `tests/task-<id>/`. |
+| Backend/service | Run relevant tests or minimal runtime checks (service start, API call, CLI) without UI automation unless explicitly required. |
+| Script/automation | Execute scripts in a safe, scoped manner; capture output logs under `tests/task-<id>/`. |
 
 ### 5. Create Review Report
 
@@ -305,7 +326,7 @@ Goal 2: ...
 - Missing deliverables
 ```
 
-### 4. Generate Session Review and Organize Artifacts
+### 4. Generate Session Review
 
 **Action 1: Create Review Document**
 Create `iterations/<N>/review.md`:
@@ -344,18 +365,7 @@ Iteration: <N>
 - If complete: Session done
 ```
 
-**Action 2: Consolidate Artifacts (Project Wiki Promotion)**
-Create directory `iterations/<N>/artifacts/` and copy key outputs (reports, diagrams, final docs) there.
-Structure:
-```
-iterations/<N>/artifacts/
-├── reports/          # Final task reports
-├── docs/             # Documentation generated
-├── diagrams/         # Diagrams generated
-└── assets/           # Other key assets
-```
-
-**Action 3: Update Iteration Metadata**
+**Action 2: Update Iteration Metadata**
 If assessment is "Complete" or "Gaps Identified" (iteration finished):
 Update `iterations/<N>/metadata.yaml`:
 - Set `completed_at: <timestamp>`
@@ -370,8 +380,9 @@ Update `iterations/<N>/metadata.yaml`:
 - **NO Node.js playwright package** - completely different from `npx playwright`
 
 **Usage Instruction:**
-- **MANDATORY**: Use `playwright-cli` for runtime validation on every task review.
-- **MUST Scope CWD**: Set the current working directory to `tests/task-<id>/`
+- **Workload-aware**: Use `playwright-cli` only for UI/interactive runtime validation.
+- **Explicitly forbidden**: Do not use `playwright-cli` for documentation workloads.
+- **MUST Scope CWD**: Set the current working directory to `.ralph-sessions/<SESSION_ID>/tests/task-<id>/`
 - This ensures test artifacts (screenshots, traces) are saved in the correct task context
 - Example path: `.ralph-sessions/<SESSION_ID>/tests/task-<id>/`
 
@@ -386,6 +397,7 @@ Update `iterations/<N>/metadata.yaml`:
 - **Constructive Feedback**: Provide specific guidance for rework
 - **Single Mode Only**: Reject any request that asks for multiple modes in one invocation
 - **Runtime Validation Required**: Always perform runtime checks even if not explicitly requested
+- **Workload Guardrail**: Infer workload type first; documentation workloads must not use `playwright-cli`
 - **Single Task Only**: Handle exactly one task per invocation
 
 ## Contract

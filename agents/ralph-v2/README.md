@@ -30,7 +30,7 @@ agents/v2/
 ├── ralph-v2-planner.agent.md      # Planning agent
 ├── ralph-v2-questioner.agent.md   # Q&A discovery agent
 ├── ralph-v2-executor.agent.md     # Task execution agent
-├── Ralph-v2-Reviewer.agent.md     # Quality assurance agent
+├── ralph-v2-reviewer.agent.md     # Quality assurance agent
 ├── templates/
 │   └── feedbacks.template.md      # Feedback file template
 └── README.md                      # This file
@@ -298,8 +298,9 @@ Review for iteration N, documenting:
 - **Orchestrator-owned state ownership** of `metadata.yaml` (atomic transitions)
 - **Single-mode invocations** for all subagents
 - **Timeout recovery policy** with sleep backoff and task splitting
-- **Reviewer-owned runtime validation** (mandatory for every task)
-- **Executor compile-time validation only** (build/lint/tests)
+- **Reviewer-owned runtime validation** (mandatory for every task, workload-aware)
+- **Documentation workloads** explicitly exclude `playwright-cli` in runtime validation
+- **Executor design-time validation only** (build/lint/tests)
 - **Single task per reviewer invocation**
 
 ## Migration from v1
