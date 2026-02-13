@@ -1,41 +1,47 @@
 # GitHub Copilot Instructions for Copilot FC Workspace
 
-Use these instructions when working in this workspace (not for external publishing).
-
-## Conventions
-- using python3 instead of python to run Python scripts
+Use this file for in-repo authoring of Copilot artifacts (not external publishing docs).
 
 ## Big picture
-- This repo is a factory for Copilot customizations: Agents, Instructions, Prompts, Skills, and Toolsets. See [README.md](README.md).
-- Customizations live at the workspace root (not under .github or user settings) to avoid duplication when VS Code also scans synced user settings.
-- Publishing copies artifacts from the workspace into personal folders; scripts live in [scripts/publish](scripts/publish).
+- This repo is a customization factory: `agents/`, `instructions/`, `prompts/`, `skills/`, `toolsets/`, plus publish/automation scripts in `scripts/`.
+- Authoring is workspace-first by design (see `README.md` and `skills/README.md`): artifacts are created here, then copied to personal folders via publish scripts.
+- `archived/` content is deprecated/superseded; do not use archived files as references/templates for new work.
 
-## Key directories (why they exist)
-- Agents live in [agents](agents) (e.g., [agents/meta.agent.md](agents/meta.agent.md)).
-- Instructions live in [instructions](instructions) (e.g., [instructions/meta.instructions.md](instructions/meta.instructions.md)).
-- Skills live in [skills](skills) (e.g., [skills/README.md](skills/README.md)).
-- Prompts live in [prompts](prompts) (files end with .prompt.md).
-- Toolsets live in [toolsets](toolsets) (files end with .toolsets.jsonc).
-- Documentation lives in [.docs](.docs) (Diátaxis-structured: tutorials, how-to, reference, explanation).
+## Architecture and boundaries
+- Follow the Agent -> Instruction -> Skill split used across the repo (example: `agents/meta-v2.agent.md`, `instructions/meta.instructions.md`, `skills/*/SKILL.md`).
+- Custom Agent files (`*.agent.md`) define persona/orchestration and tool access; keep required frontmatter (`name`, `description`, `tools`).
+- Custom Instruction files (`*.instructions.md`) define policy/workflows and should use `description` + `applyTo` frontmatter.
+- Agent Skills are folder-based and must include `SKILL.md`; scripts local to a skill belong under that skill’s own `scripts/` folder.
 
-## Project-specific conventions
-- Agent YAML frontmatter must include `name`, `description`, and `tools`.
-- Skill layout is one folder per skill with a required SKILL.md (see [skills/README.md](skills/README.md)).
-- Toolset files are JSONC files defining tool groupings for Copilot chat.
-- Use forward slashes in markdown links, even on Windows.
-- Prefer PowerShell scripts for workspace/publishing tasks and Python for testing/logic tools.
+## File and naming conventions
+- Custom Agents: `agents/<name>.agent.md`
+- Custom Instructions: `instructions/<name>.instructions.md`
+- Custom Prompts: `prompts/*.prompt.md`
+- Custom Toolsets: `toolsets/*.toolsets.jsonc`
+- Use forward slashes in markdown links, even on Windows paths.
 
-## Workflows you should follow
-- Creating artifacts:
-  - New agent: create agents/<name>.agent.md and reference [agents/meta.agent.md](agents/meta.agent.md).
-  - New instruction: use [agents/instruction-writer.agent.md](agents/instruction-writer.agent.md) or follow [instructions/meta.instructions.md](instructions/meta.instructions.md).
-  - New skill: create skills/<skill-name>/ with SKILL.md.
-  - New toolset: create toolsets/<name>.toolsets.jsonc following the toolset JSONC structure.
-- Documenting: add to [.docs](.docs) following Diátaxis structure (tutorials, how-to, reference, explanation).
-- Publishing: run the appropriate script in [scripts/publish](scripts/publish) (agents, instructions, prompts, skills, toolsets).
-- Testing: Python tooling runs via scripts/run_tests.py; PowerShell tests use Pester (see scripts for patterns).
+## Critical workflows
+- Treat scripts as primary workflow entry points; VS Code tasks are optional wrappers over the same scripts.
+- Publish scripts are source of truth for distribution: `scripts/publish/publish-*.ps1` and router `scripts/publish/publish-artifact.ps1`.
+- Workspace command dispatcher is `scripts/workspace/run-command.ps1`, with built-in command mapping (no external manifest required).
+- Issue indexing flow is `scripts/issues/extract-issue-metadata.ps1` (supports YAML frontmatter and legacy metadata).
 
-## Examples worth copying
-- Agent structure example: [agents/meta.agent.md](agents/meta.agent.md).
-- Instruction structure example: [instructions/meta.instructions.md](instructions/meta.instructions.md).
-- Skill publishing workflow: [skills/README.md](skills/README.md).
+## Terminal-first execution (editor agnostic)
+- Windows PowerShell: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 list`
+- Bash/WSL: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 list`
+- Publish one artifact: `pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name diataxis`
+- Publish all skills: `pwsh -NoProfile -File scripts/publish/publish-skills.ps1`
+- Reindex issues: `pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1`
+- If using VS Code tasks, keep behavior consistent with the command above; do not add task-only logic.
+
+## Tooling and execution norms
+- Use PowerShell for workspace/publishing automation; use Python for logic/testing utilities.
+- Run Python as `python3` (not `python`).
+- For `scripts/**/*.ps1`, keep function-based PowerShell style with approved verbs and robust error handling (see `instructions/powershell.instructions.md`).
+- Keep automation callable from both Windows and Linux/WSL terminals; avoid assumptions tied to VS Code APIs.
+
+## High-value examples
+- Current agent template reference: `agents/meta-v2.agent.md`.
+- Planning/orchestration patterns: `agents/planner.agent.md` and `agents/ralph-v2/README.md`.
+- Instruction authoring reference: `instructions/meta.instructions.md`.
+- Cross-platform skill publishing behavior (Windows + optional WSL): `scripts/publish/publish-skills.ps1`.
