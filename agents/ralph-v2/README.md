@@ -46,13 +46,13 @@ agents/ralph-v2/
 └── README.md                      # This file
 ```
 
-## Session Structure (v2.2.0)
+## Session Structure (v2.3.0)
 
 **Note:** `.ralph-sessions` directory is strictly relative to the **root of the current workspace**.
 
 Session ID Format: `<YYMMDD>-<hhmmss>` (e.g., `260209-143000`)
 
-Each iteration is **self-contained** — all mutable artifacts (plan, tasks, progress, reports, questions) live inside `iterations/<N>/`. Only session-level state (`metadata.yaml`, `signals/`) remains at the session root.
+Each iteration is **self-contained** — all mutable artifacts (plan, tasks, progress, reports, questions) live inside `iterations/<N>/`. Session-level state (`metadata.yaml`, `signals/`, `knowledge/`) remains at the session root.
 
 ```
 .ralph-sessions/<SESSION_ID>/
@@ -60,6 +60,17 @@ Each iteration is **self-contained** — all mutable artifacts (plan, tasks, pro
 ├── signals/                       # Session-level signal mailbox (not iteration-scoped)
 │   ├── inputs/                    # Incoming signals from human
 │   └── processed/                 # Consumed signals (moved here after processing)
+│
+├── knowledge/                     # Session-scope Diátaxis-categorized knowledge
+│   ├── tutorials/                 # Learning-oriented walkthroughs
+│   │   └── index.md
+│   ├── how-to/                    # Task-oriented guides
+│   │   └── index.md
+│   ├── reference/                 # Information-oriented descriptions
+│   │   └── index.md
+│   ├── explanation/               # Understanding-oriented discussion
+│   │   └── index.md
+│   └── index.md                   # Knowledge inventory (approved + pending)
 │
 ├── tests/                         # Ephemeral test artifacts (session-level)
 │   └── task-<id>/
@@ -90,13 +101,6 @@ Each iteration is **self-contained** — all mutable artifacts (plan, tasks, pro
     │   │   ├── risks.md
     │   │   └── feedback-driven.md     # Feedback analysis
     │   │
-    │   ├── knowledge/             # Diátaxis-categorized knowledge for human review
-    │   │   ├── tutorials/         # Learning-oriented walkthroughs
-    │   │   ├── how-to/            # Task-oriented guides
-    │   │   ├── reference/         # Information-oriented descriptions
-    │   │   ├── explanation/       # Understanding-oriented discussion
-    │   │   └── index.md           # Knowledge inventory
-    │   │
     │   └── review.md              # Session review (if conducted)
     │
     └── 2/                         # NEW ITERATION (after feedback)
@@ -107,13 +111,6 @@ Each iteration is **self-contained** — all mutable artifacts (plan, tasks, pro
         ├── tasks/                 # Task files for iteration 2
         ├── reports/               # Reports for iteration 2
         ├── questions/             # Questions for iteration 2
-        │
-        ├── knowledge/             # Diátaxis-categorized knowledge with carry-forward
-        │   ├── tutorials/         # Learning-oriented (may include carried items)
-        │   ├── how-to/            # Task-oriented
-        │   ├── reference/         # Information-oriented
-        │   ├── explanation/       # Understanding-oriented
-        │   └── index.md           # Knowledge inventory
         │
         ├── feedbacks/             # Structured feedback from human
         │   ├── 20260207-105500/
@@ -357,61 +354,90 @@ Review for iteration N, documenting:
 - **Executor design-time validation only** (build/lint/tests)
 - **Single task per reviewer invocation**
 
-### 10. Skills Enforcement (New in v2.2.0)
+### 10. Skills Enforcement (Updated in v2.3.0)
 
-Every subagent proactively discovers and activates relevant skills at runtime via a mandatory **Step 0: Skills Directory Resolution**.
+Every subagent proactively discovers and activates relevant skills at runtime via a mandatory **Step 0: Skills Directory Resolution** using a **reasoning-based discovery process**.
 
-**Hybrid Skill Activation Model**:
-1. **Session instructions pre-list**: The Planner pre-lists discovered skills in `<SESSION_ID>.instructions.md` during initialization
-2. **Runtime discovery**: Each subagent independently resolves and validates the skills directory at invocation time
-
-**Step 0 Pattern** (all subagents):
+**Reasoning-Based Skill Discovery** (all subagents):
 1. Resolve `<SKILLS_DIR>` cross-platform:
    - **Windows**: `$env:USERPROFILE\.copilot\skills`
    - **Linux/WSL**: `~/.copilot/skills`
-2. Validate with `Test-Path` / `test -d`
-3. Set `SKILLS_AVAILABLE` flag; if not found, continue in **degraded mode** (warning, not failure)
-4. Load max 3-5 matched skills per invocation (context budget)
+2. Validate with `Test-Path` / `test -d`; if not found, continue in **degraded mode** (warning, not failure)
+3. **4-Step Reasoning Process**:
+   1. Check agent's own instructions for explicit skill affinities/requirements
+   2. Check task context (message from orchestrator) for explicitly mentioned skills
+   3. Scan skills directory and match descriptions against current task requirements
+   4. Load only directly relevant skills
+
+> Load only skills directly relevant to the current task — typically 1-3 skills. Do not load skills speculatively.
+
+**Key changes from v2.2.0**:
+- Removed numeric cap (`max 3-5 skills per invocation`) — replaced with reasoning-based relevance
+- Removed Hybrid Skill Activation Model — no more pre-listed skills in session instructions
+- Each subagent discovers and activates skills independently at runtime
 
 **Skill affinities by agent**:
-| Agent      | Primary Skills                                 |
-| ---------- | ---------------------------------------------- |
-| Executor   | Task-specific (varies)                         |
-| Reviewer   | `git-atomic-commit` (critical for commit step) |
-| Questioner | Task research skills                           |
-| Librarian  | `diataxis` (knowledge categorization)          |
-| Planner    | Planning-related skills                        |
+| Agent      | Primary Skills                                   |
+| ---------- | ------------------------------------------------ |
+| Executor   | Task-specific (varies)                           |
+| Reviewer   | `git-atomic-commit` (critical for COMMIT mode)   |
+| Questioner | Task research skills                             |
+| Librarian  | `diataxis` (knowledge categorization)            |
+| Planner    | Planning-related skills                          |
 
-### 11. Atomic Commits (New in v2.2.0)
+### 11. COMMIT Mode (Updated in v2.3.0)
 
-The **Reviewer** (not the Executor) executes atomic commits per task after each review passes.
+The **Reviewer** executes atomic commits via a dedicated **COMMIT mode**, invoked by the Orchestrator as a separate step after a task review passes.
 
 **Workflow**:
-1. Reviewer completes review, marks task as `[x]` (qualified)
-2. **Step 7: Atomic Commit** runs:
-   - Extract `files_modified` from executor's report
-   - Selective file staging (`git add` per file — **never** `git add .` or `git add -A`)
-   - Verify staging with `git diff --cached --name-only`
-   - If `git-atomic-commit` skill is available: invoke in autonomous mode (may produce multiple commits per task)
-   - If skill unavailable: fallback to basic conventional commit (`git commit -m "type(scope): subject"`)
-3. Commit failure does **NOT** affect review verdict — `[x]` is preserved regardless
+1. Reviewer completes TASK_REVIEW, marks task as `[x]` (qualified)
+2. Orchestrator invokes Reviewer again with `MODE: COMMIT`
+3. **COMMIT mode** runs (6 steps):
+   - **Pre-flight Validation**: Verify git repo, check for uncommitted changes, read task report for `files_modified`
+   - **Analyze Changes Per File**: Run `git diff` per file, classify hunks as TASK-RELEVANT, UNRELATED, or AMBIGUOUS
+   - **Partial File Staging**: `git diff` → extract relevant hunks → `git apply --cached` (for MIXED files); **never** `git add .` or `git add -A`
+   - **Verify Staging**: `git diff --cached --name-only` to confirm only expected files staged
+   - **Execute Atomic Commit**: Invoke `git-atomic-commit` skill (autonomous mode) or fallback to conventional commit
+   - **Handle Commit Result**: Record commit hash(es) or report failure
+4. Commit failure triggers **one retry** by the Orchestrator; if retry also fails, changes remain in working directory
+5. Commit failure does **NOT** affect review verdict — `[x]` is preserved regardless
 
 **Key design decisions**:
+- COMMIT is a **separate mode**, not embedded in the review flow (was Step 7 in v2.2.0)
+- Partial file staging with hunk-level analysis (not just whole-file `git add`)
+- Orchestrator owns retry logic (retry once on commit failure)
 - Executor is NOT responsible for commits (separation of concerns)
 - Multiple commits per task are allowed (skill may split by file type)
-- Commit status is reported in reviewer output (`commit_status`, `commit_summary`)
+- Commit status is reported in COMMIT mode output (`commit_status`, `commit_summary`)
 
-### 12. Knowledge Carry-Forward (New in v2.2.0)
+### 12. Session-Scope Knowledge (Updated in v2.3.0)
 
-Staged knowledge that isn't approved or skipped in the current iteration carries forward to the next iteration.
+Knowledge is stored at the **session root** in `knowledge/`, persisting across all iterations without carry-forward.
+
+**Structure**:
+```
+knowledge/
+├── tutorials/         # Learning-oriented walkthroughs
+├── how-to/            # Task-oriented guides
+├── reference/         # Information-oriented descriptions
+├── explanation/       # Understanding-oriented discussion
+└── index.md           # Knowledge inventory (approved + pending)
+```
 
 **Rules**:
-- Unapproved knowledge in `iterations/<N>/knowledge/<category>/` carries to `iterations/<N+1>/knowledge/<category>/` (where category is `tutorials`, `how-to`, `reference`, or `explanation`)
-- Each carried file gets frontmatter markers: `carried_from_iteration`, `original_staged_at`, `carry_reason`
-- **Max carry threshold**: Configurable via `knowledge.max_carry_iterations` (default: 2)
-- Files exceeding the threshold are **auto-discarded** with a log entry
-- The Librarian reconciles carried knowledge against new iteration context before re-staging
-- Contradictions between carried knowledge and new findings result in discard of the carried version
+- Knowledge is staged to `knowledge/<category>/` (session-scope, not iteration-scoped)
+- Each staged file includes `approved: false` and `approved_at: null` frontmatter fields
+- **Approved knowledge** (promoted via APPROVE signal) is marked with `approved: true` and `approved_at` timestamp
+- Approved knowledge persists across iterations **without re-approval** — no carry-forward needed
+- New knowledge staged by Librarian goes through the existing approval flow
+- Librarian reconciles new knowledge against existing approved knowledge (detecting contradictions/duplicates)
+- `source_iteration` field retained in frontmatter for traceability
+
+**Key changes from v2.2.0**:
+- Removed iteration-scoped `iterations/<N>/knowledge/` — replaced with session-scope `knowledge/`
+- Eliminated carry-forward logic (`carried_from_iteration`, `original_staged_at`, `carry_reason` markers removed)
+- Removed `max_carry_iterations` threshold — no longer needed
+- Added `approved`/`approved_at` frontmatter for persistent approval tracking
 
 ## Usage Examples
 
@@ -480,23 +506,24 @@ Ralph-v2:
 
 ## Agent Reference
 
-| Agent                          | Purpose       | Key Features (v2.2.0)                                               |
-| ------------------------------ | ------------- | ------------------------------------------------------------------- |
-| `ralph-v2.agent.md`            | Orchestrator  | State machine, target-aware signal routing, skills context passing  |
-| `ralph-v2-planner.agent.md`    | Planning      | Isolated task files, Replanning History, REBREAKDOWN mode           |
-| `ralph-v2-questioner.agent.md` | Q&A           | Brainstorm/research/feedback-analysis modes, iteration-scoped Q&A   |
-| `ralph-v2-executor.agent.md`   | Execution     | STEER decision tree, feedback context, design-time validation only  |
-| `ralph-v2-reviewer.agent.md`   | Review        | Atomic commits per task, runtime validation, workload-aware         |
-| `ralph-v2-librarian.agent.md`  | Wiki curation | Knowledge staging/promotion, carry-forward, Diátaxis categorization |
+| Agent                          | Purpose       | Key Features (v2.3.0)                                                       |
+| ------------------------------ | ------------- | --------------------------------------------------------------------------- |
+| `ralph-v2.agent.md`            | Orchestrator  | State machine, COMMIT routing, session-scope knowledge, signal routing      |
+| `ralph-v2-planner.agent.md`    | Planning      | Structured plan.md template, dependency reasoning waves, REBREAKDOWN mode   |
+| `ralph-v2-questioner.agent.md` | Q&A           | Brainstorm/research/feedback-analysis modes, reasoning-based skills         |
+| `ralph-v2-executor.agent.md`   | Execution     | STEER decision tree, reasoning-based skills, design-time validation only    |
+| `ralph-v2-reviewer.agent.md`   | Review        | COMMIT mode (partial staging), runtime validation, workload-aware           |
+| `ralph-v2-librarian.agent.md`  | Wiki curation | Session-scope knowledge, approval persistence, Diátaxis categorization      |
 
 ## Librarian Usage
 
 - Invocation path: `Ralph-v2` orchestrator invokes `Ralph-v2-Librarian` as a subagent only.
 - Direct usage: Not supported (`user-invokable: false`).
 - Dual modes:
-  - **STAGE**: Extract and stage knowledge to `iterations/<N>/knowledge/` for human review.
-  - **PROMOTE**: Promote approved staged content from `iterations/<N>/knowledge/` to `.docs/`.
+  - **STAGE**: Extract and stage knowledge to `knowledge/` (session-scope) for human review.
+  - **PROMOTE**: Promote approved staged content from `knowledge/` to `.docs/`, marking files with `approved: true`.
 - Documentation model: Diátaxis structure (`tutorials/`, `how-to/`, `reference/`, `explanation/`).
+- Approved knowledge persists across iterations without re-approval.
 
 ## File Templates
 
@@ -506,11 +533,67 @@ See `templates/` directory for:
 ## Version Compatibility
 
 - **v1 agents**: Continue to work with existing v1 sessions
-- **v2.0.x–2.1.x sessions**: NOT compatible with v2.2.0 agents (breaking structural change)
-- **v2.2.0 agents**: Create and manage v2.2.0 sessions only
-- **No cross-compatibility**: v1 cannot read v2 sessions; v2.1.x sessions cannot be used with v2.2.0 agents
+- **v2.0.x–2.1.x sessions**: NOT compatible with v2.2.0+ agents (breaking structural change)
+- **v2.2.0 sessions**: NOT compatible with v2.3.0 agents (session-scope knowledge, COMMIT mode changes)
+- **v2.3.0 agents**: Create and manage v2.3.0 sessions only
+- **No cross-compatibility**: v1 cannot read v2 sessions; v2.2.0 sessions cannot be used with v2.3.0 agents
 
 ## Changelog
+
+### v2.3.0 (2026-02-16)
+
+> **Breaking change**: New session structure is NOT backward-compatible with v2.2.0 sessions. Session-scope knowledge replaces iteration-scope knowledge; COMMIT mode replaces embedded Step 7.
+
+**Skills Enforcement Enhancements**
+- Removed numeric cap (`max 3-5 skills per invocation`) — replaced with 4-step reasoning-based discovery
+- Removed Hybrid Skill Activation Model — no more pre-listed skills in session instructions
+- Removed `## Agent Skills` section from Planner's INITIALIZE mode session instructions template
+- Each subagent discovers and activates skills independently using reasoning process
+- Soft guidance: "Load only skills directly relevant to the current task — typically 1-3 skills"
+
+**COMMIT Mode (Separate Reviewer Mode)**
+- Extracted atomic commit logic from Reviewer's TASK_REVIEW Step 7 into dedicated `COMMIT` mode
+- Orchestrator invokes COMMIT mode as follow-up after TASK_REVIEW passes (`[x]`)
+- Partial file staging: `git diff` → hunk classification (TASK-RELEVANT/UNRELATED/AMBIGUOUS) → `git apply --cached`
+- Selective staging: **never** uses `git add .` or `git add -A`; MIXED files use patch-based staging
+- Commit retry: Orchestrator retries once on failure; second failure preserves `[x]` and leaves changes in working directory
+- COMMIT is internal sub-step within REVIEWING_BATCH — not a separate state machine state
+- TASK_REVIEW output contract no longer includes `commit_status`/`commit_summary` (moved to COMMIT output)
+
+**Session-Scope Knowledge (replaces Knowledge Carry-Forward)**
+- Knowledge folder moved from `iterations/<N>/knowledge/` to session-scope `knowledge/` at session root
+- Approved knowledge persists across iterations without re-approval — no carry-forward needed
+- Eliminated carry-forward logic: removed `carried_from_iteration`, `original_staged_at`, `carry_reason` markers
+- Removed `max_carry_iterations` threshold configuration
+- Added `approved: false` / `approved_at: null` frontmatter fields for persistent approval tracking
+- Librarian STAGE mode scans existing approved knowledge, skips duplicates, flags contradictions
+- Librarian PROMOTE mode marks files with `approved: true` and `approved_at` timestamp
+- Knowledge `index.md` tracks approval status with `✅`/`⏳` markers
+
+**Structured Templates**
+- Planner: structured `plan.md` template with 7 mandatory sections (Goal, Success Criteria, Target Files, Context, Approach, Waves, Grounding)
+- Planner: self-validation steps after plan creation/update to ensure all mandatory sections present
+- Reviewer: structured `review.md` template for session reviews
+
+**Planner Enhancements**
+- Enhanced TASK_BREAKDOWN Pass 2 with 4 explicit dependency reasoning sub-steps:
+  - Shared Resource Detection, Read-After-Write Detection, Interface/Contract Detection, Ordering Constraint Detection
+- Wave documentation section in plan.md with table format (Wave, Tasks, Rationale)
+- Parallelism-favoring guidance for dependency analysis
+
+**Orchestrator Integration**
+- REVIEWING_BATCH state routes COMMIT mode invocations after qualified reviews
+- COMMIT retry-once logic within REVIEWING_BATCH (commit failure does NOT affect review verdict)
+- File Locations table updated: `knowledge/` (session-scope) replaces `iterations/<N>/knowledge/`
+- State machine diagram documents COMMIT as internal sub-step (no new state added)
+
+**Agent Updates** (all agents bumped to v2.3.0)
+- Orchestrator: COMMIT routing, session-scope knowledge paths, skills delegation to subagents
+- Planner: structured plan.md template, dependency reasoning, removed pre-listed skills from session instructions
+- Executor: 4-step reasoning-based skill discovery, removed numeric cap
+- Reviewer: COMMIT mode (partial staging), removed Step 7 from TASK_REVIEW, structured review.md
+- Questioner: 4-step reasoning-based skill discovery, removed numeric cap
+- Librarian: session-scope knowledge, approval persistence, carry-forward elimination
 
 ### v2.2.0 (2026-02-15)
 
