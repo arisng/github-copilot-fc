@@ -1,14 +1,14 @@
 ---
 name: Ralph-v2-Reviewer
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
-argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL), TASK_ID, REPORT_PATH, and ITERATION for review
+argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), TASK_ID, REPORT_PATH, and ITERATION for review
 user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
 metadata:
   version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:12:49+07:00
+  updated_at: 2026-02-16T00:22:10+07:00
   timezone: UTC+7
 ---
 
@@ -55,7 +55,6 @@ Review a single task implementation.
 4. Check feedback resolution (if iteration >= 2)
 5. Append PART 2 to report
 6. Update `iterations/<ITERATION>/progress.md`
-7. Execute atomic commit (if Qualified)
 
 **Scope:** Exactly one task per invocation. Never review multiple tasks in one run.
 
@@ -69,6 +68,19 @@ Holistic session validation across all iterations.
 4. Identify gaps
 5. Create gap-filling tasks if needed
 6. Generate `iterations/<N>/review.md`
+
+### Mode: COMMIT
+Atomic commit of a reviewed task's changes. Invoked by Orchestrator after TASK_REVIEW passes.
+
+**Process:**
+1. Pre-flight validation (git repo check, uncommitted changes)
+2. Analyze changes per file against task report
+3. Partial file staging (selective hunks via `git diff` → patch → `git apply --cached`)
+4. Verify staging
+5. Execute atomic commit (via `git-atomic-commit` skill or fallback)
+6. Handle commit result
+
+**Scope:** Exactly one task per invocation. Commit failure does NOT affect review verdict.
 
 ### Mode: TIMEOUT_FAIL
 Fail a task when the executor timed out or crashed and no report was produced.
@@ -111,7 +123,7 @@ Fail a task when the executor timed out or crashed and no report was produced.
 2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (skip skill discovery/loading; do not fail-fast).
 
 **4-Step Reasoning-Based Skill Discovery:**
-1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `git-atomic-commit` (for atomic commit workflow in Step 7).
+1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `git-atomic-commit` (for atomic commit workflow in COMMIT mode).
 2. **Check task context**: Review the task description or orchestrator message for explicitly mentioned skills.
 3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against the current task requirements.
 4. **Load relevant skills**: Load only the skills that are directly relevant to the current task.
@@ -149,7 +161,7 @@ Review PART 1:
   - Objective Recap
   - Success Criteria Status (executor's claim)
   - Summary of Changes
-  - files_modified list (needed for atomic commit)
+  - files_modified list
   - Verification Results
   - Feedback Context Applied (if iteration >= 2)
 
@@ -311,70 +323,14 @@ If Failed:
 
 ```markdown
 Poll signals/inputs/
-  IF ABORT: Skip atomic commit, proceed to Report to Orchestrator with partial results
+  IF ABORT: Proceed to Report to Orchestrator with partial results
   IF STEER: Re-evaluate if verdict should change; if changed, restart from Step 6
     Max 2 STEER re-evaluations per review cycle; after 2nd, escalate to Orchestrator with [STEER-LOOP] marker
   IF PAUSE: Wait
   IF INFO: Log to context
 ```
 
-### 7. Atomic Commit (if Qualified)
-
-**Prerequisite**: Task marked `[x]` in `iterations/<ITERATION>/progress.md` (review passed).
-If verdict is Failed, **skip this step entirely** — set `commit_status: skipped`.
-
-```markdown
-# Step 7a: Extract files_modified from Executor's report
-Read PART 1 of iterations/<ITERATION>/reports/<TASK_ID>-report[-r<N>].md
-Extract files_modified list
-If files_modified is empty:
-  Set commit_status = "skipped"
-  Skip to Step 8
-
-# Step 7b: Selective file staging
-For each file in files_modified:
-  Run: git add <file>
-Do NOT stage any files outside files_modified
-Do NOT use `git add .` or `git add -A`
-
-# Step 7c: Verify staging is correct
-Run: git diff --cached --name-only
-Compare output against files_modified
-If extra files staged: Run `git reset HEAD -- <extra_file>` for each
-
-# Step 7d: Execute commit
-If GIT_ATOMIC_COMMIT_AVAILABLE = true:
-  Follow the git-atomic-commit SKILL.md workflow on staged changes only
-  The skill will:
-    - Analyze staged changes
-    - Determine commit type(s) per file-path-to-type mapping
-    - Split into multiple commits if files span different commit types
-      (multiple commits per task is correct — do NOT enforce one-commit-per-task)
-    - Execute commits automatically
-    - Return summary
-  Set commit_status = "success"
-  Set commit_summary = <skill output summary>
-
-If GIT_ATOMIC_COMMIT_AVAILABLE = false (FALLBACK):
-  Derive type/scope/subject from task definition:
-    - type: Infer from file paths using conventional commit mapping
-    - scope: Infer from task scope or file location
-    - subject: Use task title in imperative mood, lowercase, ≤50 chars
-  Run: git commit -m "type(scope): subject"
-  Set commit_status = "success"
-  Set commit_summary = "Fallback commit: type(scope): subject"
-
-# Step 7e: Handle commit failure
-If commit command fails:
-  Set commit_status = "failed"
-  Set commit_summary = <error message>
-  LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
-  Do NOT change task verdict — review verdict and commit are independent
-  Do NOT mark task as [F] — the [x] in iterations/<ITERATION>/progress.md is preserved
-  Report failure to Orchestrator for retry/deferral
-```
-
-### 8. Report to Orchestrator
+### 7. Report to Orchestrator
 
 ```json
 {
@@ -383,9 +339,7 @@ If commit command fails:
   "criteria_met": "X/Y",
   "feedback_issues_resolved": "A/B (iteration >= 2)",
   "report_updated": "iterations/<ITERATION>/reports/task-1-report.md",
-  "progress_updated": true,
-  "commit_status": "success | failed | skipped",
-  "commit_summary": "string (optional - from git-atomic-commit skill)"
+  "progress_updated": true
 }
 ```
 
@@ -480,6 +434,173 @@ Iteration: <N>
 If assessment is "Complete" or "Gaps Identified" (iteration finished):
 Update `iterations/<N>/metadata.yaml`:
 - Set `completed_at: <timestamp>`
+
+## Workflow: COMMIT
+
+### 0. Skills Directory Resolution
+
+**Discover available agent skills:**
+- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
+
+**Validation:**
+1. After resolving `<SKILLS_DIR>`, verify it exists:
+   - **Windows**: `Test-Path $env:USERPROFILE\.copilot\skills`
+   - **Linux/WSL**: `test -d ~/.copilot/skills`
+2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (use fallback commit; do not fail-fast).
+
+**4-Step Reasoning-Based Skill Discovery:**
+1. **Check agent instructions**: This agent has known affinity for: `git-atomic-commit` (for atomic commit workflow).
+2. **Check task context**: Review the orchestrator message for explicitly mentioned skills.
+3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against commit requirements.
+4. **Load relevant skills**: Load `git-atomic-commit` skill if available. Set `GIT_ATOMIC_COMMIT_AVAILABLE = true | false`.
+
+> **Guidance:** In COMMIT mode, the primary skill is `git-atomic-commit`. Load it if available; otherwise fallback to manual conventional commit.
+
+### 1. Pre-flight Validation
+
+```markdown
+# Step 1a: Verify git repository
+Run: git rev-parse --is-inside-work-tree
+If not inside a git repo:
+  Return { commit_status: "failed", commit_summary: "Not inside a git repository" }
+
+# Step 1b: Verify uncommitted changes exist
+Run: git diff --name-only
+Run: git diff --cached --name-only
+If both are empty (no changes at all):
+  Return { commit_status: "skipped", commit_summary: "No uncommitted changes found" }
+
+# Step 1c: Read task report
+Read iterations/<ITERATION>/reports/<TASK_ID>-report[-r<N>].md
+Extract:
+  - files_modified list from PART 1
+  - Summary of Changes (change descriptions per file)
+If files_modified is empty:
+  Return { commit_status: "skipped", commit_summary: "No files_modified in task report" }
+```
+
+### 2. Analyze Changes Per File
+
+```markdown
+# For each file in files_modified:
+Run: git diff -- <file>
+Capture hunks (diff output)
+
+Cross-reference each hunk against the task report's "Summary of Changes":
+  - If hunk clearly relates to a change described in the report → mark as TASK-RELEVANT
+  - If hunk clearly relates to changes NOT described in the report → mark as UNRELATED
+  - If hunk relevance is uncertain → mark as AMBIGUOUS
+
+Classify each file:
+  - ALL_RELEVANT: All hunks are task-relevant
+  - MIXED: Some hunks are task-relevant, some are unrelated
+  - AMBIGUOUS: Contains ambiguous hunks (conservative approach applies)
+  - NO_CHANGES: File has no uncommitted changes (already committed or unchanged)
+```
+
+### 3. Partial File Staging
+
+```markdown
+# NEVER use `git add .` or `git add -A` — these are explicitly prohibited
+
+For each file in files_modified:
+  If classification == ALL_RELEVANT:
+    Run: git add <file>
+
+  If classification == MIXED:
+    # Extract task-relevant hunks into a patch file
+    Run: git diff -- <file> > /tmp/full-diff-<file-hash>.patch
+    # Manually construct a patch containing only task-relevant hunks
+    # (Remove unrelated hunks from the diff, preserving diff header and hunk headers)
+    Write task-relevant-only patch to: /tmp/task-relevant-<file-hash>.patch
+    # Apply the partial patch to the index (staging area) only
+    Run: git apply --cached /tmp/task-relevant-<file-hash>.patch
+    # Clean up temp files
+    Remove /tmp/full-diff-<file-hash>.patch
+    Remove /tmp/task-relevant-<file-hash>.patch
+
+  If classification == AMBIGUOUS:
+    # Conservative approach: stage the entire file rather than risk missing changes
+    Run: git add <file>
+
+  If classification == NO_CHANGES:
+    # Skip — file has no uncommitted changes
+    Log: "<file> has no uncommitted changes, skipping"
+```
+
+### 4. Verify Staging
+
+```markdown
+# Step 4a: Confirm only expected files are staged
+Run: git diff --cached --name-only
+Compare output against files_modified
+If extra files staged (files NOT in files_modified):
+  Run: git reset HEAD -- <extra_file> for each unexpected file
+
+# Step 4b: Verify scope of staged changes
+Run: git diff --cached --stat
+Review stat output to confirm change scope matches expectations from task report
+
+# Step 4c: Compare staged changes against task report
+Run: git diff --cached
+Verify that staged changes align with the "Summary of Changes" in the task report
+If significant mismatch detected:
+  Log warning and proceed (do not abort — conservative approach)
+```
+
+### 5. Execute Atomic Commit
+
+```markdown
+If GIT_ATOMIC_COMMIT_AVAILABLE = true:
+  Invoke git-atomic-commit skill in AUTONOMOUS MODE:
+    - The skill operates on ALL currently staged changes
+    - Staging MUST be correct BEFORE invocation (Steps 2-4 ensure this)
+    - The skill will:
+      - Analyze staged changes
+      - Determine commit type(s) per file-path-to-type mapping
+      - Split into multiple commits if files span different commit types
+        (multiple commits per task is correct — do NOT enforce one-commit-per-task)
+      - Execute commits automatically
+      - Return summary with commit hashes and messages
+  Record commit results (hashes, messages, files per commit)
+
+If GIT_ATOMIC_COMMIT_AVAILABLE = false (FALLBACK):
+  Derive type/scope/subject from task definition:
+    - type: Infer from file paths using conventional commit mapping
+    - scope: Infer from task scope or file location
+    - subject: Use task title in imperative mood, lowercase, ≤50 chars
+  Run: git commit -m "type(scope): subject"
+  Record commit result
+```
+
+### 6. Handle Commit Result
+
+```markdown
+# On success:
+Set commit_status = "success"
+Set commit_summary = <summary of commit(s) created>
+Record commits = [{ hash, message, files }] for each commit
+
+# On failure:
+Set commit_status = "failed"
+Set commit_summary = <error message>
+LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
+# CRITICAL: Do NOT change task verdict — review verdict and commit are independent
+# Do NOT mark task as [F] — the [x] in iterations/<ITERATION>/progress.md is preserved
+# Report failure to Orchestrator for retry/deferral
+
+# Return COMMIT mode output:
+{
+  "status": "completed",
+  "mode": "COMMIT",
+  "task_id": "<TASK_ID>",
+  "iteration": <ITERATION>,
+  "commit_status": "success | failed | skipped",
+  "commit_summary": "string",
+  "commits": [{ "hash": "string", "message": "string", "files": ["string"] }]
+}
+```
 
 ## playwright-cli: AI Coding Skill Tool (NOT a Node Package)
 
@@ -582,10 +703,32 @@ Update `iterations/<N>/metadata.yaml`:
     "resolved": "number",
     "not_resolved": "number"
   },
-  "commit_status": "success | failed | skipped",
-  "commit_summary": "string (optional - from git-atomic-commit skill)",
   "report_path": "string",
   "feedback": "string - Rework guidance if Failed"
+}
+```
+
+### Input (COMMIT)
+```json
+{
+  "SESSION_PATH": "string",
+  "MODE": "COMMIT",
+  "TASK_ID": "string",
+  "REPORT_PATH": "string - Path to task report (iterations/<N>/reports/<task-id>-report[-r<N>].md)",
+  "ITERATION": "number"
+}
+```
+
+### Output (COMMIT)
+```json
+{
+  "status": "completed",
+  "mode": "COMMIT",
+  "task_id": "string",
+  "iteration": "number",
+  "commit_status": "success | failed | skipped",
+  "commit_summary": "string",
+  "commits": [{"hash": "string", "message": "string", "files": ["string"]}]
 }
 ```
 
