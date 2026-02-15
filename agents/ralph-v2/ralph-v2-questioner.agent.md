@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'memory']
 metadata:
-  version: 2.2.0
+  version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-15T20:16:46+07:00
+  updated_at: 2026-02-16T00:10:53+07:00
   timezone: UTC+7
 ---
 
@@ -136,24 +136,22 @@ updated_at: 2026-02-07T10:00:00Z
 
 ### 0. Skills Directory Resolution
 **Discover available agent skills:**
-- **Windows**: `$env:USERPROFILE\.copilot\skills`
-- **Linux/WSL**: `~/.copilot/skills`
+- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
 
-**Runtime Validation:**
-```markdown
-# Validate skills directory exists
-If Test-Path <SKILLS_DIR> (Windows) or test -d <SKILLS_DIR> (Linux):
-  SKILLS_AVAILABLE = true
-  List available skills (max 3-5 per invocation)
-Else:
-  SKILLS_AVAILABLE = false
-  Log warning: "Skills directory not found at <SKILLS_DIR>. Proceeding in degraded mode."
-  Continue without runtime skill discovery
+**Validation:**
+1. After resolving `<SKILLS_DIR>`, verify it exists:
+   - **Windows**: `Test-Path $env:USERPROFILE\.copilot\skills`
+   - **Linux/WSL**: `test -d ~/.copilot/skills`
+2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (skip skill discovery/loading; do not fail-fast).
 
-# Note: Questioner already receives skills from the <skills> block in mode instructions.
-# Runtime discovery is complementary — not required for core operation.
-# Context budget: max 3-5 skills loaded per invocation to avoid context overflow.
-```
+**4-Step Reasoning-Based Skill Discovery:**
+1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements.
+2. **Check task context**: Review the task description or orchestrator message for explicitly mentioned skills.
+3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against the current task requirements.
+4. **Load relevant skills**: Load only the skills that are directly relevant to the current task.
+
+> **Guidance:** Load only skills directly relevant to the current task — typically 1-3 skills. Do not load skills speculatively.
 
 ### Local Timestamp Commands
 
