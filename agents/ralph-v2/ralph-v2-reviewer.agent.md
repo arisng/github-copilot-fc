@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
 metadata:
-  version: 2.2.0
+  version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-15T20:16:46+07:00
+  updated_at: 2026-02-16T00:12:49+07:00
   timezone: UTC+7
 ---
 
@@ -101,42 +101,22 @@ Fail a task when the executor timed out or crashed and no report was produced.
 
 ### 0. Skills Directory Resolution
 **Discover available agent skills:**
-- **Windows**: `$env:USERPROFILE\.copilot\skills`
-- **Linux/WSL**: `~/.copilot/skills`
+- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
 
 **Validation:**
-```markdown
-# Step 0a: Resolve SKILLS_DIR
-If Windows: SKILLS_DIR = $env:USERPROFILE\.copilot\skills
-If Linux/WSL: SKILLS_DIR = ~/.copilot/skills
+1. After resolving `<SKILLS_DIR>`, verify it exists:
+   - **Windows**: `Test-Path $env:USERPROFILE\.copilot\skills`
+   - **Linux/WSL**: `test -d ~/.copilot/skills`
+2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (skip skill discovery/loading; do not fail-fast).
 
-# Step 0b: Validate SKILLS_DIR exists
-Run: Test-Path <SKILLS_DIR>  (Windows) / test -d <SKILLS_DIR> (Linux)
-If NOT exists:
-  LOG WARNING "Skills directory not found at <SKILLS_DIR>. Proceeding in degraded mode."
-  Set SKILLS_AVAILABLE = false
-  Skip skill loading
-Else:
-  Set SKILLS_AVAILABLE = true
+**4-Step Reasoning-Based Skill Discovery:**
+1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `git-atomic-commit` (for atomic commit workflow in Step 7).
+2. **Check task context**: Review the task description or orchestrator message for explicitly mentioned skills.
+3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against the current task requirements.
+4. **Load relevant skills**: Load only the skills that are directly relevant to the current task.
 
-# Step 0c: Load relevant skills (max 3-5 per invocation)
-If SKILLS_AVAILABLE:
-  List skill folders in <SKILLS_DIR>
-  Match relevant skills to current task context
-  Load matched SKILL.md files via terminal (max 3-5)
-
-# Step 0d: Check git-atomic-commit skill (CRITICAL for Reviewer)
-If SKILLS_AVAILABLE:
-  Check: Test-Path <SKILLS_DIR>/git-atomic-commit/SKILL.md
-  If exists:
-    Load SKILL.md content into context
-    Set GIT_ATOMIC_COMMIT_AVAILABLE = true
-  Else:
-    LOG WARNING "git-atomic-commit skill not found. Atomic commits will use fallback mode."
-    Set GIT_ATOMIC_COMMIT_AVAILABLE = false
-Else:
-  Set GIT_ATOMIC_COMMIT_AVAILABLE = false
-```
+> **Guidance:** Load only skills directly relevant to the current task — typically 1-3 skills. Do not load skills speculatively.
 
 ### Local Timestamp Commands
 
