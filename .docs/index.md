@@ -10,6 +10,7 @@ This index links Diátaxis-organized documentation for the workspace.
 
 - [How to Configure VS Code to Auto-Approve Terminal Commands with Dynamic Arguments](how-to/how-to-configure-vscode-terminal-autoapprove.md)
 - [How to use Copilot FC commands](how-to/how-to-use-copilot-fc-commands.md)
+- [How to extract iteration knowledge with Diátaxis](how-to/how-to-extract-iteration-knowledge-with-diataxis.md)
 
 ## Reference
 

@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-11T00:00:00Z
+  updated_at: 2026-02-14T16:03:00+07:00
   timezone: UTC+7
 ---
 
@@ -79,6 +79,23 @@ Fail a task when the executor timed out or crashed and no report was produced.
 4. Append PART 2: REVIEW REPORT with status Failed and reason
 5. Update `progress.md` to `[F]` with timestamp and reason
 
+## Live Signals Protocol (Mailbox Pattern)
+
+### Signal Artifacts
+- **Inputs**: `.ralph-sessions/<SESSION_ID>/signals/inputs/`
+- **Processed**: `.ralph-sessions/<SESSION_ID>/signals/processed/`
+
+### Poll-Signals Routine
+1. **List** files in `signals/inputs/` (sort by timestamp ascending)
+2. **Move** oldest file to `signals/processed/` (Atomic concurrency handling)
+    - If move fails, skip (another agent took it)
+3. **Read** content
+4. **Act**:
+    - **STEER**: Adjust immediate context
+    - **PAUSE**: Suspend execution until new signal or user resume
+    - **STOP**: Gracefully terminate
+    - **INFO**: Log to context
+
 ## Workflow: TASK_REVIEW
 
 ### 0. Skills Directory Resolution
@@ -132,8 +149,9 @@ Read plan.md for overall session goals
 
 ### 1.5. Check Live Signals
 
-```markdown
-Poll signals/inputs/
+Poll sign
+```markdownals/inputs/
+  IF INFO: Inject message into review context for consideration
   If STEER: Adjust validation context or restart read
   If PAUSE: Wait
   If STOP: Return early
@@ -287,6 +305,15 @@ If Failed:
 ```
 
 ## Workflow: SESSION_REVIEW
+
+### 0. Check Live Signals
+RUN Poll-Signals
+    IF STOP: EXIT
+    IF PAUSE: WAIT
+    IF INFO: Inject message into review context for consideration
+    IF STEER:
+        LOG "Steering signal received: <message>"
+        PASS signal message to Reviewer context in next invocation
 
 ### 1. Read All Artifacts
 

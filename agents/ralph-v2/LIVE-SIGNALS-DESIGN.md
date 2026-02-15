@@ -17,7 +17,7 @@ Located at the session root: `.ralph-sessions/<SESSION_ID>/signals/`.
 ```
 signals/
 ├── inputs/                      # User drops signal files here
-│   ├── signal.<TIMESTAMP>.yaml  # e.g., signal.20260208-143000.yaml
+│   ├── signal.<TIMESTAMP>.yaml  # e.g., signal.260208-143000.yaml
 │   └── ...
 └── processed/                   # Agents move handled files here
     ├── <TIMESTAMP>.yaml         # Archived signal
@@ -26,8 +26,8 @@ signals/
 
 **Signal File Schema (Input):**
 ```yaml
-# signal.20260208-143000.yaml
-type: STEER   # STEER | PAUSE | STOP | INFO
+# signal.260208-143000.yaml
+type: STEER   # STEER | PAUSE | STOP | INFO | APPROVE | SKIP
 target: ALL   # ALL | Ralph-Executor | Ralph-Orchestrator
 message: "Don't use the 'foo' library, it's deprecated. Use 'bar' instead."
 ```
@@ -48,21 +48,26 @@ handling_metadata:
 1. **Wait-Free Insertion**: Users create unique files with timestamps. No conflict with other signals.
 2. **Atomic Consumption**:
    - Agent lists files in `signals/inputs/`.
-   - Agent picks a file (FIFO by timestamp).
-   - Agent **moves** file to `signals/processed/` (Atomic OS operation).
-   - If move fails (another agent took it), skip and try next.
-   - Processing happens on the moved file (exclusive ownership).
+   - Agent picks the oldest file (FIFO by timestamp).
+   - Agent **reads** the file content to determine the signal type (peek).
+   - If the signal type is recognized for the current context, agent **moves** the file to `signals/processed/` (atomic OS operation). If move fails (another agent took it), skip and try next.
+   - If the signal type is not recognized in the current context, agent leaves the file in `inputs/` for state-specific consumption.
+   - Processing happens after the move (exclusive ownership).
+
+   <!-- Cross-ref: The orchestrator's Poll-Signals routine implements this peek-check-move flow. See ralph-v2.agent.md §State Machine. -->
 
 ### 3. Signal Types
 
-| Type      | Semantics             | Agent Behavior                                                        |
-| --------- | --------------------- | --------------------------------------------------------------------- |
-| **STEER** | Trajectory Correction | Inject `message` into current context/prompt. Adjust immediate plan.  |
-| **INFO**  | Context Injection     | Add `message` to known facts/constraints. Non-blocking.               |
-| **PAUSE** | Flow Control          | Suspend execution. Wait for User to clear/resume.                     |
-| **STOP**  | Abort                 | Gracefully terminate current operation. Mark task/session as stopped. |
+| Type        | Semantics             | Agent Behavior                                                                                                                                                                                                         |
+| ----------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **STEER**   | Trajectory Correction | Inject `message` into current context/prompt. Adjust immediate plan.                                                                                                                                                   |
+| **INFO**    | Context Injection     | Add `message` to known facts/constraints. Non-blocking.                                                                                                                                                                |
+| **PAUSE**   | Flow Control          | Suspend execution. Wait for User to clear/resume.                                                                                                                                                                      |
+| **STOP**    | Abort                 | Gracefully terminate current operation. Mark task/session as stopped.                                                                                                                                                  |
+| **APPROVE** | Knowledge Promotion   | Triggers knowledge promotion from staging (`iterations/<N>/knowledge/`) to `.docs/`. Consumed in KNOWLEDGE_APPROVAL orchestrator state. `message`: optional reviewer comments.                                         |
+| **SKIP**    | Knowledge Bypass      | Bypasses knowledge promotion; session completes without promoting staged knowledge. Consumed in KNOWLEDGE_APPROVAL orchestrator state. `message`: reason for skipping. Staged knowledge is preserved but not promoted. |
 
-### 3. Agent Integration
+### 4. Agent Integration
 
 #### A. Orchestrator (Ralph-v2)
 
@@ -71,29 +76,35 @@ handling_metadata:
 1. **Before Invoking Subagent**: Check signals. If `STOP/PAUSE`, active immediately. If `STEER/INFO`, pass to subagent context.
 2. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks).
 
-#### B. Subagents (Executor/Planner/Questioner)
+#### B. Subagents
 
-**Role**: Context consumers.
-**Checkpoints**:
-1. **Initialization**: Read `pending` signals. If `target` matches, ingest and acknowledge.
-2. **Step Boundaries**: If agent has multi-step logic (e.g., Planner passes, Executor TDD cycle), check signals between steps.
+**Role**: Context consumers. Subagents receive signal context from the orchestrator; they do not poll `signals/inputs/` directly.
+
+| Classification       | Description                                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Direct poller**    | Orchestrator — owns `signals/inputs/`, runs Poll-Signals routine, dispatches to subagents                               |
+| **Context consumer** | All subagents (Executor, Planner, Questioner, Reviewer, Librarian) — receive signal context via orchestrator invocation |
+
+**Checkpoints** (for Context consumer subagents):
+1. **Initialization**: Read orchestrator-provided signal context. If relevant, ingest and acknowledge.
+2. **Step Boundaries**: If agent has multi-step logic (e.g., Planner passes, Executor TDD cycle), check signal context between steps.
 
 ### 5. Workflow Example
 
-1. **Scenario**: Ralph-Executor is running tests (Step 3).
+1. **Scenario**: Ralph-v2 orchestrator is in `EXECUTING_BATCH`, invoking Ralph-v2-Executor for task-3 (running tests).
 2. **User Input**: User notices the agent is writing tests for the wrong browser.
-3. **Signal Injection**: User runs command or creates file:
+3. **Signal Injection**: User creates a signal file:
    `signals/inputs/signal.20260208-143000.yaml`
    ```yaml
    type: STEER
    message: "Target Firefox only, not Chrome."
    ```
-4. **Agent Checkpoint**: Executor finishes "Step 3: Implementation", checks `signals/inputs/`.
-5. **Consumption**:
-   - Executor finds the file.
-   - **Atomically Moves** it to `signals/processed/signal.20260208-143000.executed.yaml`.
-   - Adds "Target Firefox only" to critical context.
-   - **Correction**: Re-runs implementation step or filters verification to Firefox.
+4. **Orchestrator Checkpoint**: Between task invocations, the orchestrator runs Poll-Signals.
+   - Orchestrator reads the signal (peek), recognizes `STEER` as a standard type.
+   - Orchestrator atomically moves the file to `signals/processed/`.
+   - Orchestrator logs: "Steering signal received: Target Firefox only, not Chrome."
+5. **Context Passing**: Orchestrator passes the STEER message to the next Executor invocation context.
+6. **Executor Adjustment**: Executor receives the steering context, adjusts test targets to Firefox only.
 
 ## Implementation Plan
 
@@ -105,7 +116,7 @@ handling_metadata:
 ### Phase 2: Agent Updates
 
 - **Ralph-v2**: Add "Poll Signals" step in State Machine key loops (list, move, read).
-- **Subagents**: Add "Poll Signals" logic at step boundaries.
+- **Subagents**: Receive orchestrator-provided signal context at invocation; no direct polling.
 
 
 ### Phase 3: "Hot Steering" (Advanced)

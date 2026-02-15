@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'memory']
 metadata:
-  version: 1.6.0
+  version: 1.7.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-11T00:00:00Z
+  updated_at: 2026-02-14T16:03:00+07:00
   timezone: UTC+7
 ---
 
@@ -124,6 +124,7 @@ Use these commands for local timestamps in reports and progress updates:
 # Step 0: Check Live Signals
 Loop until no pending signals:
   Poll signals/inputs/
+  IF INFO: Log message for context awareness
   If STEER: Update current context
   If PAUSE: Wait
   If STOP: Return {status: "blocked", blockers: ["Stopped by signal"]}
@@ -163,6 +164,7 @@ If ATTEMPT_NUMBER > 1:
 Poll signals/inputs/
   If STOP: Return blocked
   If PAUSE: Wait
+  If INFO: Log message for context awareness
   If STEER: Log and continue
 
 Update `progress.md`:

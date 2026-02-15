@@ -1,6 +1,8 @@
 # Ralph v2 Agents
 
 This directory contains version 2 of the Ralph agents system with significant architectural improvements over v1.
+Ralph v1 (or simply "Ralph") agents are already archived in `agents/archived/ralph*.agent.md`.
+Do not reference Ralph v1 agents for developing newer Ralph versions.
 
 ## Documentation
 
@@ -31,6 +33,7 @@ agents/v2/
 ├── ralph-v2-questioner.agent.md   # Q&A discovery agent
 ├── ralph-v2-executor.agent.md     # Task execution agent
 ├── ralph-v2-reviewer.agent.md     # Quality assurance agent
+├── ralph-v2-librarian.agent.md    # Reusable Knowledge management subagent
 ├── templates/
 │   └── feedbacks.template.md      # Feedback file template
 └── README.md                      # This file
@@ -77,12 +80,24 @@ Session ID Format: `<YYMMDD>-<hhmmss>` (e.g., `260209-143000`)
     ├── 1/
     │   ├── metadata.yaml          # Iteration state with timing (Planner/Reviewer)
     │   ├── review.md              # Session review (if conducted)
+    │   ├── knowledge/             # Staged knowledge for human review
+    │   │   ├── index.md           # Review manifest
+    │   │   ├── tutorials/
+    │   │   ├── how-to/
+    │   │   ├── reference/
+    │   │   └── explanation/
     │   └── artifacts/             # Consolidated artifacts for wiki promotion
     │
     └── 2/                         # NEW ITERATION
         ├── metadata.yaml          # Iteration 2 state with timing
         ├── review.md              # Iteration 2 review
         ├── artifacts/             # Consolidated artifacts
+        ├── knowledge/             # Staged knowledge for human review
+        │   ├── index.md           # Review manifest
+        │   ├── tutorials/
+        │   ├── how-to/
+        │   ├── reference/
+        │   └── explanation/
         ├── feedbacks/             # Structured feedback
         │   ├── 20260207-105500/
         │   │   ├── feedbacks.md   # Required
@@ -288,6 +303,7 @@ Review for iteration N, documenting:
 
 - **Artifacts**: `signals/inputs/` and `signals/processed/`
 - **Actions**: `STEER` (correct), `PAUSE` (hold), `STOP` (abort), `INFO` (context)
+- State-specific signals (`APPROVE`, `SKIP`) are consumed in `KNOWLEDGE_APPROVAL` state only; see [LIVE-SIGNALS-DESIGN.md](LIVE-SIGNALS-DESIGN.md) §3 for details.
 - **Documentation**:
   - [Design](LIVE-SIGNALS-DESIGN.md)
   - [Implementation Map](LIVE-SIGNALS-MAP.md)
@@ -302,29 +318,6 @@ Review for iteration N, documenting:
 - **Documentation workloads** explicitly exclude `playwright-cli` in runtime validation
 - **Executor design-time validation only** (build/lint/tests)
 - **Single task per reviewer invocation**
-
-## Migration from v1
-
-### For New Sessions
-
-Simply use the v2 agents:
-1. Reference `agents/v2/ralph-v2.agent.md` in your prompt
-2. The orchestrator will create v2 structure automatically
-
-### For Existing v1 Sessions
-
-Option 1: **Continue with v1** (recommended for active sessions)
-- v1 agents remain functional
-- No migration needed
-
-Option 2: **Migrate to v2** (for important sessions)
-Manual migration steps:
-1. Parse `tasks.md` into individual `tasks/<id>.md` files
-2. Move reports to `reports/` directory
-3. Promote `state/current.yaml` to `metadata.yaml` at session root
-4. Rename `iterations/*/state.yaml` to `iterations/*/metadata.yaml`
-5. Update `progress.md` to v2 format
-6. Add timing fields to iteration metadata
 
 ## Usage Examples
 
@@ -378,7 +371,7 @@ code .ralph-sessions/260207-120000/iterations/2/feedbacks/20260207-130000/feedba
 # 4. Notify orchestrator
 ```
 
-User message: "Continue session 260207-120000 with feedback"
+User message: "Continue session 260207-120000 with feedbacks"
 
 Ralph-v2:
 1. Detect feedbacks in iterations/2/feedbacks/
@@ -400,6 +393,16 @@ Ralph-v2:
 | `ralph-v2-questioner.agent.md` | Q&A          | feedback-analysis mode                |
 | `ralph-v2-executor.agent.md`   | Execution    | Feedback context awareness            |
 | `ralph-v2-reviewer.agent.md`   | Review       | Feedback resolution validation        |
+| `ralph-v2-librarian.agent.md`  | Wiki curation | Subagent-only, orchestrator-invoked workspace wiki management in `.docs` |
+
+## Librarian Usage
+
+- Invocation path: `Ralph-v2` orchestrator invokes `Ralph-v2-Librarian` as a subagent only.
+- Direct usage: Not supported (`user-invokable: false`).
+- Dual modes:
+  - **STAGE**: Extract and stage knowledge to `iterations/<N>/knowledge/` for human review.
+  - **PROMOTE**: Promote approved staged content from `iterations/<N>/knowledge/` to `.docs/`.
+- Documentation model: Diátaxis structure (`tutorials/`, `how-to/`, `reference/`, `explanation/`).
 
 ## File Templates
 
@@ -414,6 +417,35 @@ See `templates/` directory for:
 
 ## Changelog
 
+### v2.1.0 (2026-02-14)
+
+**Librarian & Knowledge Pipeline**
+- Added `Ralph-v2-Librarian` subagent with dual-mode knowledge pipeline (`STAGE` / `PROMOTE`)
+- New orchestrator states: `KNOWLEDGE_EXTRACTION` (State 9) and `KNOWLEDGE_APPROVAL` (State 10)
+- Knowledge staging in `iterations/<N>/knowledge/` with human review gate
+- `.docs/` wiki updated via Librarian promotion only (no direct writes)
+- Diátaxis-based categorization for all wiki content
+
+**Signal Protocol**
+- New signal types: `APPROVE` (knowledge promotion) and `SKIP` (knowledge bypass)
+- Poll-Signals routine restructured to peek-before-move with `RECOGNIZED_TYPES` allowlist
+- State 10 uses `RUN Poll-Signals` + direct read for state-specific signal consumption
+- SKIP branch includes explicit `plan-knowledge-approval [C]` write in `progress.md`
+
+**Consistency & Quality**
+- State renumbering: `KNOWLEDGE_EXTRACTION` (9), `KNOWLEDGE_APPROVAL` (10), `COMPLETE` (11)
+- Progress.md ownership delegation to subagents (Hard Rules)
+- Hard Rules exception for orchestrator SKIP signal `[C]` write
+- Timeout recovery policy genericized (not executor-specific)
+- Knowledge progress initialization at iteration start
+- Version unified to v2.x scheme (frontmatter + changelog)
+- Documentation alignment across README, LIVE-SIGNALS-DESIGN, and orchestrator
+
+### v2.0.1 (2026-02-10)
+- Orchestrator assumes direct ownership of `metadata.yaml` state updates
+- Removed `## Current State` redundancy from `progress.md`
+- Simplification of state transition logic
+
 ### v2.0.0 (2026-02-07)
 - Initial v2 release
 - Isolated task files architecture
@@ -421,8 +453,3 @@ See `templates/` directory for:
 - REPLANNING state
 - Plan snapshots
 - SSOT progress tracking
-
-### v2.0.1 (2026-02-10)
-- Orchestrator assumes direct ownership of `metadata.yaml` state updates
-- Removed `## Current State` redundancy from `progress.md`
-- Simplification of state transition logic

@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
 metadata:
-  version: 1.9.1
+  version: 1.10.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-12T05:04:50Z
+  updated_at: 2026-02-14T16:03:00+07:00
   timezone: UTC+7
 ---
 
@@ -370,7 +370,10 @@ Copy plan.md to plan.iteration-<N-1>.md
 ```markdown
 # Step 0: Check Live Signals
 Poll signals/inputs/
+If INFO: Log message for context awareness
 If STEER: Adjust plan context
+If PAUSE: Wait
+If STOP: Return blocked with reason "Stopped by signal"
 
 # Step 1: Multi-Pass Breakdown
 
