@@ -11,103 +11,119 @@ Do not reference Ralph v1 agents for developing newer Ralph versions.
 
 ## Quick Comparison: v1 vs v2
 
-| Feature                | v1                                     | v2                                                    |
-| ---------------------- | -------------------------------------- | ----------------------------------------------------- |
-| **Task Storage**       | Monolithic `tasks.md`                  | Isolated `tasks/<id>.md` files                        |
-| **Progress Tracking**  | `progress.md` + inline `✅` in tasks.md | `progress.md` **only** (SSOT)                         |
-| **Feedback Loops**     | Manual, unstructured                   | Structured `iterations/<N>/feedbacks/<timestamp>/`    |
-| **Replanning**         | Not supported                          | Full `REPLANNING` state with re-brainstorm            |
-| **Plan History**       | Single `plan.md`                       | `plan.md` + immutable `plan.iteration-N.md` snapshots |
-| **Task Reports**       | `tasks.<id>-report.md`                 | `reports/<id>-report[-r<N>].md`                       |
-| **Q&A Files**          | `plan.questions.<category>.md`         | `questions/<category>.md`                             |
-| **Session Metadata**   | `state/current.yaml` in folder         | `metadata.yaml` at session root                       |
-| **Iteration Metadata** | `iterations/N/state.yaml`              | `iterations/N/metadata.yaml` with timing              |
-| **Session Review**     | `progress.review[N].md` (v1)           | `iterations/<N>/review.md` (v2)                       |
+| Feature                | v1                                     | v2                                                       |
+| ---------------------- | -------------------------------------- | -------------------------------------------------------- |
+| **Task Storage**       | Monolithic `tasks.md`                  | Isolated `tasks/<id>.md` files                           |
+| **Progress Tracking**  | `progress.md` + inline `✅` in tasks.md | `progress.md` **only** (SSOT)                            |
+| **Feedback Loops**     | Manual, unstructured                   | Structured `iterations/<N>/feedbacks/<timestamp>/`       |
+| **Replanning**         | Not supported                          | Full `REPLANNING` state with re-brainstorm               |
+| **Plan History**       | Single `plan.md`                       | `iterations/<N>/plan.md` with Replanning History section |
+| **Task Reports**       | `tasks.<id>-report.md`                 | `iterations/<N>/reports/<id>-report[-r<N>].md`           |
+| **Q&A Files**          | `plan.questions.<category>.md`         | `iterations/<N>/questions/<category>.md`                 |
+| **Session Metadata**   | `state/current.yaml` in folder         | `metadata.yaml` at session root                          |
+| **Iteration Metadata** | `iterations/N/state.yaml`              | `iterations/N/metadata.yaml` with timing                 |
+| **Session Review**     | `progress.review[N].md` (v1)           | `iterations/<N>/review.md` (v2)                          |
 
 ## Directory Structure
 
 ```
-agents/v2/
+agents/ralph-v2/
 ├── ralph-v2.agent.md              # Orchestrator
 ├── ralph-v2-planner.agent.md      # Planning agent
 ├── ralph-v2-questioner.agent.md   # Q&A discovery agent
 ├── ralph-v2-executor.agent.md     # Task execution agent
 ├── ralph-v2-reviewer.agent.md     # Quality assurance agent
-├── ralph-v2-librarian.agent.md    # Reusable Knowledge management subagent
+├── ralph-v2-librarian.agent.md    # Knowledge management subagent
+├── LIVE-SIGNALS-DESIGN.md         # Signal protocol design
+├── LIVE-SIGNALS-MAP.md            # Signal checkpoint map
+├── CRITIQUE.md                    # Review notes and guardrail status
+├── IMPROVEMENTS.md                # Historical improvements log
+├── appendixes/
+│   ├── hooks-integrations.md      # Hooks integration plan (P0-P3 tiers)
+│   └── normalization-deep-dive.md # SSOT normalization patterns
 ├── templates/
 │   └── feedbacks.template.md      # Feedback file template
 └── README.md                      # This file
 ```
 
-## Session Structure (v2)
+## Session Structure (v2.2.0)
 
 **Note:** `.ralph-sessions` directory is strictly relative to the **root of the current workspace**.
 
 Session ID Format: `<YYMMDD>-<hhmmss>` (e.g., `260209-143000`)
 
+Each iteration is **self-contained** — all mutable artifacts (plan, tasks, progress, reports, questions) live inside `iterations/<N>/`. Only session-level state (`metadata.yaml`, `signals/`) remains at the session root.
+
 ```
 .ralph-sessions/<SESSION_ID>/
-├── plan.md                        # Current mutable plan
-├── plan.iteration-1.md            # Immutable snapshot
-├── plan.iteration-2.md            # Immutable snapshot
-├── progress.md                    # SSOT for task status
-├── metadata.yaml                  # Session metadata (Managed by Orchestrator)
+├── metadata.yaml                  # Session-level state machine SSOT (Orchestrator-owned)
+├── signals/                       # Session-level signal mailbox (not iteration-scoped)
+│   ├── inputs/                    # Incoming signals from human
+│   └── processed/                 # Consumed signals (moved here after processing)
 │
-├── tasks/                         # Isolated task files
-│   ├── task-1.md
-│   ├── task-2.md
-│   └── task-N.md
-│
-├── reports/                       # Task reports
-│   ├── task-1-report.md
-│   ├── task-2-report-r2.md        # Rework attempt
-│   └── task-N-report.md
-│
-├── questions/                     # Q&A by category
-│   ├── technical.md
-│   ├── requirements.md
-│   ├── constraints.md
-│   ├── assumptions.md
-│   ├── risks.md
-│   └── feedback-driven.md         # NEW: Feedback analysis
-│
-├── tests/                         # Test artifacts
+├── tests/                         # Ephemeral test artifacts (session-level)
 │   └── task-<id>/
 │       ├── test-results.log
 │       └── screenshot.png
 │
-└── iterations/                    # Per-iteration container
+└── iterations/                    # Per-iteration container (self-contained)
     ├── 1/
-    │   ├── metadata.yaml          # Iteration state with timing (Planner/Reviewer)
-    │   ├── review.md              # Session review (if conducted)
-    │   ├── knowledge/             # Staged knowledge for human review
-    │   │   ├── index.md           # Review manifest
-    │   │   ├── tutorials/
-    │   │   ├── how-to/
-    │   │   ├── reference/
-    │   │   └── explanation/
-    │   └── artifacts/             # Consolidated artifacts for wiki promotion
+    │   ├── metadata.yaml          # Iteration timing SSOT (Planner/Reviewer)
+    │   ├── plan.md                # Current mutable plan for this iteration
+    │   ├── progress.md            # SSOT for task status in this iteration
+    │   │
+    │   ├── tasks/                 # Isolated task files
+    │   │   ├── task-1.md
+    │   │   ├── task-2.md
+    │   │   └── task-N.md
+    │   │
+    │   ├── reports/               # Task reports
+    │   │   ├── task-1-report.md
+    │   │   ├── task-2-report-r2.md    # Rework attempt
+    │   │   └── task-N-report.md
+    │   │
+    │   ├── questions/             # Q&A by category
+    │   │   ├── technical.md
+    │   │   ├── requirements.md
+    │   │   ├── constraints.md
+    │   │   ├── assumptions.md
+    │   │   ├── risks.md
+    │   │   └── feedback-driven.md     # Feedback analysis
+    │   │
+    │   ├── knowledge/             # Diátaxis-categorized knowledge for human review
+    │   │   ├── tutorials/         # Learning-oriented walkthroughs
+    │   │   ├── how-to/            # Task-oriented guides
+    │   │   ├── reference/         # Information-oriented descriptions
+    │   │   ├── explanation/       # Understanding-oriented discussion
+    │   │   └── index.md           # Knowledge inventory
+    │   │
+    │   └── review.md              # Session review (if conducted)
     │
-    └── 2/                         # NEW ITERATION
-        ├── metadata.yaml          # Iteration 2 state with timing
-        ├── review.md              # Iteration 2 review
-        ├── artifacts/             # Consolidated artifacts
-        ├── knowledge/             # Staged knowledge for human review
-        │   ├── index.md           # Review manifest
-        │   ├── tutorials/
-        │   ├── how-to/
-        │   ├── reference/
-        │   └── explanation/
-        ├── feedbacks/             # Structured feedback
+    └── 2/                         # NEW ITERATION (after feedback)
+        ├── metadata.yaml          # Iteration 2 timing SSOT
+        ├── plan.md                # Updated plan with Replanning History section
+        ├── progress.md            # Task status for iteration 2
+        │
+        ├── tasks/                 # Task files for iteration 2
+        ├── reports/               # Reports for iteration 2
+        ├── questions/             # Questions for iteration 2
+        │
+        ├── knowledge/             # Diátaxis-categorized knowledge with carry-forward
+        │   ├── tutorials/         # Learning-oriented (may include carried items)
+        │   ├── how-to/            # Task-oriented
+        │   ├── reference/         # Information-oriented
+        │   ├── explanation/       # Understanding-oriented
+        │   └── index.md           # Knowledge inventory
+        │
+        ├── feedbacks/             # Structured feedback from human
         │   ├── 20260207-105500/
         │   │   ├── feedbacks.md   # Required
         │   │   ├── app.log        # Optional artifacts
         │   │   └── screenshot.png
         │   └── 20260207-110000/
         │       └── feedbacks.md
-        └── replanning/
-            ├── delta.md           # Plan changes
-            └── rationale.md       # Why changes made
+        │
+        └── review.md              # Iteration 2 review
 ```
 
 ## Key Improvements
@@ -235,7 +251,7 @@ plan-reresearch → Ralph-v2-Questioner
   → Research solutions to feedback issues
   ↓
 plan-update → Ralph-v2-Planner
-  → Update plan.md, create plan.iteration-N.md
+  → Update iterations/<N>/plan.md (append Replanning History section)
   ↓
 plan-rebreakdown → Ralph-v2-Planner
   → Update tasks, reset failed tasks [F] → [ ]
@@ -249,18 +265,28 @@ BATCHING → ...
 - Update plan based on learnings
 - Address root causes, not symptoms
 
-### 5. Plan Snapshots
+### 5. Replanning History (replaces Plan Snapshots)
 
-Each iteration creates an immutable snapshot:
+Instead of immutable `plan.iteration-N.md` snapshot files, each replanning cycle appends a **Replanning History** section directly to the iteration's `plan.md`:
 
+```markdown
+## Replanning History
+
+### Iteration 2 Replanning (2026-02-07T11:00:00Z)
+
+#### Feedback Summary
+- ISS-001: Form submission fails (Critical)
+
+#### Changes
+- **Removed**: task-3 (superseded by ISS-001 fix)
+- **Added**: task-5 (null check implementation)
+- **Modified**: task-2 (updated success criteria)
+
+#### Rationale
+Feedback revealed root cause was missing null checks, not schema validation.
 ```
-plan.md              # Current mutable plan
-plan.iteration-1.md  # Snapshot after iteration 1
-plan.iteration-2.md  # Snapshot after iteration 2
-metadata.yaml        # Session metadata
-```
 
-This preserves history and enables comparison between iterations.
+This preserves the change rationale inline without creating separate snapshot files.
 
 ### 6. Iteration Timing
 
@@ -301,16 +327,28 @@ Review for iteration N, documenting:
 
 **v2 Solution**: Asynchronous "Live Signals" (Mailbox Pattern) allowed during execution.
 
-- **Artifacts**: `signals/inputs/` and `signals/processed/`
-- **Actions**: `STEER` (correct), `PAUSE` (hold), `STOP` (abort), `INFO` (context)
-- State-specific signals (`APPROVE`, `SKIP`) are consumed in `KNOWLEDGE_APPROVAL` state only; see [LIVE-SIGNALS-DESIGN.md](LIVE-SIGNALS-DESIGN.md) §3 for details.
+- **Artifacts**: `signals/inputs/` (session-level) and `signals/processed/`
+- **Signal Types**:
+
+  | Signal    | Category       | Semantics                                           | Polled By                |
+  | --------- | -------------- | --------------------------------------------------- | ------------------------ |
+  | `STEER`   | Universal      | Re-route workflow (agent adjusts approach)          | Orchestrator + Subagents |
+  | `INFO`    | Universal      | Context injection (enrich context, no path change)  | Orchestrator + Subagents |
+  | `PAUSE`   | Universal      | Temporary halt (resume later with optional updates) | Orchestrator + Subagents |
+  | `ABORT`   | Universal      | Permanent halt (graceful termination with cleanup)  | Orchestrator + Subagents |
+  | `APPROVE` | State-specific | Knowledge promotion trigger                         | Orchestrator only        |
+  | `SKIP`    | State-specific | Knowledge bypass                                    | Orchestrator only        |
+
+- **Hybrid Polling Model**: Subagents are direct pollers for universal signals (`STEER`, `PAUSE`, `ABORT`, `INFO`) and context consumers for state-specific signals (`APPROVE`, `SKIP`). See [LIVE-SIGNALS-DESIGN.md](LIVE-SIGNALS-DESIGN.md) §4.
+- **Target-Aware Routing**: Orchestrator checks `target` field in signals and routes to specific subagents. See [LIVE-SIGNALS-DESIGN.md](LIVE-SIGNALS-DESIGN.md) §2.3.
 - **Documentation**:
   - [Design](LIVE-SIGNALS-DESIGN.md)
   - [Implementation Map](LIVE-SIGNALS-MAP.md)
+  - [Hooks Integration Plan](appendixes/hooks-integrations.md) (P0-P3 priority tiers)
 
-### 9. Operational Guardrails (New)
+### 9. Operational Guardrails
 
-- **Schema validation** for `progress.md` and `metadata.yaml`
+- **Schema validation** for `iterations/<N>/progress.md` and `metadata.yaml`
 - **Orchestrator-owned state ownership** of `metadata.yaml` (atomic transitions)
 - **Single-mode invocations** for all subagents
 - **Timeout recovery policy** with sleep backoff and task splitting
@@ -318,6 +356,62 @@ Review for iteration N, documenting:
 - **Documentation workloads** explicitly exclude `playwright-cli` in runtime validation
 - **Executor design-time validation only** (build/lint/tests)
 - **Single task per reviewer invocation**
+
+### 10. Skills Enforcement (New in v2.2.0)
+
+Every subagent proactively discovers and activates relevant skills at runtime via a mandatory **Step 0: Skills Directory Resolution**.
+
+**Hybrid Skill Activation Model**:
+1. **Session instructions pre-list**: The Planner pre-lists discovered skills in `<SESSION_ID>.instructions.md` during initialization
+2. **Runtime discovery**: Each subagent independently resolves and validates the skills directory at invocation time
+
+**Step 0 Pattern** (all subagents):
+1. Resolve `<SKILLS_DIR>` cross-platform:
+   - **Windows**: `$env:USERPROFILE\.copilot\skills`
+   - **Linux/WSL**: `~/.copilot/skills`
+2. Validate with `Test-Path` / `test -d`
+3. Set `SKILLS_AVAILABLE` flag; if not found, continue in **degraded mode** (warning, not failure)
+4. Load max 3-5 matched skills per invocation (context budget)
+
+**Skill affinities by agent**:
+| Agent      | Primary Skills                                 |
+| ---------- | ---------------------------------------------- |
+| Executor   | Task-specific (varies)                         |
+| Reviewer   | `git-atomic-commit` (critical for commit step) |
+| Questioner | Task research skills                           |
+| Librarian  | `diataxis` (knowledge categorization)          |
+| Planner    | Planning-related skills                        |
+
+### 11. Atomic Commits (New in v2.2.0)
+
+The **Reviewer** (not the Executor) executes atomic commits per task after each review passes.
+
+**Workflow**:
+1. Reviewer completes review, marks task as `[x]` (qualified)
+2. **Step 7: Atomic Commit** runs:
+   - Extract `files_modified` from executor's report
+   - Selective file staging (`git add` per file — **never** `git add .` or `git add -A`)
+   - Verify staging with `git diff --cached --name-only`
+   - If `git-atomic-commit` skill is available: invoke in autonomous mode (may produce multiple commits per task)
+   - If skill unavailable: fallback to basic conventional commit (`git commit -m "type(scope): subject"`)
+3. Commit failure does **NOT** affect review verdict — `[x]` is preserved regardless
+
+**Key design decisions**:
+- Executor is NOT responsible for commits (separation of concerns)
+- Multiple commits per task are allowed (skill may split by file type)
+- Commit status is reported in reviewer output (`commit_status`, `commit_summary`)
+
+### 12. Knowledge Carry-Forward (New in v2.2.0)
+
+Staged knowledge that isn't approved or skipped in the current iteration carries forward to the next iteration.
+
+**Rules**:
+- Unapproved knowledge in `iterations/<N>/knowledge/<category>/` carries to `iterations/<N+1>/knowledge/<category>/` (where category is `tutorials`, `how-to`, `reference`, or `explanation`)
+- Each carried file gets frontmatter markers: `carried_from_iteration`, `original_staged_at`, `carry_reason`
+- **Max carry threshold**: Configurable via `knowledge.max_carry_iterations` (default: 2)
+- Files exceeding the threshold are **auto-discarded** with a log entry
+- The Librarian reconciles carried knowledge against new iteration context before re-staging
+- Contradictions between carried knowledge and new findings result in discard of the carried version
 
 ## Usage Examples
 
@@ -378,22 +472,22 @@ Ralph-v2:
 2. STATE: REPLANNING
 3. Invoke plan-rebrainstorm → analyze feedbacks
 4. Invoke plan-reresearch → research solutions
-5. Invoke plan-update → update plan.md, create plan.iteration-1.md
-6. Invoke plan-rebreakdown → update tasks/task-2.md, reset progress.md
+5. Invoke plan-update → update iterations/2/plan.md (append Replanning History)
+6. Invoke plan-rebreakdown → update iterations/2/tasks/, reset iterations/2/progress.md
 7. STATE: BATCHING
 8. Continue execution
 ```
 
 ## Agent Reference
 
-| Agent                          | Purpose      | Key Differences from v1               |
-| ------------------------------ | ------------ | ------------------------------------- |
-| `ralph-v2.agent.md`            | Orchestrator | REPLANNING state, feedback detection  |
-| `ralph-v2-planner.agent.md`    | Planning     | Isolated task files, REBREAKDOWN mode |
-| `ralph-v2-questioner.agent.md` | Q&A          | feedback-analysis mode                |
-| `ralph-v2-executor.agent.md`   | Execution    | Feedback context awareness            |
-| `ralph-v2-reviewer.agent.md`   | Review       | Feedback resolution validation        |
-| `ralph-v2-librarian.agent.md`  | Wiki curation | Subagent-only, orchestrator-invoked workspace wiki management in `.docs` |
+| Agent                          | Purpose       | Key Features (v2.2.0)                                               |
+| ------------------------------ | ------------- | ------------------------------------------------------------------- |
+| `ralph-v2.agent.md`            | Orchestrator  | State machine, target-aware signal routing, skills context passing  |
+| `ralph-v2-planner.agent.md`    | Planning      | Isolated task files, Replanning History, REBREAKDOWN mode           |
+| `ralph-v2-questioner.agent.md` | Q&A           | Brainstorm/research/feedback-analysis modes, iteration-scoped Q&A   |
+| `ralph-v2-executor.agent.md`   | Execution     | STEER decision tree, feedback context, design-time validation only  |
+| `ralph-v2-reviewer.agent.md`   | Review        | Atomic commits per task, runtime validation, workload-aware         |
+| `ralph-v2-librarian.agent.md`  | Wiki curation | Knowledge staging/promotion, carry-forward, Diátaxis categorization |
 
 ## Librarian Usage
 
@@ -412,10 +506,60 @@ See `templates/` directory for:
 ## Version Compatibility
 
 - **v1 agents**: Continue to work with existing v1 sessions
-- **v2 agents**: Create and manage v2 sessions only
-- **No cross-compatibility**: v1 cannot read v2 sessions, v2 cannot read v1 sessions
+- **v2.0.x–2.1.x sessions**: NOT compatible with v2.2.0 agents (breaking structural change)
+- **v2.2.0 agents**: Create and manage v2.2.0 sessions only
+- **No cross-compatibility**: v1 cannot read v2 sessions; v2.1.x sessions cannot be used with v2.2.0 agents
 
 ## Changelog
+
+### v2.2.0 (2026-02-15)
+
+> **Breaking change**: New session structure is NOT backward-compatible with v2.1.0 sessions. Existing sessions must be completed with v2.1.0 agents or recreated.
+
+**Iteration Scope Normalization**
+- All mutable artifacts moved into `iterations/<N>/`: `plan.md`, `tasks/`, `progress.md`, `reports/`, `questions/`
+- Session root retains only `metadata.yaml` (state machine SSOT) and `signals/` (session-level mailbox)
+- `plan.iteration-N.md` snapshot pattern removed — replaced by inline Replanning History section in `plan.md`
+- `delta.md` and `replanning/` directory removed — rationale captured in Replanning History
+- `questions/` moved from session root to `iterations/<N>/questions/`
+
+**Signal Protocol Enhancements**
+- `STOP` renamed to `ABORT` across all documents
+- All 6 signal types defined with clear semantics: `STEER`, `INFO`, `PAUSE`, `ABORT`, `APPROVE`, `SKIP`
+- Hybrid polling model: subagents = direct pollers for universal signals, context consumers for state-specific signals
+- Target-aware routing: Orchestrator checks `target` field, buffers and routes to specific subagents
+- STEER mid-execution decision tree with 3 branches (restart/adjust/escalate)
+- ABORT cleanup checklist with 4 explicit steps
+- Hooks integration plan with P0-P3 priority tiers (design only)
+
+**Skills Enforcement**
+- Mandatory Step 0 (Skills Discovery & Activation) added to all subagents
+- Cross-platform skills directory resolution (`$env:USERPROFILE\.copilot\skills` / `~/.copilot/skills`)
+- `Test-Path` / `test -d` validation with degraded mode fallback (not hard failure)
+- Context budget: max 3-5 skills per invocation
+- Hybrid skill activation: session instructions pre-list + runtime discovery
+
+**Atomic Commits**
+- Reviewer executes atomic commits per task after review passes (Step 7)
+- Selective file staging — only `files_modified` from executor report
+- `git-atomic-commit` skill in autonomous mode with fallback to basic conventional commit
+- Commit failure does NOT affect review verdict (`[x]` preserved)
+- Multiple commits per task allowed (skill splits by file type)
+
+**Knowledge Carry-Forward**
+- Unapproved staged knowledge carries forward to next iteration with `carried_from_iteration` marker
+- Configurable max carry threshold (`knowledge.max_carry_iterations`, default: 2)
+- Auto-discard with log entry when threshold exceeded
+- Librarian reconciles carried knowledge against new iteration context
+- Knowledge staging uses Diátaxis categories (`tutorials/`, `how-to/`, `reference/`, `explanation/`) with `index.md`
+
+**Agent Updates** (all agents bumped to new versions)
+- Orchestrator: target-aware signal routing, skills context passing, `SIGNAL_CONTEXT` in subagent invocations
+- Planner: iteration-scoped artifacts, Replanning History template, removed plan snapshots
+- Executor: STEER decision tree, signal filtering (universal only), design-time validation
+- Reviewer: atomic commit step (Step 7), `commit_status`/`commit_summary` in output contract
+- Questioner: iteration-scoped question paths, skills Step 0
+- Librarian: knowledge carry-forward with reconciliation, `diataxis` skill affinity
 
 ### v2.1.0 (2026-02-14)
 
