@@ -8,7 +8,7 @@ tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTermi
 metadata:
   version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:22:10+07:00
+  updated_at: 2026-02-16T00:39:16+07:00
   timezone: UTC+7
 ---
 
@@ -297,6 +297,13 @@ Append to `iterations/<ITERATION>/reports/<TASK_ID>-report[-r<N>].md`:
 - Inspected files: [findings]
 - Verified feedback resolution: [findings]
 
+### Commit Status (if COMMIT mode was invoked)
+- **commit_status**: success | failed | skipped
+- **commit_summary**: [Summary from COMMIT mode output]
+- **commits**: [List of commit hashes and messages]
+
+> Omit this section if COMMIT mode was not invoked for this task.
+
 ### Recommendation
 **Status**: Qualified | Failed
 **Reasoning**: [Explanation]
@@ -394,40 +401,115 @@ Goal 2: ...
 ### 4. Generate Session Review
 
 **Action 1: Create Review Document**
-Create `iterations/<N>/review.md`:
+Create `iterations/<N>/review.md` using the structured template below. Every section is mandatory.
 
 ```markdown
-# Session Review - Iteration <N>
-Date: <timestamp>
-Iteration: <N>
+---
+iteration: <N>
+review_date: <ISO8601 timestamp>
+reviewer: Ralph-v2-Reviewer
+overall_verdict: Complete | Needs Feedback
+session_id: <SESSION_ID>
+---
 
-## Overall Assessment
-**Status**: ✅ Complete | ⚠️ Gaps Identified | ❌ Incomplete
+# Session Review — Iteration <N>
+
+## Executive Summary
+[2-3 sentence overview of iteration results: what was attempted, what succeeded, what remains. Include the iteration goal from plan.md.]
 
 ## Iteration Summary
-| Iteration | Tasks | Success Rate | Duration | Key Outcomes |
-|-----------|-------|--------------|----------|--------------||
-| 1 | 5/5 | 100% | 2h 15m | Initial implementation |
-| 2 | 2/3 | 66% | 1h 45m | Fixed critical bugs |
+| Task ID | Title | Verdict | Commit Status | Key Issues |
+|---------|-------|---------|---------------|------------|
+| task-1 | [Title] | ✅ Qualified | committed (abc1234) | None |
+| task-2 | [Title] | ✅ Qualified | committed (def5678) | Minor: [description] |
+| task-3 | [Title] | ❌ Failed | skipped | Critical: [description] |
+
+> **Commit Status values**: `committed (<short-hash>)` | `committed (multiple)` | `failed` | `skipped` | `pending`
+> Populated from COMMIT mode output (`commit_status`, `commits[].hash`). If COMMIT was not invoked for a task, use `pending`.
 
 ## Goal Achievement
-- Goal 1: ✅ [Evidence]
-- Goal 2: ⚠️ [Partial evidence]
+Assess each success criterion from `iterations/<N>/plan.md`:
 
-## Gaps Identified
-- Gap 1: [Description, impact, remediation]
+| ID | Success Criterion | Status | Evidence |
+|----|-------------------|--------|----------|
+| SC-1 | [Criterion from plan.md] | ✅ Achieved | [Task reports and evidence] |
+| SC-2 | [Criterion from plan.md] | ⚠️ Partial | [What's missing] |
+| SC-3 | [Criterion from plan.md] | ❌ Not Achieved | [Reason and impact] |
+
+**Goals achieved: X/Y**
+
+## Quality Assessment
+| Metric | Rating | Notes |
+|--------|--------|-------|
+| Code quality | ✅ Good / ⚠️ Acceptable / ❌ Poor | [Observations from task reviews] |
+| Cross-agent consistency | ✅ Good / ⚠️ Acceptable / ❌ Poor | [Normalization checklist results] |
+| Test coverage | ✅ Good / ⚠️ Acceptable / ❌ Poor | [Test execution summary] |
+| Documentation completeness | ✅ Good / ⚠️ Acceptable / ❌ Poor | [Documentation state] |
+| Success criteria coverage | X/Y met | [Summary] |
+
+## Issues Found
+Categorize all issues discovered during task reviews:
+
+### Critical
+- **[ISS-C-001]** [Description] — Task: task-X — Impact: [impact]
+
+### Major
+- **[ISS-M-001]** [Description] — Task: task-X — Impact: [impact]
+
+### Minor
+- **[ISS-m-001]** [Description] — Task: task-X — Impact: [impact]
+
+> If no issues in a category, write "None".
+
+## Cross-Agent Consistency
+Results of the Cross-Agent Normalization Checklist:
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| (a) Version consistency | ✅ Pass / ❌ Fail | [versions found] |
+| (b) No bare artifact references | ✅ Pass / ❌ Fail | [matches found] |
+| (c) Knowledge directory structure | ✅ Pass / ❌ Fail | [alignment status] |
+| (d) Signal checkpoint formatting | ✅ Pass / ❌ Fail | [broken tokens found] |
+| (e) Hook path accuracy | ✅ Pass / ❌ Fail | [stale references] |
+| (f) P1/P2 count accuracy | ✅ Pass / ❌ Fail | [count comparison] |
+| (g) Explicit version grep check | ✅ Pass / ❌ Fail | [grep output summary] |
+
+## Commit Summary
+| Task ID | Commit Hash | Message | Files |
+|---------|-------------|---------|-------|
+| task-1 | abc1234 | feat(agent): add skills enforcement | file1.md, file2.md |
+| task-2 | def5678, ghi9012 | docs(readme): update structure | file3.md |
+
+> Populated from COMMIT mode outputs. If COMMIT was not run, note "COMMIT not executed".
+
+## Knowledge Artifacts
+Knowledge items staged or approved during this iteration:
+
+| Item | Category | Status | Staged By |
+|------|----------|--------|-----------|
+| [knowledge-item-title] | reference | ✅ Approved | Librarian |
+| [knowledge-item-title] | how-to | ⏳ Pending approval | Librarian |
+
+> If no knowledge items were staged, write "No knowledge artifacts this iteration".
 
 ## Feedback Loop Effectiveness
 - Feedback batches processed: [count]
 - Issues resolved: [count]
 - Issues remaining: [count]
+- Rework cycles: [count]
 
 ## Recommendations
-- [Actionable recommendations]
+Actionable items for the next iteration or session closure:
+
+1. [Recommendation with rationale]
+2. [Recommendation with rationale]
 
 ## Next Actions
-- If gaps: Continue to next iteration
-- If complete: Session done
+**Decision**: `continue` | `replan` | `complete`
+
+- If `continue`: [What the next iteration should address]
+- If `replan`: [Why replanning is needed and what changed]
+- If `complete`: [Confirmation that all goals are met]
 ```
 
 **Action 2: Update Iteration Metadata**
