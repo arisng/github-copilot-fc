@@ -6,9 +6,9 @@ user-invokable: false
 target: vscode
 tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, memory]
 metadata:
-  version: 1.0.0
+  version: 2.2.0
   created_at: 2026-02-13T00:00:00Z
-  updated_at: 2026-02-14T00:00:00Z
+  updated_at: 2026-02-15T00:00:00Z
   timezone: UTC+7
 ---
 
@@ -116,6 +116,48 @@ Classify wiki content using the Diátaxis 2×2 matrix:
 
 > **Optional enhancement**: Load the `diataxis` skill for detailed templates, examples, and anti-pattern guidance.
 
+## Workflow
+
+### 0. Skills Directory Resolution
+**Discover available agent skills:**
+- **Windows**: `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `~/.copilot/skills`
+
+**Runtime Validation:**
+```markdown
+# Resolve SKILLS_DIR
+If Windows: SKILLS_DIR = $env:USERPROFILE\.copilot\skills
+If Linux/WSL: SKILLS_DIR = ~/.copilot/skills
+
+# Validate
+If NOT (Test-Path SKILLS_DIR / test -d SKILLS_DIR):
+  Log warning: "Skills directory not found at <SKILLS_DIR>. Proceeding in degraded mode."
+  Set SKILLS_AVAILABLE = false
+  Continue without skills
+Else:
+  Set SKILLS_AVAILABLE = true
+  List available skills: Get-ChildItem <SKILLS_DIR> -Directory
+  Match relevant skills to current task (e.g., `diataxis` for classification)
+  Load matched SKILL.md content via terminal (max 3-5 skills per invocation)
+
+# Priority: Pre-listed skills from session instructions take priority over discovered skills
+# Note: The `diataxis` skill is particularly relevant for Librarian classification work.
+```
+
+### Local Timestamp Commands
+
+Use these commands for local timestamps in knowledge staging:
+
+**Note:** These commands return local time in your system's timezone (UTC+7), not UTC.
+
+- **SESSION_ID format `<YYMMDD>-<hhmmss>`**
+  - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
+
+- **ISO8601 local timestamp (with offset)**
+  - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
+  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
+
 ## Staged File Frontmatter Template
 
 Every file written during STAGE mode must include this YAML frontmatter block:
@@ -126,17 +168,37 @@ category: tutorials | how-to | reference | explanation
 source_session: <SESSION_ID>
 source_iteration: <N>
 source_artifacts:
-  - tasks/task-3.md
-  - reports/task-3-report.md
+  - iterations/<N>/tasks/task-3.md
+  - iterations/<N>/reports/task-3-report.md
 staged_at: <ISO8601 timestamp>
+carried_from_iteration: null      # Source iteration if carried forward (null if fresh)
+original_staged_at: null           # Original staging timestamp (null if fresh)
+carry_reason: null                 # deferred | not_reviewed (null if fresh)
 ---
 ```
 
 - `category`: Exactly one Diátaxis category matching the target subdirectory.
 - `source_session`: The session ID from `SESSION_PATH`.
 - `source_iteration`: The iteration number from `ITERATION`.
-- `source_artifacts`: List of session-relative paths to the artifacts this knowledge was extracted from.
+- `source_artifacts`: List of session-relative paths (iteration-scoped) to the artifacts this knowledge was extracted from.
 - `staged_at`: Timestamp when the file was staged (ISO 8601 with timezone offset).
+- `carried_from_iteration`: Source iteration number if carried forward from a previous iteration. `null` for freshly staged content.
+- `original_staged_at`: Original staging timestamp if carried forward. `null` for freshly staged content.
+- `carry_reason`: Why the knowledge was not approved in the previous iteration: `deferred` (human didn't act) or `not_reviewed` (no time). `null` for freshly staged content.
+
+## Knowledge Carry-Forward Policy
+
+When the STAGE workflow runs in iteration N > 1, the Librarian checks for unapproved knowledge from the previous iteration and carries it forward if still relevant.
+
+**Configuration** (from session instructions, set by Planner during INITIALIZE):
+- `knowledge.max_carry_iterations`: Maximum iterations knowledge can be carried without approval (default: `2`).
+
+**Rules:**
+- Knowledge not approved after `max_carry_iterations` carries is **auto-discarded** with a log entry.
+- Carried knowledge that contradicts new iteration context is discarded.
+- The Librarian's reconciliation during STAGE acts as the implicit selectivity mechanism.
+- Human can always APPROVE, SKIP, or defer again in each iteration.
+- Selective per-file approval is a future enhancement; current model is batch-level.
 
 ## STAGE Mode Workflow
 
@@ -144,26 +206,70 @@ Execute this workflow when invoked with `MODE: STAGE` at the end of an iteration
 
 **Precondition**: Staging Preflight Gate (Gate 1) passes.
 
-0. **Initialize Knowledge Progress** — If `## Knowledge Progress (Iteration <N>)` section does not exist in `progress.md`, append it:
+0. **Check Live Signals** (Universal only: STEER, PAUSE, ABORT, INFO)
+   ```markdown
+   Poll signals/inputs/
+     If ABORT: Return blocked
+     If PAUSE: Wait
+     If STEER: Adjust staging scope/criteria
+     If INFO: Append to context
+   ```
+1. **Initialize Knowledge Progress** — If `## Knowledge Progress (Iteration <N>)` section does not exist in `iterations/<N>/progress.md`, append it:
    ```markdown
    ## Knowledge Progress (Iteration <N>)
    - [ ] plan-knowledge-extraction
    - [ ] plan-knowledge-approval
    ```
    This is idempotent — skip if the section already exists.
-1. **Collect evidence** from `.ralph-sessions/<SESSION_ID>/tasks/`, `reports/`, `plan.md`, and `iterations/<N>/review.md`.
-2. **Filter** to reusable knowledge only (stable guidance, contracts, workflows, and decisions). Discard transient or iteration-specific artifacts.
-3. **Classify** each knowledge item into exactly one Diátaxis category.
-4. **Run Staging Preflight Gate** — auto-create `iterations/<N>/knowledge/` structure if missing.
-5. **Write entries** under `iterations/<N>/knowledge/` using category paths:
+2. **Reconcile Carried Knowledge** (if ITERATION > 1)
+   ```markdown
+   # Check for carried knowledge from previous iteration
+   PREV_ITER = ITERATION - 1
+   CARRIED_DIR = <SESSION_PATH>/iterations/<PREV_ITER>/knowledge/
+   MAX_CARRY = knowledge.max_carry_iterations from session instructions (default: 2)
+
+   If CARRIED_DIR exists:
+     For each staged file in CARRIED_DIR (excluding index.md):
+       Read frontmatter
+       carry_count = (carried_from_iteration != null) ? (ITERATION - carried_from_iteration) : 1
+       If carry_count > MAX_CARRY:
+         Log: "Auto-discarding <file> — exceeded max carry threshold (<MAX_CARRY> iterations)"
+         Skip file (do not carry forward)
+       Else If file contradicts new iteration context:
+         Log: "Discarding <file> — contradicts iteration <N> context"
+         Skip file
+       Else:
+         Copy to iterations/<N>/knowledge/<category>/
+         Update frontmatter:
+           carried_from_iteration: <source iteration> (preserve original if already carried)
+           original_staged_at: <original staged_at> (preserve from first staging)
+           carry_reason: deferred | not_reviewed
+           staged_at: <current timestamp>
+           source_iteration: <N>
+         Log: "Carried forward <file> from iteration <PREV_ITER>"
+   Else:
+     Log: "No previous iteration knowledge to carry forward"
+   ```
+3. **Collect evidence** from `.ralph-sessions/<SESSION_ID>/iterations/<N>/tasks/`, `iterations/<N>/reports/`, `iterations/<N>/plan.md`, and `iterations/<N>/review.md`.
+4. **Check Live Signals (Post-Collection)** — After evidence collection, poll for signals before processing:
+   ```markdown
+   Poll signals/inputs/
+     If ABORT: Return blocked
+     If STEER: Re-filter collected knowledge based on new context
+     If INFO: Append to context and continue
+   ```
+5. **Filter** to reusable knowledge only (stable guidance, contracts, workflows, and decisions). Discard transient or iteration-specific artifacts.
+6. **Classify** each knowledge item into exactly one Diátaxis category.
+7. **Run Staging Preflight Gate** — auto-create `iterations/<N>/knowledge/` structure if missing.
+8. **Write entries** under `iterations/<N>/knowledge/` using category paths:
    - Tutorial → `knowledge/tutorials/`
    - How-to → `knowledge/how-to/`
    - Reference → `knowledge/reference/`
    - Explanation → `knowledge/explanation/`
-6. **Add traceability frontmatter** to each staged file using the Staged File Frontmatter Template.
-7. **Update `iterations/<N>/knowledge/index.md`** — append each staged item to the manifest table with file path, category, source artifacts, and timestamp.
-8. **Return staging summary** to orchestrator: files created, categories, total count. If 0 items staged, report empty extraction.
-9. **Update progress** — Mark `plan-knowledge-extraction [x]` in progress.md. If 0 items were staged, also mark `plan-knowledge-approval [C]` with note "Empty extraction — no items to approve".
+9. **Add traceability frontmatter** to each staged file using the Staged File Frontmatter Template.
+10. **Update `iterations/<N>/knowledge/index.md`** — append each staged item to the manifest table with file path, category, source artifacts, and timestamp. Include carried-forward items with a `(carried)` marker.
+11. **Return staging summary** to orchestrator: files created, categories, total count, carried-forward count. If 0 items staged, report empty extraction.
+12. **Update progress** — Mark `plan-knowledge-extraction [x]` in `iterations/<N>/progress.md`. If 0 items were staged, also mark `plan-knowledge-approval [C]` with note "Empty extraction — no items to approve".
 
 ## PROMOTE Mode Workflow
 
@@ -171,6 +277,14 @@ Execute this workflow when invoked with `MODE: PROMOTE` after human approval (AP
 
 **Precondition**: Wiki Preflight Gate (Gate 2) passes.
 
+0. **Check Live Signals** (Universal only: STEER, PAUSE, ABORT, INFO)
+   ```markdown
+   Poll signals/inputs/
+     If ABORT: Return blocked
+     If PAUSE: Wait
+     If STEER: Adjust promotion scope
+     If INFO: Append to context
+   ```
 1. **Run Wiki Preflight Gate** — auto-create `.docs/` structure if missing.
 2. **Read approved staging content** from `iterations/<N>/knowledge/` (the human may have edited or deleted items before approving).
 3. **Conflict check** (best-effort): For each file to promote, check if a corresponding file exists in `.docs/`. If the `.docs/` file was modified after the staged file's `staged_at` timestamp, log a conflict warning in the promotion summary. Proceed with promotion unless the file was completely rewritten.
@@ -181,23 +295,27 @@ Execute this workflow when invoked with `MODE: PROMOTE` after human approval (AP
    - `knowledge/explanation/*` → `.docs/explanation/`
 5. **Update `.docs/index.md`** to keep navigation coherent with newly promoted content.
 6. **Return promotion summary** to orchestrator: files promoted, destination paths, any conflict warnings.
-7. **Update progress** — Mark `plan-knowledge-approval [x]` in progress.md.
+7. **Update progress** — Mark `plan-knowledge-approval [x]` in `iterations/<N>/progress.md`.
 
 ## STAGE Execution Checklist
 
-0. Initialize Knowledge Progress section in progress.md (idempotent — skip if already exists).
-1. Verify `MODE` is `STAGE`.
-2. Run Staging Preflight Gate (Gate 1); auto-create structure if missing, block only if validation fails after creation.
-3. Read orchestrator-provided session/task/report context.
-4. Extract only reusable, non-transient knowledge.
-5. Classify each item into exactly one Diátaxis category.
-6. Write staged files with traceability frontmatter.
-7. Update `iterations/<N>/knowledge/index.md` manifest.
-8. Return a concise staging summary to orchestrator (count, categories, file list).
-9. Mark `plan-knowledge-extraction [x]` in progress.md (or `plan-knowledge-approval [C]` for empty extraction).
+0. Check Live Signals (STEER, PAUSE, ABORT, INFO) — block on ABORT, wait on PAUSE.
+1. Initialize Knowledge Progress section in `iterations/<N>/progress.md` (idempotent — skip if already exists).
+2. Reconcile carried knowledge from previous iteration (skip if ITERATION = 1). Auto-discard items exceeding `knowledge.max_carry_iterations` threshold.
+3. Verify `MODE` is `STAGE`.
+4. Run Staging Preflight Gate (Gate 1); auto-create structure if missing, block only if validation fails after creation.
+5. Read orchestrator-provided session/task/report context from `iterations/<N>/`.
+6. Check Live Signals (Post-Collection) — re-filter on STEER.
+7. Extract only reusable, non-transient knowledge.
+8. Classify each item into exactly one Diátaxis category.
+9. Write staged files with traceability frontmatter (including carry-forward fields).
+10. Update `iterations/<N>/knowledge/index.md` manifest.
+11. Return a concise staging summary to orchestrator (count, categories, file list, carried count).
+12. Mark `plan-knowledge-extraction [x]` in `iterations/<N>/progress.md` (or `plan-knowledge-approval [C]` for empty extraction).
 
 ## PROMOTE Execution Checklist
 
+0. Check Live Signals (STEER, PAUSE, ABORT, INFO) — block on ABORT, wait on PAUSE.
 1. Verify `MODE` is `PROMOTE`.
 2. Run Wiki Preflight Gate (Gate 2); auto-create `.docs/` structure if missing, block only if validation fails after creation.
 3. Read approved staging content from `iterations/<N>/knowledge/`.
@@ -205,7 +323,7 @@ Execute this workflow when invoked with `MODE: PROMOTE` after human approval (AP
 5. Copy/merge staged content into `.docs/` category paths.
 6. Update `.docs/index.md` navigation.
 7. Return a concise promotion summary to orchestrator (promoted files, destinations, conflict warnings).
-8. Mark `plan-knowledge-approval [x]` in progress.md.
+8. Mark `plan-knowledge-approval [x]` in `iterations/<N>/progress.md`.
 
 ## Non-Goals
 
