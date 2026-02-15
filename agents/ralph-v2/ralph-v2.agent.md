@@ -7,9 +7,9 @@ target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
 metadata:
-  version: 2.2.0
+  version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-15T18:27:50+07:00
+  updated_at: 2026-02-16T00:08:52+07:00
   timezone: UTC+7
 ---
 
@@ -216,7 +216,7 @@ ELSE:
     SET SKILLS_AVAILABLE = true
 ```
 
-**Context budget:** Load a maximum of 3-5 skills per subagent invocation to avoid context window exhaustion. Pre-listed skills in session instructions take priority over dynamically discovered skills.
+**Skill discovery is delegated to subagents.** The Orchestrator does not pre-load or pre-list skills. Each subagent resolves and loads skills independently at invocation time using the 4-step reasoning process defined in their own instructions.
 
 ### 1. Session Resolution
 
@@ -232,9 +232,9 @@ IF no .ralph-sessions/<SESSION_ID>/ exists:
 ELSE:
     READ .ralph-sessions/<SESSION_ID>.instructions.md (if exists)
     LOAD guardrails:
-        - planning.max_cycles (default 2)
-        - retries.max_subagent_retries (default 1)
-        - timeouts.task_wip_minutes (default 60)
+        - planning.max_cycles (default 5)
+        - retries.max_subagent_retries (default 3)
+        - timeouts.task_wip_minutes (default 120)
     READ metadata.yaml
     IF metadata.yaml exists:
         STATE = metadata.yaml.orchestrator.state
