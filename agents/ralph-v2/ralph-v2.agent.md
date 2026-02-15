@@ -9,7 +9,7 @@ agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-
 metadata:
   version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:08:52+07:00
+  updated_at: 2026-02-16T00:47:24+07:00
   timezone: UTC+7
 ---
 
@@ -45,7 +45,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 | Feedbacks | `iterations/<N>/feedbacks/<timestamp>/` | Human + Agents | Structured feedback |
 | Session Metadata | `metadata.yaml` | Ralph-v2-Planner (Init), Orchestrator (Update) | **State machine SSOT** — stays at session root |
 | Iteration Metadata | `iterations/<N>/metadata.yaml` | Ralph-v2-Planner (Init), Reviewer (Update) | **Timing SSOT** — per-iteration lifecycle |
-| Knowledge Staging | `iterations/<N>/knowledge/` | Ralph-v2-Librarian | Staged knowledge per iteration |
+| Knowledge Staging | `knowledge/` | Ralph-v2-Librarian | Session-scope knowledge staging |
 | Signals | `signals/inputs/`, `signals/processed/` | Human (write), Orchestrator (route) | **Session-level** — not iteration-scoped |
 
 ## State Machine
@@ -87,6 +87,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 └──────┬──────┘
        │ Invoke Ralph-v2-Reviewer for each [P] task
        │ Collect verdicts: Qualified [x], Failed [F]
+       │ If [x]: invoke COMMIT mode (sub-step, not new state)
        │ Return to BATCHING
        ▼
 ┌─────────────┐
@@ -469,8 +470,12 @@ RUN Poll-Signals
         LOG "Steering signal received: <message>"
         PASS signal message to Reviewer context in next invocation
 
-FOR EACH task (respect max_parallel_reviewers):
-    # Ensure each reviewer handles exactly one task per invocation
+# Review + COMMIT loop
+# Flow per task: TASK_REVIEW → if [x] → COMMIT → collect commit status
+# COMMIT is a sub-step within REVIEWING_BATCH — not a separate state machine state.
+
+FOR EACH task with status [P]:
+    # Step 1: Review the task
     INVOKE Ralph-v2-Reviewer
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
         TASK_ID: <task-id>
@@ -480,8 +485,42 @@ FOR EACH task (respect max_parallel_reviewers):
     ON timeout or error:
         APPLY Timeout Recovery Policy
 
-WAIT for all to complete
-# Note: Ralph-v2-Reviewer updates iterations/<ITERATION>/progress.md to [x] or [F]
+    # Note: Ralph-v2-Reviewer updates iterations/<ITERATION>/progress.md to [x] or [F]
+
+    # Step 2: If review qualified, invoke COMMIT mode for this task
+    IF verdict == [x] (Qualified):
+        INVOKE Ralph-v2-Reviewer
+            SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+            MODE: COMMIT
+            TASK_ID: <task-id>
+            REPORT_PATH: iterations/<ITERATION>/reports/<task-id>-report[-r<N>].md
+            ITERATION: <current iteration>
+
+        ON timeout or error:
+            APPLY Timeout Recovery Policy
+
+        # Retry logic: if commit failed, retry once
+        IF commit_status == "failed":
+            LOG "COMMIT failed for <task-id>, retrying once..."
+            INVOKE Ralph-v2-Reviewer
+                SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+                MODE: COMMIT
+                TASK_ID: <task-id>
+                REPORT_PATH: iterations/<ITERATION>/reports/<task-id>-report[-r<N>].md
+                ITERATION: <current iteration>
+
+            ON timeout or error:
+                APPLY Timeout Recovery Policy
+
+            IF commit_status == "failed":
+                LOG "COMMIT retry failed for <task-id>. Changes remain in working directory."
+                # Commit failure does NOT affect review verdict — [x] is preserved
+
+    ELSE IF verdict == [F] (Failed):
+        # Skip COMMIT — task needs rework
+        CONTINUE
+
+# Aggregate results: review verdicts + commit statuses for all tasks in wave
 
 # Rework loop
 # Tasks marked [F] are eligible for immediate re-execution in the next EXECUTING_BATCH.
