@@ -160,9 +160,9 @@ STEER signal received during implementation
 
 #### 3.5 APPROVE — Knowledge Promotion
 
-**Semantics**: Trigger promotion of staged knowledge from `iterations/<N>/knowledge/` to `.docs/`. This signal is **state-specific** — it is only consumed in the Orchestrator's `KNOWLEDGE_APPROVAL` state.
+**Semantics**: Trigger promotion of staged knowledge from session-scope `knowledge/` to `.docs/`. This signal is **state-specific** — it is only consumed in the Orchestrator's `KNOWLEDGE_APPROVAL` state.
 
-**Agent Behavior**: Orchestrator receives APPROVE → invokes Librarian in PROMOTE mode → Librarian moves staged files to `.docs/` with appropriate metadata.
+**Agent Behavior**: Orchestrator receives APPROVE → invokes Librarian in PROMOTE mode → Librarian promotes staged files from `knowledge/` to `.docs/` with appropriate metadata.
 
 **`message` field**: Optional reviewer comments (e.g., "Looks good, promote all" or "Promote only the API reference, not the tutorial").
 
@@ -172,13 +172,23 @@ STEER signal received during implementation
 
 **Semantics**: Bypass knowledge promotion; the session completes without promoting staged knowledge. This signal is **state-specific** — it is only consumed in the Orchestrator's `KNOWLEDGE_APPROVAL` state.
 
-**Agent Behavior**: Orchestrator receives SKIP → transitions to `COMPLETE` state without invoking Librarian promotion. Staged knowledge is **preserved** in `iterations/<N>/knowledge/` (not deleted) but not promoted to `.docs/`.
+**Agent Behavior**: Orchestrator receives SKIP → transitions to `COMPLETE` state without invoking Librarian promotion. Staged knowledge is **preserved** in `knowledge/` (not deleted) but not promoted to `.docs/`.
 
 **`message` field**: Reason for skipping (e.g., "Need more review time" or "Knowledge is too specific to this task").
 
 **Polling**: Orchestrator only. Subagents do not poll for SKIP signals.
 
-**Carry-forward behavior**: If neither APPROVE nor SKIP is received within the KNOWLEDGE_APPROVAL timeout (or the iteration ends without a signal), staged knowledge is automatically carried forward to the next iteration with a `carried_from` marker for the Librarian to reconcile.
+**Carry-forward behavior**: Approved knowledge (in `knowledge/` with `approved: true`) carries across iterations without re-approval. If neither APPROVE nor SKIP is received for newly staged knowledge within the KNOWLEDGE_APPROVAL timeout (or the iteration ends without a signal), new staged knowledge is preserved in `knowledge/` for the Librarian to reconcile in the next iteration.
+
+#### 3.7 COMMIT Mode — Signal Behavior
+
+The Reviewer's **COMMIT mode** (atomic commit of reviewed task changes) is invoked by the Orchestrator as a sub-step within `REVIEWING_BATCH`. COMMIT mode does **NOT** introduce any new signal types. It uses the existing signal infrastructure as follows:
+
+- **No new signal types**: COMMIT mode relies entirely on existing STEER, INFO, PAUSE, ABORT, APPROVE, and SKIP signals.
+- **Signal polling during COMMIT**: COMMIT is a short-lived operation (git staging + commit). The Reviewer does not poll `signals/inputs/` during COMMIT Steps 1–6. Instead, the Orchestrator polls signals at the boundary between the TASK_REVIEW invocation and the COMMIT invocation.
+- **ABORT during COMMIT**: If an ABORT signal arrives while the Orchestrator is blocked waiting for COMMIT to return, the COMMIT operation completes or fails independently. On return, the Orchestrator detects the ABORT signal at its next checkpoint and executes the ABORT cleanup checklist (§3.4). Importantly, **commit failure does NOT revert the `[x]` review verdict** — the review and commit outcomes are independent.
+- **STEER during COMMIT**: STEER signals are not consumed during COMMIT. They are picked up by the Orchestrator at the next state boundary after COMMIT returns. Re-evaluation of commit scope mid-commit is not supported — COMMIT operates on the files identified in the task report.
+- **Retry logic**: The Orchestrator retries COMMIT once on failure. If both attempts fail, changes remain in the working directory. The `[x]` verdict is preserved regardless of commit outcome.
 
 ### 4. Agent Integration — Hybrid Polling Model
 
@@ -197,8 +207,8 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 **Checkpoints**:
 1. **State Boundaries**: Poll signals between every state transition.
 2. **Before Invoking Subagent**: Check signals. If `ABORT` → execute cleanup checklist (§3.4) and exit. If `PAUSE` → suspend and wait. If `STEER/INFO` → pass message to subagent invocation context.
-3. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks). Inside `REVIEWING_BATCH` loop (between reviews).
-4. **KNOWLEDGE_APPROVAL**: Poll for `APPROVE` and `SKIP` signals (these are not forwarded — consumed directly).
+3. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks). Inside `REVIEWING_BATCH` loop (between reviews and between review→COMMIT invocations — COMMIT is a sub-step within REVIEWING_BATCH, not a separate state).
+4. **KNOWLEDGE_APPROVAL**: Poll for `APPROVE` and `SKIP` signals targeting session-scope `knowledge/` (these are not forwarded — consumed directly).
 
 **Target-Aware Routing**: The Orchestrator checks the `target` field before consuming (see §2.3). Signals targeting a specific subagent are buffered and delivered at the next invocation of that subagent.
 

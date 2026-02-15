@@ -26,8 +26,9 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 | `INITIALIZING`       | Artifact Creation   | `2. State: INITIALIZING`       | Creates `signals/inputs/` & `signals/processed/` directories.                                                                |
 | `PLANNING`           | Top of State        | `3. State: PLANNING`           | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Update plan notes before routing.<br>**INFO**: Log and continue.           |
 | `EXECUTING_BATCH`    | Pre-Loop            | `6. State: EXECUTING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Logs message and passes to Executor context.<br>**INFO**: Append to context. |
-| `REVIEWING_BATCH`    | Pre-Loop            | `7. State: REVIEWING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**INFO**: Log and continue.                                                          |
-| `KNOWLEDGE_APPROVAL` | Approval Wait Loop  | `9. State: KNOWLEDGE_APPROVAL` | **APPROVE**: Invoke Librarian PROMOTE mode.<br>**SKIP**: Transition to COMPLETE.<br>**ABORT**: Exit with cleanup (§3.4).     |
+| `REVIEWING_BATCH`    | Pre-Loop            | `7. State: REVIEWING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**INFO**: Inject into review context.<br>**STEER**: Log message, pass to Reviewer context. |
+| `REVIEWING_BATCH`    | Between Review & COMMIT | `7. State: REVIEWING_BATCH` | COMMIT is a sub-step within REVIEWING_BATCH (not a new state). After `[x]` verdict, Orchestrator invokes COMMIT mode for the same task. Signal polling occurs between review invocation and COMMIT invocation — ABORT/PAUSE checked before each invocation. |
+| `KNOWLEDGE_APPROVAL` | Approval Wait Loop  | `9. State: KNOWLEDGE_APPROVAL` | **APPROVE**: Invoke Librarian PROMOTE mode on session-scope `knowledge/`.<br>**SKIP**: Transition to COMPLETE (staged knowledge preserved in `knowledge/`).<br>**ABORT**: Exit with cleanup (§3.4). |
 
 > **Target-Aware Routing**: At every checkpoint above, the Orchestrator applies peek-check-route logic (see LIVE-SIGNALS-DESIGN.md §2.3). Signals targeting a specific subagent are buffered for delivery at the next invocation.
 
@@ -60,7 +61,9 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 | ---------------- | ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `TASK_REVIEW`    | **Step 0**       | `Step 0: Check Live Signals` | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust review context.<br>**INFO**: Append to context.                         |
 | `TASK_REVIEW`    | **Step 1.5**     | `1.5. Check Live Signals`    | **STEER**: Adjust validation context.<br>**PAUSE**: Wait.<br>**ABORT**: Return early.<br>**INFO**: Append to validation context.             |
-| `TASK_REVIEW`    | **Post-Verdict** | After review decision        | **ABORT**: Skip commit, return with partial results.<br>**STEER**: Re-evaluate if verdict should change.                                    |
+| `TASK_REVIEW`    | **Post-Verdict** | After review decision        | **ABORT**: Proceed to Report to Orchestrator.<br>**STEER**: Re-evaluate if verdict should change.                                            |
+| `COMMIT`         | **Step 0**       | `Step 0: Skills Resolution`  | COMMIT mode has its own Step 0 skills discovery. No explicit signal checkpoint at Step 0 — COMMIT is a short-lived operation. Signal polling is handled by the Orchestrator between review and COMMIT invocations (see §1, REVIEWING_BATCH). |
+| `COMMIT`         | **ABORT during COMMIT** | Steps 1–6             | If ABORT is received by the Orchestrator while COMMIT is running, the Orchestrator is blocked. COMMIT completes or fails independently. On return, Orchestrator checks signals and executes ABORT cleanup. Commit failure does NOT revert the `[x]` review verdict. |
 
 ## 6. Ralph-v2-Librarian
 
