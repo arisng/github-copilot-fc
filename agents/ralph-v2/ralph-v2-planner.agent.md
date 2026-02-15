@@ -8,7 +8,7 @@ tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTermi
 metadata:
   version: 2.3.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:08:52+07:00
+  updated_at: 2026-02-16T00:37:43+07:00
   timezone: UTC+7
 ---
 
@@ -158,7 +158,7 @@ tasks_defined: 0
 2. Read `iterations/<N>/questions/*.md` and `iterations/<N>/feedbacks/**` (required in iteration >= 2; optional in iteration 1 if not present)
 3. Multi-pass task breakdown:
    - Pass 1: Task identification
-   - Pass 2: Dependency graph construction
+   - Pass 2: Dependency analysis (4 sub-steps: Shared Resources, Read-After-Write, Interface/Contract, Ordering Constraints)
    - Pass 3: Wave optimization
 4. Create `iterations/<N>/tasks/task-<id>.md` for each task, ensuring each task includes **Grounded In** references meeting the minimum threshold
 5. Update `iterations/<N>/progress.md` with task list
@@ -277,12 +277,51 @@ applyTo: ".ralph-sessions/<SESSION_ID>/**"
 
 # Step 1: Create iterations/1/plan.md
 ```markdown
-Goal: [From USER_REQUEST]
-Success Criteria: [...]
-Target Files: [...]
-Context: [...]
-Approach: [...]
+# Plan — Iteration 1
+
+## Goal
+[From USER_REQUEST — concise statement of what the session aims to achieve]
+
+## Success Criteria
+- [ ] SC-1: [Measurable criterion]
+- [ ] SC-2: [Measurable criterion]
+[...]
+
+## Target Files
+| File | Role | Changes Expected |
+|------|------|------------------|
+| `path/to/file` | [Role] | [What changes] |
+
+## Context
+[Background information, source materials, constraints, current state]
+
+## Approach
+[High-level strategy, phased implementation description, key decisions]
+
+## Waves
+[Populated after TASK_BREAKDOWN — leave as placeholder during INITIALIZE]
+
+| Wave | Tasks | Rationale |
+|------|-------|-----------|
+| _To be filled after task breakdown_ | | |
+
+## Grounding
+[Populated after brainstorm/research — leave as placeholder during INITIALIZE if no Q&A exists yet]
 ```
+
+> **Note:** The `Replanning History` section is omitted in iteration 1. It is added in iteration ≥ 2 by UPDATE mode.
+
+# Step 1.5: Self-Validate plan.md
+Verify all mandatory sections are present in `iterations/1/plan.md`:
+- [ ] Goal
+- [ ] Success Criteria
+- [ ] Target Files
+- [ ] Context
+- [ ] Approach
+- [ ] Waves
+- [ ] Grounding
+
+If any section is missing, add it with a placeholder before proceeding.
 
 # Step 2: Create iterations/1/metadata.yaml
 ```yaml
@@ -350,7 +389,14 @@ Read iterations/<N>/feedbacks/*/feedbacks.md
 Read iterations/<N>/questions/*.md
 
 # Step 3: Update iterations/<N>/plan.md
-Update plan with new approach, including a **Grounding** section that cites the Q-IDs / Issue-IDs you are acting on.
+Update plan with new approach while maintaining the mandatory template structure:
+- Goal (update if scope changed)
+- Success Criteria (update to reflect new/modified criteria)
+- Target Files (update if files added/removed)
+- Context (update with feedback context)
+- Approach (update with revised strategy)
+- Waves (update if task groupings change)
+- Grounding (update with new Q-IDs / Issue-IDs being acted on)
 
 # Step 4: Append Replanning History to iterations/<N>/plan.md
 Append to the end of `iterations/<N>/plan.md`:
@@ -377,6 +423,19 @@ Append to the end of `iterations/<N>/plan.md`:
 [Why these changes address the feedback]
 ```
 
+# Step 4.5: Self-Validate plan.md
+Verify all mandatory sections are present in `iterations/<N>/plan.md`:
+- [ ] Goal
+- [ ] Success Criteria
+- [ ] Target Files
+- [ ] Context
+- [ ] Approach
+- [ ] Waves
+- [ ] Grounding
+- [ ] Replanning History (required in iteration ≥ 2)
+
+If any section is missing, add it with a placeholder before proceeding.
+
 #### TASK_BREAKDOWN Mode
 
 ```markdown
@@ -393,10 +452,34 @@ If ABORT: Return blocked with reason "Aborted by signal"
 Identify all deliverables from iterations/<ITERATION>/plan.md and Q&A
 
 ## Pass 2: Dependency Analysis
-Map task dependencies
+
+> **Parallelism-favoring guidance:** When in doubt, prefer parallelism — declare a dependency only when execution order is required for correctness.
+
+Analyze dependencies using 4 structured sub-steps:
+
+### (2a) Shared Resource Detection
+Identify tasks that modify the same files or shared resources.
+- Flag overlapping file ownership
+- Determine if tasks must be sequential (conflicting writes) or can be parallel (non-overlapping sections)
+
+### (2b) Read-After-Write Detection
+Identify tasks that read output produced by another task.
+- Map producer-consumer relationships between tasks
+- The producing task must complete before the consuming task starts
+
+### (2c) Interface/Contract Detection
+Identify tasks that define contracts (APIs, data models, templates) that other tasks depend on.
+- Contract-defining tasks must precede contract-consuming tasks
+- Examples: shared type definitions, template structures, protocol formats
+
+### (2d) Ordering Constraint Detection
+Identify logical ordering requirements not captured by the above categories.
+- Prerequisite knowledge or context that must exist first
+- Sequential workflow steps (e.g., create before configure)
+- Cross-cutting concerns that affect multiple tasks
 
 ## Pass 3: Wave Construction
-Group into parallel waves
+Group into parallel waves, ensuring all dependencies for a wave are satisfied by prior waves.
 
 # Step 2: Create task files
 For each task:
@@ -407,6 +490,17 @@ For each task:
     - Objective
     - Success Criteria
     - Dependencies
+
+# Step 2.5: Update Waves section in plan.md
+Update the Waves section in `iterations/<ITERATION>/plan.md` with the final wave assignments:
+```markdown
+## Waves
+| Wave | Tasks | Rationale |
+|------|-------|-----------|
+| 1 | task-1, task-2 | [Why these tasks are grouped — include dependency context] |
+| 2 | task-3, task-4 | [Why these tasks follow wave 1 — note which wave-1 outputs they depend on] |
+```
+The Rationale column should include lightweight dependency notes explaining why tasks are in this wave (e.g., "Depends on task-1 defining the shared template before task-3 can consume it"). Task-level `depends_on` handles machine-readable dependencies; wave-level rationale is supplementary human-readable context.
 
 # Step 3: Update iterations/<ITERATION>/progress.md
 Add to "Implementation Progress":
