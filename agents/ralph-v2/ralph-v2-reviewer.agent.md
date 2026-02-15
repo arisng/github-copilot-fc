@@ -718,15 +718,21 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
 
 > **When to use**: Run this checklist during cross-agent validation tasks at the end of each iteration. It prevents the entire class of normalization regressions (version drift, stale paths, broken formatting) discovered during iteration self-critiques.
 
+> **Self-test**: Before relying on these commands, run each verification command against the current codebase and confirm the output matches expectations. If a command produces unexpected results, the command itself may need updating.
+
+> **Cross-platform**: These commands use `grep` syntax. On Windows without WSL/Git Bash, substitute `Select-String -Path <path> -Pattern <pattern>` for `grep -n <pattern> <path>`.
+
 - [ ] **(a) Version consistency**: All agent `metadata.version` (frontmatter `version`) fields match the target release version
   - Verify: `grep -n "version:" agents/ralph-v2/*.agent.md`
   - All returned values must be identical and match the current release target
+  - **Filtering note**: Ignore `version: 1` matches from metadata templates (lines > 20) — only frontmatter matches (lines 9-10) must be uniform
 - [ ] **(b) No bare artifact references**: Zero bare `progress.md`, `plan.md`, `tasks/`, `questions/`, or `reports/` references outside of path pattern examples (e.g., `iterations/<N>/...` explanations)
   - Verify: `grep -rn "progress\.md\|plan\.md\|tasks/\|questions/\|reports/" agents/ralph-v2/ --include="*.md"` and confirm every match uses an `iterations/<N>/` prefix or is inside a path pattern example
 - [ ] **(c) Knowledge directory structure**: Knowledge directory tree in README.md matches the Librarian specification's Diátaxis categories (tutorials, how-to-guides, reference, explanation)
   - Verify: Compare README.md knowledge section against Librarian's `Knowledge Directory Structure`
 - [ ] **(d) Signal checkpoint formatting**: All signal checkpoint blocks (`Poll signals/inputs/`) have non-broken markdown formatting (no split tokens across lines)
-  - Verify: `grep -n "Poll sign" agents/ralph-v2/*.agent.md` should return zero matches (if any exist, the text is split incorrectly)
+  - Verify: `grep -c "Poll signals/inputs/" agents/ralph-v2/*.agent.md` — each agent file containing signal checkpoints should show a non-zero count (confirms the full phrase appears intact on a single line)
+  - Alternative: `grep -rL "Poll signals/inputs/" agents/ralph-v2/*.agent.md` lists files with zero matches — those files either lack signal checkpoints (expected for the Orchestrator) or have broken/split formatting (investigate)
 - [ ] **(e) Hook path accuracy**: Hook descriptions in `appendixes/hooks-integrations.md` reference current artifact paths (e.g., `iterations/<N>/plan.md` not `plan.iteration-N.md`; no `delta.md` references)
   - Verify: `grep -n "plan\.iteration-\|delta\.md" agents/ralph-v2/appendixes/hooks-integrations.md` should return zero matches
 - [ ] **(f) P1/P2 count accuracy**: Priority tier summary counts (P1, P2) in hooks-integrations.md match the actual enumerated lists
@@ -734,6 +740,7 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
 - [ ] **(g) Explicit version grep check**: Run the definitive version consistency command and confirm uniformity
   - Command: `grep -n "version:" agents/ralph-v2/*.agent.md`
   - Expected: All lines show the same version value (the target release version)
+  - **Filtering note**: Ignore `version: 1` matches from metadata templates (lines > 20) — only frontmatter matches (lines 9-10) must be uniform
 
 ## Contract
 
