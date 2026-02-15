@@ -259,7 +259,7 @@ applyTo: ".ralph-sessions/<SESSION_ID>/**"
 
 ## Concurrency
 - max_parallel_executors: 3
-- max_parallel_reviewers: 3
+# max_parallel_reviewers omitted — REVIEWING_BATCH is sequential for COMMIT safety
 - max_parallel_questioners: 3
 
 ## Planning
