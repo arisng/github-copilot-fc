@@ -2,9 +2,9 @@
 name: gitSoftResetCommit
 description: Quickly soft reset the last local commit, keeping changes staged.
 argument-hint: Enter the number of commits to soft reset (default is 1).
-model: Grok Code Fast 1 (copilot)
+model: Raptor mini (Preview) (copilot)
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   author: arisng
 ---
 You are assisting a user who wants to soft reset the last commit in their git repository, preserving the changes in the staging area.

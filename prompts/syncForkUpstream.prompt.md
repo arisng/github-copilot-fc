@@ -2,9 +2,10 @@
 name: syncForkUpstream
 description: Guide through syncing a forked Git repository with upstream changes.
 argument-hint: The name of the upstream remote and the main branch name (e.g., 'upstream main')
-model: Grok Code Fast 1 (copilot)
+model: Raptor mini (Preview) (copilot)
 metadata:
-  version: 1.0.0
+  version: 1.0.1
+  author: arisng
 ---
 You are assisting a user who has a forked Git repository and needs to sync the latest changes from the upstream repository. Follow these steps to help them update their fork:
 
