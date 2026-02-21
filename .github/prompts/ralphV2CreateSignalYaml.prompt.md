@@ -2,6 +2,10 @@
 name: ralphV2CreateSignalYaml
 description: Generate a timestamped Ralph v2 `signals/inputs/` YAML file for live steering.
 argument-hint: sessionId, message (hot-steering text), optional: type (STEER|PAUSE|STOP|INFO), optional: target (ALL | Ralph-v2 | Ralph-v2-Executor | Ralph-v2-Planner | Ralph-v2-Questioner | Ralph-v2-Reviewer | Ralph-v2-Librarian)
+model: Raptor mini (Preview) (copilot)
+metadata:
+  version: 1.0.1
+  author: arisng
 ---
 Given the following inputs:
 - `sessionId`: the Ralph session identifier

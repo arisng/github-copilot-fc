@@ -2,9 +2,10 @@
 name: publishToolsets
 description: Publish specified toolsets to VS Code user toolsets directories.
 argument-hint: Comma-delimited list of toolset names (e.g., toolset1,toolset2)
-model: Grok Code Fast 1 (copilot)
+model: Raptor mini (Preview) (copilot)
 metadata:
-  version: 1.0.0
+  version: 1.0.1
+  author: arisng
 ---
 Publish the toolsets named `{arguments}` to VS Code user toolsets directories.
 
