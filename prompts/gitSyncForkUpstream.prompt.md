@@ -1,10 +1,10 @@
 ---
-name: syncForkUpstream
+name: gitSyncForkUpstream
 description: Guide through syncing a forked Git repository with upstream changes.
 argument-hint: The name of the upstream remote and the main branch name (e.g., 'upstream main')
 model: Raptor mini (Preview) (copilot)
 metadata:
-  version: 1.0.1
+  version: 2.0.0
   author: arisng
 ---
 You are assisting a user who has a forked Git repository and needs to sync the latest changes from the upstream repository. Follow these steps to help them update their fork:
