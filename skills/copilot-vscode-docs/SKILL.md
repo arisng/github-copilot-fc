@@ -1,5 +1,5 @@
 ﻿---
-name: ghc-docs
+name: copilot-vscode-docs
 description: Comprehensive research and grounding of answers using official VS Code and GitHub Copilot documentation. Use before conducting web searches for VS Code features, Copilot capabilities, configuration, debugging, extensions, remote development, or any official Microsoft documentation queries.
 ---
 
