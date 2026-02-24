@@ -1,6 +1,6 @@
 ---
 name: agent-eval-forced
-description: 'Forces GitHub Copilot to evaluate and activate relevant the custom subagent before responding to queries'
+description: 'Forces GitHub Copilot to evaluate and activate the relevant custom subagent before responding to queries'
 applyTo: '**'
 ---
 
