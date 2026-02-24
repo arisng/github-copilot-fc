@@ -5,7 +5,8 @@
 			"awaitTerminal",
 			"killTerminal",
 			"runInTerminal",
-			"runTasks"
+			"runTests",
+			"testFailure"
 		],
 		"description": "my custom workspace terminal tool set",
 		"icon": "terminal"

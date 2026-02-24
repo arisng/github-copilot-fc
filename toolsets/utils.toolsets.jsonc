@@ -1,7 +1,8 @@
 {
 	"utils": {
 		"tools": [
-            "sequentialthinking"
+            "sequentialthinking",
+			"vscode/memory"
 		],
 		"description": "my utils toolset",
 		"icon": "tools"

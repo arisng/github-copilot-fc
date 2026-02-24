@@ -1,9 +1,8 @@
 {
 	"web": {
 		"tools": [
-			"fetch",
-			"mcp_docker/search", // duckduckgo
-			"mcp_docker/fetch_content", // duckduckgo
+			"web",
+			"fetch_content", // duckduckgo
 			"brave_summarizer", 
 			"brave_web_search"
 		],
