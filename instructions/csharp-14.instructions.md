@@ -1,4 +1,5 @@
 ---
+name: csharp-14
 description: 'Guidelines for developing applications with C# 14 on .NET 10.0, including modern project structures like .slnx files'
 applyTo: '**/*.cs, **/*.csproj, **/*.slnx, **/*.sln'
 ---

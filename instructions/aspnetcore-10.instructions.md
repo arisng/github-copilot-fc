@@ -1,4 +1,5 @@
 ---
+name: aspnetcore-10
 description: 'Guidelines for developing web applications with ASP.NET Core on .NET 10.0, including Minimal APIs, Blazor, and Native AOT'
 applyTo: '**/Program.cs, **/Startup.cs, **/*.razor, **/*.cshtml, **/appsettings.json, **/*.csproj, **/*.slnx, **/*.sln'
 ---
