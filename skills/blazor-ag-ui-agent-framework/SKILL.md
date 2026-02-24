@@ -1,12 +1,22 @@
 ---
 name: blazor-ag-ui-agent-framework
 description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework (MAF) and ASP.NET Core. Use when implementing the 7 AG-UI protocol features: agentic chat, backend tools, human-in-the-loop approvals, generative UI (async tools), tool-based UI rendering, shared state, and predictive state updates. Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, SSE streaming architecture, and 2026 UX patterns for agentic interfaces (Dual-Pane Architecture, Observable Plans, HITL governance).
-version: 2.0.0
+metadata: 
+   version: 2.1.0
+   author: arisng
 ---
 
 # AG-UI Blazor + Agent Framework (MAF)
 
-**Version 2.0** - Enhanced with 2026 Agentic UX patterns: Dual-Pane Architecture, Chain of Thought observability, HITL governance workflows, and mobile adaptation strategies.
+**Version 2.1** - Enhanced with 2026 Agentic UX patterns plus Microsoft Agent Framework Release Candidate guidance (stable API surface, migration paths from Semantic Kernel/AutoGen, and updated package strategy).
+
+## RC Update (Feb 2026)
+
+Use this skill with the Microsoft Agent Framework Release Candidate mindset:
+- Treat core `Microsoft.Agents.AI` APIs as stable for production planning.
+- Prefer current RC packages and pin versions explicitly in samples and implementation checklists.
+- Keep migration guidance ready for teams moving from Semantic Kernel or AutoGen.
+- Preserve interoperability-first design: AG-UI for UI runtime events, MCP for tools, and A2A for agent-to-agent boundaries.
 
 ## Quick Start
 
@@ -77,6 +87,7 @@ Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatCli
 1. **Install AG-UI hosting package**
    - `dotnet add package Microsoft.Agents.AI.Hosting.AGUI.AspNetCore`
    - Includes all dependencies: Agent Framework, Extensions.AI, protocol implementation
+   - For deterministic builds, pin package versions in docs and scripts instead of floating latest
 
 2. **Create an AIAgent** from IChatClient
    - Wire a chat client (Azure OpenAI, OpenAI, Ollama, etc.)
@@ -153,6 +164,11 @@ Each feature maps directly to Agent Framework abstractions: `AIAgent`, `IChatCli
     - Test accessibility: focus management, `aria-live`, keyboard nav
     - Verify observability: users can see agent reasoning and state
     - Test approval workflows: non-blocking, reversible, with diff previews
+
+13. **Apply migration checks for existing agent stacks**
+   - If project currently uses Semantic Kernel or AutoGen, map key workflows to Agent Framework abstractions (`AIAgent`, workflows, tools, approvals)
+   - Validate behavior parity for multi-agent orchestration before cutover
+   - Keep rollback path for one release cycle during migration
 
 ### Core Protocol & Setup
 - **7 Features & Agent Framework support**: [ag-ui-protocol-overview.md](references/ag-ui-protocol-overview.md) — All 7 features, Agent Framework abstractions, protocol contracts

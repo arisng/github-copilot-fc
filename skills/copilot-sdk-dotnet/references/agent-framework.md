@@ -1,5 +1,11 @@
 # Microsoft Agent Framework Integration
 
+## RC Status (Feb 2026)
+
+- Microsoft Agent Framework is in Release Candidate for .NET and Python, with a stable API surface targeting 1.0.
+- Keep package versions pinned in samples and production docs.
+- Continue validating compatibility between `Microsoft.Agents.AI.GitHub.Copilot` wrapper versions and base Agent Framework packages.
+
 The GitHub Copilot SDK integrates with the Microsoft Agent Framework, offering a consistent abstraction for building agentic applications in .NET. This allows you to treat GitHub Copilot as a building block in larger multi-agent systems.
 
 ## Packages
@@ -7,6 +13,13 @@ The GitHub Copilot SDK integrates with the Microsoft Agent Framework, offering a
 | Language | Package | Command |
 |----------|---------|---------|
 | **.NET** | `Microsoft.Agents.AI.GitHub.Copilot` | `dotnet add package Microsoft.Agents.AI.GitHub.Copilot --prerelease` |
+
+## Migration Signals
+
+Use Agent Framework as the primary migration target when users are moving from Semantic Kernel or AutoGen orchestrations.
+
+- Migration from Semantic Kernel: `https://learn.microsoft.com/en-us/agent-framework/migration-guide/from-semantic-kernel`
+- Migration from AutoGen: `https://learn.microsoft.com/en-us/agent-framework/migration-guide/from-autogen`
 
 ## Creating a Copilot Agent
 

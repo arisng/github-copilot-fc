@@ -1,5 +1,5 @@
 ---
-name: chrome-extensions-development
+name: chrome-extension
 description: Expert knowledge in developing Chrome extensions covering all aspects from basic architecture to advanced features. Covers Manifest V3, service workers, content scripts, Chrome APIs, popup and options pages, security, performance, testing, debugging, and publishing. Use when developing Chrome extensions or migrating from Manifest V2 to V3. For HTML, CSS, and JavaScript best practices and modern web APIs, use the modern-web-dev skill.
 metadata:
   version: 1.0.0

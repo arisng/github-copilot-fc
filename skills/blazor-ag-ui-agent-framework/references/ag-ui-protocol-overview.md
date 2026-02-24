@@ -1,5 +1,9 @@
 # AG-UI Protocol & Agent Framework Support
 
+## RC Context (Feb 2026)
+
+With Microsoft Agent Framework in Release Candidate, treat AG-UI as a first-class interoperability boundary for UI runtime events and state flow. Keep protocol contracts explicit and version-aware in app architecture docs.
+
 ## What is AG-UI?
 
 AG-UI is a standardized, transport-agnostic protocol for agent-to-UI communication. It defines:

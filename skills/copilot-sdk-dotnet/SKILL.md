@@ -2,8 +2,8 @@
 name: copilot-sdk-dotnet
 description: Build applications with GitHub Copilot CLI SDKs for .NET. Use for direct CopilotClient integration or Microsoft Agent Framework. Covers sessions, streaming, tools, MCP, permissions, and multi-agent workflows.
 metadata:
-  version: 1.0.0
-  authors: arisng
+    version: 1.1.0
+    authors: arisng
 ---
 
 # GitHub Copilot CLI SDK (.NET)
@@ -17,7 +17,7 @@ Use this skill to guide SDK integration, select appropriate APIs, and provide C#
 3. Select the matching API section and code pattern.
 4. Provide C# examples with clear context (usings, initialization, event handling).
 5. Call out important defaults and configuration options that affect behavior.
-6. Mention technical preview status and potential breaking changes across SDK versions.
+6. Clarify stability scope: Agent Framework is RC (stable API surface toward GA) while Copilot SDK pieces may still evolve.
 
 ## SDK selection and installation
 
@@ -26,6 +26,10 @@ Use this skill to guide SDK integration, select appropriate APIs, and provide C#
 
 ### Microsoft Agent Framework (Wrapper)
 - **.NET**: `dotnet add package Microsoft.Agents.AI.GitHub.Copilot --prerelease`
+
+Note:
+- Microsoft Agent Framework is in Release Candidate and has a stable API surface for 1.0 planning.
+- Keep prerelease suffixes where package feeds still require them, and pin versions in implementation docs.
 
 All SDKs communicate via JSON-RPC over stdio (default) or TCP transports.
 
@@ -45,6 +49,15 @@ For .NET, use the Microsoft Agent Framework wrapper to treat Copilot as a buildi
 - **Consistent Abstraction**: Implements `AIAgent`.
 - **Multi-Agent Workflows**: Compose Copilot agents with Azure OpenAI/Anthropic agents.
 - **Features**: Supports streaming, function tools, sessions, and MCP servers via framework patterns.
+- **RC Guidance**: Favor Agent Framework abstractions (`AIAgent`, workflows, approvals) for new orchestration code instead of building direct orchestration plumbing on top of raw session events.
+
+## Migration Guidance (SK/AutoGen -> Agent Framework)
+
+When users are migrating existing agent systems:
+1. Inventory existing Semantic Kernel or AutoGen flows (single-agent, tool calls, orchestration, HITL).
+2. Map to Agent Framework primitives first (`AIAgent`, tools, workflows, checkpoints, approvals).
+3. Reuse Copilot SDK at integration boundaries (session/tool transport), not as the primary orchestration model.
+4. Validate parity for streaming output, approval gates, and failure recovery before full cutover.
 
 **See [Agent Framework Integration](references/agent-framework.md) for full guide on installation, agent creation, and multi-agent orchestration.**
 
@@ -386,7 +399,7 @@ The GitHub Copilot ecosystem comprises multiple distinct products, each serving 
 - **Tool timeout**: 30 seconds default for MCP stdio servers
 - **Session persistence**: Sessions survive client restarts if sessionId is preserved
 - **Event ordering**: Events fire in order (user.message → tool.execution → assistant.message_delta → assistant.message → session.idle)
-- **Technical preview**: All SDKs are in technical preview and may have breaking changes between versions
+- **Stability scope**: Treat Agent Framework APIs as RC-stable; validate version compatibility between Copilot SDK packages and Agent Framework wrapper packages before upgrades
 
 ## Troubleshooting guidance
 
