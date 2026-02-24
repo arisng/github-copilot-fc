@@ -215,7 +215,7 @@ To propose a new scope or modify an existing one:
 2. **Check for overlap**: Does any existing approved scope cover the same area?
 3. **Follow conventions**: Ensure the proposed name is kebab-case, singular, and has no path syntax
 4. **Update constitution**: Add the scope to the appropriate commit type section with a definition
-5. **Re-run inventory**: Run `python skills/git-commit-scope-constitution/scripts/extract_scopes.py --format markdown --output .github/scope-inventory.md` to refresh the inventory
+5. **Re-run inventory**: Run `python skills/git-commit-scope-constitution/scripts/extract_scopes.py --format markdown --output .github/git-scope-inventory.md` to refresh the inventory
 6. **Document amendment**: Add an entry to the Amendment History below
 
 ## Amendment History
