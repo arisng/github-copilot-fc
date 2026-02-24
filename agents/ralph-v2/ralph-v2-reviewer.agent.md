@@ -2,10 +2,10 @@
 name: Ralph-v2-Reviewer
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
 argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), TASK_ID, REPORT_PATH, and ITERATION for review
-user-invokable: false
+user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.5.0
+  version: 2.6.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -99,10 +99,15 @@ Fail a task when the executor timed out or crashed and no report was produced.
 
 ### Poll-Signals Routine
 1. **List** files in `signals/inputs/` (sort by timestamp ascending)
-2. **Move** oldest file to `signals/processed/` (Atomic concurrency handling)
-    - If move fails, skip (another agent took it)
-3. **Read** content
-4. **Act**:
+2. **Peek** oldest file content (type + target)
+3. **If** `target == ALL`:
+  - Do NOT move source signal
+  - Write/refresh ack file `signals/acks/<SIGNAL_ID>/Reviewer.ack.yaml`
+4. **Else** (target is Reviewer-specific or unscoped):
+  - Move file to `signals/processed/` (Atomic concurrency handling)
+  - If move fails, skip (another agent took it)
+5. **Read** content
+6. **Act**:
     - **STEER**: Adjust immediate context
     - **PAUSE**: Suspend execution until new signal or user resume
     - **ABORT**: Gracefully terminate
@@ -178,6 +183,7 @@ Read iterations/<ITERATION>/plan.md for overall session goals
 
 ```markdown
 Poll signals/inputs/
+  If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Reviewer.ack.yaml and do not move source signal
   IF INFO: Inject message into review context for consideration
   If STEER: Adjust validation context or restart read
   If PAUSE: Wait
@@ -329,6 +335,7 @@ If Failed:
 
 ```markdown
 Poll signals/inputs/
+  If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Reviewer.ack.yaml and do not move source signal
   IF ABORT: Proceed to Report to Orchestrator with partial results
   IF STEER: Re-evaluate if verdict should change; if changed, restart from Step 6
     Max 2 STEER re-evaluations per review cycle; after 2nd, escalate to Orchestrator with [STEER-LOOP] marker

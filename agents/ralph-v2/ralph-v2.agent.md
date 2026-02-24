@@ -2,11 +2,11 @@
 name: Ralph-v2
 description: Orchestration agent v2 with structured feedback loops, isolated task files, and REPLANNING state for iteration support
 argument-hint: Outline the task or question to be handled by Ralph-v2 orchestrator
-user-invokable: true
+user-invocable: true
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'vscode/memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
 metadata:
-  version: 2.5.0
+  version: 2.6.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -58,7 +58,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 | Session Metadata | `metadata.yaml` | Ralph-v2-Planner (Init), Orchestrator (Update) | **State machine SSOT** — stays at session root |
 | Iteration Metadata | `iterations/<N>/metadata.yaml` | Ralph-v2-Planner (Init), Reviewer (Update) | **Timing SSOT** — per-iteration lifecycle |
 | Knowledge Staging | `knowledge/` | Ralph-v2-Librarian | Session-scope knowledge staging |
-| Signals | `signals/inputs/`, `signals/processed/` | Human (write), Orchestrator (route) | **Session-level** — not iteration-scoped |
+| Signals | `signals/inputs/`, `signals/acks/`, `signals/processed/` | Human (write), Agents (ack), Orchestrator (route/finalize) | **Session-level** — not iteration-scoped |
 
 ## State Machine
 
@@ -68,7 +68,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 └──────┬──────┘
        │ Invoke Ralph-v2-Planner (MODE: INITIALIZE)
        │ → Creates: iterations/1/plan.md, iterations/1/tasks/*, iterations/1/progress.md,
-       │           metadata.yaml, iterations/1/metadata.yaml, signals/inputs/, signals/processed/
+    │           metadata.yaml, iterations/1/metadata.yaml, signals/inputs/, signals/acks/, signals/processed/
        │ → Ralph-v2-Planner marks plan-init as [x]
        ▼
 ┌─────────────┐
@@ -480,7 +480,7 @@ FOR EACH task (respect max_parallel_executors):
         ATTEMPT_NUMBER: <N>
         ITERATION: <current iteration>
         FEEDBACK_CONTEXT: iterations/<ITERATION>/feedbacks/*/ (if exists)
-        SIGNAL_CONTEXT: [buffered signals for Ralph-Executor, if any]
+        SIGNAL_CONTEXT: [buffered signals for Executor, if any]
         ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
 
     ON completion:
@@ -694,6 +694,13 @@ ELSE:
 ### 11. State: COMPLETE
 
 ```
+# Finalize remaining broadcast signals before exit
+FOR each signal in signals/inputs/ where target == ALL:
+    IF ack quorum met for ALL_RECIPIENTS:
+        MOVE signal to signals/processed/ with delivery_status: delivered
+    ELSE:
+        MOVE signal to signals/processed/ with delivery_status: partial and unacked_agents list
+
 READ iterations/<ITERATION>/progress.md
 IF all tasks [x] or [C]:
     # Session success (Metadata updated by Reviewer in SESSION_REVIEW)
@@ -708,30 +715,65 @@ ELSE IF any tasks [F]:
 
 ### Signal Artifacts
 - **Inputs**: `.ralph-sessions/<SESSION_ID>/signals/inputs/`
+- **Acks**: `.ralph-sessions/<SESSION_ID>/signals/acks/`
 - **Processed**: `.ralph-sessions/<SESSION_ID>/signals/processed/`
 
 ### Poll-Signals Routine
 1. **Define** `RECOGNIZED_TYPES = [STEER, PAUSE, ABORT, INFO]`
-2. **List** files in `signals/inputs/` (sort by timestamp ascending)
-3. **Read** oldest file content (peek — do not move yet)
-4. **Check type** against `RECOGNIZED_TYPES`
-5. **If recognized**:
+2. **Define** `ALL_RECIPIENTS = [Orchestrator, Executor, Planner, Questioner, Reviewer, Librarian]`
+3. **Ensure** `signals/acks/` exists
+4. **List** files in `signals/inputs/` (sort by timestamp ascending)
+5. **Read** oldest file content (peek — do not move yet)
+6. **Check type** against `RECOGNIZED_TYPES`
+7. **If recognized**:
     a. **Check target** field:
-       - If `target == ALL` or `target == Ralph-Orchestrator` or `target` is absent → **consume** (proceed to step 5b)
-       - If `target` specifies a subagent (e.g., `Ralph-Executor`, `Ralph-Reviewer`) → **buffer** the signal:
+         - If `target == ALL`:
+            - Apply signal locally
+            - Write/refresh ack file `signals/acks/<SIGNAL_ID>/Orchestrator.ack.yaml`
+            - Do NOT move the source signal yet
+            - If ack files exist for all `ALL_RECIPIENTS`, move to `signals/processed/` and append delivery metadata
+            - Continue to next signal
+         - If `target == Orchestrator` or `target` is absent → **consume** (proceed to step 7b)
+       - If `target` specifies a subagent (e.g., `Executor`, `Reviewer`) → **buffer** the signal:
          - Move file to `signals/processed/`
          - Store signal in `SIGNAL_CONTEXT[<target>]` for delivery at next targeted subagent invocation
          - Do NOT act on it locally
          - Continue to next signal
-    b. **Move** file to `signals/processed/` (Atomic concurrency handling)
+     b. **Move** file to `signals/processed/` (Atomic concurrency handling)
        - If move fails, skip (another agent took it)
     c. **Act**:
        - **STEER**: Adjust immediate context
        - **PAUSE**: Suspend execution until new signal or user resume
        - **ABORT**: Gracefully terminate
        - **INFO**: Log to context
-6. **If unrecognized type**: Skip — leave signal in `inputs/` for state-specific consumption.
-7. **Deliver buffered signals**: When invoking a subagent, attach any signals in `SIGNAL_CONTEXT[<subagent>]` to the invocation context. Clear the buffer after delivery.
+8. **If unrecognized type**: Skip — leave signal in `inputs/` for state-specific consumption.
+9. **Deliver buffered signals**: When invoking a subagent, attach any signals in `SIGNAL_CONTEXT[<subagent>]` to the invocation context. Clear the buffer after delivery.
+
+### Target Namespace Standard
+- Signal `target` values are **role names only**: `ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian`.
+- Do not encode version in `target` (for example, never `Ralph-v2-*`). Workflow version is inferred from the active runtime/session context.
+
+### Archive Checkpoints (Exactly When Orchestrator Moves To `signals/processed/`)
+1. **Poll-Signals, targeted-to-Orchestrator path**:
+    - Condition: `type in [STEER, PAUSE, ABORT, INFO]` and `target in [Orchestrator, <absent>]`.
+    - Timing: immediately after peek/type/target validation in Poll-Signals step `7b`.
+2. **Poll-Signals, targeted-to-subagent routing path**:
+    - Condition: `type in [STEER, PAUSE, ABORT, INFO]` and `target` is one of `Executor|Planner|Questioner|Reviewer|Librarian`.
+    - Timing: immediately after buffering into `SIGNAL_CONTEXT[target]`.
+3. **Poll-Signals, broadcast finalization path (`target: ALL`)**:
+    - Condition: ack quorum satisfied for `ALL_RECIPIENTS`.
+    - Timing: during Poll-Signals step `7a` finalization check, after Orchestrator writes its own ack.
+4. **KNOWLEDGE_APPROVAL state-specific path**:
+    - Condition: `APPROVE` or `SKIP` signal detected in `signals/inputs/`.
+    - Timing: immediately when consumed in `State: KNOWLEDGE_APPROVAL` before state transition.
+5. **Session-end hygiene path (`COMPLETE` transition)**:
+    - Condition: residual `target: ALL` signals still in `signals/inputs/`.
+    - Timing: right before final exit; archive as `delivery_status: delivered` (quorum met) or `delivery_status: partial` with `unacked_agents`.
+
+### `target: ALL` Invariant
+- First reader never archives a `target: ALL` signal.
+- Every recipient agent must write exactly one ack file per signal ID.
+- Only Orchestrator archives a `target: ALL` signal after all required acks are present.
 
 ## Feedback Loop Protocol
 

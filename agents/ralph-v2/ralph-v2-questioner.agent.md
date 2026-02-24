@@ -2,10 +2,10 @@
 name: Ralph-v2-Questioner
 description: Q&A discovery agent v2 with feedback-analysis mode for replanning and structured question files per category
 argument-hint: Specify the Ralph session path, MODE (brainstorm, research, feedback-analysis), CYCLE, and ITERATION
-user-invokable: false
+user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'vscode/memory']
 metadata:
-  version: 2.5.0
+  version: 2.6.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -116,7 +116,7 @@ updated_at: 2026-02-07T10:00:00Z
 **Process:**
 1. Read all `iterations/<N>/feedbacks/*/feedbacks.md`
 2. For each critical issue:
-   - Poll signals/inputs/ (Act on INFO/STEER/PAUSE/ABORT)
+  - Poll signals/inputs/ (Act on INFO/STEER/PAUSE/ABORT; if target == ALL write/refresh signals/acks/<SIGNAL_ID>/Questioner.ack.yaml and do not move source signal)
    - Generate root cause questions
    - Generate "how to fix" questions
    - Generate prevention questions
@@ -195,6 +195,7 @@ Identify knowledge gaps in category:
 
 # Step 1.5: Check Live Signals
 Poll signals/inputs/
+  If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Questioner.ack.yaml and do not move source signal
   If INFO: Log message for context awareness
   If STEER: Update analysis context
   If PAUSE: Wait
@@ -244,7 +245,7 @@ Load iterations/<ITERATION>/questions/<category>.md
 
 # Step 2: Research each unanswered question
 For each question with Status: Unanswered:
-  - Poll signals/inputs/ (Act on INFO/STEER/PAUSE/ABORT)
+  - Poll signals/inputs/ (Act on INFO/STEER/PAUSE/ABORT; if target == ALL write/refresh signals/acks/<SIGNAL_ID>/Questioner.ack.yaml and do not move source signal)
   - Use web search, docs, code analysis
   - Find authoritative sources
   - Assess confidence level

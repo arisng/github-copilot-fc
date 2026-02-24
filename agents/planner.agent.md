@@ -2,8 +2,7 @@
 name: Planner
 description: Researches and outlines multi-step plans
 argument-hint: Outline the goal or problem to research
-target: vscode
-user-invokable: true
+user-invocable: true
 tools: ['vscode/askQuestions', 'execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read', 'agent', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'search', 'web', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/issue_read', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories']
 agents: []
 handoffs:

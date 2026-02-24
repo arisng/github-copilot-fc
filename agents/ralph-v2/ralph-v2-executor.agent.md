@@ -2,10 +2,10 @@
 name: Ralph-v2-Executor
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
 argument-hint: Specify the Ralph session path, TASK_ID, ATTEMPT_NUMBER, and ITERATION for task execution
-user-invokable: false
+user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/testFailure, execute/runInTerminal, execute/runTests, read/terminalSelection, read/terminalLastCommand, read/problems, read/readFile, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', 'deepwiki/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/get-library-docs, mcp_docker/resolve-library-id, mcp_docker/search, mcp_docker/sequentialthinking, 'microsoftdocs/mcp/*']
 metadata:
-  version: 2.5.0
+  version: 2.6.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -139,9 +139,13 @@ Loop until no pending signals:
   Poll signals/inputs/
   - For each file (FIFO by timestamp):
     - Peek: Read signal type and target
-    - If target != ALL and target != Ralph-Executor → skip (leave for correct consumer)
+    - If target != ALL and target != Executor → skip (leave for correct consumer)
     - If type is APPROVE or SKIP → skip (state-specific, Orchestrator only)
-    - Atomic Move → signals/processed/
+    - If target == ALL:
+      - Do NOT move source signal
+      - Write idempotent ack: signals/acks/<SIGNAL_ID>/Executor.ack.yaml
+    - Else:
+      - Atomic Move → signals/processed/
     - Act based on type:
       IF INFO: Log message for context awareness
       If STEER: Update current context (+ ingest any SIGNAL_CONTEXT from Orchestrator)
@@ -181,7 +185,8 @@ If ATTEMPT_NUMBER > 1:
 
 # Check Live Signals (Universal only: STEER, PAUSE, ABORT, INFO)
 Poll signals/inputs/
-  Filter: target == ALL or target == Ralph-Executor; skip APPROVE/SKIP
+  Filter: target == ALL or target == Executor; skip APPROVE/SKIP
+  If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Executor.ack.yaml and do not move source signal
   If ABORT: Return blocked
   If PAUSE: Wait
   If INFO: Log message for context awareness
@@ -224,7 +229,8 @@ If ITERATION > 1 and feedback exists:
 ### 3.5. Verify Signals (Mid-Execution)
 ```markdown
 # Poll signals/inputs/ (Universal only: STEER, PAUSE, ABORT, INFO)
-Filter: target == ALL or target == Ralph-Executor; skip APPROVE/SKIP
+Filter: target == ALL or target == Executor; skip APPROVE/SKIP
+If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Executor.ack.yaml and do not move source signal
 
 If ABORT: Execute cleanup (mark [F] in iterations/<ITERATION>/progress.md, write partial report), return blocked
 If PAUSE: Save progress, return paused

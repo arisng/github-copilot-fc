@@ -2,10 +2,10 @@
 name: Ralph-v2-Librarian
 description: Workspace wiki management subagent for Ralph-v2 that stages reusable knowledge in session-scope knowledge folder and promotes approved content to workspace's `.docs` using Diátaxis structure
 argument-hint: Provide SESSION_PATH, ITERATION, and MODE (STAGE or PROMOTE) for wiki staging/promotion requested by Ralph-v2 orchestrator
-user-invokable: false
+user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.5.0
+  version: 2.6.0
   created_at: 2026-02-13T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -215,6 +215,7 @@ Execute this workflow when invoked with `MODE: STAGE` at the end of an iteration
 0. **Check Live Signals** (Universal only: STEER, PAUSE, ABORT, INFO)
    ```markdown
    Poll signals/inputs/
+     If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Librarian.ack.yaml and do not move source signal
      If ABORT: Return blocked
      If PAUSE: Wait
      If STEER: Adjust staging scope/criteria
@@ -232,6 +233,7 @@ Execute this workflow when invoked with `MODE: STAGE` at the end of an iteration
 4. **Check Live Signals (Post-Collection)** — After evidence collection, poll for signals before processing:
    ```markdown
    Poll signals/inputs/
+     If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Librarian.ack.yaml and do not move source signal
      If ABORT: Return blocked
      If STEER: Re-filter collected knowledge based on new context
      If INFO: Append to context and continue
@@ -259,6 +261,7 @@ Execute this workflow when invoked with `MODE: PROMOTE` after human approval (AP
 0. **Check Live Signals** (Universal only: STEER, PAUSE, ABORT, INFO)
    ```markdown
    Poll signals/inputs/
+     If target == ALL: write/refresh signals/acks/<SIGNAL_ID>/Librarian.ack.yaml and do not move source signal
      If ABORT: Return blocked
      If PAUSE: Wait
      If STEER: Adjust promotion scope

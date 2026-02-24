@@ -1,4 +1,5 @@
 ---
+name: Nexus
 description: 'an AI assistant specialized in structured problem-solving and knowledge management.'
 tools: ['vscode', 'execute', 'read', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'todo']
 ---
