@@ -1,7 +1,7 @@
 ---
 name: gitAtomicCommit
 description: Create atomic commits with executive summaries and user review
-metdata:
+metadata:
   version: 1.0.0
   author: arisng
 ---

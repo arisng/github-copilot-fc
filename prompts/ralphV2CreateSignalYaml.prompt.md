@@ -1,18 +1,18 @@
 ---
-name: ralphV2CreateSignalYaml
+name: ralph-v2-create-signal-yaml
 description: Generate a timestamped Ralph v2 `signals/inputs/` YAML file for live steering.
-argument-hint: sessionId, message (hot-steering text), optional: type (STEER|PAUSE|STOP|INFO), optional: target (ALL | Ralph-v2 | Ralph-v2-Executor | Ralph-v2-Planner | Ralph-v2-Questioner | Ralph-v2-Reviewer | Ralph-v2-Librarian)
+argument-hint: sessionId, message (hot-steering text), optional: type (STEER|PAUSE|STOP|INFO), optional: target (ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian)
 model: Raptor mini (Preview) (copilot)
 agent: agent
 metadata:
-  version: 1.0.1
+  version: 1.1.0
   author: arisng
 ---
 Given the following inputs:
 - `sessionId`: the Ralph session identifier
 - `message`: the hot-steering or informational text to inject
 - optional `type`: one of `STEER`, `PAUSE`, `STOP`, or `INFO` (default: `STEER`)
-- optional `target`: `ALL` or a specific subagent name (default: `ALL`). Accept and normalize these canonical targets (case-insensitive): `Ralph-v2` (orchestrator), `Ralph-v2-Executor`, `Ralph-v2-Planner`, `Ralph-v2-Questioner`, `Ralph-v2-Reviewer`, `Ralph-v2-Librarian`.
+- optional `target`: `ALL` or a specific subagent name (default: `ALL`). Accept and normalize these canonical targets (case-insensitive): `Orchestrator`, `Executor`, `Planner`, `Questioner`, `Reviewer`, `Librarian`.
 
 Create a ready-to-write, timestamped signal file for the session mailbox.
 
@@ -41,7 +41,6 @@ Compatibility notes:
 Defaults and validation:
 - If `type` is omitted or invalid, use `STEER`.
 - If `target` is omitted, use `ALL`.
-- If `target` is ambiguous, normalize common aliases (case-insensitive): `orchestrator` -> `Ralph-v2`, `executor` -> `Ralph-v2-Executor`, `planner` -> `Ralph-v2-Planner`, `questioner` -> `Ralph-v2-Questioner`, `reviewer` -> `Ralph-v2-Reviewer`, `librarian` -> `Ralph-v2-Librarian`; if still ambiguous, default to `ALL`.
 - Ensure `message` is present and trimmed; if empty, respond with an error line indicating the missing argument.
 
 When the assistant or agent has file-system write access, it MUST create the signal file at the computed relative path (`.ralph-sessions/{sessionId}/signals/inputs/{filename}`) and write the YAML exactly as shown. The file write MUST:

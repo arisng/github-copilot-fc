@@ -1,4 +1,5 @@
 ---
+name: growth-log
 agent: 'agent'
 tools: ['read/terminalSelection', 'read/terminalLastCommand', 'read/problems', 'read/readFile', 'sequentialthinking/*', 'time/*', 'google-calendar/*']
 description: 'Maintain a Growth Log using Google Calendar All-Day events as a searchable database'
