@@ -54,6 +54,13 @@ Customizations live in workspace root folders (not `.github/` scan paths) to avo
 
 ## 🛠️ Publishing
 
+Each customization type has its own helper script; `publish-artifact.ps1` is a small
+wrapper that picks the right one.  All of the helpers now support shell-style wildcard
+patterns (`*` and `?`) when you supply the `-Name`/`-Agents`/`-Prompts`/etc. argument.  
+
+Be sure to quote patterns at the command line to prevent PowerShell from globbing them
+against the current directory (e.g. `-Name "ralphV2*"`).
+
 - Agents: `scripts/publish/publish-agents.ps1`
 - Instructions: `scripts/publish/publish-instructions.ps1`
 - Prompts: `scripts/publish/publish-prompts.ps1`
