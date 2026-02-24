@@ -12,71 +12,34 @@
 
 ## Scopes by Commit Type
 
-### `ai(skill)`
+### `agent`
 
-- agent-evaluator
-- beads
-- git-commit-scope-constitution
-- diataxis
-- git-atomic-commit
-- instruction-creator
-- mermaid-creator
-- pdf
-- skill-creator
-- vn-payroll
-
-### `copilot(custom-agent)`
-
-- agent
-- git-committer
-- meta
-- ralph
-
-### `copilot(instruction)`
-
-- agent-eval
+- skill
 - instruction
-- meta
-- powershell
-- runSubagent
-- skill-eval
 
-### `copilot(memory)`
+### `copilot`
 
+- custom-agent
+- instruction
+- prompt
 - memory
-
-### `copilot(mcp)`
-
 - mcp
 
-### `copilot(prompt)`
+### `devtool`
 
-- atomic-commit
-- changelog
-- meta
-- prompt
-- ralph
-
-### `devtool(script)`
-
-- git
 - script
-
-### `devtool(vscode)`
-
 - vscode
 
-### `docs(changelog)`
+### `docs`
 
 - changelog
-
-### `docs(issue)`
-
+- constitution
 - issue
 
 ### `codex`
 
 - config
+- instruction
 
 ---
 

@@ -4,12 +4,14 @@ Last Updated: [DATE]
 
 ## Purpose
 
-This constitution defines the approved scopes for atomic commits in this repository, ensuring consistency and clarity in commit history. It serves as the authoritative reference for:
+This constitution defines the **Tier 3 (Workspace-Specific)** scopes for atomic commits in this repository. It serves as the authoritative reference for:
 
-- Valid scope names organized by commit type
+- Valid scope names organized by commit type (Tier 1 universal + Tier 2 extended)
 - Scope definitions and boundaries
 - Naming conventions and patterns
 - Guidelines for choosing appropriate scopes
+
+> **Three-Tier Model:** Types come from Tier 1 (universal: `feat`, `fix`, `docs`...) and Tier 2 (author preferences: `agent`, `copilot`, `devtool`, `codex`). This constitution governs **Tier 3**: the repo-specific scopes paired with those types.
 
 ## Scope Naming Conventions
 
@@ -56,129 +58,73 @@ Use when the change is feature-specific:
 
 ## Approved Scopes by Commit Type
 
-### `ai(skill)`
+> **Key Distinction:** The *Type* (Tier 1/2) is the intent of the change; the *Scope* (Tier 3) is the repo-specific module/domain. Organize by **Type** first, then list valid **Scopes** under each.
 
-Scopes for agent skill definitions and implementations (files in `skills/` directory):
+### Type: `agent` (Extended)
 
-- `skill-creator`: Skill creation and templates
-- `git-atomic-commit`: Git atomic commit skill
-- `diataxis`: Diataxis documentation framework skill
-- `instruction-creator`: Instruction creation skill
-- `mermaid-creator`: Mermaid diagram generation skill
-- `pdf`: PDF manipulation skill
-- `vn-payroll`: Vietnam payroll calculation skill
-- `[add-other-skills]`: [Description]
+AI agent instructions, skills, and configurations.
 
-### `copilot(instruction)`
+> **Scope Granularity Principle:** Scopes are artifact *categories*, not specific instances. Use `skill` not `pdf` or `diataxis`. The specific item name belongs in the commit subject.
 
-Scopes for repository-level Copilot instructions (`.instructions.md` files):
+| Scope          | Description                                 | File Patterns                             |
+| -------------- | ------------------------------------------- | ----------------------------------------- |
+| `skill`        | Agent skill definitions and implementations | `skills/*/SKILL.md`, `skills/*/scripts/*` |
+| `instruction`  | Standard AI agent custom instructions       | `**/AGENTS.md`                            |
+| `[add-others]` | [Description]                               | [Patterns]                                |
 
-- `instruction`: General instruction updates
-- `meta`: Meta-instructions about instructions
-- `agent-eval`: Agent evaluation instructions
-- `skill-eval`: Skill evaluation instructions
-- `powershell`: PowerShell scripting instructions
-- `[add-other-instructions]`: [Description]
+### Type: `copilot` (Extended)
 
-### `copilot(custom-agent)`
+GitHub Copilot specific assets (prompts, instructions, agents, mcp).
 
-Scopes for custom agent definitions (`*.agent.md` files):
+| Scope          | Description                           | File Patterns                    |
+| -------------- | ------------------------------------- | -------------------------------- |
+| `instruction`  | Repository-level Copilot instructions | `instructions/*.instructions.md` |
+| `custom-agent` | Custom agent definitions              | `*.agent.md`                     |
+| `prompt`       | Copilot prompt files                  | `*.prompt.md`                    |
+| `memory`       | Knowledge graph memory systems        | `memory.json`                    |
+| `mcp`          | MCP server configuration              | `.vscode/mcp.json`               |
+| `[add-others]` | [Description]                         | [Patterns]                       |
 
-- `agent`: General agent definition updates
-- `meta`: Meta-agent for creating agents
-- `ralph`: Ralph orchestration agent
-- `git-committer`: Git commit agent
-- `[add-other-agents]`: [Description]
+### Type: `docs` (Universal)
 
-### `copilot(prompt)`
+Documentation changes.
 
-Scopes for Copilot prompt files (`*.prompt.md`):
+| Scope          | Description                        | File Patterns                       |
+| -------------- | ---------------------------------- | ----------------------------------- |
+| `issue`        | Issue documentation and tracking   | `.docs/issues/*`                    |
+| `changelog`    | Changelog files                    | `.docs/changelogs/*`                |
+| `constitution` | Scope constitution governance docs | `.github/git-scope-constitution.md` |
+| `[add-others]` | [Description]                      | [Patterns]                          |
 
-- `prompt`: General prompt updates
-- `atomic-commit`: Atomic commit prompt
-- `changelog`: Changelog generation prompt
-- `ralph`: Ralph session prompt
-- `[add-other-prompts]`: [Description]
+### Type: `devtool` (Extended)
 
-### `copilot(memory)`
+Developer tools, scripts, and editor configurations.
 
-Scopes for knowledge graph memory systems (`memory.json`):
+| Scope          | Description                                   | File Patterns                                 |
+| -------------- | --------------------------------------------- | --------------------------------------------- |
+| `script`       | Automation scripts (PowerShell, Python, Bash) | `scripts/*`                                   |
+| `vscode`       | VS Code workspace settings and tasks          | `.vscode/settings.json`, `.vscode/tasks.json` |
+| `[add-others]` | [Description]                                 | [Patterns]                                    |
 
-- `memory`: General memory updates
-- `knowledge-graph`: Knowledge graph structure
-- `[add-other-memory-scopes]`: [Description]
+### Type: `codex` (Extended)
 
-### `copilot(mcp)`
+Codex-specific configuration and instructions.
 
-Scopes for MCP server configuration (`.vscode/mcp.json`):
+| Scope          | Description         | File Patterns   |
+| -------------- | ------------------- | --------------- |
+| `config`       | Codex configuration | `.codex/*.json` |
+| `instruction`  | Codex instructions  | `.codex/*.md`   |
+| `[add-others]` | [Description]       | [Patterns]      |
 
-- `mcp`: MCP server configuration
-- `[add-other-mcp-scopes]`: [Description]
+### Universal Types: `feat`, `fix`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`, `style`, `revert`
 
-### `docs(issue)`
+For files without extended type mappings, use custom scopes based on the affected module/domain:
 
-Scopes for issue documentation (`.docs/issues/*`):
-
-- `issue`: General issue documentation
-- `bug`: Bug reports and fixes
-- `feature`: Feature requests and designs
-- `rfc`: Request for comments
-- `adr`: Architecture decision records
-- `retrospective`: Retrospective documents
-- `[add-other-issue-types]`: [Description]
-
-### `docs(changelog)`
-
-Scopes for changelog files (`.docs/changelogs/*`):
-
-- `changelog`: General changelog updates
-- `weekly`: Weekly changelog entries
-- `monthly`: Monthly changelog summaries
-- `[add-other-changelog-scopes]`: [Description]
-
-### `devtool(script)`
-
-Scopes for PowerShell/Bash/Python scripts (`scripts/`):
-
-- `script`: General script updates
-- `publish`: Publishing scripts
-- `issues`: Issue management scripts
-- `changelog`: Changelog generation scripts
-- `workspace`: Workspace utility scripts
-- `[add-other-script-scopes]`: [Description]
-
-### `devtool(vscode)`
-
-Scopes for VS Code configuration (`.vscode/*`):
-
-- `vscode`: General VS Code settings
-- `settings`: Workspace settings
-- `tasks`: Task configurations
-- `launch`: Debug configurations
-- `[add-other-vscode-scopes]`: [Description]
-
-### `codex`
-
-Scopes for Codex-specific configuration and instructions (`.codex/*`):
-
-- `config`: Codex configuration
-- `instruction`: Codex instructions
-- `[add-other-codex-scopes]`: [Description]
-
-### `ai(instruction)`
-
-Scopes for standard AI agent custom instructions (`AGENTS.md` files):
-
-- `instruction`: General AI instruction updates
-- `[add-other-ai-instruction-scopes]`: [Description]
-
-### `feat`, `fix`, `refactor`, `test`, `chore`
-
-For files without project-specific type mappings, use custom scopes based on the affected module/domain:
-
-- `[module-name]`: Changes affecting a specific module
-- `[domain-name]`: Changes affecting a specific domain
-- `[feature-name]`: Changes affecting a specific feature
+| Scope            | Description                          |
+| ---------------- | ------------------------------------ |
+| `[module-name]`  | Changes affecting a specific module  |
+| `[domain-name]`  | Changes affecting a specific domain  |
+| `[feature-name]` | Changes affecting a specific feature |
 
 ## Scope Selection Guidelines
 
@@ -211,18 +157,18 @@ For files without project-specific type mappings, use custom scopes based on the
 **Good Scope Selection:**
 ```
 File: skills/pdf/SKILL.md
-Type: ai(skill)
-Scope: pdf ✅
-Commit: ai(skill): add table extraction to PDF processing
+Type: agent
+Scope: skill ✅
+Commit: agent(skill): add table extraction to pdf
 ```
 
 **Bad Scope Selection:**
 ```
 File: skills/pdf/SKILL.md
-Type: ai(skill)
-Scope: document ❌ (too generic)
-Scope: pdf-skill-markdown-file ❌ (too specific)
-Scope: PDF ❌ (wrong case)
+Type: agent
+Scope: pdf ❌ (instance-level — use category `skill`; put "pdf" in the subject)
+Scope: agent-stuff ❌ (too vague, doesn't identify the artifact category)
+Scope: SKILL ❌ (wrong case)
 ```
 
 ## Amendment Process
@@ -297,7 +243,7 @@ Scope: PDF ❌ (wrong case)
 
 **Example:**
 ```markdown
-### `ai(skill)` - DEPRECATED SCOPES
+### Type: `ai` - DEPRECATED SCOPES
 
 - ~~`skill-template`~~ → Use `skill-creator` (Deprecated 2026-01-15, Retire 2026-04-15)
 ```

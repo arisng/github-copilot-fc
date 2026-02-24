@@ -1,8 +1,8 @@
 ---
 name: git-atomic-commit
-description: Skill for analyzing git changes, grouping them into logical atomic commits, generating conventional commit messages, and guiding through the commit process. Use when committing changes with proper conventional commit format and maintaining atomic commits.
+description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md.'
 metadata: 
-   version: 1.1.1
+   version: 2.0.0
    author: arisng
 ---
 
@@ -12,44 +12,96 @@ metadata:
 
 This skill enables crafting clean, atomic git commits with conventional commit messages by analyzing all changes in the repository, intelligently grouping them into logical commits, and guiding the user through the process.
 
-## ⚠️ Critical: Project-Specific Types Are Mandatory
+## ⚠️ Critical: Distinguish Commit Type vs. Commit Scope
 
-**DO NOT default to general conventional commit types.** This project uses specialized commit types that must be applied based on file paths and change nature. Always use the project-specific mappings below - they override general conventional commit guidelines.
+Commit messages follow the pattern `type(scope): subject`. **Type** and **Scope** are governed by a three-tier hierarchy:
 
-## File Path to Commit Type Mapping
+| Tier | What it governs | Defined by | Stability |
+|------|----------------|------------|-----------|
+| **1. Universal** | Standard Conventional Commits types | Industry convention | Fixed across all repos |
+| **2. Author Preferences** | Extended types + default file-path mappings | Skill author (opinionated) | Portable across repos; users may override |
+| **3. Workspace-Specific** | Scopes, additional types, file-path overrides | `.github/git-scope-constitution.md` per repo | Unique per repository |
 
-**MANDATORY STEP: Before any grouping or planning, assign a commit type to EACH changed file individually using this mapping. Files with different commit types MUST be in separate commits - this is non-negotiable for atomicity.**
+**Commit Types** = Tier 1 + Tier 2. Types represent the *intent* of the change.
+**Commit Scopes** = Tier 3. Scopes represent the *domain, module, or location* of the change, tightly coupled to the repository's context.
 
-| File Path Pattern       | Required Commit Type    | Rationale                                    |
-| ----------------------- | ----------------------- | -------------------------------------------- |
-| `.docs/issues/*`        | `docs(issue)`           | Issue documentation and tracking             |
-| `.docs/changelogs/*`    | `docs(changelog)`       | Changelog files                              |
-| `instructions/*.md`     | `copilot(instruction)`  | Repository-level Copilot instructions        |
-| `skills/*`              | `ai(skill)`             | Claude skill definitions and implementations |
-| `scripts/*.ps1`         | `devtool(script)`       | PowerShell helper scripts                    |
-| `*.agent.md`            | `copilot(custom-agent)` | Custom agent definitions                     |
-| `**/AGENTS.md`          | `ai(instruction)`       | Standard AI agent custom instructions        |
-| `*.prompt.md`           | `copilot(prompt)`       | Copilot prompt files                         |
-| `memory.json`           | `copilot(memory)`       | Knowledge graph memory systems               |
-| `.codex/*`              | `codex`                 | Codex-specific configuration and instructions|
-| `.vscode/mcp.json`      | `copilot(mcp)`          | MCP server configuration for Copilot         |
-| `.vscode/settings.json` | `devtool(vscode)`       | VS Code workspace settings                   |
-| `.vscode/tasks.json`    | `devtool(vscode)`       | VS Code workspace task configurations        |
+### Tier 1: Universal Commit Types
+
+Standard Conventional Commits — these are immutable and apply everywhere:
+
+| Type | Use Case |
+|------|----------|
+| `feat` | New features |
+| `fix` | Bug fixes |
+| `docs` | Documentation changes |
+| `style` | Formatting, whitespace, missing semi colons |
+| `refactor` | Code restructuring (no behavior change) |
+| `perf` | Performance improvements |
+| `test` | Adding or updating tests |
+| `build` | Build system or external dependencies |
+| `ci` | CI configuration files and scripts |
+| `chore` | Maintenance that doesn't modify src or test files |
+| `revert` | Reverts a previous commit |
+
+### Tier 2: Author Preferences (Opinionated Extended Types)
+
+> **Note for other users:** These extended types reflect the author's (`arisng`) personal conventions for AI/DevTool-heavy repositories. You are free to modify, remove, or add your own extended types to suit your workflow.
+
+Extended types take precedence over universal types when the file matches a known pattern:
+
+| Extended Type | Replaces | Domain | Typical File Patterns |
+|---------------|----------|--------|-----------------------|
+| `agent` | `feat`, `chore` | AI agent assets (skills, instructions) | `skills/*`, `**/AGENTS.md` |
+| `copilot` | `feat`, `chore` | GitHub Copilot assets | `*.agent.md`, `*.prompt.md`, `instructions/*.md`, `.vscode/mcp.json`, `memory.json` |
+| `devtool` | `chore`, `build` | Developer tooling & editor config | `scripts/*`, `.vscode/settings.json`, `.vscode/tasks.json` |
+| `codex` | `chore` | OpenAI Codex assets | `.codex/*` |
+
+**Rule:** When a file matches an extended type pattern, always use the extended type instead of the universal one. Fall back to universal types for everything else.
+
+### Tier 3: Workspace-Specific (Scopes + Overrides)
+
+Scopes are entirely repo-specific and governed by `.github/git-scope-constitution.md`. The file-path-to-scope mapping below is an **example** from the author's workspace. Each repository should define its own via the `git-commit-scope-constitution` skill.
+
+**Scope Granularity Principle:** Scopes represent the **artifact category**, not a specific instance. When scanning `git log --oneline`, `type(category)` tells you *what kind of thing* changed; the commit subject tells you *which one*.
+
+| File Path Pattern | Type (Tier 2) | Scope (Tier 3) | Rationale |
+|-------------------|---------------|----------------|-----------|
+| `.docs/issues/*` | `docs` | `issue` | Issue documentation and tracking |
+| `.docs/changelogs/*` | `docs` | `changelog` | Changelog files |
+| `.github/git-scope-constitution.md` | `docs` | `constitution` | Scope constitution governance |
+| `instructions/*.md` | `copilot` | `instruction` | Repository-level Copilot instructions |
+| `skills/*` | `agent` | `skill` | Agent skill definitions and implementations |
+| `scripts/*` | `devtool` | `script` | Automation scripts (PowerShell, Python, Bash) |
+| `*.agent.md` | `copilot` | `custom-agent` | Custom agent definitions |
+| `**/AGENTS.md` | `agent` | `instruction` | Standard AI agent custom instructions |
+| `*.prompt.md` | `copilot` | `prompt` | Copilot prompt files |
+| `memory.json` | `copilot` | `memory` | Knowledge graph memory systems |
+| `.codex/*.json` | `codex` | `config` | Codex configuration files |
+| `.codex/*.md` | `codex` | `instruction` | Codex instruction files |
+| `.vscode/mcp.json` | `copilot` | `mcp` | MCP server configuration |
+| `.vscode/settings.json` | `devtool` | `vscode` | VS Code workspace settings |
+| `.vscode/tasks.json` | `devtool` | `vscode` | VS Code workspace task configurations |
+
+## File Assignment Rules
+
+**MANDATORY STEP: Before any grouping or planning, assign a Commit Type and a Commit Scope to EACH changed file individually. Files with different types or unrelated scopes MUST be in separate commits — this is non-negotiable for atomicity.**
 
 **Critical Rules:**
-- **Different commit types = Different commits** - Even related files must be separated if they have different types
-- **No exceptions** - Atomicity requires type separation
-- **Check mapping first** - Assign types to individual files before considering relationships
+- **Different commit types = Different commits** — Even related files must be separated if they have different types.
+- **Different scopes = Usually different commits** — Keep commits atomic by scope unless the change is a cross-cutting concern.
+- **Extended type wins** — If a file matches a Tier 2 pattern, never use a Tier 1 universal type.
+- **Check mapping first** — Assign types and scopes to individual files before considering relationships.
 
 **Common Mistakes to Avoid:**
 
-- ❌ `feat(instructions)` → ✅ `copilot(instruction)`
-- ❌ `feat(skill)` → ✅ `ai(skill)`  
-- ❌ `chore(issue)` → ✅ `docs(issue)`
-- ❌ `docs` (no scope) → ✅ `docs(issue)` or `docs(changelog)`
-- ❌ `feat(codex)` → ✅ `codex`
-- ❌ `copilot(agent-config)` → ✅ `ai(instruction)`
-- ❌ `docs(agents)` → ✅ `ai(instruction)`
+- ❌ Conflating type and scope: `docs(issue)` is NOT a type. `docs` is the type, `issue` is the scope.
+- ❌ `feat(instructions)` → ✅ `copilot(instruction)` — Use extended type `copilot` (Tier 2)
+- ❌ `feat(skill)` → ✅ `agent(skill)` — Use extended type `agent` (Tier 2)
+- ❌ `ai(skill)` → ✅ `agent(skill)` — `ai` type is deprecated; use `agent` for all AI model-facing behavior
+- ❌ `ai(agent)` → ✅ `agent(instruction)` — deprecated `ai` type; the old `agent` scope maps to `instruction` under `agent`
+- ❌ `chore(issue)` → ✅ `docs(issue)` — `docs` is the appropriate universal type
+- ❌ `docs` (no scope) → ✅ `docs(issue)` or `docs(changelog)` — Always include a scope
+- ❌ `agent(pdf)` → ✅ `agent(skill)` — Use category-level scope, put specific item in subject
 - ❌ Mixing `copilot(mcp)` + `devtool(vscode)` in one commit → ✅ Separate commits
 - ❌ Grouping files with different types → ✅ One type per commit
 
@@ -61,17 +113,17 @@ This skill enables crafting clean, atomic git commits with conventional commit m
 - If no changes exist, inform the user there's nothing to commit
 - Read relevant file diffs to understand the nature of each change
 
-### 2. Assign Commit Types to Individual Files
+### 2. Assign Commit Types and Scopes to Individual Files
 
-**MANDATORY: For each changed file, determine its exact commit type using the mapping table above. Document this assignment - it drives the entire commit strategy.**
+**MANDATORY: For each changed file, determine its exact commit type AND scope using the mapping table above. Document this assignment - it drives the entire commit strategy.**
 
-### 3. Select Appropriate Scopes
+### 3. Validate Scope Selection
 
-**MANDATORY: After commit types are assigned, select appropriate scopes for each commit.**
+**MANDATORY: After types and scopes are assigned, validate scope choices.**
 
-**Scope Selection Process:**
-1. Check if repository has a scope constitution at `.github/scope-constitution.md`
-2. If constitution exists, use it to select approved scopes for each commit type
+**Scope Validation Process:**
+1. Check if repository has a scope constitution at `.github/git-scope-constitution.md`
+2. If constitution exists, verify chosen scopes are approved for their commit type
 3. If no constitution exists, use the `git-commit-scope-constitution` skill to:
    - Analyze repository structure (folders, modules, domains)
    - Extract historical scopes from git history
@@ -82,25 +134,25 @@ This skill enables crafting clean, atomic git commits with conventional commit m
    - Concise and descriptive (1-3 words)
 
 **Scope Cross-Reference:**
-- Commit type determines WHAT kind of change (via file path mapping)
-- Scope specifies WHERE in the project (via repository structure)
+- Commit type (Tier 1/2) determines WHAT kind of change
+- Scope (Tier 3) specifies WHERE in the project
 - Together they form: `type(scope): subject`
 
 **Example:**
-```
+```text
 File: skills/pdf/SKILL.md
-  → Type: ai(skill)        [from file path mapping]
-  → Scope: pdf             [from .github/scope-constitution.md]
-  → Result: ai(skill): add table extraction
+  → Type: agent            [Tier 2 extended type for AI agent assets]
+  → Scope: skill           [Tier 3 category-level scope]
+  → Result: agent(skill): add table extraction to pdf
 ```
 
 ### 4. Pre-Commit Verification Checklist
 
 **MANDATORY: Complete this checklist before presenting any commit plan:**
 
-- [ ] **Type Mapping**: Every file path mapped to correct project-specific type using the table above
-- [ ] **Scope Selection**: Every commit has an appropriate scope (check constitution if available)
-- [ ] **No Generic Types**: No commits using `feat`, `fix`, `docs` without project-specific scope
+- [ ] **Type Mapping**: Every file path mapped to correct type (Tier 2 extended type when applicable, otherwise Tier 1 universal)
+- [ ] **Scope Selection**: Every commit has an appropriate scope from the constitution (Tier 3)
+- [ ] **No Generic Types**: No commits using Tier 1 types (`feat`, `fix`, `chore`) when a Tier 2 extended type applies
 - [ ] **Atomic Grouping**: Changes grouped by logical feature/module boundaries
 - [ ] **Dependency Order**: Commit order maintains buildable state
 - [ ] **Scope Accuracy**: Commit scopes match actual module/feature names
@@ -145,37 +197,24 @@ For each group, generate a commit message following **Conventional Commits** for
 <footer>
 ```
 
+**MANDATORY: Conventional Commit Syntax**
+Every commit MUST follow this exact structure:
+- `<type>(<scope>): <subject>`
+- Never use multiple scopes like `<type>(<scope>)(<scope_2>)` or `<type>(<scope1,scope2>)`. Use ONE primary scope that best represents the change.
+- **Secondary Areas**: If the change involves a second area (scope_2), mention it explicitly inside the `<subject>` part (e.g., `<type>(primary-scope): [scope2] actual message` or `<type>(primary-scope): fix scope2 bug`).
+
 **Message Format Rules:**
+- **Type**: Must be a Tier 1 universal type or Tier 2 extended type (see tables above).
+- **Scope**: Must be a single, concise module or feature name (Tier 3).
 - **Subject**: Imperative mood, lowercase, no period, ≤50 chars
 - **Body**: Explain *what* and *why*, wrap at 72 chars
-- **Scope**: Module/feature name (required for project-specific types)
 
-**Available Commit Types:**
+**Type Selection:** Refer to the Tier 1 and Tier 2 tables in the "Distinguish Commit Type vs. Commit Scope" section above.
 
-| Type                    | Scope         | Use Case                                                       |
-| ----------------------- | ------------- | -------------------------------------------------------------- |
-| `docs(issue)`           | `issue`       | Issue documentation (`.docs/issues/*`)                         |
-| `docs(changelog)`       | `changelog`   | Changelog files (`.docs/changelogs/*`)                         |
-| `copilot(instruction)`  | `instruction` | `.instructions.md` files                                       |
-| `ai(skill)`             | `skill`       | Claude skill implementations (`skills/*`)                      |
-| `copilot(custom-agent)` | `agent`       | Custom agent definitions (`*.agent.md`)                        |
-| `ai(instruction)`       | `instruction` | Standard AI agent custom instructions (`AGENTS.md`)            |
-| `copilot(prompt)`       | `prompt`      | Prompt files (`*.prompt.md`)                                   |
-| `copilot(memory)`       | `memory`      | Memory systems (`memory.json`)                                 |
-| `copilot(mcp)`          | `mcp`         | MCP config (`.vscode/mcp.json`)                                |
-| `codex`                 | custom        | Codex-specific configuration and instructions (`.codex/*`)     |
-| `devtool(script)`       | `script`      | PowerShell or bash or python scripts (`*.ps1`, `*.sh`, `*.py`) |
-| `devtool(vscode)`       | `vscode`      | VS Code config (`.vscode/settings.json`, `.vscode/tasks.json`) |
-| `feat`                  | custom        | New features (if no project-specific type)                     |
-| `fix`                   | custom        | Bug fixes (if no project-specific type)                        |
-| `refactor`              | custom        | Code restructuring                                             |
-| `test`                  | custom        | Test additions/changes                                         |
-| `chore`                 | custom        | Build, tooling, dependencies                                   |
-
-**CRITICAL:** Use project-specific types (e.g., `ai(skill)`) instead of generic types (`feat`, `fix`) when a mapping exists.
+**CRITICAL:** Use Tier 2 extended types (e.g., `agent`, `copilot`) instead of Tier 1 universal types (`feat`, `chore`) when the file matches an extended type pattern. Always pair the Type with a valid Scope from the repository's constitution.
 
 **Scope Selection:**
-- Prefer scopes from `.github/scope-constitution.md` if available
+- Prefer scopes from `.github/git-scope-constitution.md` if available
 - Ensure scope aligns with repository structure (module, domain, feature)
 - Follow kebab-case, lowercase naming conventions
 - Use `git-commit-scope-constitution` skill if unclear
@@ -235,7 +274,7 @@ After all commits are done, show a summary of all commits created.
 - **MANDATORY: Use project-specific commit types - no exceptions**
 - **MANDATORY: Complete pre-commit verification checklist**
 - **MANDATORY: Different commit types require separate commits** - No exceptions for atomicity
-- **MANDATORY: Use approved scopes from constitution** - Check `.github/scope-constitution.md` if available
+- **MANDATORY: Use approved scopes from constitution** - Check `.github/git-scope-constitution.md` if available
 - Keep commits atomic: one logical change per commit
 - Ensure commit order maintains a buildable state
 - Use English for all commit messages unless instructed otherwise
@@ -273,13 +312,13 @@ Final Commits: type(scope): subject
 **When to Use Each:**
 - Use `git-atomic-commit` for every commit workflow
 - Use `git-commit-scope-constitution` when:
-  - Repository lacks `.github/scope-constitution.md`
+  - Repository lacks `.github/git-scope-constitution.md`
   - Need to add new scopes
   - Weekly constitution refinement
   - Scope selection is unclear
 
-**Constitution Location:** `.github/scope-constitution.md`
-**Scopes Inventory:** `.github/scopes-inventory.md`
+**Constitution Location:** `.github/git-scope-constitution.md`
+**Scopes Inventory:** `.github/git-scope-inventory.md`
 
 ## Commands Reference
 
@@ -311,13 +350,13 @@ git commit -m "<subject>" -m "<body>"
 ```text
 📦 Commit Plan (3 commits)
 
-1. ai(skill): add vscode-docs skill for researching VS Code docs
+1. agent(skill): add vscode-docs skill for researching VS Code docs
    Files: skills/vscode-docs/SKILL.md, skills/vscode-docs/assets/toc.md
 
-2. copilot(instruction): update orchestration guidelines for domain-specific skills
+2. copilot(instruction): update claude-skills orchestration guidelines
    Files: instructions/claude-skills.instructions.md
 
-3. docs(issues): remove deprecated copilot-skills design decision issue
+3. docs(issue): remove deprecated copilot-skills design decision issue
    Files: .docs/issues/251210_copilot-skills.md
 
 ✅ Pre-commit verification: All file paths mapped to correct project-specific types

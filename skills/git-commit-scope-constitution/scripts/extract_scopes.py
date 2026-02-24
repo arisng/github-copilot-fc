@@ -40,8 +40,8 @@ def parse_commit_message(message: str) -> tuple:
     Expected format: <type>(<scope>): <subject>
     Alternative: <type>: <subject> (no scope)
     """
-    # Pattern: type(scope): subject
-    pattern = r'^([a-z]+(?:/[a-z]+)?)\(([^)]+)\):\s*(.+)$'
+    # Pattern: type(scope): subject — type can contain hyphens/digits
+    pattern = r'^([a-z][a-z0-9-]*)\(([^)]+)\):\s*(.+)$'
     match = re.match(pattern, message)
     
     if match:
@@ -49,8 +49,8 @@ def parse_commit_message(message: str) -> tuple:
         scope = match.group(2)
         return (commit_type, scope)
     
-    # Pattern: type: subject (no scope)
-    pattern_no_scope = r'^([a-z]+(?:/[a-z]+)?):\s*(.+)$'
+    # Pattern: type: subject (no scope) — type can contain hyphens/digits
+    pattern_no_scope = r'^([a-z][a-z0-9-]*):\s*(.+)$'
     match_no_scope = re.match(pattern_no_scope, message)
     
     if match_no_scope:
