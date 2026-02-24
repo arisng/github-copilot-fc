@@ -1,4 +1,5 @@
 ---
+name: meta
 agent: 'agent'
 description: 'Meta prompt to create new GitHub Copilot prompt files based on user-provided context.'
 ---
