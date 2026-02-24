@@ -2,8 +2,17 @@ param(
     [Parameter(Mandatory = $false)]
     [string[]]$Skills,
 
+    # force mode is now the default.  use -NoForce to opt out when you really
+    # want to preserve an existing copy instead of overwriting it.
     [Parameter(Mandatory = $false)]
-    [switch]$Force,
+    [switch]$Force = $true,
+
+    # helper switch allowing caller to disable force explicitly. this is
+    # mutually exclusive with -Force but makes the default behaviour easier to
+    # reason about: if you run the script without any switches it will
+    # overwrite existing skills.
+    [Parameter(Mandatory = $false)]
+    [switch]$NoForce,
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipWSL
@@ -23,7 +32,12 @@ function Publish-SkillsToPersonal {
         Array of skill names to publish. If empty, publishes all skills.
 
     .PARAMETER Force
-        Overwrite existing skills.
+        Overwrite existing skills.  This flag is **on by default**; the script
+        will behave as if -Force was passed unless you also specify -NoForce.
+
+    .PARAMETER NoForce
+        Prevent overwriting existing skills.  This is the opposite of -Force and
+        is provided so that callers can explicitly disable the default behaviour.
 
     .PARAMETER SkipWSL
         Skip publishing to WSL (Windows-only mode).
@@ -48,6 +62,9 @@ function Publish-SkillsToPersonal {
 
         Publishes skills to Windows only, skipping WSL.
     #>
+
+    # interpret the combination of Force/NoForce switches
+    if ($NoForce) { $Force = $false }
 
     Write-Host "Publishing skills to personal folders" -ForegroundColor Cyan
 
@@ -125,7 +142,7 @@ function Publish-SkillsToPersonal {
 
             try {
                 if ($exists -and -not $Force) {
-                    Write-Host "Skipping $($skillDir.Name) for $folder (already exists). Use -Force to overwrite." -ForegroundColor Yellow
+                    Write-Host "Skipping $($skillDir.Name) for $folder (already exists). Use -Force (default) to overwrite or -NoForce to skip." -ForegroundColor Yellow
                     continue
                 }
 
