@@ -50,6 +50,7 @@ Tier 2 extended type replacing the deprecated `ai` type. Use for changes to AI a
 Use `agent` when the *substance* of AI capability changes; use `copilot` when the *artifact file* lifecycle is the focus.
 
 - `codex`: AI codex knowledge base or index entries
+- `hook`: Agent hook lifecycle configurations (`hooks/`)
 - `instruction`: AI behavioral changes to agent definition files (instructions, persona, reasoning) *(was `ai(agent)`)*
 - `mcp`: Model Context Protocol configuration affecting AI behavior
 - `prompt`: AI prompt content and engineering changes
