@@ -8,19 +8,19 @@ This constitution defines the approved scopes for atomic commits in the `github-
 
 ## Repository Context
 
-This repository is a **customization factory** for GitHub Copilot artifacts:
+This repository is a **customization factory** for GitHub Copilot customizations:
 
-| Directory | Domain | Primary Artifact Type |
-|-----------|--------|----------------------|
-| `agents/` | AI Agents | `.agent.md` files |
-| `instructions/` | Copilot Instructions | `.instructions.md` files |
-| `prompts/` | Prompt Templates | `.prompt.md` files |
-| `skills/` | Skill Libraries | `SKILL.md` + supporting scripts |
-| `scripts/` | Automation | `.ps1`, `.py` scripts |
-| `toolsets/` | Tool Configurations | `.toolsets.jsonc` files |
-| `copilot-sdk/` | SDK Documentation | `.md` docs |
-| `prompt-engineering/` | PE Research | `.md`, `.json` docs |
-| `.github/` | Repository Governance | Constitution, inventory, workflows |
+| Directory             | Domain                | Primary Artifact Type              |
+| --------------------- | --------------------- | ---------------------------------- |
+| `agents/`             | AI Agents             | `.agent.md` files                  |
+| `instructions/`       | Copilot Instructions  | `.instructions.md` files           |
+| `prompts/`            | Prompt Templates      | `.prompt.md` files                 |
+| `skills/`             | Skill Libraries       | `SKILL.md` + supporting scripts    |
+| `scripts/`            | Automation            | `.ps1`, `.py` scripts              |
+| `toolsets/`           | Tool Configurations   | `.toolsets.jsonc` files            |
+| `copilot-sdk/`        | SDK Documentation     | `.md` docs                         |
+| `prompt-engineering/` | PE Research           | `.md`, `.json` docs                |
+| `.github/`            | Repository Governance | Constitution, inventory, workflows |
 
 ## Scope Naming Conventions
 
@@ -44,17 +44,30 @@ Changes to GitHub Copilot customization artifact files — the most-used commit 
 - `skill`: Copilot skill files (`skills/**/SKILL.md` and all supporting skill scripts)
 - `toolset`: Copilot toolset configuration files (`toolsets/**/*.toolsets.jsonc`)
 
-### `ai`
+### `agent`
 
-Changes focused on AI model-facing behavior — prompt content, skill instructions, or agent intelligence.
-Use `ai` when the *substance* of AI intelligence changes; use `copilot` when the *artifact file* lifecycle is the focus.
+Tier 2 extended type replacing the deprecated `ai` type. Use for changes to AI agent assets and AI model-facing behavior — skill instructions, agent intelligence, or model configuration.
+Use `agent` when the *substance* of AI capability changes; use `copilot` when the *artifact file* lifecycle is the focus.
 
-- `agent`: AI behavior changes to agent definition files (instructions, persona, reasoning)
 - `codex`: AI codex knowledge base or index entries
+- `instruction`: AI behavioral changes to agent definition files (instructions, persona, reasoning) *(was `ai(agent)`)*
 - `mcp`: Model Context Protocol configuration affecting AI behavior
 - `prompt`: AI prompt content and engineering changes
 - `prompt-engineering`: Prompt engineering research and analysis (`prompt-engineering/`)
 - `skill`: Skill content changes that affect AI behavior or instructions
+
+### `ai`
+
+> **Deprecated type.** Use `agent` instead. All `ai(*)` commits should migrate to `agent(*)`. See Amendment #3 and the selection guide below.
+
+Historical scopes (do not use in new commits):
+
+- ~~`agent`~~ → `agent(instruction)`
+- ~~`codex`~~ → `agent(codex)`
+- ~~`mcp`~~ → `agent(mcp)`
+- ~~`prompt`~~ → `agent(prompt)`
+- ~~`prompt-engineering`~~ → `agent(prompt-engineering)`
+- ~~`skill`~~ → `agent(skill)`
 
 ### `docs`
 
@@ -130,21 +143,21 @@ Style or formatting changes only (whitespace, formatting — no logic changes).
 
 - `workspace`: VS Code workspace configuration *(legacy — use `chore(vscode)` or `devtool(vscode)`)*
 
-## `ai` vs `copilot` — Selection Guide
+## `agent` vs `copilot` — Selection Guide
 
 These two commit types often apply to the same files. Use this guide to choose:
 
-| Scenario | Type | Example |
-|----------|------|---------|
-| Adding a new `.agent.md` file | `copilot` | `copilot(custom-agent): add nexus orchestrator agent` |
-| Updating agent persona/tools list | `copilot` | `copilot(custom-agent): add memory tool to planner` |
-| Improving agent's reasoning instructions | `ai` | `ai(agent): strengthen replanning logic in orchestrator` |
-| Creating a new `SKILL.md` file | `copilot` | `copilot(skill): add beads issue tracker skill` |
-| Updating skill's AI instruction content | `ai` | `ai(skill): refine scope constitution extraction workflow` |
-| Adding new `.prompt.md` file | `copilot` | `copilot(prompt): add gitAtomicCommit prompt` |
-| Researching prompt patterns | `ai` | `ai(prompt-engineering): analyze chain-of-thought patterns` |
+| Scenario                                 | Type      | Example                                                          |
+| ---------------------------------------- | --------- | ---------------------------------------------------------------- |
+| Adding a new `.agent.md` file            | `copilot` | `copilot(custom-agent): add nexus orchestrator agent`            |
+| Updating agent persona/tools list        | `copilot` | `copilot(custom-agent): add memory tool to planner`              |
+| Improving agent's reasoning instructions | `agent`   | `agent(instruction): strengthen replanning logic in orchestrator`|
+| Creating a new `SKILL.md` file           | `copilot` | `copilot(skill): add beads issue tracker skill`                  |
+| Updating skill's AI instruction content  | `agent`   | `agent(skill): refine scope constitution extraction workflow`    |
+| Adding new `.prompt.md` file             | `copilot` | `copilot(prompt): add gitAtomicCommit prompt`                    |
+| Researching prompt patterns              | `agent`   | `agent(prompt-engineering): analyze chain-of-thought patterns`   |
 
-**Rule of thumb**: `copilot` = *managing the artifact file*; `ai` = *improving the intelligence inside the artifact*.
+**Rule of thumb**: `copilot` = *managing the artifact file*; `agent` = *improving the intelligence inside the artifact*.
 
 ## Scope Selection Guidelines
 
@@ -152,14 +165,14 @@ These two commit types often apply to the same files. Use this guide to choose:
 
 2. **Choose commit type by intent**:
    - `copilot` → GitHub Copilot customization artifact lifecycle (most common type)
-   - `ai` → AI model-facing behavior or intelligence changes
+   - `agent` → AI model-facing behavior or intelligence changes *(replaces deprecated `ai`)*
    - `feat` → New capability being added for the first time
    - `refactor` → Restructuring without behavior change
    - `docs` → Documentation-only changes
    - `chore` → Maintenance and housekeeping
    - `devtool` → Developer workflow automation
 
-3. **feat with copilot scopes**: When adding an entirely new artifact (skill, agent, prompt), use `feat` for the initial commit establishing the capability, then use `copilot` or `ai` for subsequent iterations.
+3. **feat with copilot scopes**: When adding an entirely new artifact (skill, agent, prompt), use `feat` for the initial commit establishing the capability, then use `copilot` or `agent` for subsequent iterations.
 
 4. **No path syntax**: Use simple scope names — never `copilot/skill`, `devtool/script`, or similar path-style scopes.
 
@@ -169,19 +182,30 @@ These two commit types often apply to the same files. Use this guide to choose:
 
 ## Deprecated Scopes
 
+These scopes and types appeared in historical commits but **must not be used in new commits**:
+
+**Deprecated Types:**
+
+| Deprecated Type | Replacement | Notes |
+| --------------- | ----------- | ----- |
+| `ai`            | `agent`     | All `ai(scope)` commits migrate to `agent(scope)`; `ai(agent)` specifically → `agent(instruction)` |
+| `vscode`        | `chore(vscode)` or `devtool(vscode)` | See `vscode` section above |
+
+**Deprecated Scopes:**
+
 These scopes appeared in historical commits but **must not be used in new commits**:
 
-| Deprecated Scope | Replacement | Commit Type Context |
-|-----------------|-------------|---------------------|
-| `copilot/custom-agent` | `agent` (for `feat`/`refactor`) | `feat`, `refactor` |
-| `copilot/instruction` | `instruction` | `feat`, `refactor` |
-| `copilot/prompt` | `prompt` | `feat`, `refactor` |
-| `copilot/skill` | `skill` | `feat`, `refactor` |
-| `devtool/script` | `script` | `feat` |
-| `custom-agents` | `custom-agent` | `copilot` |
-| `toolsets` | `toolset` | `copilot` |
-| `issues` | `issue` | `docs` |
-| `git-commit-scope` | `constitution` | `docs` |
+| Deprecated Scope       | Replacement                     | Commit Type Context |
+| ---------------------- | ------------------------------- | ------------------- |
+| `copilot/custom-agent` | `agent` (for `feat`/`refactor`) | `feat`, `refactor`  |
+| `copilot/instruction`  | `instruction`                   | `feat`, `refactor`  |
+| `copilot/prompt`       | `prompt`                        | `feat`, `refactor`  |
+| `copilot/skill`        | `skill`                         | `feat`, `refactor`  |
+| `devtool/script`       | `script`                        | `feat`              |
+| `custom-agents`        | `custom-agent`                  | `copilot`           |
+| `toolsets`             | `toolset`                       | `copilot`           |
+| `issues`               | `issue`                         | `docs`              |
+| `git-commit-scope`     | `constitution`                  | `docs`              |
 
 ## Amendment Process
 
@@ -211,5 +235,39 @@ Initial constitution creation based on analysis of all git history combined with
 
 **Migration Notes:**
 - Existing commits with deprecated scopes are preserved as-is (no history rewriting)
-- For new commits, consult the `ai` vs `copilot` selection guide above
+- For new commits, consult the `agent` vs `copilot` selection guide above
 - The `feat` type should use simple single-word scopes, not path-style scopes
+
+### 2026-02-24 — Amendment #2 (Inventory Refresh)
+
+**Changes:**
+- Regenerated scope inventory → 52 unique scopes (up from 51 at initial creation)
+- Confirmed `docs(constitution)` is now active in git history (first usage: the initial constitution commit itself)
+- Restored deprecated annotations to inventory after regeneration (extraction script strips annotations; they are maintained manually)
+- Validated scope coverage against all 10 commit types and full repository structure — no gaps or amendments required
+
+**Rationale:**
+First post-creation review, same day as initial creation. The initial constitution accurately reflects all active development patterns across the full git history. No structural or scope amendments are needed at this time.
+
+**Migration Notes:**
+No changes to approved scopes. All existing commit patterns remain valid.
+
+### 2026-02-24 — Amendment #3 (Deprecate `ai` type, introduce `agent`)
+
+**Changes:**
+- Deprecated `ai` commit type entirely; use `agent` for all AI model-facing behavior commits going forward
+- Added `### \`agent\`` section with 6 approved scopes: `codex`, `instruction`, `mcp`, `prompt`, `prompt-engineering`, `skill`
+- Scope `ai(agent)` migrates to `agent(instruction)` (avoids the `agent(agent)` identity redundancy)
+- All other `ai` scopes carry over to `agent` unchanged
+- Updated `ai` vs `copilot` Selection Guide → `agent` vs `copilot` Selection Guide (all examples updated)
+- Updated Scope Selection Guidelines point #2 and #3 to reference `agent` instead of `ai`
+- Added a **Deprecated Types** table above the Deprecated Scopes table
+
+**Rationale:**
+The `ai` type was removed from the author's commit conventions in favor of the more precise `agent` extended type. `agent` already exists in Tier 2 of the `git-atomic-commit` skill to cover AI agent assets (`skills/*`, `**/AGENTS.md`). Consolidating under `agent` eliminates the ambiguity between `ai` and `agent` types and aligns the constitution with the skill's actual Tier 2 mapping.
+
+**Migration Notes:**
+- All new commits previously using `ai(skill)` → use `agent(skill)`
+- All new commits previously using `ai(agent)` → use `agent(instruction)`
+- All other `ai(scope)` → use `agent(scope)` verbatim
+- Existing `ai(*)` commits in history are preserved as-is
