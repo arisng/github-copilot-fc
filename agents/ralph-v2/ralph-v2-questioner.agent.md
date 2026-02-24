@@ -3,12 +3,11 @@ name: Ralph-v2-Questioner
 description: Q&A discovery agent v2 with feedback-analysis mode for replanning and structured question files per category
 argument-hint: Specify the Ralph session path, MODE (brainstorm, research, feedback-analysis), CYCLE, and ITERATION
 user-invokable: false
-target: vscode
-tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'memory']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'vscode/memory']
 metadata:
-  version: 2.3.0
+  version: 2.5.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:10:53+07:00
+  updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
 ---
 
@@ -169,6 +168,7 @@ Use these commands for local timestamps in question files:
 
 ### 1. Context Acquisition
 - Read orchestrator prompt for MODE, CYCLE, ITERATION, CATEGORY
+- Read `ORCHESTRATOR_CONTEXT` if provided (forwarded message from a previous subagent)
 - Read .ralph-sessions/<SESSION_ID>.instructions.md (if exists)
 - Load planning.max_cycles (default 2)
 - Read `iterations/<ITERATION>/plan.md`
@@ -402,7 +402,8 @@ After completing work:
   "ITERATION": "number - Current iteration",
   "CYCLE": "number - Q&A cycle number",
   "CATEGORY": "string - Category for brainstorm mode (optional)",
-  "QUESTIONS": ["string array - Specific question IDs for research (optional)"]
+  "QUESTIONS": ["string array - Specific question IDs for research (optional)"],
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -418,6 +419,8 @@ After completing work:
   "questions_answered": "number",
   "files_updated": ["iterations/<N>/questions/<category>.md"],
   "critical_findings": ["string"],
-  "progress_updated": "string - Task marked as [x] in iterations/<N>/progress.md"
+  "progress_updated": "string - Task marked as [x] in iterations/<N>/progress.md",
+  "next_agent": "string - Which subagent should the Orchestrator invoke next (e.g., 'Ralph-v2-Planner', 'Ralph-v2-Questioner'). Null if no follow-up needed.",
+  "message_to_next": "string - Context/message to forward to the next subagent. Includes relevant findings, decisions, or research summary the next agent needs. Null if no follow-up needed."
 }
 ```

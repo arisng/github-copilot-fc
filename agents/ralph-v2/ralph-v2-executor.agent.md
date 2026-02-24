@@ -3,12 +3,11 @@ name: Ralph-v2-Executor
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
 argument-hint: Specify the Ralph session path, TASK_ID, ATTEMPT_NUMBER, and ITERATION for task execution
 user-invokable: false
-target: vscode
-tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'memory']
+tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/testFailure, execute/runInTerminal, execute/runTests, read/terminalSelection, read/terminalLastCommand, read/problems, read/readFile, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', 'deepwiki/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/get-library-docs, mcp_docker/resolve-library-id, mcp_docker/search, mcp_docker/sequentialthinking, 'microsoftdocs/mcp/*']
 metadata:
-  version: 2.3.0
+  version: 2.5.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:10:53+07:00
+  updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
 ---
 
@@ -321,7 +320,8 @@ Else:
   "SESSION_PATH": "string - Path to session directory",
   "TASK_ID": "string - Task identifier",
   "ATTEMPT_NUMBER": "number - Attempt number (1 for first, 2+ for rework)",
-  "ITERATION": "number - Current iteration"
+  "ITERATION": "number - Current iteration",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -342,7 +342,9 @@ Else:
   "files_modified": ["string"],
   "feedback_addressed": ["string - Feedback issue IDs addressed"],
   "discovered_tasks": ["string"],
-  "blockers": ["string"]
+  "blockers": ["string"],
+  "next_agent": "string - Which subagent should the Orchestrator invoke next (e.g., 'Ralph-v2-Reviewer'). Null if no follow-up needed.",
+  "message_to_next": "string - Context/message to forward to the next subagent. Includes implementation notes or review hints. Null if no follow-up needed."
 }
 ```
 

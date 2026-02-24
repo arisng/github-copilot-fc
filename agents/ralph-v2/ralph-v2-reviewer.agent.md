@@ -3,12 +3,11 @@ name: Ralph-v2-Reviewer
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
 argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), TASK_ID, REPORT_PATH, and ITERATION for review
 user-invokable: false
-target: vscode
-tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
+tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.3.0
+  version: 2.5.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:39:16+07:00
+  updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
 ---
 
@@ -750,7 +749,8 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
   "SESSION_PATH": "string",
   "TASK_ID": "string",
   "REPORT_PATH": "string",
-  "ITERATION": "number"
+  "ITERATION": "number",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -759,7 +759,8 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
 {
   "SESSION_PATH": "string",
   "MODE": "SESSION_REVIEW",
-  "ITERATION": "number - Review iteration number"
+  "ITERATION": "number - Review iteration number",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -770,7 +771,8 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
   "MODE": "TIMEOUT_FAIL",
   "TASK_ID": "string",
   "REASON": "string - timeout or error context",
-  "ITERATION": "number"
+  "ITERATION": "number",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -793,7 +795,9 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
     "not_resolved": "number"
   },
   "report_path": "string",
-  "feedback": "string - Rework guidance if Failed"
+  "feedback": "string - Rework guidance if Failed",
+  "next_agent": "string - Which subagent should the Orchestrator invoke next. Null if no follow-up needed.",
+  "message_to_next": "string - Context/message to forward to the next subagent. Null if no follow-up needed."
 }
 ```
 
@@ -804,7 +808,8 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
   "MODE": "COMMIT",
   "TASK_ID": "string",
   "REPORT_PATH": "string - Path to task report (iterations/<N>/reports/<task-id>-report[-r<N>].md)",
-  "ITERATION": "number"
+  "ITERATION": "number",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -831,6 +836,8 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
   "goals_achieved": "X/Y",
   "gaps": ["string"],
   "review_report_path": "iterations/<N>/review.md",
-  "next_action": "continue | complete"
+  "next_action": "continue | complete",
+  "next_agent": "string - Which subagent should the Orchestrator invoke next. Null if no follow-up needed.",
+  "message_to_next": "string - Context/message to forward to the next subagent. Null if no follow-up needed."
 }
 ```

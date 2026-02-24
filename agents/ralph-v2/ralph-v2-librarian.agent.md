@@ -3,12 +3,11 @@ name: Ralph-v2-Librarian
 description: Workspace wiki management subagent for Ralph-v2 that stages reusable knowledge in session-scope knowledge folder and promotes approved content to workspace's `.docs` using Diátaxis structure
 argument-hint: Provide SESSION_PATH, ITERATION, and MODE (STAGE or PROMOTE) for wiki staging/promotion requested by Ralph-v2 orchestrator
 user-invokable: false
-target: vscode
-tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, memory]
+tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.3.0
+  version: 2.5.0
   created_at: 2026-02-13T00:00:00Z
-  updated_at: 2026-02-16T00:26:20+07:00
+  updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
 ---
 
@@ -23,6 +22,35 @@ metadata:
   - `STAGE` — Extract and stage knowledge in `knowledge/` (session-scope).
   - `PROMOTE` — Promote approved staged content to `.docs/`.
 - **Required parameters**: `SESSION_PATH`, `ITERATION`, `MODE`.
+- **Optional parameter**: `ORCHESTRATOR_CONTEXT` — message forwarded from a previous subagent via the Orchestrator.
+
+## Contract
+
+### Input
+```json
+{
+  "SESSION_PATH": "string - Path to session directory",
+  "ITERATION": "number - Current iteration",
+  "MODE": "STAGE | PROMOTE",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
+}
+```
+
+### Output
+```json
+{
+  "status": "completed | blocked",
+  "mode": "STAGE | PROMOTE",
+  "iteration": "number",
+  "items_staged": "number (STAGE mode)",
+  "items_promoted": "number (PROMOTE mode)",
+  "files_created": ["string"],
+  "files_updated": ["string"],
+  "conflict_warnings": ["string (PROMOTE mode)"],
+  "next_agent": "string - Which subagent should the Orchestrator invoke next. Null if no follow-up needed.",
+  "message_to_next": "string - Context/message to forward to the next subagent. Null if no follow-up needed."
+}
+```
 
 ## Objective
 

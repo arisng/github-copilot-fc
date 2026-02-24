@@ -3,12 +3,11 @@ name: Ralph-v2-Planner
 description: Planning agent v2 with isolated task files, iteration-scoped artifacts, and REPLANNING mode for feedback-driven iteration support
 argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, REBREAKDOWN_TASK, UPDATE_METADATA, REPAIR_STATE), and ITERATION for planning
 user-invokable: false
-target: vscode
-tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'memory']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'vscode/memory']
 metadata:
-  version: 2.3.0
+  version: 2.5.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-16T00:37:43+07:00
+  updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
 ---
 
@@ -230,6 +229,7 @@ Use these commands for local timestamps in plans, metadata, and task files:
 
 ### 1. Context Acquisition
 - Read orchestrator prompt for MODE and ITERATION
+- Read `ORCHESTRATOR_CONTEXT` if provided (forwarded message from a previous subagent)
 - Read `metadata.yaml`
 - Read `iterations/<ITERATION>/plan.md` (if exists)
 
@@ -657,7 +657,8 @@ tasks_defined: [count]
   "UPDATE_REQUEST": "string - New requirements (UPDATE only)",
   "FEEDBACK_PATHS": ["string array - Feedback directories (UPDATE/REBREAKDOWN)"],
   "TASK_ID": "string - Target task id (REBREAKDOWN_TASK only)",
-  "REASON": "string - Timeout or scope reduction reason (REBREAKDOWN_TASK only)"
+  "REASON": "string - Timeout or scope reduction reason (REBREAKDOWN_TASK only)",
+  "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
@@ -671,6 +672,8 @@ tasks_defined: [count]
   "artifacts_updated": ["string"],
   "tasks_defined": "number",
   "waves_planned": "number",
-  "next_action": "string"
+  "next_action": "string",
+  "next_agent": "string - Which subagent should the Orchestrator invoke next (e.g., 'Ralph-v2-Questioner', 'Ralph-v2-Planner'). Null if no follow-up needed.",
+  "message_to_next": "string - Context/message to forward to the next subagent. Includes relevant findings, decisions, or instructions the next agent needs. Null if no follow-up needed."
 }
 ```
