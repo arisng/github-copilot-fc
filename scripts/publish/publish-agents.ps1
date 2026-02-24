@@ -138,7 +138,5 @@ function Publish-AgentsToVSCode {
     Write-Host "Success: $successCount | Failed: $failureCount" -ForegroundColor Cyan
 }
 
-# If script is run directly, execute the function
-if ($MyInvocation.InvocationName -like "*publish-agents.ps1") {
-    Publish-AgentsToVSCode
-}
+# Execute main function unconditionally to ensure wrapper calls succeed.
+Publish-AgentsToVSCode

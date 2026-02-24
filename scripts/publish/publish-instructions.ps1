@@ -56,7 +56,23 @@ function Publish-InstructionsToVSCode {
     # Get instruction files to publish
     $instructionFiles = Get-ChildItem -Path $projectInstructionsPath -Filter "*.instructions.md"
     if ($Instructions) {
-        $instructionFiles = $instructionFiles | Where-Object { ($_.Name -replace '\.instructions\.md$') -in $Instructions }
+        # convert comma-separated strings to array if necessary
+        $instrList = @()
+        foreach ($item in $Instructions) {
+            $instrList += @($item -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+        }
+        # perform wildcard matching against base names
+        $instructionFiles = $instructionFiles | Where-Object {
+            $base = $_.Name -replace '\.instructions\.md$',''
+            $instrList | Where-Object { $base -like $_ } | Select-Object -First 1
+        }
+        if ($instructionFiles.Count -eq 0) {
+            Write-Host "Warning: No instructions found matching: $($instrList -join ', ')" -ForegroundColor Yellow
+            Write-Host "Available instructions:" -ForegroundColor Cyan
+            Get-ChildItem -Path $projectInstructionsPath -Filter "*.instructions.md" | 
+                ForEach-Object { Write-Host "  - $($_.Name -replace '\.instructions\.md$')" }
+            return
+        }
     }
 
     if ($instructionFiles.Count -eq 0) {
@@ -98,7 +114,8 @@ function Publish-InstructionsToVSCode {
     Write-Host "Instruction publishing completed." -ForegroundColor Cyan
 }
 
-# If script is run directly, execute the function
-if ($MyInvocation.InvocationName -like "*publish-instructions.ps1") {
-    Publish-InstructionsToVSCode
-}
+# Execute main function unconditionally.  The previous guard used
+# $MyInvocation.InvocationName which becomes '&' when the script is invoked
+# via the call operator; as a result the helper never executed during wrapper
+# invocations.
+Publish-InstructionsToVSCode

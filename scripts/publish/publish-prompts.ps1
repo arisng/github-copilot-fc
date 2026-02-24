@@ -6,6 +6,7 @@ param(
     [switch]$Force
 )
 
+
 function Publish-PromptsToVSCode {
     <#
     .SYNOPSIS
@@ -33,6 +34,7 @@ function Publish-PromptsToVSCode {
     #>
 
     Write-Host "Publishing prompts to VS Code..." -ForegroundColor Cyan
+    Write-Output "Publishing prompts to VS Code..."
 
     $projectPromptsPath = Join-Path $PSScriptRoot "..\..\prompts"
     $vscodePromptsPaths = @(
@@ -69,6 +71,7 @@ function Publish-PromptsToVSCode {
     }
 
     Write-Host "Publishing $($promptFiles.Count) prompt file(s)..." -ForegroundColor Cyan
+    Write-Output "Publishing $($promptFiles.Count) prompt file(s)..."
 
     foreach ($promptFile in $promptFiles) {
         $sourcePath = $promptFile.FullName
@@ -81,17 +84,24 @@ function Publish-PromptsToVSCode {
 
             if ($exists -and -not $Force) {
                 $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
-                $overwrite = Read-Host "Prompt '$($promptFile.BaseName)' already exists in VS Code $edition. Overwrite? (y/N)"
-                if ($overwrite -notmatch "^[Yy]") {
-                    Write-Host "Skipping $($promptFile.BaseName) for VS Code $edition" -ForegroundColor Yellow
-                    continue
+                    $msg = "Prompt '$($promptFile.BaseName)' already exists in VS Code $edition. Overwrite? (y/N)"
+                    Write-Host $msg -ForegroundColor Yellow
+                    Write-Output $msg
+                    $overwrite = Read-Host "Prompt '$($promptFile.BaseName)' already exists in VS Code $edition. Overwrite? (y/N)"
+                    if ($overwrite -notmatch "^[Yy]") {
+                        $skipMsg = "Skipping $($promptFile.BaseName) for VS Code $edition"
+                        Write-Host $skipMsg -ForegroundColor Yellow
+                        Write-Output $skipMsg
+                        continue
+                    }
                 }
-            }
 
             try {
                 Copy-Item -Path $sourcePath -Destination $destinationPath -Force
                 $edition = if ($path -like "*Insiders*") { "Insiders" } else { "Stable" }
-                Write-Host "Published: $($promptFile.BaseName) to VS Code $edition" -ForegroundColor Green
+                $msg = "Published: $($promptFile.BaseName) to VS Code $edition"
+                Write-Host $msg -ForegroundColor Green
+                Write-Output $msg
             }
             catch {
                 Write-Error "Failed to publish $($promptFile.BaseName) to $path : $_"
@@ -100,9 +110,13 @@ function Publish-PromptsToVSCode {
     }
 
     Write-Host "Prompt publishing completed." -ForegroundColor Cyan
+    Write-Output "Prompt publishing completed."
 }
 
-# If script is run directly, execute the function
-if ($MyInvocation.InvocationName -like "*publish-prompts.ps1") {
-    Publish-PromptsToVSCode
-}
+# Execute the main function when the script is loaded/executed.
+# Previously we protected this call with a check on $MyInvocation.InvocationName,
+# but when the script is invoked via the `&` operator (as the wrapper does) the
+# invocation name becomes simply "&" and the guard prevented the function from
+# running.  Unconditionally calling the function preserves intuitive behaviour in
+# all invocation scenarios.
+Publish-PromptsToVSCode

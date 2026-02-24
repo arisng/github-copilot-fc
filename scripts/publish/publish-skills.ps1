@@ -92,12 +92,22 @@ function Publish-SkillsToPersonal {
     # Get skills to publish
     $skillDirs = Get-ChildItem -Path $projectSkillsPath -Directory
     if ($Skills) {
-        $skillDirs = $skillDirs | Where-Object { $_.Name -in $Skills }
-    }
-
-    if ($skillDirs.Count -eq 0) {
-        Write-Host "No skills found to publish." -ForegroundColor Yellow
-        return
+        # normalize comma-separated input and allow patterns
+        $skillList = @()
+        foreach ($item in $Skills) {
+            $skillList += @($item -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+        }
+        # filter directories by matching any pattern in skillList
+        $skillDirs = $skillDirs | Where-Object {
+            $dir = $_
+            $skillList | Where-Object { $dir.Name -like $_ } | Select-Object -First 1
+        }
+        if ($skillDirs.Count -eq 0) {
+            Write-Host "Warning: No skills found matching: $($skillList -join ', ')" -ForegroundColor Yellow
+            Write-Host "Available skills:" -ForegroundColor Cyan
+            Get-ChildItem -Path $projectSkillsPath -Directory | ForEach-Object { Write-Host "  - $($_.Name)" }
+            return
+        }
     }
 
     Write-Host "Publishing $($skillDirs.Count) skill(s)" -ForegroundColor Cyan
@@ -178,7 +188,6 @@ function Publish-SkillsToPersonal {
     }
 }
 
-# If script is run directly, execute the function
-if ($MyInvocation.InvocationName -like "*publish-skills.ps1") {
-    Publish-SkillsToPersonal
-}
+# Execute the skills publisher unconditionally; the previous guard prevented
+# invocation when the script was called with the `&` operator.
+Publish-SkillsToPersonal

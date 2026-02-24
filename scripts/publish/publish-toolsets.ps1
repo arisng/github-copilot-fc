@@ -53,7 +53,22 @@ function Publish-ToolsetsToVSCode {
     $jsoncFiles = Get-ChildItem -Path $projectToolsetsPath -Filter "*.jsonc"
     $toolsetFiles = $toolsetFiles + $jsoncFiles | Where-Object { $_.Extension -eq '.jsonc' }
     if ($Toolsets) {
-        $toolsetFiles = $toolsetFiles | Where-Object { ($_.BaseName -replace '\.toolsets$', '') -in $Toolsets }
+        # normalize list (comma-separated support)
+        $tsList = @()
+        foreach ($item in $Toolsets) {
+            $tsList += @($item -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+        }
+        $toolsetFiles = $toolsetFiles | Where-Object {
+            $base = $_.BaseName -replace '\.toolsets$',''
+            $tsList | Where-Object { $base -like $_ } | Select-Object -First 1
+        }
+        if ($toolsetFiles.Count -eq 0) {
+            Write-Host "Warning: No toolsets found matching: $($tsList -join ', ')" -ForegroundColor Yellow
+            Write-Host "Available toolsets:" -ForegroundColor Cyan
+            Get-ChildItem -Path $projectToolsetsPath -Filter "*.jsonc" | 
+                ForEach-Object { Write-Host "  - $($_.BaseName -replace '\.toolsets$','')" }
+            return
+        }
     }
 
     if ($toolsetFiles.Count -eq 0) {
@@ -92,7 +107,6 @@ function Publish-ToolsetsToVSCode {
     Write-Host "Toolset publishing completed." -ForegroundColor Cyan
 }
 
-# If script is run directly, execute the function
-if ($MyInvocation.InvocationName -like "*publish-toolsets.ps1") {
-    Publish-ToolsetsToVSCode
-}
+# Execute the function unconditionally; guards caused the helper to be skipped when
+# invoked via `&` in the wrapper.
+Publish-ToolsetsToVSCode
