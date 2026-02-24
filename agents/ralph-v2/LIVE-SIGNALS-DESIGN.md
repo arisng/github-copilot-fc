@@ -25,6 +25,7 @@ signals/
 ```
 
 **Signal File Schema (Input):**
+
 ```yaml
 # signal.260208-143000.yaml
 type: STEER      # STEER | PAUSE | ABORT | INFO | APPROVE | SKIP
@@ -38,6 +39,7 @@ iteration: 1     # Optional. Forward-compatibility for iteration-scoped signals 
 
 **Processed File Schema (Output adds metadata):**
 Agents append handling info when moving to `processed/`:
+
 ```yaml
 # Original content...
 # ...
