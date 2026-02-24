@@ -23,7 +23,7 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 
 | State                | Location            | Code Block                     | Behavior                                                                                                                     |
 | -------------------- | ------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `INITIALIZING`       | Artifact Creation   | `2. State: INITIALIZING`       | Creates `signals/inputs/` & `signals/processed/` directories.                                                                |
+| `INITIALIZING`       | Artifact Creation   | `2. State: INITIALIZING`       | Creates `signals/inputs/`, `signals/acks/`, and `signals/processed/` directories.                                            |
 | `PLANNING`           | Top of State        | `3. State: PLANNING`           | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Update plan notes before routing.<br>**INFO**: Log and continue.           |
 | `EXECUTING_BATCH`    | Pre-Loop            | `6. State: EXECUTING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Logs message and passes to Executor context.<br>**INFO**: Append to context. |
 | `REVIEWING_BATCH`    | Pre-Loop            | `7. State: REVIEWING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**INFO**: Inject into review context.<br>**STEER**: Log message, pass to Reviewer context. |
@@ -97,8 +97,14 @@ Poll signals/inputs/
   - For each file (FIFO):
     - Peek: Read signal type and target
     - If target != ALL and target != self → skip (leave for correct consumer)
-    - Atomic Move → signals/processed/
+    - If target == ALL:
+      - Do NOT move source signal
+      - Write idempotent ack file: signals/acks/<SIGNAL_ID>/<self>.ack.yaml
+      - Continue processing content
+    - Else:
+      - Atomic Move → signals/processed/
     - Read Content
     - Act based on type: STEER / INFO / PAUSE / ABORT
     - (Orchestrator only: also handle APPROVE / SKIP in KNOWLEDGE_APPROVAL state)
+    - (Orchestrator only: archive target ALL after all required ack files exist)
 ```

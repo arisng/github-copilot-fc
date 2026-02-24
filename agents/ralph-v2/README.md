@@ -324,7 +324,7 @@ Review for iteration N, documenting:
 
 **v2 Solution**: Asynchronous "Live Signals" (Mailbox Pattern) allowed during execution.
 
-- **Artifacts**: `signals/inputs/` (session-level) and `signals/processed/`
+- **Artifacts**: `signals/inputs/`, `signals/acks/`, and `signals/processed/` (all session-level)
 - **Signal Types**:
 
   | Signal    | Category       | Semantics                                           | Polled By                |
@@ -518,7 +518,7 @@ Ralph-v2:
 ## Librarian Usage
 
 - Invocation path: `Ralph-v2` orchestrator invokes `Ralph-v2-Librarian` as a subagent only.
-- Direct usage: Not supported (`user-invokable: false`).
+- Direct usage: Not supported (`user-invocable: false`).
 - Dual modes:
   - **STAGE**: Extract and stage knowledge to `knowledge/` (session-scope) for human review.
   - **PROMOTE**: Promote approved staged content from `knowledge/` to `.docs/`, marking files with `approved: true`.

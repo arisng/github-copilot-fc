@@ -24,7 +24,7 @@ This appendix defines how shared state is normalized at iteration scope. The nor
 
 **Session scope (authoritative, non-iteration):**
 - `metadata.yaml` (session-level state machine SSOT — Orchestrator-owned)
-- `signals/inputs/` and `signals/processed/` (session-level signal mailbox)
+- `signals/inputs/`, `signals/acks/`, and `signals/processed/` (session-level signal mailbox)
 
 **Denormalize (session scope, non-authoritative):**
 - Session dashboards or summaries (rollups across iterations)

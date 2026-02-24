@@ -224,7 +224,7 @@ Every hook follows a standard contract:
   "reason": "string | null",    // Required if BLOCK
   "actions_taken": [             // Optional: auto-remediation actions
     "Created directory: .ralph-sessions/260215-173319/",
-    "Created scaffold: signals/inputs/, signals/processed/, logs/"
+    "Created scaffold: signals/inputs/, signals/acks/, signals/processed/, logs/"
   ]
 }
 ```
@@ -232,7 +232,7 @@ Every hook follows a standard contract:
 **Policy Rules:**
 1. `session_id` MUST match regex `^\d{6}-\d{6}$`. → BLOCK if no match.
 2. `session_id` MUST NOT contain path separators (`/`, `\`). → BLOCK if found.
-3. If `session_path` does not exist, create it with the minimal scaffold (`signals/inputs/`, `signals/processed/`, `logs/`). → PASS with `actions_taken`.
+3. If `session_path` does not exist, create it with the minimal scaffold (`signals/inputs/`, `signals/acks/`, `signals/processed/`, `logs/`). → PASS with `actions_taken`.
 4. If `session_path` exists, validate scaffold directories are present. → WARN if missing subdirectories.
 
 **Error Behavior:** Fail-open. If the hook crashes, the session proceeds (the Orchestrator's own Session Resolution step will detect missing directories).

@@ -19,6 +19,11 @@ signals/
 ├── inputs/                      # User drops signal files here
 │   ├── signal.<TIMESTAMP>.yaml  # e.g., signal.260208-143000.yaml
 │   └── ...
+├── acks/                        # Per-signal delivery acknowledgements
+│   └── <SIGNAL_ID>/
+│       ├── Orchestrator.ack.yaml
+│       ├── Executor.ack.yaml
+│       └── ...
 └── processed/                   # Agents move handled files here
     ├── <TIMESTAMP>.yaml         # Archived signal
     └── ...
@@ -29,7 +34,7 @@ signals/
 ```yaml
 # signal.260208-143000.yaml
 type: STEER      # STEER | PAUSE | ABORT | INFO | APPROVE | SKIP
-target: ALL      # ALL | Ralph-Executor | Ralph-Orchestrator
+target: ALL      # ALL | Executor | Orchestrator
 message: "Don't use the 'foo' library, it's deprecated. Use 'bar' instead."
 iteration: 1     # Optional. Forward-compatibility for iteration-scoped signals (e.g., APPROVE/SKIP).
                   # Orchestrator ignores if absent; validates against current iteration if present.
@@ -38,34 +43,60 @@ iteration: 1     # Optional. Forward-compatibility for iteration-scoped signals 
 > **Forward-compatibility note**: Signal filenames currently use second-level timestamps (`signal.<YYMMDD-HHmmss>.yaml`), which is sufficient for human-generated signals. If automated signal generation is introduced in the future (e.g., hooks emitting signals), use millisecond timestamps or random suffixes (e.g., `signal.<YYMMDD-HHmmss>-<ms>.yaml` or `signal.<YYMMDD-HHmmss>-<random4>.yaml`) to avoid collisions.
 
 **Processed File Schema (Output adds metadata):**
-Agents append handling info when moving to `processed/`:
+The consuming agent (targeted signal) or the Orchestrator (after `target: ALL` ack quorum) appends handling info when moving to `processed/`:
 
 ```yaml
 # Original content...
 # ...
 handling_metadata:
-  handled_by: Ralph-v2-Executor
-  handled_at: 2026-02-08T14:30:05Z
-  action_taken: "Updated context to prefer 'bar' library"
+   handled_by: Executor
+   handled_at: 2026-02-08T14:30:05Z
+   action_taken: "Updated context to prefer 'bar' library"
 ```
+
+**Target Namespace Standard (Version-Agnostic):**
+- `target` accepts only role names: `ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian`.
+- Do not include workflow version in `target` values. The active Ralph version is inferred from runtime context.
 
 ### 2. Concurrency Strategy
 
 1. **Wait-Free Insertion**: Users create unique files with timestamps. No conflict with other signals.
-2. **Atomic Consumption**:
+2. **Broadcast-Safe Consumption**:
    - Agent lists files in `signals/inputs/`.
    - Agent picks the oldest file (FIFO by timestamp).
    - Agent **reads** the file content to determine the signal type (peek).
-   - If the signal type is recognized for the current context, agent **moves** the file to `signals/processed/` (atomic OS operation). If move fails (another agent took it), skip and try next.
-   - If the signal type is not recognized in the current context, agent leaves the file in `inputs/` for state-specific consumption.
-   - Processing happens after the move (exclusive ownership).
+   - If `target == ALL`, the agent **must not move** the signal file. Instead it writes an idempotent per-agent ack file at `signals/acks/<SIGNAL_ID>/<AGENT>.ack.yaml` after ingesting the signal.
+   - If `target` is a single consumer (for example `Orchestrator` or `Executor`), the recognized consumer moves the file to `signals/processed/` after successful ingestion.
+   - If the signal type is not recognized in the current context, leave it in `inputs/`.
 
 3. **Target-Aware Routing** (Orchestrator):
    After peeking at a signal file, the Orchestrator applies target-aware routing before consuming:
    1. **Peek**: Read signal file to get `type`, `target`, `message`.
-   2. **Check target**: If `target == ALL` or `target == Ralph-Orchestrator` → consume normally (move to `processed/`, act on it).
-   3. **Route to subagent**: If `target != ALL` and `target != Ralph-Orchestrator` (e.g., `target: Ralph-Executor`) → buffer the signal for delivery at the next targeted subagent invocation. Move the file to `signals/processed/` (Orchestrator still owns the mailbox), but route the message context to the targeted subagent instead of acting on it.
-   4. **Subagent direct polling**: When subagents poll `signals/inputs/` directly (for universal signals — see §4), they apply the same target check: only consume signals where `target == ALL` or `target` matches the current subagent identity.
+   2. **Check target**:
+      - If `target == ALL`: apply locally, write `Orchestrator` ack, and leave signal in `inputs/`.
+      - If `target == Orchestrator`: consume normally (move to `processed/`, act on it).
+   3. **Route to subagent**: If `target` names a subagent (for example `target: Executor`) buffer the signal for delivery at the next targeted subagent invocation, then move to `processed/`.
+   4. **Finalize ALL delivery**: Only the Orchestrator may archive a `target: ALL` signal. It moves the signal to `processed/` only after all required recipients have acked.
+   5. **Subagent direct polling**: When subagents poll `signals/inputs/` directly (for universal signals — see §4), they process only signals where `target == ALL` or `target` matches the current subagent identity.
+
+4. **Required Ack Set for `target: ALL`**:
+   - `Orchestrator`
+   - `Executor`
+   - `Planner`
+   - `Questioner`
+   - `Reviewer`
+   - `Librarian`
+
+5. **Session-End Finalization Rule**:
+   - On transition to `COMPLETE`, the Orchestrator evaluates any remaining `target: ALL` signals.
+   - If all required acks exist, archive normally.
+   - If some acks are missing, archive with metadata `delivery_status: partial` plus an `unacked_agents` list. This prevents mailbox leaks while preserving delivery audit.
+
+6. **Exact Orchestrator Archive Moments**:
+   - Targeted to `Orchestrator` (or unscoped): archive immediately in Poll-Signals consume path.
+   - Targeted to a specific subagent: archive immediately after buffering for that subagent.
+   - `target: ALL`: archive only when ack quorum is reached (or at session end with `delivery_status: partial`).
+   - `APPROVE` / `SKIP` in `KNOWLEDGE_APPROVAL`: archive immediately on consume before transition.
 
    <!-- Cross-ref: The orchestrator's Poll-Signals routine implements this peek-check-route flow. See ralph-v2.agent.md §State Machine. -->
 
@@ -200,7 +231,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 | ---------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **Direct poller**      | STEER, INFO, PAUSE, ABORT    | Subagents poll `signals/inputs/` at step boundaries during long-running tasks. These are **universal signals** — time-sensitive and relevant regardless of orchestrator state. |
 | **Context consumer**   | APPROVE, SKIP                | Subagents receive these via Orchestrator invocation context. These are **state-specific signals** — only meaningful in `KNOWLEDGE_APPROVAL` state. |
-| **Primary poller**     | All types                    | Orchestrator — owns `signals/inputs/`, runs Poll-Signals routine at state boundaries, dispatches state-specific signals to subagents. |
+| **Primary poller**     | All types                    | Orchestrator — routes signals, finalizes `target: ALL` archival after ack quorum, and dispatches state-specific signals. |
 
 #### A. Orchestrator (Ralph-v2)
 
@@ -212,7 +243,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 3. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks). Inside `REVIEWING_BATCH` loop (between reviews and between review→COMMIT invocations — COMMIT is a sub-step within REVIEWING_BATCH, not a separate state).
 4. **KNOWLEDGE_APPROVAL**: Poll for `APPROVE` and `SKIP` signals targeting session-scope `knowledge/` (these are not forwarded — consumed directly).
 
-**Target-Aware Routing**: The Orchestrator checks the `target` field before consuming (see §2.3). Signals targeting a specific subagent are buffered and delivered at the next invocation of that subagent.
+**Target-Aware Routing**: The Orchestrator checks the `target` field before consuming (see §2.3). Signals targeting a specific subagent are buffered and delivered at the next invocation of that subagent. For `target: ALL`, the Orchestrator writes only its own ack and leaves the signal available for other subagents.
 
 #### B. Subagents (Executor, Planner, Questioner, Reviewer, Librarian)
 
@@ -222,6 +253,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 1. **Initialization (Step 0)**: Poll `signals/inputs/` before starting work. If `ABORT` → return `blocked`. If `PAUSE` → save state and return `paused`. If `STEER/INFO` → ingest into context.
 2. **Step Boundaries**: Between major workflow steps (e.g., Executor between Read Context → Mark WIP → Implement → Verify). If a universal signal is found, handle it before proceeding to the next step.
 3. **Mid-Execution (Step 3.5 — Executor only)**: Poll during long-running implementation. Apply STEER decision tree (§3.1) if a STEER signal is found.
+4. **Ack Behavior**: After ingesting a `target: ALL` universal signal, write `signals/acks/<SIGNAL_ID>/<CURRENT_AGENT>.ack.yaml` and do not move the source signal.
 
 **Context-Consumed Signals** (APPROVE, SKIP):
 - Subagents do NOT poll for these. They are irrelevant outside `KNOWLEDGE_APPROVAL` state.
@@ -229,7 +261,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 
 **Why hybrid?** When the Orchestrator invokes a long-running subagent (e.g., Executor on a complex task), the Orchestrator is BLOCKED waiting for the return. During this time, no orchestrator-level polling occurs. Direct polling by subagents ensures time-sensitive signals (STEER, PAUSE, ABORT) are handled within the subagent's execution, not delayed until the subagent returns.
 
-> **Invariant — Temporal Demarcation**: The Orchestrator and subagents never poll `signals/inputs/` simultaneously. The Orchestrator polls at **state boundaries** (when no subagent is running). Subagents poll at **step boundaries** (when the Orchestrator is blocked). This temporal separation prevents duplicate signal consumption without requiring locks or coordination protocols.
+> **Invariant — Temporal Demarcation**: The Orchestrator and subagents never poll `signals/inputs/` simultaneously. The Orchestrator polls at **state boundaries** (when no subagent is running). Subagents poll at **step boundaries** (when the Orchestrator is blocked). This temporal separation still reduces contention; duplicate reads are intentional only for `target: ALL` and tracked via per-agent ack files.
 
 ### 5. Workflow Example
 
@@ -242,11 +274,11 @@ Subagents have a **dual role** in signal handling, resolving the previous design
    message: "Target Firefox only, not Chrome."
    ```
 4. **Orchestrator Checkpoint**: Between task invocations, the orchestrator runs Poll-Signals.
-   - Orchestrator reads the signal (peek), recognizes `STEER` as a standard type.
-   - Orchestrator atomically moves the file to `signals/processed/`.
-   - Orchestrator logs: "Steering signal received: Target Firefox only, not Chrome."
-5. **Context Passing**: Orchestrator passes the STEER message to the next Executor invocation context.
-6. **Executor Adjustment**: Executor receives the steering context, adjusts test targets to Firefox only.
+   - Orchestrator reads the signal (peek), recognizes `STEER` as universal with `target: ALL`.
+   - Orchestrator applies it locally, writes `signals/acks/signal.20260208-143000/Orchestrator.ack.yaml`, and leaves the signal in `inputs/`.
+5. **Executor Checkpoint**: Executor reaches Step 0 polling.
+   - Executor ingests the same signal, writes `signals/acks/signal.20260208-143000/Executor.ack.yaml`, and keeps the signal in `inputs/`.
+6. **Finalization**: After all required agent acks exist, Orchestrator archives the signal to `signals/processed/` with delivery metadata.
 
 ## Implementation Plan
 
@@ -257,8 +289,8 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 
 ### Phase 2: Agent Updates
 
-- **Ralph-v2 (Orchestrator)**: Add "Poll Signals" step in State Machine key loops (list, move, read). Implement target-aware routing (§2.3). Add ABORT cleanup checklist execution (§3.4).
-- **Subagents**: Implement direct polling for universal signals (STEER, PAUSE, ABORT, INFO) at step boundaries. Retain context-consumer pattern for APPROVE/SKIP.
+- **Ralph-v2 (Orchestrator)**: Add "Poll Signals" step in State Machine key loops (list, peek, route, finalize). Implement target-aware routing with ack-quorum finalization for `target: ALL` (§2.3). Add ABORT cleanup checklist execution (§3.4).
+- **Subagents**: Implement direct polling for universal signals (STEER, PAUSE, ABORT, INFO) at step boundaries and write per-agent ack files for `target: ALL`. Retain context-consumer pattern for APPROVE/SKIP.
 
 ### Phase 3: "Hot Steering" (Advanced)
 
