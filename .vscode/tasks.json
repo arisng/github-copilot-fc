@@ -6,7 +6,7 @@
             "description": "Type of artifact to publish (agent, instruction, prompt, skill)",
             "default": "agent",
             "type": "pickString",
-            "options": ["agent", "instruction", "prompt", "skill"]
+            "options": ["agent", "hook", "instruction", "prompt", "skill", "toolset"]
         },
         {
             "id": "name",
