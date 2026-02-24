@@ -49,8 +49,15 @@ switch ($Type.ToLower()) {
     "toolset" {
         & "$PSScriptRoot/publish-toolsets.ps1" -Toolsets $Name
     }
+    "hook" {
+        if ($Force) {
+            & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name -Force
+        } else {
+            & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name
+        }
+    }
     default {
-        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset"
+        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset, hook"
         exit 1
     }
 }

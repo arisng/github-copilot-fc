@@ -29,6 +29,7 @@ function Invoke-CopilotWorkspaceCommand {
 
     $commands = [ordered]@{
         'agents:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-agents.ps1'
+        'hooks:publish'        = 'pwsh -NoProfile -File scripts/publish/publish-hooks.ps1'
         'instructions:publish' = 'pwsh -NoProfile -File scripts/publish/publish-instructions.ps1'
         'prompts:publish'      = 'pwsh -NoProfile -File scripts/publish/publish-prompts.ps1'
         'skills:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-skills.ps1'
