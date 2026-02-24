@@ -1,83 +1,180 @@
 # Copilot FC
 
-A workspace for building and publishing GitHub Copilot customizations: Custom Agents, Custom Instructions, Prompts, Agent Skills, and Toolsets.
+Copilot FC is a workspace-first factory for authoring and publishing Copilot customization artifacts.
 
-## 🚀 Quickstart
+Use this repository to create, validate, and distribute:
 
-1. Create or edit a customization in `agents/`, `instructions/`, `prompts/`, `skills/`, or `toolsets/`.
-2. Test locally in this workspace.
-3. Publish with the appropriate script in `scripts/`.
+- Custom Agents (`agents/*.agent.md`)
+- Agent Hooks (`hooks/*.hooks.json`)
+- Custom Instructions (`instructions/*.instructions.md`)
+- Prompt files (`prompts/*.prompt.md`)
+- Skills (`skills/<skill-name>/SKILL.md`)
+- Toolsets (`toolsets/*.toolsets.jsonc`)
 
-## 🖥️ Terminal-First Workflow (Editor Agnostic)
+The repository is operationally script-driven: VS Code tasks are convenience wrappers around `scripts/`.
 
-Use the same commands in Windows PowerShell and Linux/WSL shells:
+## Core Principles
 
-- List workspace commands: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 list`
-- Reindex issues: `pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1`
-- Publish one artifact: `pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name diataxis`
-- Publish all skills: `pwsh -NoProfile -File scripts/publish/publish-skills.ps1`
+- Workspace-first authoring: build artifacts in this repo, then publish to personal locations.
+- Script-first operations: `scripts/` is the source of truth for automation behavior.
+- Clear boundaries: treat `archived/` content as deprecated and not a template source.
+- Cross-shell usage: commands are designed to run from Windows PowerShell and Linux/WSL (`pwsh`).
 
-VS Code tasks are optional wrappers; scripts are the source of truth.
+## Repository Layout
 
-## 📦 What’s Inside
+- `agents/`: active agent definitions plus `agents/ralph-v2/` system docs.
+- `hooks/`: agent hook configurations (lifecycle hooks); publish to `.github/hooks/`.
+- `instructions/`: reusable instruction files; `instructions/archived/` for superseded items.
+- `prompts/`: reusable prompt files for workflow automation.
+- `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
+- `skills/`: skill factory source; publish from here to personal skill folders.
+- `toolsets/`: chat toolset definitions and index.
+- `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
+- `scripts/`: automation entry points:
+	- `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
+	- `scripts/issues/`: issue metadata extraction and indexing.
+	- `scripts/workspace/`: workspace command router.
+	- `scripts/changelog/`: weekly changelog generation.
+- `.docs/`: workspace documentation index and Diataxis-style content.
+- `.issues/`: issue documents used as planning/change inputs.
+- `.ralph-sessions/`: Ralph session artifacts and iteration state.
+	- Session folders use `<YYMMDD>-<hhmmss>` format.
+	- Session-level instruction files may exist as `.ralph-sessions/<session-id>.instructions.md`.
 
-- **Custom Agents**: `agents/*.agent.md`
-- **Custom Instructions**: `instructions/*.instructions.md`
-- **Prompts**: `prompts/`
-- **Agent Skills**: `skills/<skill-name>/`
-- **Toolsets**: `toolsets/*.toolsets.jsonc`
-- **Documentation**: `.docs/` (Diátaxis-structured)
-- **Publishing**: `scripts/publish/`
+Archived locations that should not be used as authoring templates:
 
-## 📚 Documentation
+- `agents/archived/`
+- `instructions/archived/`
+- `skills/playwright-cli-archived/`
 
-Documentation is organized using the [Diátaxis framework](https://diataxis.fr/) in `.docs/`:
+## Quickstart
 
-- **Tutorials**: Learning-oriented guides for beginners
-- **How-to Guides**: Goal-oriented instructions for specific tasks
-- **Reference**: Technical descriptions of features and APIs
-- **Explanation**: Background and conceptual information
+1. Edit or add artifacts in `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, or `toolsets/`.
+2. Validate changes locally in the workspace.
+3. Publish with scripts under `scripts/publish/`.
 
-Start with [.docs/index.md](.docs/index.md) for the documentation index.
+## Terminal-First Commands
 
-## Scope by Artifact
+Run from repository root:
 
-- **Custom Agents**: Copilot only.
-- **Custom Instructions**: Copilot only.
-- **Prompts**: Copilot only.
-- **Skills**: Shared across multi-agent platforms (Copilot, Codex, Claude).
-- **Toolsets**: Copilot only. Chat toolsets for grouping related tools.
+```powershell
+# Show available workspace commands
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 list
 
-## 🧭 Why These Folders
+# Execute a named workspace command
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 skills:publish
 
-Customizations live in workspace root folders (not `.github/` scan paths) to avoid duplicates when VS Code also scans synced user settings.
+# Reindex issue metadata (.docs/issues or _docs/issues)
+pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1
 
-## 🛠️ Publishing
+# Publish one artifact via router
+pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name diataxis
 
-Each customization type has its own helper script; `publish-artifact.ps1` is a small
-wrapper that picks the right one.  All of the helpers now support shell-style wildcard
-patterns (`*` and `?`) when you supply the `-Name`/`-Agents`/`-Prompts`/etc. argument.  
+# Publish all skills
+pwsh -NoProfile -File scripts/publish/publish-skills.ps1
+```
 
-Be sure to quote patterns at the command line to prevent PowerShell from globbing them
-against the current directory (e.g. `-Name "ralphV2*"`).
+Current command map is implemented directly in `scripts/workspace/run-command.ps1` and includes:
 
-- Agents: `scripts/publish/publish-agents.ps1`
-- Instructions: `scripts/publish/publish-instructions.ps1`
-- Prompts: `scripts/publish/publish-prompts.ps1`
-- Skills: `scripts/publish/publish-skills.ps1`
-- Toolsets: `scripts/publish/publish-toolsets.ps1`
+- `agents:publish`
+- `hooks:publish`
+- `instructions:publish`
+- `prompts:publish`
+- `skills:publish`
+- `toolsets:publish`
+- `issues:reindex`
+- `workspace:list-skills`
+- `workspace:status`
 
-## 🧯 Troubleshooting
+## Publishing Model
 
-- **PowerShell blocked**: Set execution policy or run as admin.
-- **Python missing**: Install Python 3 and ensure it’s on PATH.
-- **Publish output not reflected**: Re-run the relevant publish script and verify target personal folders exist.
+Publish scripts are the canonical distribution path:
 
-## ⚙️ Configuration
+- `scripts/publish/publish-agents.ps1`
+- `scripts/publish/publish-hooks.ps1`
+- `scripts/publish/publish-instructions.ps1`
+- `scripts/publish/publish-prompts.ps1`
+- `scripts/publish/publish-skills.ps1`
+- `scripts/publish/publish-toolsets.ps1`
+- `scripts/publish/publish-artifact.ps1` (type-based router)
 
-Workspace command routing is defined in `scripts/workspace/run-command.ps1`.
+Publish destination behavior:
 
-## 🤝 Contributing
+- Agents, instructions, prompts, and toolsets are copied to VS Code user prompts paths:
+	- `%APPDATA%/Code/User/prompts`
+	- `%APPDATA%/Code - Insiders/User/prompts`
+- Hooks are copied to workspace `.github/hooks/` for VS Code agent hook discovery.
+- Skills are copied to personal skill folders:
+	- `%USERPROFILE%/.claude/skills`
+	- `%USERPROFILE%/.codex/skills`
+	- `%USERPROFILE%/.copilot/skills`
+	- Optional WSL equivalents (unless `-SkipWSL`)
 
-- Follow conventions in `.github/copilot-instructions.md`.
-- Use **PowerShell** for publishing tasks and **Python** for complex logic/tools.
+Wildcard patterns are supported by helpers for name selection. Quote patterns to avoid shell expansion.
+
+```powershell
+pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type prompt -Name "git*"
+pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name "playwright*" -Force
+```
+
+## Documentation Structure
+
+Documentation root: `.docs/index.md`.
+
+Primary documentation sections in `.docs/`:
+
+- `tutorials/`
+- `how-to/`
+- `reference/`
+- `explanation/`
+- `research/`
+
+## Prompt Locations
+
+- `prompts/`: primary authoring location for prompt files.
+- `.github/prompts/`: additional prompt assets used by repository workflows.
+- When the same prompt exists in both places, treat `prompts/` as source for publish scripts.
+
+## Artifact Scope
+
+- Agents, hooks, instructions, prompts, toolsets: Copilot-focused artifacts.
+- Skills: cross-platform reusable assets (Copilot, Codex, Claude workflows).
+
+## VS Code Tasks
+
+Workspace tasks are wrappers for script entry points. The same behavior should remain available via terminal commands:
+
+- `Workspace Commands`
+- `Publish Skills`
+- `Publish Artifact`
+- `Reindex Issues`
+
+## Naming and Authoring Conventions
+
+- Agent file naming: `agents/<name>.agent.md`
+- Hook file naming: `hooks/<name>.hooks.json`
+- Instruction naming: `instructions/<name>.instructions.md`
+- Prompt naming: `prompts/<name>.prompt.md`
+- Skill folder requirement: `skills/<name>/SKILL.md`
+- Toolset naming: `toolsets/<name>.toolsets.jsonc`
+- Use forward slashes in markdown links.
+
+## Related References
+
+- Workspace authoring rules: `.github/copilot-instructions.md`
+- Git scope governance: `.github/git-scope-constitution.md`, `.github/git-scope-inventory.md`
+- Skills-specific guidance: `skills/README.md`
+- Toolset registry: `toolsets/index.md`
+- Ralph v2 system docs: `agents/ralph-v2/README.md`
+
+## Troubleshooting
+
+- PowerShell execution policy blocks scripts:
+	- Run PowerShell with proper policy or trusted shell context.
+- Publish output not reflected:
+	- Re-run publish script and verify personal target folders.
+- Issue index not generated:
+	- Ensure `.docs/issues` or `_docs/issues` exists and contains markdown issue files.
+- Python tooling scripts fail:
+	- Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
+	- Install Python 3 and invoke those utilities as `python3`.

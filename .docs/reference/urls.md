@@ -2,7 +2,8 @@
 
 ## GitHub Copilot
 
-https://code.visualstudio.com/docs/copilot/customization/custom-agents
+https://docs.github.com/en/copilot
+https://github.com/github/copilot-plugins
 
 ## Multi-agent workflows (Swarm)
 

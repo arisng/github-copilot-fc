@@ -3,18 +3,20 @@
 Use this file for in-repo authoring of Copilot artifacts (not external publishing docs).
 
 ## Big picture
-- This repo is a customization factory: `agents/`, `instructions/`, `prompts/`, `skills/`, `toolsets/`, plus publish/automation scripts in `scripts/`.
+- This repo is a customization factory: `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, `toolsets/`, plus publish/automation scripts in `scripts/`.
 - Authoring is workspace-first by design (see `README.md` and `skills/README.md`): artifacts are created here, then copied to personal folders via publish scripts.
 - `archived/` content is deprecated/superseded; do not use archived files as references/templates for new work.
 
 ## Architecture and boundaries
 - Follow the Agent -> Instruction -> Skill split used across the repo (example: `agents/meta-v2.agent.md`, `instructions/meta.instructions.md`, `skills/*/SKILL.md`).
-- Custom Agent files (`*.agent.md`) define persona/orchestration and tool access; keep required frontmatter (`name`, `description`, `tools`).
+- Custom Agent files (`*.agent.md`) define persona/orchestration and tool access; `description` is the only required frontmatter field; include `name` and `tools` as needed.
 - Custom Instruction files (`*.instructions.md`) define policy/workflows and should use `description` + `applyTo` frontmatter.
-- Agent Skills are folder-based and must include `SKILL.md`; scripts local to a skill belong under that skill’s own `scripts/` folder.
+- Agent Hook files (`*.hooks.json`) define lifecycle hooks; author in `hooks/`, publish to `.github/hooks/`.
+- Agent Skills are folder-based and must include `SKILL.md`; scripts local to a skill belong under that skill's own `scripts/` folder.
 
 ## File and naming conventions
 - Custom Agents: `agents/<name>.agent.md`
+- Agent Hooks: `hooks/<name>.hooks.json`
 - Custom Instructions: `instructions/<name>.instructions.md`
 - Custom Prompts: `prompts/*.prompt.md`
 - Custom Toolsets: `toolsets/*.toolsets.jsonc`
@@ -23,6 +25,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 ## Critical workflows
 - Treat scripts as primary workflow entry points; VS Code tasks are optional wrappers over the same scripts.
 - Publish scripts are source of truth for distribution: `scripts/publish/publish-*.ps1` and router `scripts/publish/publish-artifact.ps1`.
+- Hooks are authored in `hooks/` and published to `.github/hooks/` via `scripts/publish/publish-hooks.ps1`.
 - Workspace command dispatcher is `scripts/workspace/run-command.ps1`, with built-in command mapping (no external manifest required).
 - Issue indexing flow is `scripts/issues/extract-issue-metadata.ps1` (supports YAML frontmatter and legacy metadata).
 
