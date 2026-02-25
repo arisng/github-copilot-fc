@@ -693,3 +693,12 @@ OUTPUT: { verdict: "BLOCK", reason: "Signal message must be non-empty" }
 - Keep hook execution fast; increase timeouts only for validation steps.
 - Hook scripts should be stateless — all context comes via input schema, no global state.
 - Reference the [hybrid polling model](../LIVE-SIGNALS-DESIGN.md#4-agent-integration--hybrid-polling-model) for signal integration patterns.
+
+## Pilot: Stop Hook Metadata Finalization
+
+- Hook file: `hooks/ralph-v2-stop-finalizer.hooks.json`
+- Windows command: `pwsh -NoProfile -File hooks/scripts/ralph-v2-finalize-session-stop.ps1`
+- Linux/WSL command: `bash hooks/scripts/ralph-v2-finalize-session-stop.sh`
+- Deterministic session target: `.ralph-sessions/.active-session`
+- Finalizer writes are idempotent and atomic for `.ralph-sessions/<SESSION_ID>/metadata.yaml`
+- Audit trail: `.ralph-sessions/<SESSION_ID>/logs/hook-finalization.jsonl`
