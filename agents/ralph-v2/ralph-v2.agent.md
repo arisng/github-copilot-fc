@@ -1,12 +1,12 @@
 ---
-name: Ralph-v2
+name: Ralph-v2-Orchestrator
 description: Orchestration agent v2 with structured feedback loops, isolated task files, and REPLANNING state for iteration support
 argument-hint: Outline the task or question to be handled by Ralph-v2 orchestrator
 user-invocable: true
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'vscode/memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
 metadata:
-  version: 2.6.0
+  version: 2.7.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -240,9 +240,11 @@ IF no .ralph-sessions/<SESSION_ID>/ exists:
     IF valid:
         STATE = INITIALIZING
         ITERATION = 1
+        WRITE .ralph-sessions/.active-session = <SESSION_ID>
     ELSE:
         EXIT with error "Session ID must follow format <YYMMDD>-<hhmmss>"
 ELSE:
+    WRITE .ralph-sessions/.active-session = <SESSION_ID>
     READ .ralph-sessions/<SESSION_ID>.instructions.md (if exists)
     LOAD guardrails:
         - planning.max_cycles (default 5)
@@ -704,10 +706,12 @@ FOR each signal in signals/inputs/ where target == ALL:
 READ iterations/<ITERATION>/progress.md
 IF all tasks [x] or [C]:
     # Session success (Metadata updated by Reviewer in SESSION_REVIEW)
+    CLEAR .ralph-sessions/.active-session if it matches <SESSION_ID>
     EXIT with success summary
     
 ELSE IF any tasks [F]:
     # Await human feedback for replanning
+    CLEAR .ralph-sessions/.active-session if it matches <SESSION_ID>
     EXIT with instructions for next iteration
 ```
 
