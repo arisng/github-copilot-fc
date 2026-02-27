@@ -2,7 +2,6 @@
 name: publishAgents
 description: Publish custom agents to VS Code prompts directories.
 argument-hint: Comma-separated list of agent names to publish
-model: Raptor mini (Preview) (copilot)
 metadata:
   version: 1.0.1
   author: arisng
