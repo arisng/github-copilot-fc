@@ -40,6 +40,8 @@ iteration: 1     # Optional. Forward-compatibility for iteration-scoped signals 
                   # Orchestrator ignores if absent; validates against current iteration if present.
 ```
 
+> **APPROVE/SKIP ownership**: These state-specific signals are consumed exclusively by the Librarian during CURATE mode (not the Orchestrator). The Librarian polls `signals/inputs/` directly and archives on consume before transitioning.
+
 > **Forward-compatibility note**: Signal filenames currently use second-level timestamps (`signal.<YYMMDD-HHmmss>.yaml`), which is sufficient for human-generated signals. If automated signal generation is introduced in the future (e.g., hooks emitting signals), use millisecond timestamps or random suffixes (e.g., `signal.<YYMMDD-HHmmss>-<ms>.yaml` or `signal.<YYMMDD-HHmmss>-<random4>.yaml`) to avoid collisions.
 
 **Processed File Schema (Output adds metadata):**
@@ -85,7 +87,8 @@ handling_metadata:
    - `Planner`
    - `Questioner`
    - `Reviewer`
-   - `Librarian`
+
+   > **Note**: Librarian is excluded from the required ack set because it is invoked episodically (only during KNOWLEDGE_EXTRACTION and CURATE states). Including it would block `target: ALL` quorum resolution during states where Librarian is not running.
 
 5. **Session-End Finalization Rule**:
    - On transition to `COMPLETE`, the Orchestrator evaluates any remaining `target: ALL` signals.
@@ -96,7 +99,7 @@ handling_metadata:
    - Targeted to `Orchestrator` (or unscoped): archive immediately in Poll-Signals consume path.
    - Targeted to a specific subagent: archive immediately after buffering for that subagent.
    - `target: ALL`: archive only when ack quorum is reached (or at session end with `delivery_status: partial`).
-   - `APPROVE` / `SKIP` in `KNOWLEDGE_APPROVAL`: archive immediately on consume before transition.
+   - `APPROVE` / `SKIP` in `CURATE`: Librarian archives immediately on consume before transition.
 
    <!-- Cross-ref: The orchestrator's Poll-Signals routine implements this peek-check-route flow. See ralph-v2.agent.md §State Machine. -->
 
@@ -110,8 +113,8 @@ handling_metadata:
 | **INFO**    | Universal        | Context Injection        | Orchestrator + Subagents (direct)  |
 | **PAUSE**   | Universal        | Temporary Halt           | Orchestrator + Subagents (direct)  |
 | **ABORT**   | Universal        | Permanent Halt           | Orchestrator + Subagents (direct)  |
-| **APPROVE** | State-specific   | Knowledge Promotion      | Orchestrator only (KNOWLEDGE_APPROVAL) |
-| **SKIP**    | State-specific   | Knowledge Bypass         | Orchestrator only (KNOWLEDGE_APPROVAL) |
+| **APPROVE** | State-specific   | Knowledge Promotion      | Librarian (CURATE mode) |
+| **SKIP**    | State-specific   | Knowledge Bypass         | Librarian (CURATE mode) |
 
 #### 3.1 STEER — Trajectory Correction
 
@@ -193,25 +196,25 @@ STEER signal received during implementation
 
 #### 3.5 APPROVE — Knowledge Promotion
 
-**Semantics**: Trigger promotion of staged knowledge from session-scope `knowledge/` to `.docs/`. This signal is **state-specific** — it is only consumed in the Orchestrator's `KNOWLEDGE_APPROVAL` state.
+**Semantics**: Trigger promotion of staged knowledge from session-scope `knowledge/` to `.docs/`. This signal is **state-specific** — it is only consumed during the `CURATE` state.
 
-**Agent Behavior**: Orchestrator receives APPROVE → invokes Librarian in PROMOTE mode → Librarian promotes staged files from `knowledge/` to `.docs/` with appropriate metadata.
+**Agent Behavior**: Librarian (in CURATE mode) polls for APPROVE signal → executes PROMOTE workflow → promotes staged files from `knowledge/` to `.docs/` with appropriate metadata → marks `plan-knowledge-approval [x]` in `progress.md`.
 
 **`message` field**: Optional reviewer comments (e.g., "Looks good, promote all" or "Promote only the API reference, not the tutorial").
 
-**Polling**: Orchestrator only. Subagents do not poll for APPROVE signals.
+**Polling**: Librarian only (in CURATE mode). Orchestrator delegates the full approval gate to Librarian.
 
 #### 3.6 SKIP — Knowledge Bypass
 
-**Semantics**: Bypass knowledge promotion; the session completes without promoting staged knowledge. This signal is **state-specific** — it is only consumed in the Orchestrator's `KNOWLEDGE_APPROVAL` state.
+**Semantics**: Bypass knowledge promotion; the session completes without promoting staged knowledge. This signal is **state-specific** — it is only consumed during the `CURATE` state.
 
-**Agent Behavior**: Orchestrator receives SKIP → transitions to `COMPLETE` state without invoking Librarian promotion. Staged knowledge is **preserved** in `knowledge/` (not deleted) but not promoted to `.docs/`.
+**Agent Behavior**: Librarian (in CURATE mode) polls for SKIP signal → marks `plan-knowledge-approval [C]` in `progress.md` → returns `outcome: "skipped"` to Orchestrator. Staged knowledge is **preserved** in `knowledge/` (not deleted) but not promoted to `.docs/`.
 
 **`message` field**: Reason for skipping (e.g., "Need more review time" or "Knowledge is too specific to this task").
 
-**Polling**: Orchestrator only. Subagents do not poll for SKIP signals.
+**Polling**: Librarian only (in CURATE mode). Orchestrator delegates the full approval gate to Librarian.
 
-**Carry-forward behavior**: Approved knowledge (in `knowledge/` with `approved: true`) carries across iterations without re-approval. If neither APPROVE nor SKIP is received for newly staged knowledge within the KNOWLEDGE_APPROVAL timeout (or the iteration ends without a signal), new staged knowledge is preserved in `knowledge/` for the Librarian to reconcile in the next iteration.
+**Carry-forward behavior**: Approved knowledge (in `knowledge/` with `approved: true`) carries across iterations without re-approval. If neither APPROVE nor SKIP is received for newly staged knowledge within the CURATE timeout (or the iteration ends without a signal), new staged knowledge is preserved in `knowledge/` for the Librarian to reconcile in the next iteration.
 
 #### 3.7 COMMIT Mode — Signal Behavior
 
@@ -230,7 +233,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 | Classification         | Signals                      | Description                                                                                           |
 | ---------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **Direct poller**      | STEER, INFO, PAUSE, ABORT    | Subagents poll `signals/inputs/` at step boundaries during long-running tasks. These are **universal signals** — time-sensitive and relevant regardless of orchestrator state. |
-| **Context consumer**   | APPROVE, SKIP                | Subagents receive these via Orchestrator invocation context. These are **state-specific signals** — only meaningful in `KNOWLEDGE_APPROVAL` state. |
+| **Librarian direct poller (CURATE)** | APPROVE, SKIP | Librarian polls these directly in CURATE mode. These are **state-specific signals** — only meaningful during the `CURATE` state. |
 | **Primary poller**     | All types                    | Orchestrator — routes signals, finalizes `target: ALL` archival after ack quorum, and dispatches state-specific signals. |
 
 #### A. Orchestrator (Ralph-v2)
@@ -241,7 +244,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 1. **State Boundaries**: Poll signals between every state transition.
 2. **Before Invoking Subagent**: Check signals. If `ABORT` → execute cleanup checklist (§3.4) and exit. If `PAUSE` → suspend and wait. If `STEER/INFO` → pass message to subagent invocation context.
 3. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks). Inside `REVIEWING_BATCH` loop (between reviews and between review→COMMIT invocations — COMMIT is a sub-step within REVIEWING_BATCH, not a separate state).
-4. **KNOWLEDGE_APPROVAL**: Poll for `APPROVE` and `SKIP` signals targeting session-scope `knowledge/` (these are not forwarded — consumed directly).
+4. **CURATE**: Delegates to Librarian (CURATE mode) which polls for `APPROVE` and `SKIP` signals directly.
 
 **Target-Aware Routing**: The Orchestrator checks the `target` field before consuming (see §2.3). Signals targeting a specific subagent are buffered and delivered at the next invocation of that subagent. For `target: ALL`, the Orchestrator writes only its own ack and leaves the signal available for other subagents.
 
@@ -255,9 +258,10 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 3. **Mid-Execution (Step 3.5 — Executor only)**: Poll during long-running implementation. Apply STEER decision tree (§3.1) if a STEER signal is found.
 4. **Ack Behavior**: After ingesting a `target: ALL` universal signal, write `signals/acks/<SIGNAL_ID>/<CURRENT_AGENT>.ack.yaml` and do not move the source signal.
 
-**Context-Consumed Signals** (APPROVE, SKIP):
-- Subagents do NOT poll for these. They are irrelevant outside `KNOWLEDGE_APPROVAL` state.
-- The Orchestrator handles these directly and invokes the Librarian with the appropriate mode.
+**State-Specific Signals** (APPROVE, SKIP):
+- Only the Librarian polls for these, and only in `CURATE` mode.
+- Other subagents do NOT poll for these. They are irrelevant outside `CURATE` state.
+- Orchestrator invokes Librarian with `MODE: CURATE`; Librarian then polls and acts on APPROVE/SKIP signals autonomously.
 
 **Why hybrid?** When the Orchestrator invokes a long-running subagent (e.g., Executor on a complex task), the Orchestrator is BLOCKED waiting for the return. During this time, no orchestrator-level polling occurs. Direct polling by subagents ensures time-sensitive signals (STEER, PAUSE, ABORT) are handled within the subagent's execution, not delayed until the subagent returns.
 

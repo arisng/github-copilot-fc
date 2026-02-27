@@ -244,7 +244,7 @@ This appendix clarifies how to normalize shared state at iteration scope while a
 
 ### 9.2 Detailed Design
 
-See [agents/ralph-v2/appendixes/normalization-deep-dive.md](agents/ralph-v2/appendixes/normalization-deep-dive.md) for the full guidance, boundary rules, and consistency checks.
+See [agents/ralph-v2/docs/reference/normalization.md](agents/ralph-v2/docs/reference/normalization.md) for the full guidance, boundary rules, and consistency checks.
 
 ---
 
@@ -269,4 +269,4 @@ This appendix summarizes how GitHub Copilot Hooks can increase determinism in th
 
 ### 10.3 Detailed Design
 
-See [agents/ralph-v2/appendixes/hooks-integrations.md](agents/ralph-v2/appendixes/hooks-integrations.md) for proposed hook policies, scripts, and governance notes.
+See [agents/ralph-v2/docs/reference/hooks-integrations.md](agents/ralph-v2/docs/reference/hooks-integrations.md) for proposed hook policies, scripts, and governance notes.
