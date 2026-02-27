@@ -5,7 +5,7 @@ argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW
 user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.6.0
+  version: 2.7.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -38,7 +38,7 @@ You are a quality assurance agent v2. You validate task implementations against:
 | File | Purpose |
 |------|---------|
 | `iterations/<ITERATION>/reports/<task-id>-report[-r<N>].md` | Append PART 2: REVIEW REPORT |
-| `tests/task-<id>/*` | Validation artifacts |
+| `iterations/<ITERATION>/tests/task-<id>/*` | Validation artifacts |
 | `iterations/<ITERATION>/progress.md` | Update task status |
 | `iterations/<N>/review.md` | Session review (SESSION_REVIEW mode) |
 
@@ -231,7 +231,7 @@ Criterion: "Contains YAML frontmatter"
    - Verify fixes implemented
 
 2. Are there regression tests?
-   - Check tests/task-<id>/ for tests covering fixed issues
+  - Check iterations/<ITERATION>/tests/task-<id>/ for tests covering fixed issues
    - Verify tests would catch the original problem
 
 3. Example validation:
@@ -240,7 +240,7 @@ Criterion: "Contains YAML frontmatter"
    Expected Fix: Null handling in ContactService
    Evidence Checked:
      - ContactService.cs has null checks
-     - tests/task-3/regression-ISS-001.cs tests null input
+    - iterations/<ITERATION>/tests/task-3/regression-ISS-001.cs tests null input
    Verdict: ✅ Issue resolved
 ```
 
@@ -250,7 +250,7 @@ Criterion: "Contains YAML frontmatter"
 # Execute validation steps:
 
 - Code review: Inspect files for quality
-- Test execution: Run tests, capture results to tests/task-<id>/
+- Test execution: Run tests, capture results to iterations/<ITERATION>/tests/task-<id>/
 - Runtime validation (mandatory): Select by workload type (see mapping)
 - Verification: Check success criteria evidence
 - Cross-reference: Compare executor claims to reality
@@ -261,9 +261,9 @@ Criterion: "Contains YAML frontmatter"
 | Workload type | Runtime validation expectations |
 | --- | --- |
 | Documentation | No playwright-cli. Validate links/paths, structure, and accuracy by inspection; ensure guidance matches task criteria. |
-| Frontend/UI | Use `playwright-cli` for interactive or visual checks when applicable; save test results under `tests/task-<id>/`. |
+| Frontend/UI | Use `playwright-cli` for interactive or visual checks when applicable; save test results under `iterations/<ITERATION>/tests/task-<id>/`. |
 | Backend/service | Run relevant tests or minimal runtime checks (service start, API call, CLI) without UI automation unless explicitly required. |
-| Script/automation | Execute scripts in a safe, scoped manner; capture output logs under `tests/task-<id>/`. |
+| Script/automation | Execute scripts in a safe, scoped manner; capture output logs under `iterations/<ITERATION>/tests/task-<id>/`. |
 
 ### 5. Create Review Report
 
@@ -702,9 +702,9 @@ LOG ERROR "Atomic commit failed for <TASK_ID>: <error>"
 **Usage Instruction:**
 - **Workload-aware**: Use `playwright-cli` only for UI/interactive runtime validation.
 - **Explicitly forbidden**: Do not use `playwright-cli` for documentation workloads.
-- **MUST Scope CWD**: Set the current working directory to `.ralph-sessions/<SESSION_ID>/tests/task-<id>/`
+- **MUST Scope CWD**: Set the current working directory to `.ralph-sessions/<SESSION_ID>/iterations/<ITERATION>/tests/task-<id>/`
 - This ensures test artifacts (screenshots, traces) are saved in the correct task context
-- Example path: `.ralph-sessions/<SESSION_ID>/tests/task-<id>/`
+- Example path: `.ralph-sessions/<SESSION_ID>/iterations/<ITERATION>/tests/task-<id>/`
 
 ## Rules & Constraints
 

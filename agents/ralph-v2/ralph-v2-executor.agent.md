@@ -5,7 +5,7 @@ argument-hint: Specify the Ralph session path, TASK_ID, ATTEMPT_NUMBER, and ITER
 user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/testFailure, execute/runInTerminal, execute/runTests, read/terminalSelection, read/terminalLastCommand, read/problems, read/readFile, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', 'deepwiki/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/get-library-docs, mcp_docker/resolve-library-id, mcp_docker/search, mcp_docker/sequentialthinking, 'microsoftdocs/mcp/*']
 metadata:
-  version: 2.6.0
+  version: 2.7.0
   created_at: 2026-02-07T00:00:00Z
   updated_at: 2026-02-23T12:30:00+07:00
   timezone: UTC+7
@@ -38,7 +38,7 @@ You are a specialized execution agent v2. You implement specific tasks with awar
 |------|---------|
 | `iterations/<N>/reports/<task-id>-report.md` | First attempt report |
 | `iterations/<N>/reports/<task-id>-report-r<N>.md` | Rework attempt report (N >= 2) |
-| `tests/task-<id>/*` | Ephemeral test artifacts (NO reports here) |
+| `iterations/<N>/tests/task-<id>/*` | Ephemeral test artifacts (NO reports here) |
 
 ## Report Structure
 
@@ -222,7 +222,7 @@ If ITERATION > 1 and feedback exists:
 # Step 3: Verification
 - Run tests
 - Validate against success criteria
-- Store ephemeral artifacts in tests/task-<id>/ (consolidate results in Task Report)
+- Store ephemeral artifacts in iterations/<ITERATION>/tests/task-<id>/ (consolidate results in Task Report)
 - Compile-time validation only (build, lint, type checks, unit tests)
 ```
 
@@ -313,7 +313,7 @@ Else:
 - **Feedback Awareness**: For iteration >= 2, address relevant feedback
 - **Preserve Reports**: Never overwrite previous reports
 - **MANDATORY PROGRESS UPDATES**: Update `iterations/<N>/progress.md` twice (start and end)
-- **Testing Folder**: Store *ephemeral artifacts*(e.g. log, generated files, ...) in `tests/task-<id>/`. **NO** test reports in this folder; consolidate in Task Report
+- **Testing Folder**: Store *ephemeral artifacts*(e.g. log, generated files, ...) in `iterations/<N>/tests/task-<id>/`. **NO** test reports in this folder; consolidate in Task Report
 - **No Runtime UI Validation**: Do not run browser or UI validation; reviewer owns runtime checks
 - **Inheritance**: Read and apply patterns from dependency task reports
 - **Honest Assessment**: Don't mark as [P] if criteria not met
@@ -357,4 +357,4 @@ Else:
 **Postconditions:**
 - Report created at `iterations/<ITERATION>/reports/<TASK_ID>-report[-r<N>].md`
 - `iterations/<ITERATION>/progress.md` updated with status
-- Test artifacts in `tests/task-<id>/` (if applicable)
+- Test artifacts in `iterations/<ITERATION>/tests/task-<id>/` (if applicable)

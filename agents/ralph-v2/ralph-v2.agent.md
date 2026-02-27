@@ -240,11 +240,9 @@ IF no .ralph-sessions/<SESSION_ID>/ exists:
     IF valid:
         STATE = INITIALIZING
         ITERATION = 1
-        WRITE .ralph-sessions/.active-session = <SESSION_ID>
     ELSE:
         EXIT with error "Session ID must follow format <YYMMDD>-<hhmmss>"
 ELSE:
-    WRITE .ralph-sessions/.active-session = <SESSION_ID>
     READ .ralph-sessions/<SESSION_ID>.instructions.md (if exists)
     LOAD guardrails:
         - planning.max_cycles (default 5)
@@ -706,12 +704,10 @@ FOR each signal in signals/inputs/ where target == ALL:
 READ iterations/<ITERATION>/progress.md
 IF all tasks [x] or [C]:
     # Session success (Metadata updated by Reviewer in SESSION_REVIEW)
-    CLEAR .ralph-sessions/.active-session if it matches <SESSION_ID>
     EXIT with success summary
     
 ELSE IF any tasks [F]:
     # Await human feedback for replanning
-    CLEAR .ralph-sessions/.active-session if it matches <SESSION_ID>
     EXIT with instructions for next iteration
 ```
 
