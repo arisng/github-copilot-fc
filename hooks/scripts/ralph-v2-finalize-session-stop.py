@@ -6,12 +6,14 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 
 SESSION_ID_PATTERN = re.compile(r"^[0-9]{6}-[0-9]{6}$")
+SESSION_ID_IN_TEXT = re.compile(r"[0-9]{6}-[0-9]{6}")
 
 
 def iso_now() -> str:
@@ -25,10 +27,91 @@ def get_repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def read_hook_payload() -> dict:
+    """Best-effort stdin JSON reader for hook context.
+
+    When script is run manually in a TTY, skip stdin reads to avoid blocking.
+    """
+    try:
+        if sys.stdin.isatty():
+            return {}
+        raw = sys.stdin.read().strip()
+        if not raw:
+            return {}
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def write_jsonl(log_path: Path, event: dict) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(event, separators=(",", ":")) + "\n")
+
+
+def find_session_ids_in_text(text: str) -> list[str]:
+    return [m.group(0) for m in SESSION_ID_IN_TEXT.finditer(text)]
+
+
+def read_binding_session_id(payload: dict, sessions_root: Path) -> str | None:
+    hook_session_id = str(payload.get("sessionId", "")).strip()
+    if not hook_session_id:
+        return None
+
+    bindings_dir = sessions_root / ".hook-bindings"
+    binding_path = bindings_dir / f"{hook_session_id}.json"
+    if not binding_path.exists():
+        return None
+
+    try:
+        data = json.loads(binding_path.read_text(encoding="utf-8"))
+        candidate = str(data.get("ralph_session_id", "")).strip()
+        if SESSION_ID_PATTERN.match(candidate):
+            return candidate
+    except Exception:
+        return None
+    return None
+
+
+def read_transcript_session_id(payload: dict, sessions_root: Path) -> str | None:
+    transcript_path_raw = str(payload.get("transcript_path", "")).strip()
+    if not transcript_path_raw:
+        return None
+
+    transcript_path = Path(transcript_path_raw)
+    if not transcript_path.exists() or not transcript_path.is_file():
+        return None
+
+    try:
+        # Read tail to keep cost low while prioritizing most recent session mentions.
+        raw = transcript_path.read_text(encoding="utf-8", errors="ignore")
+        tail = raw[-200000:]
+        candidates = find_session_ids_in_text(tail)
+        for candidate in reversed(candidates):
+            if (sessions_root / candidate).exists():
+                return candidate
+    except Exception:
+        return None
+    return None
+
+
+def resolve_target_session_id(payload: dict, sessions_root: Path) -> str | None:
+    binding_id = read_binding_session_id(payload, sessions_root)
+    if binding_id:
+        return binding_id
+
+    transcript_id = read_transcript_session_id(payload, sessions_root)
+    if transcript_id:
+        return transcript_id
+
+    active_pointer = sessions_root / ".active-session"
+    if active_pointer.exists():
+        candidate = active_pointer.read_text(encoding="utf-8").strip()
+        if SESSION_ID_PATTERN.match(candidate):
+            return candidate
+
+    return None
 
 
 def get_root_value(lines: list[str], key: str) -> str | None:
@@ -86,23 +169,33 @@ def atomic_write(path: Path, text: str) -> None:
 
 def main() -> int:
     now = iso_now()
+    payload = read_hook_payload()
+
+    # Hard guard: skip recursive stop hooks and non-Stop events.
+    if payload.get("stop_hook_active") is True:
+        return 0
+    hook_event = str(payload.get("hookEventName", "")).strip()
+    if hook_event and hook_event != "Stop":
+        return 0
+
     repo_root = get_repo_root()
     sessions_root = repo_root / ".ralph-sessions"
     active_pointer = sessions_root / ".active-session"
-
-    if not active_pointer.exists():
-        return 0
-
-    session_id = active_pointer.read_text(encoding="utf-8").strip()
-    if not session_id or not SESSION_ID_PATTERN.match(session_id):
+    session_id = resolve_target_session_id(payload, sessions_root)
+    if not session_id:
         return 0
 
     session_path = sessions_root / session_id
+    marker_path = session_path / ".hook-enabled"
     metadata_path = session_path / "metadata.yaml"
     log_path = session_path / "logs" / "hook-finalization.jsonl"
     lock_path = session_path / ".finalize.lock"
 
     if not session_path.exists():
+        return 0
+
+    # Hard guard: only finalize sessions explicitly marked as Ralph hook-enabled.
+    if not marker_path.exists():
         return 0
 
     if not metadata_path.exists():

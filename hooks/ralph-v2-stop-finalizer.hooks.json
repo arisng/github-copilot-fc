@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "bash hooks/scripts/ralph-v2-bind-session-from-input.sh",
+        "windows": "pwsh -NoProfile -File hooks/scripts/ralph-v2-bind-session-from-input.ps1",
+        "linux": "bash hooks/scripts/ralph-v2-bind-session-from-input.sh",
+        "cwd": ".",
+        "timeout": 15
+      }
+    ],
     "Stop": [
       {
         "type": "command",
