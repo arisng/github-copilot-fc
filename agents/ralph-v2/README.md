@@ -72,11 +72,6 @@ Each iteration is **self-contained** — all mutable artifacts (plan, tasks, pro
 │   │   └── index.md
 │   └── index.md                   # Knowledge inventory (approved + pending)
 │
-├── tests/                         # Ephemeral test artifacts (session-level)
-│   └── task-<id>/
-│       ├── test-results.log
-│       └── screenshot.png
-│
 └── iterations/                    # Per-iteration container (self-contained)
     ├── 1/
     │   ├── metadata.yaml          # Iteration timing SSOT (Planner/Reviewer)
@@ -100,6 +95,10 @@ Each iteration is **self-contained** — all mutable artifacts (plan, tasks, pro
     │   │   ├── assumptions.md
     │   │   ├── risks.md
     │   │   └── feedback-driven.md     # Feedback analysis
+    │   ├── tests/                 # Ephemeral test artifacts for iteration 1
+    │   │   └── task-<id>/
+    │   │       ├── test-results.log
+    │   │       └── screenshot.png
     │   │
     │   └── review.md              # Session review (if conducted)
     │
@@ -111,6 +110,7 @@ Each iteration is **self-contained** — all mutable artifacts (plan, tasks, pro
         ├── tasks/                 # Task files for iteration 2
         ├── reports/               # Reports for iteration 2
         ├── questions/             # Questions for iteration 2
+        ├── tests/                 # Ephemeral test artifacts for iteration 2
         │
         ├── feedbacks/             # Structured feedback from human
         │   ├── 20260207-105500/

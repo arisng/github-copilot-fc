@@ -1,7 +1,8 @@
 # Ralph v2 Stop Hook Metadata Finalization Spec
 
 ## Status
-- Implemented: pilot delivered and published
+- Drafted: 2024-06-20
+- Implementation: to be integrated to ralph-v2 workflow and testing
 - Scope: Ralph v2 session metadata finalization at session end
 - Priority: P0 pilot
 
@@ -26,15 +27,20 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 - PowerShell (`.ps1`) on Windows.
 - Bash (`.sh`) on Linux/WSL.
 3. Hook scripts must resolve the target Ralph session via `.ralph-sessions/.active-session`.
-4. Metadata finalization must be idempotent.
-5. Writes to `metadata.yaml` must be atomic.
-6. Finalization must always update `updated_at`.
-7. If session is not already complete, force terminal state with:
+4. Hook scripts must require `.ralph-sessions/<SESSION_ID>/.hook-enabled` before modifying metadata.
+5. Metadata finalization must be idempotent.
+6. Writes to `metadata.yaml` must be atomic.
+7. Finalization must always update `updated_at`.
+8. If session is not already complete, force terminal state with:
 - `status: blocked`
 - `orchestrator.state: COMPLETE`
-8. If session is already complete, preserve `status: completed`.
-9. Hook must append deterministic JSONL audit entries to session logs.
-10. Failures in hook logic must not crash the agent session; they must be logged and return allow-continue behavior.
+9. If session is already complete, preserve `status: completed`.
+10. Hook must append deterministic JSONL audit entries to session logs.
+11. Failures in hook logic must not crash the agent session; they must be logged and return allow-continue behavior.
+12. For multi-chat concurrency, target-session resolution for `Stop` must use this precedence:
+- binding map by hook `sessionId` (`.ralph-sessions/.hook-bindings/<HOOK_SESSION_ID>.json`)
+- transcript parsing (`transcript_path`) for latest valid Ralph session mention
+- `.active-session` as last fallback
 
 ## Deterministic Data Contract
 ### Input
@@ -43,6 +49,8 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 
 ### Target Files
 - `.ralph-sessions/.active-session`
+- `.ralph-sessions/.hook-bindings/<HOOK_SESSION_ID>.json`
+- `.ralph-sessions/<SESSION_ID>/.hook-enabled`
 - `.ralph-sessions/<SESSION_ID>/metadata.yaml`
 - `.ralph-sessions/<SESSION_ID>/logs/hook-finalization.jsonl`
 
@@ -57,9 +65,14 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 
 ## Algorithm
 1. Resolve repo root from script location.
-2. Resolve `.ralph-sessions/.active-session`.
-3. Validate session id with regex `^[0-9]{6}-[0-9]{6}$`.
-4. Resolve session folder and metadata path.
+2. Resolve target Ralph session using precedence:
+- `.hook-bindings/<HOOK_SESSION_ID>.json` (from `UserPromptSubmit`)
+- `transcript_path` parsing for latest valid Ralph session id mention
+- `.active-session` fallback
+3. Validate resolved session id with regex `^[0-9]{6}-[0-9]{6}$`.
+4. Resolve session folder and `.hook-enabled` marker.
+5. If marker is missing, return success (no-op outside Ralph-v2).
+6. Resolve metadata path.
 5. If metadata missing, emit warning JSONL and return success.
 6. Acquire lock file `.finalize.lock` (best-effort).
 7. Read metadata text.
@@ -85,6 +98,7 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 - Windows command uses `.ps1` script.
 - Linux command uses `.sh` script.
 - Re-running script on same session does not corrupt metadata.
+- Session without `.hook-enabled` remains untouched (hook exits no-op).
 - Script handles missing pointer and missing metadata with warning logs.
 - Existing metadata fields unrelated to finalization are preserved.
 - Audit JSONL file contains one line per execution.
@@ -95,12 +109,16 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 3. Re-run script on same fixture to validate idempotence.
 4. Validate keys and timestamps in output metadata.
 5. Validate JSONL logging format.
+6. Validate `Stop` resolution from hook-session binding file.
+7. Validate `Stop` resolution from transcript parsing when binding is missing.
 
 ## Risks and Mitigations
 - Risk: simplistic YAML mutations could break formatting.
 - Mitigation: targeted key upsert rules with minimal structural edits.
 - Risk: wrong session chosen.
-- Mitigation: strict `.active-session` pointer + regex validation.
+- Mitigation: binding map keyed by hook `sessionId`, transcript fallback, then `.active-session` fallback.
+- Risk: hook runs for non-Ralph chats due to workspace-wide Stop lifecycle.
+- Mitigation: require session marker `.hook-enabled` before any metadata mutation.
 - Risk: hook runtime differences across OS.
 - Mitigation: separate native scripts (`.ps1` and `.sh`) plus common contract.
 
@@ -130,5 +148,8 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 5. Update `agents/ralph-v2/ralph-v2.agent.md` to maintain `.active-session` pointer:
 - Set on initialize/resume.
 - Clear on `COMPLETE` exit.
+ - Set and clear `.hook-enabled` marker for Ralph-only hook applicability.
 6. Update `agents/ralph-v2/appendixes/hooks-integrations.md` with pilot hook entry and deployment notes.
 7. Publish hook with `scripts/publish/publish-hooks.ps1` and validate output.
+8. Add `UserPromptSubmit` hook to maintain `.hook-bindings/<HOOK_SESSION_ID>.json` from user chat input.
+9. Add transcript parsing fallback for `Stop` hook when binding is missing.
