@@ -2,7 +2,8 @@
 name: playwright-cli
 description: Automates browser interactions for web testing, form filling, screenshots, and data extraction. Use when the user needs to navigate websites, interact with web pages, fill forms, take screenshots, test web applications, or extract information from web pages.
 allowed-tools: Bash(playwright-cli:*)
-version: 1.0.0
+metadata:
+    version: 1.1.0
 ---
 
 # Browser Automation with playwright-cli
@@ -99,6 +100,32 @@ playwright-cli tab-close
 playwright-cli tab-close 2
 playwright-cli tab-select 0
 ```
+
+## Troubleshooting
+
+### Command not found (Windows)
+
+If you get an error saying `playwright-cli` is not recognized, your global npm directory (typically `%AppData%\npm`) is likely missing from your `PATH`.
+
+#### Permanent Fix (Command Line):
+
+Run this in PowerShell, then **restart your terminal**:
+
+```powershell
+$npmPath = (npm config get prefix); if ($env:Path -notlike "*$npmPath*") { [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$npmPath", "User"); Write-Host "Added $npmPath to User PATH. Restart terminal to apply." -ForegroundColor Green }
+```
+
+#### Verification:
+
+```powershell
+playwright-cli --version
+```
+
+### Where to get the path?
+The playwright-cli is usually installed globally via npm (e.g., npm install -g playwright-cli). After installation, you can find the absolute path to the binary using the following commands:
+
+WSL / Linux: Use which playwright-cli
+Windows: Use where.exe playwright-cli
 
 ### DevTools
 
