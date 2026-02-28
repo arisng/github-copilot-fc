@@ -1,7 +1,7 @@
 # Ralph v2 Workflow Critique (Revision 5)
 
-**Date**: 2026-02-16  
-**Status**: v2.3.0 Design Decisions Review
+**Date**: 2026-02-28  
+**Status**: v2.10.0 Design Decisions Review (updated from v2.3.0)
 
 ## Executive Summary
 
@@ -18,7 +18,7 @@ Ralph v2 is structurally sound for single-stream execution and has resolved the 
 - ✅ **Orchestrator Purity**: Router-only behavior enforced for content, but State Ownership granted for `metadata.yaml`
 - ✅ **Skills Enforcement**: Reasoning-based discovery replaces numeric cap (v2.3.0)
 - ✅ **COMMIT Mode**: Separate mode for git atomic commits within REVIEWING_BATCH (v2.3.0)
-- ✅ **Knowledge Session-Scope**: Session-scope knowledge with frontmatter-based approval (v2.3.0)
+- ✅ **Knowledge Session-Scope**: Session-scope knowledge with frontmatter-based promotion tracking (v2.10.0)
 - ✅ **Task Dependency Reasoning**: Enhanced multi-pass dependency analysis in Planner (v2.3.0)
 
 ---
@@ -127,17 +127,19 @@ This section documents the key design decisions made in v2.3.0 across four feedb
 
 **Alternative Considered**: A top-level `COMMITTING` state between REVIEWING_BATCH and SESSION_REVIEW. Rejected because it would require state machine changes with cascading updates across Orchestrator, Planner, and Reviewer.
 
-### 4.2 Knowledge — Frontmatter-Based Approval (Not Directory-Based)
+### 4.2 Knowledge — Frontmatter-Based Status Tracking (Not Directory-Based)
 
-**Decision**: Approved and staged knowledge coexist in the same Diátaxis directory structure (`knowledge/{tutorials,how-to,reference,explanation}/`), differentiated by frontmatter fields (`approved: true/false`, `approved_at`), not by separate directories.
+**Decision**: Staged and promoted knowledge coexist in the same Diátaxis directory structure (`knowledge/{tutorials,how-to,reference,explanation}/`), differentiated by frontmatter fields (`promoted: true/false`, `promoted_at`), not by separate directories.
 
 **Rationale**:
 - The existing Librarian already places carried-forward and fresh knowledge in the same directories, using frontmatter markers (`carried_from_iteration`) — frontmatter-based differentiation is a natural extension (ref: Q-ASM-003).
-- A separate `knowledge/staged/` vs `knowledge/approved/` split would duplicate the Diátaxis structure and complicate promotion workflows.
-- `knowledge/index.md` manifest can display both approval statuses for human review.
-- Session-scope knowledge persists across iterations: approved knowledge carries forward without re-approval; new knowledge goes through the existing APPROVE signal flow.
+- A separate `knowledge/staged/` vs `knowledge/promoted/` split would duplicate the Diátaxis structure and complicate promotion workflows.
+- `knowledge/index.md` manifest can display both promotion statuses for human review.
+- Session-scope knowledge persists across iterations: promoted knowledge carries forward without re-promotion; new knowledge is auto-promoted by default (v2.10.0), with SKIP signal as opt-out.
 
-**Alternative Considered**: Directory-based separation (`knowledge/staged/` and `knowledge/approved/`). Rejected because it duplicates the Diátaxis taxonomy and makes promotion a file-move operation rather than a metadata update.
+**Alternative Considered**: Directory-based separation (`knowledge/staged/` and `knowledge/promoted/`). Rejected because it duplicates the Diátaxis taxonomy and makes promotion a file-move operation rather than a metadata update.
+
+> **v2.10.0 update**: CURATE mode and APPROVE signal were removed. Knowledge promotion is now auto-promoted by default within the KNOWLEDGE_EXTRACTION state (EXTRACT → STAGE → PROMOTE pipeline). The SKIP signal is the opt-out mechanism. Frontmatter fields changed from `approved`/`approved_at` to `promoted`/`promoted_at`.
 
 ### 4.3 Skills — Reasoning-Based Discovery (Not Rule-Based or Manifest-Based)
 
@@ -244,7 +246,7 @@ This appendix clarifies how to normalize shared state at iteration scope while a
 
 ### 9.2 Detailed Design
 
-See [agents/ralph-v2/docs/reference/normalization.md](agents/ralph-v2/docs/reference/normalization.md) for the full guidance, boundary rules, and consistency checks.
+See [specs/normalization.spec.md](../../specs/normalization.spec.md) for the full guidance, boundary rules, and consistency checks.
 
 ---
 
@@ -269,4 +271,4 @@ This appendix summarizes how GitHub Copilot Hooks can increase determinism in th
 
 ### 10.3 Detailed Design
 
-See [agents/ralph-v2/docs/reference/hooks-integrations.md](agents/ralph-v2/docs/reference/hooks-integrations.md) for proposed hook policies, scripts, and governance notes.
+See [docs/reference/hooks-integrations.md](../reference/hooks-integrations.md) for proposed hook policies, scripts, and governance notes.

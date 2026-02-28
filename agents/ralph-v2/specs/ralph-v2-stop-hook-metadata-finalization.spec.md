@@ -1,6 +1,6 @@
 ---
 title: Ralph v2 Stop Hook Metadata Finalization
-status: implemented
+status: draft
 version: "1.0"
 created_at: 2024-06-20
 updated_at: 2026-02-28
@@ -21,7 +21,7 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 ## Non-Goals
 - Replacing orchestrator-owned state transitions during normal workflow.
 - Reconstructing complex state from transcripts.
-- Full migration of all proposed hooks in `appendixes/hooks-integrations.md`.
+- Full migration of all proposed hooks in `docs/reference/hooks-integrations.md`.
 
 ## Requirements
 1. A workspace hook must run on `Stop` lifecycle event.
@@ -151,7 +151,7 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 - Set on initialize/resume.
 - Clear on `COMPLETE` exit.
  - Set and clear `.hook-enabled` marker for Ralph-only hook applicability.
-6. Update `agents/ralph-v2/appendixes/hooks-integrations.md` with pilot hook entry and deployment notes.
+6. Update `agents/ralph-v2/docs/reference/hooks-integrations.md` with pilot hook entry and deployment notes.
 7. Publish hook with `scripts/publish/publish-hooks.ps1` and validate output.
 8. Add `UserPromptSubmit` hook to maintain `.hook-bindings/<HOOK_SESSION_ID>.json` from user chat input.
 9. Add transcript parsing fallback for `Stop` hook when binding is missing.
