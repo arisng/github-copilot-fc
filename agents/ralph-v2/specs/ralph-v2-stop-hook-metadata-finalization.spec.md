@@ -1,10 +1,12 @@
-# Ralph v2 Stop Hook Metadata Finalization Spec
+---
+title: Ralph v2 Stop Hook Metadata Finalization
+status: implemented
+version: "1.0"
+created_at: 2024-06-20
+updated_at: 2026-02-28
+---
 
-## Status
-- Drafted: 2024-06-20
-- Implementation: to be integrated to ralph-v2 workflow and testing
-- Scope: Ralph v2 session metadata finalization at session end
-- Priority: P0 pilot
+# Ralph v2 Stop Hook Metadata Finalization Spec
 
 ## Problem Statement
 Session `metadata.yaml` can become stale when a session ends unexpectedly or when final state reconciliation is skipped. This creates non-deterministic session outcomes and makes restart/recovery logic less reliable.
