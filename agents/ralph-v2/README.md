@@ -2,7 +2,7 @@
 
 A feedback-driven, multi-agent system with isolated task files, structured iteration loops, live signal injection, and session-scope knowledge management. v1 agents are archived in `agents/archived/ralph*.agent.md` — do not reference them for new development.
 
-**Current version: v2.9.0**
+**Current version: v2.11.0**
 
 ## Table of Contents
 
@@ -27,18 +27,17 @@ agents/ralph-v2/
 ├── ralph-v2-questioner.agent.md   # Q&A discovery (brainstorm/research/feedback-analysis)
 ├── ralph-v2-executor.agent.md     # Task execution (implementation, design-time validation)
 ├── ralph-v2-reviewer.agent.md     # Quality assurance (review, COMMIT, runtime validation)
-├── ralph-v2-librarian.agent.md    # Knowledge management (STAGE/PROMOTE/CURATE)
+├── ralph-v2-librarian.agent.md    # Knowledge management (EXTRACT/STAGE/PROMOTE)
 ├── README.md                      # This file (single entry point)
+├── specs/                         # Feature specifications (YAML frontmatter)
+│   ├── live-signals.spec.md       # Live signal protocol spec (v2.10.0, implemented)
+│   ├── normalization.spec.md      # SSOT normalization spec (v2.2.0, implemented)
+│   └── ralph-v2-stop-hook-metadata-finalization.spec.md  # Stop hook finalization spec (implemented)
 └── docs/
     ├── design/
-    │   ├── live-signals-design.md # Signal protocol design (types, routing, ack quorum)
-    │   ├── live-signals-map.md    # Signal checkpoint implementation map
     │   └── critique.md            # Workflow critique and guardrail status
     ├── reference/
-    │   ├── hooks-integrations.md  # Hooks integration plan (P0-P3 tiers)
-    │   └── normalization.md       # SSOT normalization patterns
-    ├── specs/
-    │   └── stop-hook-finalization.spec.md  # Stop hook metadata finalization spec
+    │   └── hooks-integrations.md  # Hooks integration plan (P0-P3 tiers)
     └── templates/
         └── feedbacks.template.md  # Feedback file template
 ```
@@ -52,7 +51,7 @@ agents/ralph-v2/
 | **Questioner** | Discovery | brainstorm, research, feedback-analysis | Q&A generation, research, feedback analysis |
 | **Executor** | Implementation | — | Task execution, design-time validation (build/lint/tests) |
 | **Reviewer** | Quality | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL | Code review, atomic commits (hunk-level staging), session review |
-| **Librarian** | Knowledge | STAGE, PROMOTE, CURATE | Knowledge extraction, Diátaxis classification, approval gate, wiki promotion |
+| **Librarian** | Knowledge | EXTRACT, STAGE, PROMOTE | Knowledge extraction (iteration-scoped), merge staging (session-scoped), wiki promotion |
 
 ### Ownership Model
 
@@ -65,7 +64,8 @@ agents/ralph-v2/
 | `iterations/<N>/progress.md` | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status |
 | `iterations/<N>/reports/*` | Executor, Reviewer | Task and review reports |
 | `iterations/<N>/questions/*` | Questioner | Per-category Q&A files |
-| `knowledge/` | Librarian | Session-scope Diátaxis knowledge staging |
+| `knowledge/` | Librarian (STAGE, PROMOTE) | Session-scope merged knowledge staging and promotion tracking |
+| `iterations/<N>/knowledge/` | Librarian (EXTRACT) | Iteration-scoped extracted knowledge |
 | `signals/` | Human (write), Agents (ack), Orchestrator (route) | Session-level mailbox |
 
 ---
@@ -84,12 +84,12 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
 │   ├── acks/                      # Acknowledgments for broadcast signals
 │   └── processed/                 # Consumed signals (moved after processing)
 │
-├── knowledge/                     # Session-scope Diátaxis knowledge
+├── knowledge/                     # Session-scope Diátaxis knowledge (merged from iterations)
 │   ├── tutorials/
 │   ├── how-to/
 │   ├── reference/
 │   ├── explanation/
-│   └── index.md                   # Knowledge inventory (approved + pending)
+│   └── index.md                   # Knowledge inventory (staged + promoted)
 │
 └── iterations/
     └── <N>/                       # Self-contained iteration
@@ -101,6 +101,12 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
         ├── questions/             # Q&A by category
         ├── tests/                 # Ephemeral test artifacts (tests/task-<id>/)
         ├── feedbacks/             # Structured feedback (feedbacks/<timestamp>/)
+        ├── knowledge/             # Iteration-scoped extracted knowledge (Librarian EXTRACT)
+        │   ├── tutorials/
+        │   ├── how-to/
+        │   ├── reference/
+        │   ├── explanation/
+        │   └── index.md           # Iteration knowledge manifest
         └── review.md              # Iteration review
 ```
 
@@ -128,15 +134,13 @@ REVIEWING_BATCH ── Reviewer validates → [x] + COMMIT or [F]
 SESSION_REVIEW ── Reviewer (SESSION_REVIEW) → review.md
        │
        ▼
-KNOWLEDGE_EXTRACTION ── Librarian (STAGE) → knowledge/
+KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROMOTE
        │                    │
-       │                    └── 0 items staged → skip to COMPLETE
-       ▼
-CURATE ── Librarian (CURATE) → auto-promotes by default
-       │                    │
-       │                    ├── Default: auto-promote to .docs/ → COMPLETE
-       │                    ├── SKIP signal → bypass promotion → COMPLETE
-       │                    └── Post-iteration feedback → REPLANNING
+       │                    ├── EXTRACT: iteration artifacts → iterations/<N>/knowledge/
+       │                    ├── 0 items extracted → skip to COMPLETE
+       │                    ├── STAGE: iterations/<N>/knowledge/ → session knowledge/ (merge)
+       │                    ├── PROMOTE: session knowledge/ → .docs/ (auto-promote default)
+       │                    └── SKIP signal at PROMOTE → COMPLETE (staged kept)
        ▼
    COMPLETE ──── All tasks [x]/[C], or awaiting feedback
        │
@@ -146,7 +150,7 @@ CURATE ── Librarian (CURATE) → auto-promotes by default
 
 **Replanning routes:**
 - `full-replanning` — Questioner (feedback-analysis, research) → Planner (UPDATE, REBREAKDOWN) → BATCHING
-- `knowledge-promotion` — Fast-path from CURATE: Librarian (PROMOTE) → COMPLETE
+- `knowledge-promotion` — Fast-path from KNOWLEDGE_EXTRACTION: Librarian (PROMOTE) → COMPLETE
 
 ---
 
@@ -169,16 +173,15 @@ Two protocols for human feedback:
 
 ### Live Signals
 
-Six signal types in two categories:
+Five signal types in two categories:
 
 | Signal | Category | Semantics | Polled By |
-|--------|----------|-----------|-----------|
+|--------|----------|-----------|----------|
 | `STEER` | Universal | Re-route workflow | Orchestrator + Subagents |
 | `INFO` | Universal | Context injection | Orchestrator + Subagents |
 | `PAUSE` | Universal | Temporary halt | Orchestrator + Subagents |
 | `ABORT` | Universal | Permanent halt with cleanup | Orchestrator + Subagents |
-| `APPROVE` | State-specific | Knowledge promotion trigger | Librarian (CURATE) |
-| `SKIP` | State-specific | Knowledge bypass | Librarian (CURATE) |
+| `SKIP` | State-specific | Knowledge promotion bypass | Librarian (PROMOTE) |
 
 Target-aware routing: Orchestrator checks `target` field and routes to specific subagents. Broadcast signals (`target: ALL`) require ack quorum from all recipients before archival.
 
@@ -190,13 +193,20 @@ Reviewer executes commits via dedicated COMMIT mode with hunk-level analysis:
 - `git-atomic-commit` skill for conventional commit generation
 - Commit failure does NOT affect review verdict (`[x]` preserved)
 
-### Session-Scope Knowledge
+### Knowledge Pipeline (EXTRACT → STAGE → PROMOTE)
 
-Knowledge persists at `knowledge/` (session root) across all iterations:
-- Staged files include `approved: false` frontmatter; promoted files get `approved: true` + timestamp
-- **Default auto-approval**: Knowledge is auto-promoted to `.docs/` at each iteration unless overridden by a SKIP signal
-- Approved knowledge is not re-extracted on subsequent iterations
-- Librarian reconciles new knowledge against existing approved items
+Knowledge flows through three tiers with explicit merge semantics:
+
+1. **EXTRACT** (iteration-scoped): Scan `iterations/<N>/` artifacts, write reusable knowledge to `iterations/<N>/knowledge/` with Diátaxis classification
+2. **STAGE** (session-scoped): Merge iteration knowledge into session `knowledge/` with auto-conflict-resolution (newer-wins timestamp strategy)
+3. **PROMOTE** (workspace-scoped): Merge session knowledge into `.docs/` with auto-conflict-resolution. Auto-promotes by default; SKIP signal opts out
+
+Key behaviors:
+- **Auto-extract and auto-stage** are enabled by default in the orchestrator's KNOWLEDGE_EXTRACTION state
+- Promoted knowledge is not re-extracted on subsequent iterations
+- **Cherry-pick staging**: Human can selectively stage specific files from `iterations/<N>/knowledge/` via `CHERRY_PICK` parameter
+- **Cross-iteration staging**: Human can stage knowledge from previous iterations via `SOURCE_ITERATIONS` parameter (useful when auto-stage was disabled)
+- **Merge conflicts**: Auto-resolved by default — newer timestamp wins. Content overlap detected via H2/H3 heading comparison (>50% overlap threshold)
 - Diátaxis categorization: `tutorials/`, `how-to/`, `reference/`, `explanation/`
 
 ### Skills Enforcement
@@ -247,7 +257,7 @@ mkdir .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/
 # 2. Add evidence artifacts
 cp error.log .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/
 
-# 3. Create feedbacks.md (see templates/feedbacks.template.md)
+# 3. Create feedbacks.md (see docs/templates/feedbacks.template.md)
 code .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/feedbacks.md
 
 # 4. Resume: "Continue session <SESSION_ID> with new feedback"
@@ -258,9 +268,9 @@ code .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/feedback
 ```powershell
 $ts = Get-Date -Format "yyMMdd-HHmmssK" -replace ":", ""
 Set-Content ".ralph-sessions/<SESSION_ID>/signals/inputs/signal.$ts.yaml" @"
-type: APPROVE       # STEER | INFO | PAUSE | ABORT | APPROVE | SKIP
+type: SKIP          # STEER | INFO | PAUSE | ABORT | SKIP
 target: ALL          # ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian
-message: "Knowledge looks good"
+message: "Skip knowledge promotion this iteration"
 created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 "@
 ```
@@ -278,17 +288,45 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 
 | Document | Description |
 |----------|-------------|
-| [docs/design/live-signals-design.md](docs/design/live-signals-design.md) | Signal protocol design (types, routing, ack quorum) |
-| [docs/design/live-signals-map.md](docs/design/live-signals-map.md) | Signal checkpoint implementation map |
+| [specs/live-signals.spec.md](specs/live-signals.spec.md) | Live signal protocol spec — design, types, routing, ack quorum, checkpoint map (v2.10.0, implemented) |
+| [specs/normalization.spec.md](specs/normalization.spec.md) | SSOT normalization patterns spec (v2.2.0, implemented) |
+| [specs/ralph-v2-stop-hook-metadata-finalization.spec.md](specs/ralph-v2-stop-hook-metadata-finalization.spec.md) | Stop hook metadata finalization spec (implemented) |
 | [docs/design/critique.md](docs/design/critique.md) | Workflow critique and guardrail status |
 | [docs/reference/hooks-integrations.md](docs/reference/hooks-integrations.md) | Hooks integration plan (P0-P3 tiers) |
-| [docs/reference/normalization.md](docs/reference/normalization.md) | SSOT normalization patterns |
-| [docs/specs/stop-hook-finalization.spec.md](docs/specs/stop-hook-finalization.spec.md) | Stop hook metadata finalization spec |
 | [docs/templates/feedbacks.template.md](docs/templates/feedbacks.template.md) | Feedback file template |
 
 ---
 
 ## Version History
+
+### v2.11.0 (2026-02-28)
+
+**Spec Restructuring & Legacy Cleanup**
+- **New `specs/` directory**: Top-level peer to `docs/` for feature specifications with YAML frontmatter
+- **Created `specs/live-signals.spec.md`**: Merged `docs/design/live-signals-design.md` + `docs/design/live-signals-map.md` into unified spec (status: implemented, v2.10.0). Originals deleted
+- **Created `specs/normalization.spec.md`**: Transformed `docs/reference/normalization.md` into spec format (status: implemented, v2.2.0). Original deleted
+- **Migrated `specs/ralph-v2-stop-hook-metadata-finalization.spec.md`**: Added YAML frontmatter convention to existing spec
+- **Removed legacy duplicate directories**: `appendixes/`, `docs/specs/`, root-level `templates/` (remnants from v2.5.0 reorganization)
+- **Updated cross-references**: All paths in README and `docs/reference/hooks-integrations.md` updated to new spec locations
+- **v2.10.0 knowledge extraction**: Extracted knowledge from v2.10.0 changes with Diátaxis categorization (`source_iteration: external`)
+
+### v2.10.0 (2026-02-28)
+
+> Breaking: NOT backward-compatible with v2.9.0 sessions (session structure change + state machine change).
+
+**Knowledge Pipeline Refactor (EXTRACT → STAGE → PROMOTE)**
+- **New EXTRACT mode**: Scans iteration artifacts and writes reusable knowledge to iteration-scoped `iterations/<N>/knowledge/` with Diátaxis classification
+- **Refactored STAGE mode**: Now merges iteration-scoped knowledge into session-scoped `knowledge/` with auto-conflict-resolution (newer-wins timestamp strategy). Supports `CHERRY_PICK` and `SOURCE_ITERATIONS` parameters for selective and cross-iteration staging
+- **Refactored PROMOTE mode**: Now merges session-scoped knowledge into workspace `.docs/` with auto-conflict-resolution. Absorbs CURATE's SKIP signal check as pre-promote opt-out
+- **Removed CURATE mode**: Redundant with separate EXTRACT/STAGE/PROMOTE pipeline. Signal polling absorbed by PROMOTE; auto-promote is the default; post-iteration feedback detection moved to orchestrator
+- **Removed APPROVE signal type**: Auto-promote is default; only SKIP retained as opt-out. Signal types reduced from 6 to 5
+- **Auto-extract and auto-stage enabled by default**: Orchestrator's KNOWLEDGE_EXTRACTION state auto-sequences EXTRACT → STAGE → PROMOTE
+- **Iteration-scoped knowledge folder**: Added `iterations/<N>/knowledge/` to session structure with full Diátaxis subdirectories
+- **Merge algorithm**: Shared by STAGE and PROMOTE — per-file merge with 5 cases (new, newer-wins, skip-older, content-overlap, contradiction). Content overlap detected via H2/H3 heading comparison with >50% threshold
+- **New progress tracking**: `plan-knowledge-extraction`, `plan-knowledge-staging` (new), `plan-knowledge-promotion` (replaces `plan-knowledge-approval`)
+- **New frontmatter template**: Three-state tracking (`extracted_at`, `staged`/`staged_at`, `promoted`/`promoted_at`) replaces binary `approved`/`approved_at`
+- State machine: Removed CURATE state; KNOWLEDGE_EXTRACTION now auto-sequences all three Librarian modes
+- Version bump 2.9.0 → 2.10.0 across all agent files
 
 ### v2.9.0 (2026-02-27)
 
