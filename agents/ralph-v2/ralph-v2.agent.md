@@ -6,9 +6,9 @@ user-invocable: true
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'vscode/memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
 metadata:
-  version: 2.9.0
+  version: 2.11.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-27T14:00:00+07:00
+  updated_at: 2026-02-28T22:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -58,7 +58,8 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 | Feedbacks | `iterations/<N>/feedbacks/<timestamp>/` | Human + Agents | Structured feedback |
 | Session Metadata | `metadata.yaml` | Ralph-v2-Planner (Init), Orchestrator (Update) | **State machine SSOT** — stays at session root |
 | Iteration Metadata | `iterations/<N>/metadata.yaml` | Ralph-v2-Planner (Init), Reviewer (Update) | **Timing SSOT** — per-iteration lifecycle |
-| Knowledge Staging | `knowledge/` | Ralph-v2-Librarian | Session-scope knowledge staging |
+| Knowledge Extraction | `iterations/<N>/knowledge/` | Ralph-v2-Librarian (EXTRACT) | Iteration-scoped extracted knowledge |
+| Knowledge Staging | `knowledge/` | Ralph-v2-Librarian (STAGE) | Session-scope merged knowledge |
 | Signals | `signals/inputs/`, `signals/acks/`, `signals/processed/` | Human (write), Agents (ack), Orchestrator (route/finalize) | **Session-level** — not iteration-scoped |
 </artifacts>
 
@@ -125,22 +126,17 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │ → Generates iterations/<N>/review.md
        ▼
 ┌─────────────┐
-│ KNOWLEDGE_  │ ─── Extract reusable knowledge (conditional)
-│ EXTRACTION  │
+│ KNOWLEDGE_  │ ─── Extract, stage, and promote knowledge (conditional)
+│ EXTRACTION  │     Auto-sequences: EXTRACT → STAGE → PROMOTE
 └──────┬──────┘
        │ IF 'Ralph-v2-Librarian' NOT in agents list → skip to COMPLETE
+       │ Invoke Ralph-v2-Librarian (MODE: EXTRACT)
+       │ IF 0 items extracted → skip to COMPLETE
        │ Invoke Ralph-v2-Librarian (MODE: STAGE)
-       │ IF 0 items staged → skip to COMPLETE
-       ▼
-┌─────────────┐
-│   CURATE    │ ─── Auto-approve gate (delegated to Librarian)
-│             │
-└──────┬──────┘
-       │ Invoke Ralph-v2-Librarian (MODE: CURATE)
-       │ → Librarian auto-promotes by default, checks for SKIP signal opt-out
-       │ outcome: "approved" → COMPLETE
-       │ outcome: "skipped" (SKIP signal) → COMPLETE
-       │ outcome: "replanning" → REPLANNING
+       │ Invoke Ralph-v2-Librarian (MODE: PROMOTE)
+       │ → PROMOTE auto-promotes by default, checks for SKIP signal opt-out
+       │ outcome: "promoted" → COMPLETE
+       │ outcome: "skipped" (SKIP signal) → COMPLETE (staged kept)
        ▼
 ┌─────────────┐
 │  COMPLETE   │ ─── All tasks [x] or [F]
@@ -195,11 +191,13 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 
 *Knowledge tasks (any iteration):*
 - `plan-knowledge-extraction`
-- `plan-knowledge-approval`
+- `plan-knowledge-staging`
+- `plan-knowledge-promotion`
 
 **Knowledge Progress (Iteration N):**
-- `plan-knowledge-extraction`: `[ ]` | `[x]`
-- `plan-knowledge-approval`: `[ ]` | `[/]` | `[x]` | `[C]`
+- `plan-knowledge-extraction`: `[ ]` | `[x]` | `[C]`
+- `plan-knowledge-staging`: `[ ]` | `[x]` | `[C]`
+- `plan-knowledge-promotion`: `[ ]` | `[x]` | `[C]`
 
 ### Timeout Recovery Policy
 
@@ -361,7 +359,7 @@ ENFORCE MAX_CYCLES:
 Triggered when:
 - User provides feedback files in `iterations/<N>/feedbacks/<timestamp>/`
 - Previous iteration has failed tasks `[F]`
-- Human starts new iteration from CURATE state (knowledge approval/rejection)
+- Human starts new iteration from KNOWLEDGE_EXTRACTION state (knowledge promotion/rejection)
 
 ```
 # --- Triage: Planner analyzes iteration context and determines replanning route ---
@@ -382,21 +380,20 @@ ON timeout or error:
 #   - Returns replanning_route: "full-replanning" | "knowledge-promotion"
 #
 # Routing logic (Planner determines):
-#   - previous_state == CURATE + feedback approves knowledge → "knowledge-promotion"
-#   - previous_state == CURATE + feedback rejects/has issues → "full-replanning"
+#   - previous_state == KNOWLEDGE_EXTRACTION + feedback endorses knowledge → "knowledge-promotion"
+#   - previous_state == KNOWLEDGE_EXTRACTION + feedback rejects/has issues → "full-replanning"
 #   - previous_state is null or COMPLETE → "full-replanning" (default)
 
 CAPTURE replanning_route from Planner response
 
-# --- Route A: Knowledge Promotion (fast-path from CURATE) ---
+# --- Route A: Knowledge Promotion (fast-path from KNOWLEDGE_EXTRACTION) ---
 # Route A: Fast-path replanning ("knowledge-promotion" route)
-# Invokes Librarian PROMOTE mode (not CURATE mode)
+# Invokes Librarian PROMOTE mode directly (session knowledge/ → .docs/)
 IF replanning_route == "knowledge-promotion":
     INVOKE Ralph-v2-Librarian
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
         MODE: PROMOTE
         ITERATION: <current iteration>
-        SOURCE_ITERATION: <current iteration - 1>  # Iteration where knowledge was staged/approved
         ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
 
     ON completion:
@@ -405,13 +402,12 @@ IF replanning_route == "knowledge-promotion":
     ON timeout or error:
         APPLY Timeout Recovery Policy
 
-    # Librarian marks plan-knowledge-approval [x] in the previous iteration's progress.md
-    # (knowledge-extraction/approval occurred in ITERATION - 1; ITERATION now points to the replanning iteration)
+    # Librarian marks plan-knowledge-promotion [x] in iterations/<N>/progress.md
     UPDATE metadata.yaml:
         - state: COMPLETE
         - previous_state: null
     STATE = COMPLETE
-    # → State loop exits REPLANNING; Orchestrator resumes at State 11 (COMPLETE)
+    # → State loop exits REPLANNING; Orchestrator resumes at State 10 (COMPLETE)
 
 # ===========================================================================
 # Route B: Full Replanning Pipeline (replanning_route == "full-replanning")
@@ -683,8 +679,28 @@ STATE = KNOWLEDGE_EXTRACTION
 IF 'Ralph-v2-Librarian' NOT in agents list:
     UPDATE metadata.yaml with state: COMPLETE
     STATE = COMPLETE
-    SKIP to State 11 (COMPLETE)
+    SKIP to State 10 (COMPLETE)
 
+# --- Step A: EXTRACT (iteration artifacts → iteration knowledge/) ---
+INVOKE Ralph-v2-Librarian
+    SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+    MODE: EXTRACT
+    ITERATION: <current iteration>
+    ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
+
+ON completion:
+    CAPTURE message_to_next → BUFFER as PENDING_CONTEXT
+
+ON timeout or error:
+    APPLY Timeout Recovery Policy
+
+# Check extraction result
+IF Librarian returns 0 items extracted:
+    UPDATE metadata.yaml with state: COMPLETE
+    STATE = COMPLETE
+    SKIP to State 10 (COMPLETE)
+
+# --- Step B: STAGE (iteration knowledge/ → session knowledge/) ---
 INVOKE Ralph-v2-Librarian
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     MODE: STAGE
@@ -697,26 +713,10 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# Check extraction result
-IF Librarian returns 0 items staged:
-    UPDATE metadata.yaml with state: COMPLETE
-    STATE = COMPLETE
-ELSE:
-    UPDATE metadata.yaml with state: CURATE
-    STATE = CURATE
-```
-
-### 10. State: CURATE
-
-```
-# Auto-approve gate for staged knowledge — delegated to Librarian.
-# Librarian auto-promotes by default; checks for SKIP signal as opt-out.
-# Orchestrator invokes Librarian (MODE: CURATE) which owns the
-# full gate: signal polling, PROMOTE/SKIP execution, and progress.md marking.
-
+# --- Step C: PROMOTE (session knowledge/ → workspace .docs/) ---
 INVOKE Ralph-v2-Librarian
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
-    MODE: CURATE
+    MODE: PROMOTE
     ITERATION: <current iteration>
     ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
 
@@ -726,34 +726,17 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# Librarian returns one of:
-#   outcome: "approved"  → knowledge auto-promoted (or explicit APPROVE), plan-knowledge-approval marked [x]
-#   outcome: "skipped"   → SKIP signal received, plan-knowledge-approval marked [C]
-#   outcome: "replanning" → post-iteration feedback detected
-
-IF outcome == "approved" OR outcome == "skipped":
+# PROMOTE returns outcome: "promoted" (auto-promoted) or "skipped" (SKIP signal) or "blocked"
+IF outcome == "promoted" OR outcome == "skipped":
     UPDATE metadata.yaml with state: COMPLETE
     STATE = COMPLETE
 
-ELSE IF outcome == "replanning":
-    ITERATION = ITERATION + 1
-    UPDATE metadata.yaml:
-        - orchestrator.state: REPLANNING
-        - orchestrator.previous_state: CURATE
-        - iteration: ITERATION
-    STATE = REPLANNING
-
 ELSE IF outcome == "blocked":
-    LOG ERROR "Librarian CURATE blocked: <outcome_reason>"
-    EXIT with error "Knowledge approval blocked — manual intervention required"
-
-ELSE:
-    LOG ERROR "Librarian returned unexpected outcome: <outcome>"
-    EXIT with error "Cannot transition from CURATE with outcome: <outcome>"
-
+    LOG ERROR "Librarian PROMOTE blocked: <outcome_reason>"
+    EXIT with error "Knowledge promotion blocked — manual intervention required"
 ```
 
-### 11. State: COMPLETE
+### 10. State: COMPLETE
 
 ```
 # Finalize remaining broadcast signals before exit
@@ -792,7 +775,7 @@ We have 2 specific approaches for feedback loops: the **Live Signal Protocol** a
 
 #### Poll-Signals Routine
 1. **Define** `RECOGNIZED_TYPES = [STEER, PAUSE, ABORT, INFO]`
-2. **Define** `ALL_RECIPIENTS = [Orchestrator, Executor, Planner, Questioner, Reviewer, Librarian]`
+2. **Define** `ALL_RECIPIENTS = [Orchestrator, Executor, Planner, Questioner, Reviewer]`
 3. **Ensure** `signals/acks/` exists
 4. **List** files in `signals/inputs/` (sort by timestamp ascending)
 5. **Read** oldest file content (peek — do not move yet)
@@ -836,9 +819,9 @@ We have 2 specific approaches for feedback loops: the **Live Signal Protocol** a
 3. **Poll-Signals, broadcast finalization path (`target: ALL`)**:
     - Condition: ack quorum satisfied for `ALL_RECIPIENTS`.
     - Timing: during Poll-Signals step `7a` finalization check, after Orchestrator writes its own ack.
-4. **CURATE state-specific path**:
-    - Condition: `APPROVE` or `SKIP` signal detected in `signals/inputs/`.
-    - Timing: immediately when consumed in `State: CURATE` before state transition.
+4. **PROMOTE state-specific path**:
+    - Condition: `SKIP` signal detected in `signals/inputs/`.
+    - Timing: immediately when consumed in Librarian PROMOTE pre-promote signal check.
 5. **Session-end hygiene path (`COMPLETE` transition)**:
     - Condition: residual `target: ALL` signals still in `signals/inputs/`.
     - Timing: right before final exit; archive as `delivery_status: delivered` (quorum met) or `delivery_status: partial` with `unacked_agents`.
@@ -928,7 +911,7 @@ On detecting `iterations/<N+1>/feedbacks/*/feedbacks.md`:
   "status": "completed | in_progress | awaiting_feedback | blocked",
   "session_id": "string",
   "iteration": "number - Current iteration number",
-  "current_state": "INITIALIZING | PLANNING | REPLANNING | BATCHING | EXECUTING_BATCH | REVIEWING_BATCH | SESSION_REVIEW | KNOWLEDGE_EXTRACTION | CURATE | COMPLETE",
+  "current_state": "INITIALIZING | PLANNING | REPLANNING | BATCHING | EXECUTING_BATCH | REVIEWING_BATCH | SESSION_REVIEW | KNOWLEDGE_EXTRACTION | COMPLETE",
   "current_wave": "number",
   "tasks_summary": {
     "total": "number",

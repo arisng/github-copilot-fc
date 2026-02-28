@@ -5,9 +5,9 @@ argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BR
 user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'vscode/memory']
 metadata:
-  version: 2.9.0
+  version: 2.11.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-27T14:00:00+07:00
+  updated_at: 2026-02-28T22:00:00+07:00
   timezone: UTC+7
 ---
 

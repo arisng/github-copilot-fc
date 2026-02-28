@@ -5,9 +5,9 @@ argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW
 user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.9.0
+  version: 2.11.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-27T15:19:00+07:00
+  updated_at: 2026-02-28T22:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -511,11 +511,11 @@ Results of the Cross-Agent Normalization Checklist:
 > Populated from COMMIT mode outputs. If COMMIT was not run, note "COMMIT not executed".
 
 ## Knowledge Artifacts
-Knowledge items staged or approved during this iteration:
+Knowledge items staged or promoted during this iteration:
 
 | Item | Category | Status | Staged By |
 |------|----------|--------|-----------|
-| [knowledge-item-title] | reference | ✅ Approved | Librarian |
+| [knowledge-item-title] | reference | ✅ Promoted | Librarian |
 | [knowledge-item-title] | how-to | ⏳ Pending approval | Librarian |
 
 > If no knowledge items were staged, write "No knowledge artifacts this iteration".
