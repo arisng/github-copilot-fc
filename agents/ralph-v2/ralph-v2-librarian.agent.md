@@ -20,7 +20,7 @@ metadata:
 - **MODE parameter**: Each invocation must include exactly one `MODE`:
   - `EXTRACT` — Scan iteration artifacts and extract reusable knowledge into iteration-scoped `iterations/<N>/knowledge/`.
   - `STAGE` — Merge iteration-scoped knowledge (`iterations/<N>/knowledge/`) into session-scoped `knowledge/` with auto-conflict-resolution.
-  - `PROMOTE` — Merge session-scoped knowledge (`knowledge/`) into workspace wiki (`.docs/`) with auto-conflict-resolution. Checks for SKIP signal as opt-out before promoting.
+  - `PROMOTE` — Merge session-scoped knowledge (`knowledge/`) into workspace wiki (`.docs/`) with auto-conflict-resolution. Checks for skip-promotion signal (`INFO + target: Librarian + SKIP_PROMOTION:` prefix) as opt-out before promoting.
 - **Required parameters**: `SESSION_PATH`, `ITERATION`, `MODE`.
 - **Optional parameters**:
   - `ORCHESTRATOR_CONTEXT` — message forwarded from a previous subagent via the Orchestrator.
@@ -124,7 +124,7 @@ Before any promotion operation, execute this deterministic preflight:
 
 1. **EXTRACT**: Scan iteration outputs in `iterations/<N>/` and identify reusable knowledge. Write extracted items to `iterations/<N>/knowledge/` with Diátaxis classification.
 2. **STAGE**: Merge iteration-scoped knowledge into session-scoped `knowledge/` with timestamp-based auto-conflict-resolution. Support cherry-picking and cross-iteration staging.
-3. **PROMOTE**: Merge session-scoped knowledge into workspace `.docs/` with auto-conflict-resolution. Check for SKIP signal as opt-out. Mark promoted items.
+3. **PROMOTE**: Merge session-scoped knowledge into workspace `.docs/` with auto-conflict-resolution. Check for skip-promotion signal (`INFO + target: Librarian + SKIP_PROMOTION:` prefix) as opt-out. Mark promoted items.
 4. Classify content with **Diátaxis** categories:
    - `tutorials/` for guided learning
    - `how-to/` for task execution recipes
@@ -200,7 +200,7 @@ Three progress items for the knowledge pipeline, initialized in `iterations/<N>/
 |----------|-----------|--------|------|
 | 0 items extracted | Librarian | extraction `[C]`, staging `[C]`, promotion `[C]` | EXTRACT (all three cancelled) |
 | Items extracted, staged, auto-promoted | Librarian | extraction `[x]`, staging `[x]`, promotion `[x]` | EXTRACT → STAGE → PROMOTE |
-| Items extracted, staged, SKIP signal | Librarian | extraction `[x]`, staging `[x]`, promotion `[C]` | EXTRACT → STAGE → PROMOTE (skipped) |
+| Items extracted, staged, skip-promotion signal | Librarian | extraction `[x]`, staging `[x]`, promotion `[C]` | EXTRACT → STAGE → PROMOTE (skipped) |
 | Items extracted, staging skipped (all already staged) | Librarian | extraction `[x]`, staging `[x]` | EXTRACT → STAGE (idempotent) |
 | Cherry-pick staging | Librarian | staging `[x]` | STAGE only (human-triggered) |
 </rules>
@@ -377,7 +377,7 @@ This processes each iteration's `knowledge/` folder sequentially, applying the m
 
 ## PROMOTE Mode Workflow
 
-Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped knowledge (`knowledge/`) into workspace wiki (`.docs/`) with auto-conflict-resolution. Checks for SKIP signal as opt-out before promoting.
+Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped knowledge (`knowledge/`) into workspace wiki (`.docs/`) with auto-conflict-resolution. Checks for skip-promotion signal (`INFO + target: Librarian + SKIP_PROMOTION:` prefix) as opt-out before promoting.
 
 **Precondition**: Wiki Preflight Gate (Gate 2) passes.
 
@@ -392,8 +392,8 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
    ```
 1. **Initialize Knowledge Progress section** in `iterations/<N>/progress.md` (idempotent — skip if already exists). This ensures PROMOTE works correctly when invoked standalone via REPLANNING Route A (knowledge-promotion) without a prior EXTRACT invocation.
 2. **Pre-promote signal check** (absorbed from former CURATE mode):
-   - Poll `signals/inputs/` for `SKIP` signal.
-   - **IF SKIP found**: Move signal to `signals/processed/`. Mark `plan-knowledge-promotion [C]` in `iterations/<N>/progress.md`. Return `outcome: "skipped"`. Staged knowledge is preserved in `knowledge/` for future manual promotion.
+   - Poll `signals/inputs/` for `INFO` signal with `target: Librarian` and message starting with `SKIP_PROMOTION:`.
+   - **IF skip-promotion INFO found**: Move signal to `signals/processed/`. Mark `plan-knowledge-promotion [C]` in `iterations/<N>/progress.md`. Return `outcome: "skipped"`. Staged knowledge is preserved in `knowledge/` for future manual promotion.
    - **ELSE**: Proceed with auto-promote (default behavior).
 3. **Run Wiki Preflight Gate (Gate 2)** — auto-create `.docs/` structure if missing.
 4. **Read staged content** from `knowledge/` — select only files with `promoted: false` in frontmatter.
@@ -453,7 +453,7 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
 0. Check Live Signals (STEER, PAUSE, ABORT, INFO) — block on ABORT, wait on PAUSE.
 1. Verify `MODE` is `PROMOTE`.
 2. Initialize Knowledge Progress section in `iterations/<N>/progress.md` (idempotent — for standalone REPLANNING Route A invocations).
-3. Pre-promote signal check: poll for SKIP signal. If SKIP → mark `plan-knowledge-promotion [C]`, return `outcome: "skipped"`.
+3. Pre-promote signal check: poll for `INFO` signal with `target: Librarian` and `SKIP_PROMOTION:` message prefix. If found → mark `plan-knowledge-promotion [C]`, return `outcome: "skipped"`.
 4. Run Wiki Preflight Gate (Gate 2); auto-create `.docs/` structure if missing.
 5. Read staged content from session `knowledge/` — select files with `promoted: false`. If 0 → return `outcome: "skipped"`.
 6. Check Live Signals (Post-Collection) — re-filter on STEER.
@@ -491,7 +491,7 @@ Poll signals/inputs/
 | **EXTRACT Step 4** | Post-collection | Re-filter on STEER |
 | **STAGE Step 0** | Before staging | Full poll |
 | **PROMOTE Step 0** | Before promotion | Full poll |
-| **PROMOTE Step 2** | Pre-promote signal check | SKIP signal opt-out |
+| **PROMOTE Step 2** | Pre-promote signal check | `INFO + target: Librarian + SKIP_PROMOTION:` prefix opt-out |
 | **PROMOTE Step 5** | Post-collection | Re-filter on STEER |
 </signals>
 

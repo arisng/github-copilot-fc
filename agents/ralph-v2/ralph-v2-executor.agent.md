@@ -266,7 +266,6 @@ Loop until no pending signals:
   - For each file (FIFO by timestamp):
     - Peek: Read signal type and target
     - If target != ALL and target != Executor → skip (leave for correct consumer)
-    - If type is SKIP → skip (state-specific, not consumed by Executor)
     - If target == ALL:
       - Do NOT move source signal
       - Write idempotent ack: signals/acks/<SIGNAL_ID>/Executor.ack.yaml

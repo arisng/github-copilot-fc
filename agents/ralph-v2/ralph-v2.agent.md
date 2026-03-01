@@ -134,9 +134,9 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │ IF 0 items extracted → skip to COMPLETE
        │ Invoke Ralph-v2-Librarian (MODE: STAGE)
        │ Invoke Ralph-v2-Librarian (MODE: PROMOTE)
-       │ → PROMOTE auto-promotes by default, checks for SKIP signal opt-out
+       │ → PROMOTE auto-promotes by default, checks for skip-promotion INFO signal opt-out
        │ outcome: "promoted" → COMPLETE
-       │ outcome: "skipped" (SKIP signal) → COMPLETE (staged kept)
+       │ outcome: "skipped" (skip-promotion INFO signal) → COMPLETE (staged kept)
        ▼
 ┌─────────────┐
 │  COMPLETE   │ ─── All tasks [x] or [F]
@@ -726,7 +726,7 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# PROMOTE returns outcome: "promoted" (auto-promoted) or "skipped" (SKIP signal) or "blocked"
+# PROMOTE returns outcome: "promoted" (auto-promoted) or "skipped" (skip-promotion INFO signal) or "blocked"
 IF outcome == "promoted" OR outcome == "skipped":
     UPDATE metadata.yaml with state: COMPLETE
     STATE = COMPLETE
@@ -801,7 +801,7 @@ We have 2 specific approaches for feedback loops: the **Live Signal Protocol** a
        - **PAUSE**: Suspend execution until new signal or user resume
        - **ABORT**: Gracefully terminate
        - **INFO**: Log to context
-8. **If unrecognized type**: Skip — leave signal in `inputs/` for state-specific consumption.
+8. **If unrecognized type**: Skip — leave signal in `inputs/` for targeted agent consumption.
 9. **Deliver buffered signals**: When invoking a subagent, attach any signals in `SIGNAL_CONTEXT[<subagent>]` to the invocation context. Clear the buffer after delivery.
 
 #### Target Namespace Standard
@@ -820,7 +820,7 @@ We have 2 specific approaches for feedback loops: the **Live Signal Protocol** a
     - Condition: ack quorum satisfied for `ALL_RECIPIENTS`.
     - Timing: during Poll-Signals step `7a` finalization check, after Orchestrator writes its own ack.
 4. **PROMOTE state-specific path**:
-    - Condition: `SKIP` signal detected in `signals/inputs/`.
+    - Condition: `INFO` signal with `target: Librarian` and `SKIP_PROMOTION:` message prefix detected in `signals/inputs/`.
     - Timing: immediately when consumed in Librarian PROMOTE pre-promote signal check.
 5. **Session-end hygiene path (`COMPLETE` transition)**:
     - Condition: residual `target: ALL` signals still in `signals/inputs/`.
