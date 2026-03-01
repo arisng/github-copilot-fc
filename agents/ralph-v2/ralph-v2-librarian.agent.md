@@ -310,6 +310,9 @@ Execute this workflow when invoked with `MODE: EXTRACT`. Scans iteration artifac
    - How-to → `iterations/<N>/knowledge/how-to/`
    - Reference → `iterations/<N>/knowledge/reference/`
    - Explanation → `iterations/<N>/knowledge/explanation/`
+
+   > **Authoring Guideline — Self-Contained Body Content**: Write body content as standalone documents. Never reference session-relative paths (`iterations/<N>/...`), session IDs, or iteration numbers in prose. Use descriptive context instead (e.g., "during the rename cascade task" rather than "in task-3 of iteration 2"). Frontmatter traceability fields handle provenance — the body stands alone.
+
 8. **Add traceability frontmatter** to each extracted file using the Extracted File Frontmatter Template.
 9. **Update `iterations/<N>/knowledge/index.md`** — Update the iteration knowledge manifest table.
 10. **Update progress** — Mark `plan-knowledge-extraction [x]` in `iterations/<N>/progress.md`. If 0 items were extracted, mark `plan-knowledge-extraction [C]`, `plan-knowledge-staging [C]`, and `plan-knowledge-promotion [C]` with note "Empty extraction — no items to stage or promote".
@@ -402,13 +405,18 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
    - **Same filename, workspace newer** (`.docs/` modification time > `staged_at`): Skip. Log: `skipped: workspace version is newer, keeping existing`.
    - **Content overlap** (different filenames, >50% heading overlap in same category): Append unique sections from session knowledge. Log: `merged: appended N unique sections`.
    - **Contradictory content** (same heading, different content): Newer version wins (session knowledge is always newer since it passed through the pipeline). Log: `conflict-resolved: newer content wins, prior workspace version logged`.
-7. **Mark as promoted** — For each successfully promoted file in session `knowledge/`, update frontmatter:
+7. **Content Transformation** — Ensure each promoted `.docs/` file contains zero ephemeral session references. Apply the following transformations to every file written or overwritten in Step 6:
+   a. **Frontmatter `source_artifacts`**: Replace session-relative paths (e.g., `iterations/2/reports/task-2-report.md`) with descriptive labels (e.g., `"Iteration 2 task-2 report"`). Keep `source_session` and `source_iteration` scalar fields as-is.
+   b. **Strip pipeline bookkeeping**: Remove `staged`, `staged_at` fields from the promoted file's frontmatter — these are pipeline-internal and irrelevant after promotion.
+   c. **Body text scan**: Scan body text for patterns matching `iterations/\d+/`, `\.ralph-sessions/`, and `\d{6}-\d{6}` session IDs. Replace concrete references with descriptive text (e.g., "during the rename cascade task" instead of "in task-3 of iteration 2"). Leave generic template references (e.g., `iterations/<N>/`) in how-to guides intact.
+   d. **Stale signal scan**: Flag references to removed signal types (e.g., `APPROVE`) as stale content for manual review. Log any flagged references in the promotion summary.
+8. **Mark as promoted** — For each successfully promoted file in session `knowledge/`, update frontmatter:
    - Set `promoted: true`
    - Set `promoted_at: <current ISO8601 timestamp>`
-8. **Update `knowledge/index.md`** — Update the persistent manifest to reflect promoted items (change `⏳` to `✅`, add `Promoted At` timestamp).
-9. **Update `.docs/index.md`** to keep navigation coherent with newly promoted content.
-10. **Update progress** — Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
-11. **Return promotion summary** to orchestrator: files promoted, destination paths, conflict log, promotion timestamps, outcome.
+9. **Update `knowledge/index.md`** — Update the persistent manifest to reflect promoted items (change `⏳` to `✅`, add `Promoted At` timestamp).
+10. **Update `.docs/index.md`** to keep navigation coherent with newly promoted content.
+11. **Update progress** — Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
+12. **Return promotion summary** to orchestrator: files promoted, destination paths, conflict log, content transformations applied, stale references flagged, promotion timestamps, outcome.
 
 ## EXTRACT Execution Checklist
 
@@ -420,10 +428,11 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
 5. Check Live Signals (Post-Collection) — re-filter on STEER.
 6. Extract only reusable, non-transient knowledge.
 7. Classify each item into exactly one Diátaxis category.
-8. Write extracted files with traceability frontmatter to `iterations/<N>/knowledge/<category>/`.
-9. Update `iterations/<N>/knowledge/index.md` manifest.
-10. Mark `plan-knowledge-extraction [x]` in progress (or `[C]` + cascade cancel staging and promotion for empty extraction).
-11. Return extraction summary to orchestrator.
+8. Write extracted files to `iterations/<N>/knowledge/<category>/`. Apply authoring guideline: body content must be standalone — no session-relative paths, session IDs, or iteration numbers in prose; use descriptive context instead.
+9. Add traceability frontmatter to each extracted file using the Extracted File Frontmatter Template.
+10. Update `iterations/<N>/knowledge/index.md` manifest.
+11. Mark `plan-knowledge-extraction [x]` in progress (or `[C]` + cascade cancel staging and promotion for empty extraction).
+12. Return extraction summary to orchestrator.
 
 ## STAGE Execution Checklist
 
@@ -449,11 +458,12 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
 5. Read staged content from session `knowledge/` — select files with `promoted: false`. If 0 → return `outcome: "skipped"`.
 6. Check Live Signals (Post-Collection) — re-filter on STEER.
 7. Apply Merge Algorithm per file against `.docs/`: new → copy, same-name-newer → overwrite, same-name-older → skip, overlap → append, contradiction → newer wins.
-8. Mark each promoted file: `promoted: true`, `promoted_at: <timestamp>` in session `knowledge/` frontmatter.
-9. Update `knowledge/index.md` persistent manifest.
-10. Update `.docs/index.md` navigation.
-11. Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
-12. Return promotion summary to orchestrator with `outcome: "promoted"`.
+8. Content Transformation Complete — all promoted `.docs/` files verified: `source_artifacts` paths replaced with descriptive labels, `staged`/`staged_at` stripped, body text ephemeral references resolved, stale signal references flagged.
+9. Mark each promoted file: `promoted: true`, `promoted_at: <timestamp>` in session `knowledge/` frontmatter.
+10. Update `knowledge/index.md` persistent manifest.
+11. Update `.docs/index.md` navigation.
+12. Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
+13. Return promotion summary to orchestrator with `outcome: "promoted"`.
 </workflow>
 
 <signals>
