@@ -38,7 +38,7 @@ project-root/
     ├── specs/<domain>/spec.md       # Source of truth — current specifications
     ├── changes/<change-name>/       # Active change proposals
     │   ├── .openspec.yaml           # Metadata (schema, created date)
-    │   ├── proposal.md              # Intent, scope, approach
+    │   ├── proposal.md              # Why, what changes, capabilities, impact
     │   ├── specs/<domain>/spec.md   # Delta specs (ADDED/MODIFIED/REMOVED/RENAMED)
     │   ├── design.md                # Technical approach, architecture decisions
     │   └── tasks.md                 # Implementation checklist
