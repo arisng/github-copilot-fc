@@ -6,9 +6,9 @@ user-invocable: true
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'vscode/memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
 metadata:
-  version: 2.11.0
+  version: 2.12.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-28T22:00:00+07:00
+  updated_at: 2026-03-01T11:48:00+07:00
   timezone: UTC+7
 ---
 
