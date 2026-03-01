@@ -13,6 +13,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to Configure Auto-Approve Commands in Codex](how-to/copilot/codex-auto-approve.md)
 - [How to Configure VS Code to Auto-Approve Terminal Commands with Dynamic Arguments](how-to/copilot/how-to-configure-vscode-terminal-autoapprove.md)
 - [How to use Copilot FC commands](how-to/copilot/how-to-use-copilot-fc-commands.md)
+- [How to Publish Customizations for Copilot CLI](how-to/copilot/how-to-publish-customizations-for-copilot-cli.md)
 
 ### Ralph
 
@@ -33,6 +34,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Glossary of GitHub Copilot Products](reference/copilot/copilot-ecosystem.md)
 - [Copilot FC Workspace Command Reference](reference/copilot/copilot-fc-reference.md)
 - [GitHub Copilot Prompt Files (.prompt.md) Reference](reference/copilot/copilot-prompt-files.md)
+- [Copilot CLI Customization Support Matrix](reference/copilot/copilot-cli-customization-matrix.md)
 
 ### Ralph
 
@@ -60,6 +62,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Mental Model: GitHub Copilot SDK Communication with CLI in ACP Server Mode](explanation/copilot/copilot-sdk-acp-mental-model.md)
 - [Copilot VS Code Hook-like Capabilities: Solutions Analysis](explanation/copilot/copilot-vscode-hooks-solutions.md)
 - [Understanding Copilot VS Code Custom Instructions Injection](explanation/copilot/copilot-vscode-instructions-injection.md)
+- [Copilot CLI vs VS Code Customization: Architectural Differences](explanation/copilot/copilot-cli-vs-vscode-customization.md)
+- [Ralph-v2 Tool Compatibility in Copilot CLI](explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md)
 
 ### Ralph
 
