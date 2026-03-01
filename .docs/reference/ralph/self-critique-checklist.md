@@ -3,20 +3,18 @@ category: reference
 source_session: 260227-144634
 source_iteration: 2
 source_artifacts:
-  - iterations/2/reports/task-7-report.md
-  - iterations/2/review.md
+  - Iteration 2 task-7 self-critique report
+  - Iteration 2 review summary
 extracted_at: 2026-02-28T22:32:04+07:00
-staged: true
-staged_at: 2026-02-28T22:36:14+07:00
 promoted: true
 promoted_at: 2026-02-28T22:41:09+07:00
 ---
 
-# Self-Critique Checklist (9 Dimensions)
+# Self-Critique Checklist (11 Dimensions)
 
-> Established by task-7 in Ralph v2.11.0 (Session 260227-144634, Iteration 2). Used for holistic quality assurance across all files in `agents/ralph-v2/`.
+> Established by task-7 in Ralph v2.11.0 (Session 260227-144634, Iteration 2). Extended to 11 dimensions in Iteration 3. Used for holistic quality assurance across all files in `agents/ralph-v2/` and `.docs/`.
 
-## The 9 Dimensions
+## The 11 Dimensions
 
 ### (a) Version Consistency
 
@@ -31,16 +29,16 @@ Select-String -Path "agents/ralph-v2/*.agent.md" -Pattern "version:"
 
 ### (b) Signal Type Consistency
 
-Verify active signal type references match the current spec (STEER, INFO, PAUSE, ABORT). Removed signal types (e.g., APPROVE, SKIP) should only appear in historical changelog entries.
+Verify active signal type references match the current spec (STEER, INFO, PAUSE, ABORT). The former SKIP signal type is replaced by `INFO` with `target: Librarian` and `SKIP_PROMOTION:` message prefix — verify no raw `SKIP` signal references remain outside historical changelog entries. Other removed signal types (e.g., APPROVE) should likewise only appear in historical contexts.
 
 > **Note**: The `INFO + target: Librarian + SKIP_PROMOTION:` convention replaces the former SKIP signal type. References to this convention in operational contexts are valid.
 
 **Verification**:
 ```powershell
-Select-String -Path "agents/ralph-v2/**/*.md" -Pattern "APPROVE|CURATE" -Recurse
+Select-String -Path "agents/ralph-v2/**/*.md" -Pattern "APPROVE|CURATE|\bSKIP\b" -Recurse
 ```
 
-**Filter**: Matches in version history sections or changelog entries are acceptable historical references.
+**Filter**: Matches in version history sections, changelog entries, or the SKIP_PROMOTION convention description are acceptable historical references.
 
 ### (c) Contract Field Alignment
 
@@ -100,6 +98,56 @@ Select-String -Path "agents/ralph-v2/**/*.md" -Pattern "appendixes|docs/specs/|/
 ```
 
 **Filter**: References in historical changelog entries are acceptable.
+
+### (j) Knowledge Self-Containment
+
+Verify no promoted `.docs/` files contain ephemeral session references. Promoted knowledge must stand alone without requiring access to session-specific artifacts.
+
+**Scan patterns**:
+- `iterations/\d+/` — session iteration references
+- `\.ralph-sessions/` — session directory references
+- `\d{6}-\d{6}` — session ID format (e.g., `260227-144634`)
+
+**Filter**: Generic template patterns in how-to guides (e.g., `iterations/<N>/`, `<SESSION_ID>`) are acceptable. The `source_session` and `source_iteration` scalar frontmatter fields are acceptable traceability metadata. Only concrete session-relative paths (e.g., `iterations/2/reports/task-7-report.md`) and literal session IDs in body text are violations.
+
+**Verification**:
+```powershell
+Select-String -Path ".docs/**/*.md" -Pattern "iterations/\d+/|\.ralph-sessions/|\d{6}-\d{6}" -Recurse
+```
+
+**Common issues**:
+- `source_artifacts` frontmatter containing session-relative paths (should be transformed to descriptive labels)
+- Body text referencing specific iteration reports or session directories
+- Residual `staged`/`staged_at` frontmatter fields from pre-transformation promotion
+
+### (k) Sub-Category Structure Consistency
+
+Verify files in `.docs/` are placed in appropriate sub-category folders per domain taxonomy and that the folder structure is internally consistent.
+
+**Threshold checks**:
+1. No sub-category folder should have fewer than 3 files (below threshold → files should be at category root)
+2. No category root should have more than 5 files sharing a domain keyword (should be sub-categorized)
+3. `index.md` must reflect the actual folder structure (all categories and sub-categories listed)
+
+**Verification**:
+```powershell
+# Check sub-category folder file counts
+Get-ChildItem -Path ".docs" -Directory -Recurse |
+  Where-Object { $_.Parent.Name -ne ".docs" } |
+  ForEach-Object { [PSCustomObject]@{ Path = $_.FullName.Replace((Resolve-Path ".docs").Path, ''); Count = (Get-ChildItem $_.FullName -File).Count } } |
+  Where-Object { $_.Count -lt 3 -and $_.Count -gt 0 }
+
+# Check category root file overflow
+Get-ChildItem -Path ".docs" -Directory |
+  Where-Object { $_.Name -ne "research" } |
+  ForEach-Object { [PSCustomObject]@{ Category = $_.Name; RootFiles = (Get-ChildItem $_.FullName -File -MaxDepth 0).Count } } |
+  Where-Object { $_.RootFiles -gt 5 }
+```
+
+**Common issues**:
+- Sub-category created with only 1–2 files (below ≥3 threshold)
+- Files left at category root when a matching sub-category already exists
+- `index.md` not updated after file moves
 
 ## Quantitative Results (Iteration 2)
 
