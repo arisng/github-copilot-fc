@@ -5,9 +5,9 @@ argument-hint: Provide SESSION_PATH, ITERATION, and MODE (EXTRACT, STAGE, or PRO
 user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.11.0
+  version: 2.12.0
   created_at: 2026-02-13T00:00:00Z
-  updated_at: 2026-02-28T22:00:00+07:00
+  updated_at: 2026-03-01T11:22:00+07:00
   timezone: UTC+7
 ---
 
@@ -218,7 +218,7 @@ Three progress items for the knowledge pipeline, initialized in `iterations/<N>/
 2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (skip skill discovery/loading; do not fail-fast).
 
 **4-Step Reasoning-Based Skill Discovery:**
-1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `diataxis` (for knowledge categorization and Diátaxis classification).
+1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `diataxis` (for knowledge categorization and Diátaxis classification), `diataxis-categorizer` (for domain-based sub-category resolution during PROMOTE).
 2. **Check task context**: Review the task description or orchestrator message for explicitly mentioned skills.
 3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against the current task requirements.
 4. **Load relevant skills**: Load only the skills that are directly relevant to the current task.
@@ -410,13 +410,20 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
    b. **Strip pipeline bookkeeping**: Remove `staged`, `staged_at` fields from the promoted file's frontmatter — these are pipeline-internal and irrelevant after promotion.
    c. **Body text scan**: Scan body text for patterns matching `iterations/\d+/`, `\.ralph-sessions/`, and `\d{6}-\d{6}` session IDs. Replace concrete references with descriptive text (e.g., "during the rename cascade task" instead of "in task-3 of iteration 2"). Leave generic template references (e.g., `iterations/<N>/`) in how-to guides intact.
    d. **Stale signal scan**: Flag references to removed signal types (e.g., `APPROVE`) as stale content for manual review. Log any flagged references in the promotion summary.
-8. **Mark as promoted** — For each successfully promoted file in session `knowledge/`, update frontmatter:
+8. **Sub-Category Resolution** — For each file written or overwritten in Steps 6–7, determine the appropriate domain sub-category folder using the `diataxis-categorizer` skill heuristic (see `skills/diataxis-categorizer/SKILL.md` for the full classification logic and contract):
+   a. **Domain keyword extraction**: Extract the primary domain keyword from the file using the priority chain: filename prefix → frontmatter `category` field → H1 title scan → body content scan (dominant domain must be >2× runner-up). If no single domain dominates, the file is cross-domain — skip to fallback.
+   b. **Reuse check**: If an existing sub-category folder in `.docs/<category>/` matches the extracted domain keyword (e.g., `.docs/reference/ralph/` exists and domain is `ralph`), adjust the file's target path to `<category>/<domain>/filename.md`.
+   c. **Create check (≥3 threshold)**: If no matching sub-category folder exists, count files at the category root (including the current promotion batch) that share the same domain keyword. If ≥3 files share the domain → create the sub-category folder and adjust target paths for all matching files (current + peers). If <3 → fallback.
+   d. **Fallback**: File stays at the category root (`<category>/filename.md`) when no single domain dominates, fewer than 3 peers share the domain and no existing sub-folder matches, or domain extraction yields no confident result.
+   e. **Path adjustment**: For files where sub-category is recommended (`action: "place"` or `"create_and_place"`), move the file from `<category>/filename.md` to `<category>/<domain>/filename.md`. If `action` is `"create_and_place"`, also move the listed peer files into the new sub-category folder.
+   f. **Audit logging**: Log the sub-category decision for each file in the promotion summary — include: file path, extracted domain (or "cross-domain"), action taken (`place`, `create_and_place`, or `stay`), and reason.
+9. **Mark as promoted** — For each successfully promoted file in session `knowledge/`, update frontmatter:
    - Set `promoted: true`
    - Set `promoted_at: <current ISO8601 timestamp>`
-9. **Update `knowledge/index.md`** — Update the persistent manifest to reflect promoted items (change `⏳` to `✅`, add `Promoted At` timestamp).
-10. **Update `.docs/index.md`** to keep navigation coherent with newly promoted content.
-11. **Update progress** — Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
-12. **Return promotion summary** to orchestrator: files promoted, destination paths, conflict log, content transformations applied, stale references flagged, promotion timestamps, outcome.
+10. **Update `knowledge/index.md`** — Update the persistent manifest to reflect promoted items (change `⏳` to `✅`, add `Promoted At` timestamp).
+11. **Update `.docs/index.md`** to keep navigation coherent with newly promoted content and any new sub-category folders.
+12. **Update progress** — Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
+13. **Return promotion summary** to orchestrator: files promoted, destination paths, sub-category decisions (domain, action, reason per file), conflict log, content transformations applied, stale references flagged, promotion timestamps, outcome.
 
 ## EXTRACT Execution Checklist
 
@@ -459,11 +466,12 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
 6. Check Live Signals (Post-Collection) — re-filter on STEER.
 7. Apply Merge Algorithm per file against `.docs/`: new → copy, same-name-newer → overwrite, same-name-older → skip, overlap → append, contradiction → newer wins.
 8. Content Transformation Complete — all promoted `.docs/` files verified: `source_artifacts` paths replaced with descriptive labels, `staged`/`staged_at` stripped, body text ephemeral references resolved, stale signal references flagged.
-9. Mark each promoted file: `promoted: true`, `promoted_at: <timestamp>` in session `knowledge/` frontmatter.
-10. Update `knowledge/index.md` persistent manifest.
-11. Update `.docs/index.md` navigation.
-12. Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
-13. Return promotion summary to orchestrator with `outcome: "promoted"`.
+9. Sub-Category Resolution Complete — each promoted file evaluated via `diataxis-categorizer` heuristic: domain keyword extracted, reuse check against existing sub-folders, create check with ≥3-file threshold, fallback to flat. Target paths adjusted and audit log recorded.
+10. Mark each promoted file: `promoted: true`, `promoted_at: <timestamp>` in session `knowledge/` frontmatter.
+11. Update `knowledge/index.md` persistent manifest.
+12. Update `.docs/index.md` navigation (including new sub-category folders).
+13. Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
+14. Return promotion summary to orchestrator with `outcome: "promoted"`, including sub-category decisions per file.
 </workflow>
 
 <signals>
