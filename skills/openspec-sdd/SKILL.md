@@ -23,6 +23,7 @@ Spec-driven development (SDD) with OpenSpec: specify what to build before writin
 
 - Node.js >= 20.19.0
 - `npm install -g @fission-ai/openspec@latest`
+- Verify installation: `openspec --version` (if not found → `npm install -g @fission-ai/openspec@latest`)
 - Initialize: `openspec init --tools github-copilot` (creates `.github/skills/` and `.github/prompts/`)
 
 ## Directory Structure
@@ -169,8 +170,8 @@ rules:
 1. Run `openspec status --change "<name>" --json` to check artifact state
 2. Read `tasks.md` — identify incomplete tasks (`- [ ]`)
 3. For each task:
-   - Consult `design.md` for technical guidance
-   - Reference delta specs for behavioral requirements
+   - Reference delta specs for behavioral requirements (primary: what to implement)
+   - Consult `design.md` for technical guidance (secondary: how to implement)
    - Implement the code change
    - Mark task `- [x]` in `tasks.md`
 4. After all tasks complete → `/opsx:verify` (if available) → `/opsx:archive`
@@ -275,3 +276,12 @@ Before finalizing any spec artifact:
 - [ ] Delta specs use correct markers (ADDED/MODIFIED/REMOVED/RENAMED)
 - [ ] REMOVED requirements include deprecation reason
 - [ ] RENAMED requirements include FROM:/TO: mapping
+
+## Error Handling
+
+| Failure | Action |
+|---|---|
+| `openspec` not found | Install: `npm install -g @fission-ai/openspec@latest` |
+| `validate` fails | Read `--json` output → fix CRITICAL issues first, then WARNINGs → re-validate |
+| `archive` fails | Check: (a) incomplete tasks in `tasks.md`, (b) invalid delta spec markers, (c) use `--skip-specs` for non-spec changes |
+| `validate --strict` fails on warnings | Resolve all WARNINGs or downgrade to non-strict if acceptable |

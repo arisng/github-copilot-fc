@@ -16,6 +16,16 @@ Full OpenSpec CLI commands and flags for GitHub Copilot integration.
 - [schema](#schema)
 - [completion](#completion)
 
+## Agent Best Practices
+
+When using the CLI programmatically (from an AI agent or script):
+
+- **Always use `--json`** — structured output avoids parsing markdown tables
+- **Always use `--no-color`** — prevents ANSI escape codes that confuse LLM parsing
+- **Use `--no-interactive`** on commands that support it — avoids blocking prompts
+- Recommended pattern: `openspec <command> --json --no-color`
+- Example: `openspec validate --strict --json --no-color --no-interactive`
+
 ## init
 
 Initialize OpenSpec in a project.
