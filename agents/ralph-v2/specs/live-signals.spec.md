@@ -305,7 +305,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 #### Phase 2: Agent Updates
 
 - **Ralph-v2 (Orchestrator)**: Add "Poll Signals" step in State Machine key loops (list, peek, route, finalize). Implement target-aware routing with ack-quorum finalization for `target: ALL` (§2.2). Add ABORT cleanup checklist execution (§3.4).
-- **Subagents**: Implement direct polling for universal signals (STEER, PAUSE, ABORT, INFO) at step boundaries and write per-agent ack files for `target: ALL`. Librarian polls for SKIP in PROMOTE mode.
+- **Subagents**: Implement direct polling for universal signals (STEER, PAUSE, ABORT, INFO) at step boundaries and write per-agent ack files for `target: ALL`. Librarian polls for `INFO` with `target: Librarian` and `SKIP_PROMOTION:` prefix in PROMOTE mode.
 
 #### Phase 3: "Hot Steering" (Advanced)
 

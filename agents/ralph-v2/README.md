@@ -2,7 +2,7 @@
 
 A feedback-driven, multi-agent system with isolated task files, structured iteration loops, live signal injection, and session-scope knowledge management. v1 agents are archived in `agents/archived/ralph*.agent.md` — do not reference them for new development.
 
-**Current version: v2.11.0**
+**Current version: v2.12.0**
 
 ## Table of Contents
 
@@ -298,6 +298,25 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 
 ## Version History
 
+### v2.12.0 (2026-03-01)
+
+**SKIP Signal Removal**
+- **Removed SKIP signal type**: Signal types reduced from 5 to 4 (STEER, INFO, PAUSE, ABORT). The skip-promotion intent is now expressed via `INFO + target: Librarian + SKIP_PROMOTION:` message prefix convention
+- **Updated Librarian PROMOTE pre-check**: Polls for `INFO` with `target: Librarian` and `SKIP_PROMOTION:` prefix instead of `type: SKIP`
+- **Updated Executor signal routing**: Removed SKIP-specific routing line from Poll-Signals routine
+- **Updated state machine**: Removed SKIP transitions from KNOWLEDGE_EXTRACTION state
+- **Updated specs and docs**: `live-signals.spec.md` §3.5 SKIP removed, §3.2 INFO gains "Targeted INFO Conventions" subsection; `hooks-integrations.md` signal validation updated; `critique.md` knowledge persistence references updated
+
+**Self-Contained Knowledge Enforcement**
+- **Librarian PROMOTE content transformation (Step 6.5)**: Transforms ephemeral session references into descriptive labels during promotion — `source_artifacts` paths become descriptive strings, `staged`/`staged_at` fields removed, body text scanned for session-relative patterns
+- **EXTRACT authoring guideline**: Added upstream guidance to avoid session-specific references during extraction
+
+**Intelligent Sub-Category Classification**
+- **New `diataxis-categorizer` skill**: Domain-based sub-category heuristic for `.docs/` organization (keyword extraction → reuse check → ≥3-file threshold → fallback)
+- **Librarian PROMOTE Step 6.75**: Sub-category resolution using the categorizer skill during promotion
+- **Wiki reorganization**: `.docs/` restructured with domain-based sub-categories (`ralph/`, `copilot/`, `blazor-agui/`); `research/` files reclassified; `generate_index.py` updated for recursive scanning
+- **Extended self-critique checklist**: 9→11 dimensions — (j) Knowledge Self-Containment, (k) Sub-Category Structure Consistency; dimension (b) updated for 4-type signal protocol
+
 ### v2.11.0 (2026-02-28)
 
 **Spec Restructuring & Legacy Cleanup**
@@ -308,13 +327,6 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 - **Removed legacy duplicate directories**: `appendixes/`, `docs/specs/`, root-level `templates/` (remnants from v2.5.0 reorganization)
 - **Updated cross-references**: All paths in README and `docs/reference/hooks-integrations.md` updated to new spec locations
 - **v2.10.0 knowledge extraction**: Extracted knowledge from v2.10.0 changes with Diátaxis categorization (`source_iteration: external`)
-
-**SKIP Signal Removal (v2.11.0)**
-- **Removed SKIP signal type**: Signal types reduced from 5 to 4 (STEER, INFO, PAUSE, ABORT). The skip-promotion intent is now expressed via `INFO + target: Librarian + SKIP_PROMOTION:` message prefix convention
-- **Updated Librarian PROMOTE pre-check**: Polls for `INFO` with `target: Librarian` and `SKIP_PROMOTION:` prefix instead of `type: SKIP`
-- **Updated Executor signal routing**: Removed SKIP-specific routing line from Poll-Signals routine
-- **Updated state machine**: Removed SKIP transitions from KNOWLEDGE_EXTRACTION state
-- **Updated specs and docs**: `live-signals.spec.md` §3.5 SKIP removed, §3.2 INFO gains "Targeted INFO Conventions" subsection; `hooks-integrations.md` signal validation updated; `critique.md` knowledge persistence references updated
 
 ### v2.10.0 (2026-02-28)
 
