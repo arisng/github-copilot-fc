@@ -347,6 +347,6 @@ public async Task WhenReviewerQualifies_ThenTransitionsToExecuting()
 
 ## References
 
-- [Ralph Orchestrator Agent](../../agents/ralph.agent.md)
-- [Ralph Subagent Contracts](../reference/ralph-subagent-contracts.md)
-- [Ralph SDK Migration Guide](../reference/ralph-sdk-migration.md)
+- [Ralph v2 Orchestrator Agent](../../../agents/ralph-v2/ralph-v2.agent.md)
+- [Ralph Subagent Contracts](../../reference/ralph/ralph-subagent-contracts.md)
+- [Ralph SDK Migration Guide](../../reference/ralph-sdk-migration.md)

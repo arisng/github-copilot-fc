@@ -305,4 +305,4 @@ playwright-cli type "test input"
 playwright-cli press Enter
 ```
 
-See [playwright-cli skill](../../skills/playwright-cli/SKILL.md) for capability distinction between CLI-based and script-based approaches.
+See [playwright-cli skill](../../../skills/playwright-cli/SKILL.md) for capability distinction between CLI-based and script-based approaches.

@@ -459,6 +459,6 @@ public class RalphOrchestratorTests
 ## References
 
 - [GitHub Copilot SDK](https://github.com/github/copilot-sdk)
-- [Ralph Subagent Contracts](ralph-subagent-contracts.md)
-- [Ralph Artifact Templates](ralph-artifact-templates.md)
-- [Copilot SDK Mental Model](../explanation/copilot-sdk-acp-mental-model.md)
+- [Ralph Subagent Contracts](ralph/ralph-subagent-contracts.md)
+- [Ralph Artifact Templates](ralph/ralph-artifact-templates.md)
+- [Copilot SDK Mental Model](../explanation/copilot/copilot-sdk-acp-mental-model.md)

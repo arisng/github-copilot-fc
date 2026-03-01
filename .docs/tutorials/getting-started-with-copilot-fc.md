@@ -41,5 +41,5 @@ pwsh -NoProfile -File scripts/publish/publish-skills.ps1
 
 ## Next steps
 
-- Read the [How-to guide](../how-to/how-to-use-copilot-fc-commands.md) for common workflows.
-- See the [Reference](../reference/copilot-fc-reference.md) for command catalog and execution behavior.
+- Read the [How-to guide](../how-to/copilot/how-to-use-copilot-fc-commands.md) for common workflows.
+- See the [Reference](../reference/copilot/copilot-fc-reference.md) for command catalog and execution behavior.

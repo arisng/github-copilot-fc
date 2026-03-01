@@ -39,5 +39,5 @@ pwsh -NoProfile -File scripts/publish/publish-skills.ps1
 
 ## Related
 
-- [Reference: Copilot FC Reference](../reference/copilot-fc-reference.md)
-- [Explanation: About workspace commands](../explanation/about-copilot-fc.md)
+- [Reference: Copilot FC Reference](../../reference/copilot/copilot-fc-reference.md)
+- [Explanation: About workspace commands](../../explanation/copilot/about-copilot-fc.md)

@@ -21,6 +21,6 @@ The workspace centralizes conventions and common operations through scripts so c
 
 ## Further reading
 
-- **Learn it**: [.docs/tutorials/getting-started-with-copilot-fc.md](../tutorials/getting-started-with-copilot-fc.md)
-- **Use it**: [.docs/how-to/how-to-use-copilot-fc-commands.md](../how-to/how-to-use-copilot-fc-commands.md)
-- **Details**: [.docs/reference/copilot-fc-reference.md](../reference/copilot-fc-reference.md)
+- **Learn it**: [.docs/tutorials/getting-started-with-copilot-fc.md](../../tutorials/getting-started-with-copilot-fc.md)
+- **Use it**: [.docs/how-to/copilot/how-to-use-copilot-fc-commands.md](../../how-to/copilot/how-to-use-copilot-fc-commands.md)
+- **Details**: [.docs/reference/copilot/copilot-fc-reference.md](../../reference/copilot/copilot-fc-reference.md)
