@@ -47,14 +47,12 @@ signals/
 
 ```yaml
 # signal.260208-143000.yaml
-type: STEER      # STEER | PAUSE | ABORT | INFO | SKIP
+type: STEER      # STEER | PAUSE | ABORT | INFO
 target: ALL      # ALL | Executor | Orchestrator
 message: "Don't use the 'foo' library, it's deprecated. Use 'bar' instead."
-iteration: 1     # Optional. Forward-compatibility for iteration-scoped signals (e.g., SKIP).
+iteration: 1     # Optional. Forward-compatibility for iteration-scoped signals.
                   # Orchestrator ignores if absent; validates against current iteration if present.
 ```
-
-> **SKIP ownership**: This state-specific signal is consumed by the Librarian during PROMOTE mode within the KNOWLEDGE_EXTRACTION state (not the Orchestrator). The Librarian polls `signals/inputs/` directly and archives on consume before transitioning.
 
 > **Forward-compatibility note**: Signal filenames currently use second-level timestamps (`signal.<YYMMDD-HHmmss>.yaml`), which is sufficient for human-generated signals. If automated signal generation is introduced in the future (e.g., hooks emitting signals), use millisecond timestamps or random suffixes (e.g., `signal.<YYMMDD-HHmmss>-<ms>.yaml` or `signal.<YYMMDD-HHmmss>-<random4>.yaml`) to avoid collisions.
 
@@ -113,7 +111,7 @@ handling_metadata:
    - Targeted to `Orchestrator` (or unscoped): archive immediately in Poll-Signals consume path.
    - Targeted to a specific subagent: archive immediately after buffering for that subagent.
    - `target: ALL`: archive only when ack quorum is reached (or at session end with `delivery_status: partial`).
-   - `SKIP` in `KNOWLEDGE_EXTRACTION` (PROMOTE step): Librarian archives immediately on consume before transition.
+   - `INFO + target: Librarian + SKIP_PROMOTION:` in `KNOWLEDGE_EXTRACTION` (PROMOTE step): Librarian archives immediately on consume before transition.
 
    <!-- Cross-ref: The orchestrator's Poll-Signals routine implements this peek-check-route flow. See ralph-v2.agent.md §State Machine. -->
 
@@ -127,7 +125,6 @@ handling_metadata:
 | **INFO**    | Universal        | Context Injection        | Orchestrator + Subagents (direct)  |
 | **PAUSE**   | Universal        | Temporary Halt           | Orchestrator + Subagents (direct)  |
 | **ABORT**   | Universal        | Permanent Halt           | Orchestrator + Subagents (direct)  |
-| **SKIP**    | State-specific   | Knowledge Promotion Bypass | Librarian (PROMOTE mode within KNOWLEDGE_EXTRACTION) |
 
 #### 3.1 STEER — Trajectory Correction
 
@@ -207,23 +204,34 @@ STEER signal received during implementation
 
 **Rationale for no-revert (Step 4)**: Reverting changes destroys evidence needed for debugging and replanning. The human can inspect the partial work, understand what was done, and decide what to keep or discard in a future session.
 
-#### 3.5 SKIP — Knowledge Promotion Bypass
+#### 3.5 Targeted INFO Conventions
 
-**Semantics**: Bypass knowledge promotion; the session completes without promoting staged knowledge to `.docs/`. This signal is **state-specific** — it is only consumed during the PROMOTE step of `KNOWLEDGE_EXTRACTION` state.
+INFO signals can carry structured intent via `target` + message prefix conventions, eliminating the need for dedicated signal types. This reduces protocol complexity while preserving the same operational semantics.
 
-**Agent Behavior**: Librarian (in PROMOTE mode) polls for SKIP signal before executing promotion → marks `plan-knowledge-promotion [C]` in `progress.md` → returns `outcome: "skipped"` to Orchestrator. Staged knowledge is **preserved** in session-scope `knowledge/` (not deleted) but not promoted to `.docs/`.
+**Convention: Skip-Promotion (`SKIP_PROMOTION:` prefix)**
 
-**`message` field**: Reason for skipping (e.g., "Need more review time" or "Knowledge is too specific to this task").
+Bypasses knowledge promotion; the session completes without promoting staged knowledge to `.docs/`. This convention replaces the former dedicated SKIP signal type.
 
-**Polling**: Librarian only (in PROMOTE mode). The Orchestrator auto-sequences EXTRACT → STAGE → PROMOTE within KNOWLEDGE_EXTRACTION; SKIP allows the human to opt out of the final PROMOTE step.
+- **Signal fields**: `type: INFO`, `target: Librarian`, `message: "SKIP_PROMOTION: <reason>"`
+- **Agent behavior**: Librarian (in PROMOTE mode) polls for `INFO` signal with `target: Librarian` and message starting with `SKIP_PROMOTION:` before executing promotion → marks `plan-knowledge-promotion [C]` in `progress.md` → returns `outcome: "skipped"` to Orchestrator. Staged knowledge is **preserved** in session-scope `knowledge/` (not deleted) but not promoted to `.docs/`.
+- **Polling**: Librarian only (in PROMOTE mode). The Orchestrator auto-sequences EXTRACT → STAGE → PROMOTE within KNOWLEDGE_EXTRACTION; this convention allows the human to opt out of the final PROMOTE step.
+- **Default behavior**: Knowledge promotion is **auto-promoted** by default. The `SKIP_PROMOTION:` convention is the opt-out mechanism — if no matching INFO signal is present, PROMOTE proceeds automatically.
 
-**Default behavior (v2.10.0)**: Knowledge promotion is **auto-promoted** by default. The SKIP signal is the opt-out mechanism — if no SKIP signal is present, PROMOTE proceeds automatically. Promoted knowledge (in `.docs/` with `promoted: true`) is the final state; session-scope `knowledge/` remains as-is for audit.
+**Example signal file:**
+```yaml
+type: INFO
+target: Librarian
+message: "SKIP_PROMOTION: Need more review time before promoting knowledge"
+created_at: 2026-02-28T14:30:00+07:00
+```
+
+> **Extensibility**: Future targeted conventions follow the same pattern: `type: INFO`, `target: <agent>`, `message: "<PREFIX>: <details>"`. No protocol changes needed — only agent-side polling logic.
 
 #### 3.6 COMMIT Mode — Signal Behavior
 
 The Reviewer's **COMMIT mode** (atomic commit of reviewed task changes) is invoked by the Orchestrator as a sub-step within `REVIEWING_BATCH`. COMMIT mode does **NOT** introduce any new signal types. It uses the existing signal infrastructure as follows:
 
-- **No new signal types**: COMMIT mode relies entirely on existing STEER, INFO, PAUSE, ABORT, and SKIP signals.
+- **No new signal types**: COMMIT mode relies entirely on existing STEER, INFO, PAUSE, and ABORT signals.
 - **Signal polling during COMMIT**: COMMIT is a short-lived operation (git staging + commit). The Reviewer does not poll `signals/inputs/` during COMMIT Steps 1–6. Instead, the Orchestrator polls signals at the boundary between the TASK_REVIEW invocation and the COMMIT invocation.
 - **ABORT during COMMIT**: If an ABORT signal arrives while the Orchestrator is blocked waiting for COMMIT to return, the COMMIT operation completes or fails independently. On return, the Orchestrator detects the ABORT signal at its next checkpoint and executes the ABORT cleanup checklist (§3.4). Importantly, **commit failure does NOT revert the `[x]` review verdict** — the review and commit outcomes are independent.
 - **STEER during COMMIT**: STEER signals are not consumed during COMMIT. They are picked up by the Orchestrator at the next state boundary after COMMIT returns. Re-evaluation of commit scope mid-commit is not supported — COMMIT operates on the files identified in the task report.
@@ -236,8 +244,8 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 | Classification         | Signals                      | Description                                                                                           |
 | ---------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **Direct poller**      | STEER, INFO, PAUSE, ABORT    | Subagents poll `signals/inputs/` at step boundaries during long-running tasks. These are **universal signals** — time-sensitive and relevant regardless of orchestrator state. |
-| **Librarian direct poller (PROMOTE)** | SKIP | Librarian polls this directly in PROMOTE mode within KNOWLEDGE_EXTRACTION. This is a **state-specific signal** — only meaningful during the PROMOTE step. |
-| **Primary poller**     | All types                    | Orchestrator — routes signals, finalizes `target: ALL` archival after ack quorum, and dispatches state-specific signals. |
+| **Librarian direct poller (PROMOTE)** | INFO (with `target: Librarian` + `SKIP_PROMOTION:` prefix) | Librarian polls this directly in PROMOTE mode within KNOWLEDGE_EXTRACTION. This is a **targeted INFO convention** — only meaningful during the PROMOTE step. |
+| **Primary poller**     | All types                    | Orchestrator — routes signals, finalizes `target: ALL` archival after ack quorum, and dispatches targeted signals. |
 
 #### A. Orchestrator (Ralph-v2)
 
@@ -247,7 +255,7 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 1. **State Boundaries**: Poll signals between every state transition.
 2. **Before Invoking Subagent**: Check signals. If `ABORT` → execute cleanup checklist (§3.4) and exit. If `PAUSE` → suspend and wait. If `STEER/INFO` → pass message to subagent invocation context.
 3. **Loop Boundaries**: Inside `EXECUTING_BATCH` loop (between tasks). Inside `REVIEWING_BATCH` loop (between reviews and between review→COMMIT invocations — COMMIT is a sub-step within REVIEWING_BATCH, not a separate state).
-4. **KNOWLEDGE_EXTRACTION** (PROMOTE step): Delegates to Librarian (PROMOTE mode) which polls for `SKIP` signal directly before auto-promoting.
+4. **KNOWLEDGE_EXTRACTION** (PROMOTE step): Delegates to Librarian (PROMOTE mode) which polls for skip-promotion `INFO` signal (with `target: Librarian` and `SKIP_PROMOTION:` prefix) directly before auto-promoting.
 
 **Target-Aware Routing**: The Orchestrator checks the `target` field before consuming (see [§2.2 Concurrency Strategy](#22-concurrency-strategy)). Signals targeting a specific subagent are buffered and delivered at the next invocation of that subagent. For `target: ALL`, the Orchestrator writes only its own ack and leaves the signal available for other subagents.
 
@@ -261,10 +269,10 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 3. **Mid-Execution (Step 3.5 — Executor only)**: Poll during long-running implementation. Apply STEER decision tree (§3.1) if a STEER signal is found.
 4. **Ack Behavior**: After ingesting a `target: ALL` universal signal, write `signals/acks/<SIGNAL_ID>/<CURRENT_AGENT>.ack.yaml` and do not move the source signal.
 
-**State-Specific Signals** (SKIP):
-- Only the Librarian polls for SKIP, and only in PROMOTE mode within `KNOWLEDGE_EXTRACTION` state.
-- Other subagents do NOT poll for SKIP. It is irrelevant outside the PROMOTE step.
-- Orchestrator auto-sequences EXTRACT → STAGE → PROMOTE within KNOWLEDGE_EXTRACTION; Librarian polls for SKIP before executing promotion.
+**Targeted INFO Conventions (Skip-Promotion):**
+- Only the Librarian polls for `INFO` with `target: Librarian` and `SKIP_PROMOTION:` prefix, and only in PROMOTE mode within `KNOWLEDGE_EXTRACTION` state.
+- Other subagents process `INFO` signals normally (as context injection). The `SKIP_PROMOTION:` prefix is meaningless outside the Librarian's PROMOTE step.
+- Orchestrator auto-sequences EXTRACT → STAGE → PROMOTE within KNOWLEDGE_EXTRACTION; Librarian polls for the skip-promotion convention before executing promotion.
 
 **Why hybrid?** When the Orchestrator invokes a long-running subagent (e.g., Executor on a complex task), the Orchestrator is BLOCKED waiting for the return. During this time, no orchestrator-level polling occurs. Direct polling by subagents ensures time-sensitive signals (STEER, PAUSE, ABORT) are handled within the subagent's execution, not delayed until the subagent returns.
 
@@ -314,14 +322,14 @@ Subagents have a **dual role** in signal handling, resolving the previous design
 
 Subagents have a **dual role** in signal handling, formalized as the Hybrid Polling Model (see [§4 Agent Integration](#4-agent-integration--hybrid-polling-model)). This resolves the previous inconsistency where subagents were classified as "context consumers" but actually polled `signals/inputs/` directly.
 
-| Agent              | Universal Signals (STEER, INFO, PAUSE, ABORT) | State-Specific Signals (SKIP)    | Role                                                                         |
+| Agent              | Universal Signals (STEER, INFO, PAUSE, ABORT) | Targeted INFO Conventions | Role                                                                         |
 | ------------------ | ---------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
 | **Orchestrator**   | Direct poller (state boundaries)               | Delegates to Librarian (PROMOTE step) | **Primary poller** — owns `signals/inputs/`, routes targeted signals         |
-| **Executor**       | Direct poller (step boundaries)                | Context consumer                          | Direct poller for universal; context consumer for state-specific             |
-| **Planner**        | Direct poller (mode start)                     | Context consumer                          | Direct poller for universal; context consumer for state-specific             |
-| **Questioner**     | Direct poller (cycle/loop boundaries)          | Context consumer                          | Direct poller for universal; context consumer for state-specific             |
-| **Reviewer**       | Direct poller (step boundaries)                | Context consumer                          | Direct poller for universal; context consumer for state-specific             |
-| **Librarian**      | Direct poller (stage/gate boundaries)          | Direct poller (PROMOTE mode)   | Direct poller for universal; direct poller for SKIP in PROMOTE |
+| **Executor**       | Direct poller (step boundaries)                | N/A                          | Direct poller for universal signals             |
+| **Planner**        | Direct poller (mode start)                     | N/A                          | Direct poller for universal signals             |
+| **Questioner**     | Direct poller (cycle/loop boundaries)          | N/A                          | Direct poller for universal signals             |
+| **Reviewer**       | Direct poller (step boundaries)                | N/A                          | Direct poller for universal signals             |
+| **Librarian**      | Direct poller (stage/gate boundaries)          | Direct poller (PROMOTE mode)   | Direct poller for universal; direct poller for skip-promotion INFO in PROMOTE |
 
 **Why hybrid?** When the Orchestrator invokes a long-running subagent, the Orchestrator is BLOCKED waiting for the return. Direct polling by subagents ensures universal signals (STEER, PAUSE, ABORT, INFO) are handled within the subagent's execution, not delayed until return.
 
@@ -334,7 +342,7 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 | `EXECUTING_BATCH`    | Pre-Loop            | `6. State: EXECUTING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Logs message and passes to Executor context.<br>**INFO**: Append to context. |
 | `REVIEWING_BATCH`    | Pre-Loop            | `7. State: REVIEWING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**INFO**: Inject into review context.<br>**STEER**: Log message, pass to Reviewer context. |
 | `REVIEWING_BATCH`    | Between Review & COMMIT | `7. State: REVIEWING_BATCH` | COMMIT is a sub-step within REVIEWING_BATCH (not a new state). After `[x]` verdict, Orchestrator invokes COMMIT mode for the same task. Signal polling occurs between review invocation and COMMIT invocation — ABORT/PAUSE checked before each invocation. |
-| `KNOWLEDGE_EXTRACTION` | EXTRACT→STAGE→PROMOTE | `9. State: KNOWLEDGE_EXTRACTION` | Auto-sequences 3 Librarian invocations: EXTRACT (iteration→iteration knowledge), STAGE (iteration→session merge), PROMOTE (session→`.docs/` merge). **SKIP**: Librarian polls before PROMOTE — skips promotion, preserves session-scope `knowledge/`.<br>**ABORT**: Exit with cleanup (§3.4). |
+| `KNOWLEDGE_EXTRACTION` | EXTRACT→STAGE→PROMOTE | `9. State: KNOWLEDGE_EXTRACTION` | Auto-sequences 3 Librarian invocations: EXTRACT (iteration→iteration knowledge), STAGE (iteration→session merge), PROMOTE (session→`.docs/` merge). **Skip-promotion INFO**: Librarian polls before PROMOTE — skips promotion, preserves session-scope `knowledge/`.<br>**ABORT**: Exit with cleanup (§3.4). |
 
 > **Target-Aware Routing**: At every checkpoint above, the Orchestrator applies peek-check-route logic (see [§2.2 Concurrency Strategy](#22-concurrency-strategy)). Signals targeting a specific subagent are buffered for delivery at the next invocation.
 
@@ -379,7 +387,7 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 | `STAGE`   | **Gate 1 (Preflight)** | Before staging preflight           | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust staging scope/criteria.<br>**INFO**: Append to context.                 |
 | `EXTRACT` | **Post-Collection**    | After evidence collection (Step 4) | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Re-filter collected knowledge based on new context.<br>**INFO**: Append to context and continue.   |
 | `PROMOTE` | **Gate 2 (Preflight)** | Before promotion preflight         | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust promotion scope.<br>**INFO**: Append to context.                        |
-| `PROMOTE` | **Pre-Promote Signal Check** | Step 2: Poll for SKIP | **SKIP**: Mark `[C]` and return `skipped` outcome.<br>**ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust promotion scope. |
+| `PROMOTE` | **Pre-Promote Signal Check** | Step 2: Poll for skip-promotion INFO | **Skip-promotion INFO** (`target: Librarian`, `SKIP_PROMOTION:` prefix): Mark `[C]` and return `skipped` outcome.<br>**ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust promotion scope. |
 | `PROMOTE` | **Post-Collection** | After reading staged content (Step 5) | **STEER**: Re-filter staged content based on new context.<br>**INFO**: Append to context and continue. |
 
 ### 7. Gap Analysis
@@ -398,7 +406,7 @@ During a typical task execution, 3–5 checkpoints fire (e.g., Executor Steps 0,
 
 ### Common Polling Routine
 
-All checkpoints follow this logic pattern (Mailbox Pattern). Signal type determines routing per the Hybrid Polling Model — subagents handle universal signals (STEER/INFO/PAUSE/ABORT) directly, while the state-specific signal (SKIP) is handled by the Librarian during PROMOTE mode within KNOWLEDGE_EXTRACTION.
+All checkpoints follow this logic pattern (Mailbox Pattern). Signal type determines routing per the Hybrid Polling Model — subagents handle universal signals (STEER/INFO/PAUSE/ABORT) directly, while targeted INFO conventions (e.g., skip-promotion) are handled by the Librarian during PROMOTE mode within KNOWLEDGE_EXTRACTION.
 
 ```markdown
 Poll signals/inputs/
@@ -414,6 +422,6 @@ Poll signals/inputs/
       - Atomic Move → signals/processed/
     - Read Content
     - Act based on type: STEER / INFO / PAUSE / ABORT
-    - (Librarian only: also handle SKIP in PROMOTE mode)
+    - (Librarian only: also check for skip-promotion INFO convention in PROMOTE mode)
     - (Orchestrator only: archive target ALL after all required ack files exist)
 ```

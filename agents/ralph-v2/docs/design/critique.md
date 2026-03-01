@@ -135,11 +135,11 @@ This section documents the key design decisions made in v2.3.0 across four feedb
 - The existing Librarian already places carried-forward and fresh knowledge in the same directories, using frontmatter markers (`carried_from_iteration`) — frontmatter-based differentiation is a natural extension (ref: Q-ASM-003).
 - A separate `knowledge/staged/` vs `knowledge/promoted/` split would duplicate the Diátaxis structure and complicate promotion workflows.
 - `knowledge/index.md` manifest can display both promotion statuses for human review.
-- Session-scope knowledge persists across iterations: promoted knowledge carries forward without re-promotion; new knowledge is auto-promoted by default (v2.10.0), with SKIP signal as opt-out.
+- Session-scope knowledge persists across iterations: promoted knowledge carries forward without re-promotion; new knowledge is auto-promoted by default (v2.10.0), with `INFO + target: Librarian + SKIP_PROMOTION:` convention as opt-out.
 
 **Alternative Considered**: Directory-based separation (`knowledge/staged/` and `knowledge/promoted/`). Rejected because it duplicates the Diátaxis taxonomy and makes promotion a file-move operation rather than a metadata update.
 
-> **v2.10.0 update**: CURATE mode and APPROVE signal were removed. Knowledge promotion is now auto-promoted by default within the KNOWLEDGE_EXTRACTION state (EXTRACT → STAGE → PROMOTE pipeline). The SKIP signal is the opt-out mechanism. Frontmatter fields changed from `approved`/`approved_at` to `promoted`/`promoted_at`.
+> **v2.10.0 update**: CURATE mode and APPROVE signal were removed. Knowledge promotion is now auto-promoted by default within the KNOWLEDGE_EXTRACTION state (EXTRACT → STAGE → PROMOTE pipeline). The `INFO + target: Librarian + SKIP_PROMOTION:` convention is the opt-out mechanism (replacing the former dedicated SKIP signal type). Frontmatter fields changed from `approved`/`approved_at` to `promoted`/`promoted_at`.
 
 ### 4.3 Skills — Reasoning-Based Discovery (Not Rule-Based or Manifest-Based)
 

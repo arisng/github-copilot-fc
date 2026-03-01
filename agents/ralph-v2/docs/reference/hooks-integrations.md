@@ -152,7 +152,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 ### Live Signals
 
 29. 🔴 **Signal File Schema Check** `P0`
-	- Validate signal type is one of `STEER`, `PAUSE`, `ABORT`, `INFO`, `SKIP` and message is non-empty.
+	- Validate signal type is one of `STEER`, `PAUSE`, `ABORT`, `INFO` and message is non-empty.
 
 30. 🔵 **Signal Ordering Guard** `P2`
 	- Enforce FIFO processing by timestamp; reject out-of-order signals.
@@ -545,7 +545,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Invalid status '✓' for task-1. Use [x] fo
 
 **Policy Rules:**
 1. File MUST be valid YAML → BLOCK if parse fails.
-2. `type` field MUST exist and be one of: `STEER`, `PAUSE`, `ABORT`, `INFO`, `SKIP` → BLOCK if missing or invalid.
+2. `type` field MUST exist and be one of: `STEER`, `PAUSE`, `ABORT`, `INFO` → BLOCK if missing or invalid.
 3. `message` field MUST exist and be non-empty (trimmed length > 0) → BLOCK if missing or empty.
 4. `target` field SHOULD exist. If missing, default to `ALL` → WARN if missing.
 5. If `iteration` field is present, it MUST be a positive integer → WARN if invalid.
@@ -557,7 +557,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Invalid status '✓' for task-1. Use [x] fo
 ```
 INPUT:  file_content = "type: INVALID\nmessage: test"
 RULE:   type "INVALID" not in allowed set
-OUTPUT: { verdict: "BLOCK", reason: "Invalid signal type 'INVALID'. Must be one of: STEER, PAUSE, ABORT, INFO, SKIP" }
+OUTPUT: { verdict: "BLOCK", reason: "Invalid signal type 'INVALID'. Must be one of: STEER, PAUSE, ABORT, INFO" }
 ```
 
 ```

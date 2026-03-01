@@ -140,7 +140,7 @@ KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROM
        │                    ├── 0 items extracted → skip to COMPLETE
        │                    ├── STAGE: iterations/<N>/knowledge/ → session knowledge/ (merge)
        │                    ├── PROMOTE: session knowledge/ → .docs/ (auto-promote default)
-       │                    └── SKIP signal at PROMOTE → COMPLETE (staged kept)
+       │                    └── Skip-promotion INFO signal at PROMOTE → COMPLETE (staged kept)
        ▼
    COMPLETE ──── All tasks [x]/[C], or awaiting feedback
        │
@@ -173,15 +173,14 @@ Two protocols for human feedback:
 
 ### Live Signals
 
-Five signal types in two categories:
+Four signal types (all universal):
 
 | Signal | Category | Semantics | Polled By |
 |--------|----------|-----------|----------|
 | `STEER` | Universal | Re-route workflow | Orchestrator + Subagents |
-| `INFO` | Universal | Context injection | Orchestrator + Subagents |
+| `INFO` | Universal | Context injection (also used for targeted conventions like skip-promotion) | Orchestrator + Subagents |
 | `PAUSE` | Universal | Temporary halt | Orchestrator + Subagents |
 | `ABORT` | Universal | Permanent halt with cleanup | Orchestrator + Subagents |
-| `SKIP` | State-specific | Knowledge promotion bypass | Librarian (PROMOTE) |
 
 Target-aware routing: Orchestrator checks `target` field and routes to specific subagents. Broadcast signals (`target: ALL`) require ack quorum from all recipients before archival.
 
@@ -199,7 +198,7 @@ Knowledge flows through three tiers with explicit merge semantics:
 
 1. **EXTRACT** (iteration-scoped): Scan `iterations/<N>/` artifacts, write reusable knowledge to `iterations/<N>/knowledge/` with Diátaxis classification
 2. **STAGE** (session-scoped): Merge iteration knowledge into session `knowledge/` with auto-conflict-resolution (newer-wins timestamp strategy)
-3. **PROMOTE** (workspace-scoped): Merge session knowledge into `.docs/` with auto-conflict-resolution. Auto-promotes by default; SKIP signal opts out
+3. **PROMOTE** (workspace-scoped): Merge session knowledge into `.docs/` with auto-conflict-resolution. Auto-promotes by default; `INFO + target: Librarian + SKIP_PROMOTION:` prefix opts out
 
 Key behaviors:
 - **Auto-extract and auto-stage** are enabled by default in the orchestrator's KNOWLEDGE_EXTRACTION state
@@ -268,9 +267,9 @@ code .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/feedback
 ```powershell
 $ts = Get-Date -Format "yyMMdd-HHmmssK" -replace ":", ""
 Set-Content ".ralph-sessions/<SESSION_ID>/signals/inputs/signal.$ts.yaml" @"
-type: SKIP          # STEER | INFO | PAUSE | ABORT | SKIP
-target: ALL          # ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian
-message: "Skip knowledge promotion this iteration"
+type: INFO          # STEER | INFO | PAUSE | ABORT
+target: Librarian   # ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian
+message: "SKIP_PROMOTION: Skip knowledge promotion this iteration"
 created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 "@
 ```
@@ -310,6 +309,13 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 - **Updated cross-references**: All paths in README and `docs/reference/hooks-integrations.md` updated to new spec locations
 - **v2.10.0 knowledge extraction**: Extracted knowledge from v2.10.0 changes with Diátaxis categorization (`source_iteration: external`)
 
+**SKIP Signal Removal (v2.11.0)**
+- **Removed SKIP signal type**: Signal types reduced from 5 to 4 (STEER, INFO, PAUSE, ABORT). The skip-promotion intent is now expressed via `INFO + target: Librarian + SKIP_PROMOTION:` message prefix convention
+- **Updated Librarian PROMOTE pre-check**: Polls for `INFO` with `target: Librarian` and `SKIP_PROMOTION:` prefix instead of `type: SKIP`
+- **Updated Executor signal routing**: Removed SKIP-specific routing line from Poll-Signals routine
+- **Updated state machine**: Removed SKIP transitions from KNOWLEDGE_EXTRACTION state
+- **Updated specs and docs**: `live-signals.spec.md` §3.5 SKIP removed, §3.2 INFO gains "Targeted INFO Conventions" subsection; `hooks-integrations.md` signal validation updated; `critique.md` knowledge persistence references updated
+
 ### v2.10.0 (2026-02-28)
 
 > Breaking: NOT backward-compatible with v2.9.0 sessions (session structure change + state machine change).
@@ -317,9 +323,9 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 **Knowledge Pipeline Refactor (EXTRACT → STAGE → PROMOTE)**
 - **New EXTRACT mode**: Scans iteration artifacts and writes reusable knowledge to iteration-scoped `iterations/<N>/knowledge/` with Diátaxis classification
 - **Refactored STAGE mode**: Now merges iteration-scoped knowledge into session-scoped `knowledge/` with auto-conflict-resolution (newer-wins timestamp strategy). Supports `CHERRY_PICK` and `SOURCE_ITERATIONS` parameters for selective and cross-iteration staging
-- **Refactored PROMOTE mode**: Now merges session-scoped knowledge into workspace `.docs/` with auto-conflict-resolution. Absorbs CURATE's SKIP signal check as pre-promote opt-out
+- **Refactored PROMOTE mode**: Now merges session-scoped knowledge into workspace `.docs/` with auto-conflict-resolution. Uses `INFO + target: Librarian + SKIP_PROMOTION:` prefix convention as pre-promote opt-out
 - **Removed CURATE mode**: Redundant with separate EXTRACT/STAGE/PROMOTE pipeline. Signal polling absorbed by PROMOTE; auto-promote is the default; post-iteration feedback detection moved to orchestrator
-- **Removed APPROVE signal type**: Auto-promote is default; only SKIP retained as opt-out. Signal types reduced from 6 to 5
+- **Removed APPROVE signal type**: Auto-promote is default; `INFO + target: Librarian + SKIP_PROMOTION:` convention replaces dedicated SKIP signal type. Signal types reduced from 6 to 4
 - **Auto-extract and auto-stage enabled by default**: Orchestrator's KNOWLEDGE_EXTRACTION state auto-sequences EXTRACT → STAGE → PROMOTE
 - **Iteration-scoped knowledge folder**: Added `iterations/<N>/knowledge/` to session structure with full Diátaxis subdirectories
 - **Merge algorithm**: Shared by STAGE and PROMOTE — per-file merge with 5 cases (new, newer-wins, skip-older, content-overlap, contradiction). Content overlap detected via H2/H3 heading comparison with >50% threshold
@@ -351,7 +357,7 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 
 **Default Knowledge Auto-Approval**
 - Librarian now auto-promotes staged knowledge to `.docs/` by default (no APPROVE signal required)
-- CURATE state transitions directly to auto-promote unless overridden by SKIP signal
+- CURATE state transitions directly to auto-promote unless overridden by skip-promotion INFO signal
 - Reduces friction for knowledge persistence across iterations
 
 **Subagent Template Standardization**
@@ -363,8 +369,8 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 ### v2.4.0 (2026-02-27)
 
 **CURATE Delegation to Librarian**
-- Librarian now owns the full CURATE gate (signal polling, PROMOTE/SKIP execution, `progress.md` marking)
-- New Librarian mode: `CURATE` — encapsulates approval signal reading, promotion, skip, and post-iteration feedback detection
+- Librarian now owns the full CURATE gate (signal polling, PROMOTE/skip-promotion execution, `progress.md` marking)
+- New Librarian mode: `CURATE` — encapsulates approval signal reading, promotion, skip-promotion, and post-iteration feedback detection
 - Orchestrator no longer directly marks `plan-knowledge-approval` — removed Hard Rules exception
 - `plan-knowledge-approval` now supports `[/]` (in-progress) status set by Librarian
 - Librarian returns structured `outcome` field: `approved`, `skipped`, `awaiting`, or `replanning`
@@ -399,7 +405,7 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 
 - Added Librarian subagent with `STAGE`/`PROMOTE` knowledge pipeline
 - KNOWLEDGE_EXTRACTION and CURATE states
-- Signal types: `APPROVE`, `SKIP`
+- Signal types: `APPROVE`, `SKIP` (both later removed — see v2.10.0/v2.11.0)
 
 ### v2.0.x (2026-02-07 – 2026-02-10)
 
