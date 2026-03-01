@@ -3,12 +3,11 @@ category: explanation
 source_session: 260227-144634
 source_iteration: 1
 source_artifacts:
-  - iterations/1/plan.md
-  - iterations/1/reports/task-2-report.md
-  - iterations/1/tasks/task-2.md
-staged_at: 2026-02-27T16:07:02+07:00
-approved: true
-approved_at: 2026-02-27T16:09:38+07:00
+  - Iteration 1 plan (KNOWLEDGE_APPROVAL rename context)
+  - Iteration 1 task-2 report (rename implementation)
+  - Iteration 1 task-2 definition (rename specification)
+promoted: true
+promoted_at: 2026-02-27T16:09:38+07:00
 ---
 
 # Why KNOWLEDGE_APPROVAL Was Renamed to CURATE

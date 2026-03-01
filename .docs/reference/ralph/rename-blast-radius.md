@@ -3,11 +3,10 @@ category: reference
 source_session: 260227-144634
 source_iteration: 1
 source_artifacts:
-  - iterations/1/plan.md
-  - iterations/1/reports/task-7-report.md
-staged_at: 2026-02-27T16:07:02+07:00
-approved: true
-approved_at: 2026-02-27T16:09:38+07:00
+  - Iteration 1 plan (rename blast radius analysis)
+  - Iteration 1 task-7 report (blast radius findings)
+promoted: true
+promoted_at: 2026-02-27T16:09:38+07:00
 ---
 
 # Ralph v2 Rename Blast Radius Analysis
@@ -60,4 +59,4 @@ This was verified by grep during the v2.9.0 rename (KNOWLEDGE_APPROVAL → CURAT
 ## Exceptions
 
 - **`plan-*` task names** (e.g., `plan-knowledge-approval`): These follow a `plan-<concept>` naming convention independent of mode names. They are explicitly preserved during mode renames.
-- **Signal type names** (e.g., `APPROVE`, `SKIP`, `STEER`): These are a separate controlled vocabulary. Mode renames must not collide with existing signal types (see: [CURATE rename rationale](../../explanation/ralph/curate-rename-rationale.md)).
+- **Signal type names** (e.g., `STEER`, `INFO`, `PAUSE`, `ABORT`): These are a separate controlled vocabulary. Mode renames must not collide with existing signal types (see: [CURATE rename rationale](../../explanation/ralph/curate-rename-rationale.md)).

@@ -59,13 +59,13 @@ Use this workflow at the end of each Ralph-v2 iteration to capture reusable know
    - Edit content for accuracy, clarity, or completeness.
    - Delete items that should not be promoted.
 
-8. **Approve or Skip** — Human sends a signal to the orchestrator:
-   - **APPROVE** — All remaining staged items are approved for promotion to `.docs/`.
-   - **SKIP** — Knowledge stays in staging; the session completes without promotion to `.docs/`.
+8. **Auto-promote (default) or opt-out** — Promotion proceeds automatically unless the human opts out:
+   - **Default**: All remaining staged items are promoted to `.docs/` without requiring a signal.
+   - **Opt-out**: To skip promotion, the human sends an `INFO` signal with `target: Librarian` and a message starting with `SKIP_PROMOTION:` — staged content is preserved in `iterations/<N>/knowledge/` for future manual promotion.
 
 ### Promote (Librarian — MODE: PROMOTE)
 
-9. **Promote approved content** — On APPROVE signal, copy all remaining items from `iterations/<N>/knowledge/{category}/` to `.docs/{category}/`:
+9. **Promote staged content** — Unless opt-out was signaled, copy all remaining items from `iterations/<N>/knowledge/{category}/` to `.docs/{category}/`:
    - `.docs/tutorials/`
    - `.docs/how-to/`
    - `.docs/reference/`
@@ -79,4 +79,4 @@ Use this workflow at the end of each Ralph-v2 iteration to capture reusable know
 
 - Each staged knowledge item maps to exactly one Diátaxis category.
 - Promoted items may merge with or update existing entries in `.docs/`.
-- On SKIP, no files are written to `.docs/`; staged content persists in `iterations/<N>/knowledge/` for reference.
+- On opt-out (`INFO` + `SKIP_PROMOTION:`), no files are written to `.docs/`; staged content persists in `iterations/<N>/knowledge/` for reference.

@@ -3,13 +3,11 @@ category: reference
 source_session: 260227-144634
 source_iteration: 2
 source_artifacts:
-  - iterations/2/reports/task-2-report.md
-  - iterations/2/reports/task-3-report.md
-  - iterations/2/reports/task-4-report.md
-  - iterations/2/review.md
+  - Iteration 2 task-2 report (docs restructure)
+  - Iteration 2 task-3 report (specs migration)
+  - Iteration 2 task-4 report (frontmatter convention)
+  - Iteration 2 review summary
 extracted_at: 2026-02-28T22:32:04+07:00
-staged: true
-staged_at: 2026-02-28T22:36:14+07:00
 promoted: true
 promoted_at: 2026-02-28T22:41:09+07:00
 ---
