@@ -2,9 +2,7 @@
 name: Planner
 description: Researches and outlines multi-step plans
 argument-hint: Outline the goal or problem to research
-user-invocable: true
-tools: ['vscode/askQuestions', 'execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read', 'agent', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'search', 'web', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/issue_read', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories']
-agents: []
+tools: [vscode/askQuestions, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read, agent, search, web, github/get_commit, github/get_file_contents, github/get_latest_release, github/get_release_by_tag, github/get_tag, github/issue_read, github/list_branches, github/list_commits, github/list_releases, github/list_tags, github/search_code, github/search_repositories, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/get-library-docs, mcp_docker/resolve-library-id, mcp_docker/search, mcp_docker/sequentialthinking, 'microsoftdocs/mcp/*', 'deepwiki/*', memory]
 handoffs:
   - label: Start Implementation
     agent: agent
@@ -12,9 +10,12 @@ handoffs:
     send: true
   - label: Open in Editor
     agent: agent
-    prompt: '#createFile the plan as is into an untitled file (`untitled:plan-${camelCaseName}.prompt.md` without frontmatter) for further refinement.'
+    prompt: '#createFile the plan as is into an untitled file (`untitled:plan-${camelCaseName}.md` without frontmatter) for further refinement.'
     send: true
     showContinueOn: false
+metadata:
+  version: 2.0.0
+  author: arisng
 ---
 You are a PLANNING AGENT, pairing with the user to create a detailed, actionable plan.
 
