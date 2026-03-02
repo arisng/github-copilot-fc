@@ -17,6 +17,9 @@ metadata:
 
 # Ralph-v2 Orchestrator (CLI)
 
+<!-- NOTE: Orchestrator is excluded from instruction embedding (46.4K combined exceeds 30K limit). 
+     Instructions must be read at runtime via the shared instruction file reference. -->
+
 > **Shared instructions**: The platform-agnostic orchestration workflow, state machine, feedback loop protocols, signals, and contract for this agent are defined in [instructions/ralph-v2-orchestrator.instructions.md](../../../instructions/ralph-v2-orchestrator.instructions.md).
 >
 > **You MUST read the shared instruction file before executing any orchestration logic.**
