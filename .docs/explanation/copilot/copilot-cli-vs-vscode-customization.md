@@ -113,12 +113,14 @@ VS Code loads instructions from multiple independent files, each controlling its
 
 ### CLI Model
 
-CLI loads instructions from a single file or an environment variable pointing to directories:
+CLI loads instructions from multiple sources, including repo-level instruction files and environment-based paths:
 
 ```
+AGENTS.md                                  # Primary repo-level (CWD, repo root, COPILOT_CUSTOM_INSTRUCTIONS_DIRS dirs)
+CLAUDE.md / GEMINI.md                      # Repo root (recognized as instruction files)
 $HOME/.copilot/copilot-instructions.md     # User-level (single file)
 .github/copilot-instructions.md            # Repository-level (always loaded)
-.github/instructions/**/*.instructions.md  # Repository-level with applyTo
+.github/instructions/**/*.instructions.md  # Repository-level with applyTo and excludeAgent
 ```
 
 Or using the environment variable:
@@ -127,6 +129,8 @@ Or using the environment variable:
 export COPILOT_CUSTOM_INSTRUCTIONS_DIRS="/path/to/dir1:/path/to/dir2"
 ```
 
+`AGENTS.md` is a primary instruction path alongside `.github/copilot-instructions.md` — it is discovered in the current working directory, the repository root, and any directories listed in `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`. `CLAUDE.md` and `GEMINI.md` are also recognized at the repository root as instruction files.
+
 **Key differences:**
 
 | Aspect                 | VS Code                                                     | CLI                                                    |
@@ -134,12 +138,14 @@ export COPILOT_CUSTOM_INSTRUCTIONS_DIRS="/path/to/dir1:/path/to/dir2"
 | User-level location    | Editor prompts directory (per-install)                      | `$HOME/.copilot/copilot-instructions.md` (single file) |
 | User-level granularity | Multiple files with individual `applyTo`                    | One file (all instructions concatenated)               |
 | Env override           | Not applicable                                              | `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`                     |
-| Repo-level location    | `.github/copilot-instructions.md` + `.github/instructions/` | Same ✓                                                 |
+| Repo-level location    | `.github/copilot-instructions.md` + `.github/instructions/` | Same ✓ plus `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`     |
 | `applyTo` support      | Yes (user + repo level)                                     | Yes (repo-level `.github/instructions/` only)          |
+| `excludeAgent`         | Not applicable                                              | Values: `"code-review"`, `"coding-agent"` — scopes instructions to exclude specific agents |
+| Disable all            | Not applicable                                              | `--no-custom-instructions` flag                        |
 
 **Why the difference?** VS Code has a rich file-watching model — it monitors the prompts directory and dynamically evaluates `applyTo` against editor context. CLI runs as a one-shot or session process without persistent file watching. A single instructions file is simpler to load at session start.
 
-**Important**: `~/.copilot/instructions/` is **NOT** a valid discovery path for CLI. This is a common assumption — the CLI only reads from the single `copilot-instructions.md` file or directories listed in `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`.
+**Important**: `~/.copilot/instructions/` is **NOT** a valid discovery path for CLI. The CLI reads from: `AGENTS.md` (CWD, repo root, `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` dirs), `CLAUDE.md`/`GEMINI.md` (repo root), the single `copilot-instructions.md` file, directories listed in `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and `.github/copilot-instructions.md` + `.github/instructions/`.
 
 ---
 

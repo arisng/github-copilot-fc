@@ -137,11 +137,33 @@ The `publish-skills.ps1` script already targets `~/.copilot/skills/`, which is t
 
 **Important:** `~/.copilot/instructions/` is **NOT** a valid discovery path for Copilot CLI. The CLI loads custom instructions from:
 
+- **AGENTS.md**: A primary repo-level instruction file discovered in CWD, repo root, and `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` directories (alongside `.github/copilot-instructions.md`)
+- **CLAUDE.md / GEMINI.md**: Recognized at repo root as instruction files
 - **Single file**: `$HOME/.copilot/copilot-instructions.md`
 - **Environment variable**: `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` pointing to directories containing `.github/instructions/*.instructions.md` files
-- **Repo-level**: `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` (with `applyTo`)
+- **Repo-level**: `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` (with `applyTo` and `excludeAgent`)
 
 The current `publish-instructions.ps1` only targets VS Code prompts directories. Until the script is updated, use one of the manual approaches below.
+
+### AGENTS.md (repo-level instructions)
+
+`AGENTS.md` is a primary CLI instruction path — it works like `.github/copilot-instructions.md` but is discovered more broadly:
+
+- **CWD**: The current working directory when `copilot` is invoked
+- **Repo root**: The root of the current git repository
+- **`COPILOT_CUSTOM_INSTRUCTIONS_DIRS`**: Any directories listed in this environment variable
+
+This file requires no publishing — it is a **repo-level convention**. Place `AGENTS.md` in your repository root and it will be loaded automatically by the CLI.
+
+```bash
+# Verify AGENTS.md is discovered
+ls AGENTS.md
+# Should exist in repo root
+```
+
+`CLAUDE.md` and `GEMINI.md` are also recognized at the repo root as instruction files by the CLI. These are typically used for model-specific instructions.
+
+> **Tip:** Use `--no-custom-instructions` flag to temporarily disable loading of all instruction files (including `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and user-level instructions). This is useful for debugging instruction conflicts.
 
 ### Option A: Concatenate into single file
 
@@ -482,6 +504,34 @@ Publish-InstructionsToCopilotCliDirs -ProjectInstructionsPath $projectInstructio
 | `publish-hooks.ps1` | Publishes to `.github/hooks/` (works in CLI) | ✅ No changes needed |
 | `publish-prompts.ps1` | VS Code only, no CLI equivalent | ℹ️ No changes possible |
 | `publish-toolsets.ps1` | VS Code only, CLI uses flags | ℹ️ No changes possible |
+
+---
+
+## Troubleshooting
+
+### Instructions not loading as expected
+
+If custom instructions are causing unexpected behavior or conflicts:
+
+```bash
+# Disable all custom instruction loading for a single session
+copilot --no-custom-instructions "your prompt here"
+```
+
+The `--no-custom-instructions` flag disables loading of all instruction files including `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `$HOME/.copilot/copilot-instructions.md`, and files from `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`. This is useful for isolating whether instructions are the source of a problem.
+
+### Scope instructions to specific agents
+
+Use the `excludeAgent` frontmatter keyword in `.github/instructions/*.instructions.md` files to exclude instructions from specific agents:
+
+```yaml
+---
+applyTo: "**/*.ts"
+excludeAgent: "code-review"
+---
+```
+
+Valid `excludeAgent` values: `"code-review"` (excludes from code review agent) and `"coding-agent"` (excludes from the coding agent).
 
 ---
 
