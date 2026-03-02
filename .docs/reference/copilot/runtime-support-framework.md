@@ -6,24 +6,24 @@ Reference document mapping workspace artifact primitives to runtime targets with
 
 The matrix below maps **6 artifact primitives** (rows) across **4 runtime targets** (columns). Each cell uses a three-state verdict:
 
-| Verdict | Meaning |
-|---------|---------|
-| ✅ Automated | Runtime supports the artifact AND a publish script implements the target |
-| ⚠️ Manual | Runtime supports the artifact BUT no publish script implements the target yet |
-| ❌ N/A | Runtime does not support this artifact type |
+| Verdict     | Meaning                                                                       |
+| ----------- | ----------------------------------------------------------------------------- |
+| ✅ Automated | Runtime supports the artifact AND a publish script implements the target      |
+| ⚠️ Manual    | Runtime supports the artifact BUT no publish script implements the target yet |
+| ❌ N/A       | Runtime does not support this artifact type                                   |
 
 > **Note:** VS Code Stable and VS Code Insiders share identical behavior for all artifact types. They differ only in install path (`%APPDATA%/Code/` vs `%APPDATA%/Code - Insiders/`). Both are covered by the "VS Code" column. Publish scripts target both paths simultaneously.
 
 ### Primary Matrix
 
-| Artifact Type | VS Code (Win) | copilot-cli (Win) | copilot-cli (WSL) | Future Placeholder |
-|:---|:---:|:---:|:---:|:---:|
-| **Agents** | ✅ Automated | ✅ Automated | ✅ Automated | — |
-| **Instructions** | ✅ Automated | ⚠️ Manual | ⚠️ Manual | — |
-| **Skills** | ✅ Automated | ✅ Automated | ✅ Automated | — |
-| **Hooks** | ✅ Automated | ✅ Automated¹ | ⚠️ Manual² | — |
-| **Prompts** | ✅ Automated | ❌ N/A | ❌ N/A | — |
-| **Toolsets** | ✅ Automated | ❌ N/A | ❌ N/A | — |
+| Artifact Type    | VS Code (Win) | copilot-cli (Win) | copilot-cli (WSL) | Future Placeholder |
+| :--------------- | :-----------: | :---------------: | :---------------: | :----------------: |
+| **Agents**       |  ✅ Automated  |    ✅ Automated    |    ✅ Automated    |         —          |
+| **Instructions** |  ✅ Automated  |     ⚠️ Manual      |     ⚠️ Manual      |         —          |
+| **Skills**       |  ✅ Automated  |    ✅ Automated    |    ✅ Automated    |         —          |
+| **Hooks**        |  ✅ Automated  |   ✅ Automated¹    |     ⚠️ Manual²     |         —          |
+| **Prompts**      |  ✅ Automated  |       ❌ N/A       |       ❌ N/A       |         —          |
+| **Toolsets**     |  ✅ Automated  |       ❌ N/A       |       ❌ N/A       |         —          |
 
 ¹ Hooks are published to `.github/hooks/` (repo-scoped), which copilot-cli discovers when invoked from the repo root. No separate `~/.copilot/` path needed.
 ² WSL copilot-cli discovers hooks from CWD. If the repo is cloned inside WSL, `.github/hooks/` works via the same repo-scoped mechanism. No dedicated WSL publish target exists yet for user-level hook paths.
@@ -32,23 +32,23 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 ### Agents
 
-| Runtime | Destination Path | Delivery |
-|:---|:---|:---|
-| VS Code (Stable) | `%APPDATA%/Code/User/prompts/*.agent.md` | Direct file copy |
-| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.agent.md` | Direct file copy |
-| copilot-cli (Win) | `%USERPROFILE%/.copilot/agents/*.agent.md` | Direct file copy |
-| copilot-cli (WSL) | `~/.copilot/agents/*.agent.md` | WSL cross-copy (`wsl bash -c "cp ..."`) |
+| Runtime            | Destination Path                                    | Delivery                                |
+| :----------------- | :-------------------------------------------------- | :-------------------------------------- |
+| VS Code (Stable)   | `%APPDATA%/Code/User/prompts/*.agent.md`            | Direct file copy                        |
+| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.agent.md` | Direct file copy                        |
+| copilot-cli (Win)  | `%USERPROFILE%/.copilot/agents/*.agent.md`          | Direct file copy                        |
+| copilot-cli (WSL)  | `~/.copilot/agents/*.agent.md`                      | WSL cross-copy (`wsl bash -c "cp ..."`) |
 
 **Script:** `scripts/publish/publish-agents.ps1` — targets all four destinations. Uses `-SkipWSL` opt-out. Flat file copy (no recursive directory structure at destination).
 
 ### Instructions
 
-| Runtime | Destination Path | Delivery |
-|:---|:---|:---|
-| VS Code (Stable) | `%APPDATA%/Code/User/prompts/*.instructions.md` | Direct file copy |
-| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.instructions.md` | Direct file copy |
-| copilot-cli (Win) | `%USERPROFILE%/.copilot/copilot-instructions.md` | Concatenation of all `.instructions.md` files into single file (Mode Concat) **OR** directory-based via `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` env var (Mode EnvVar) |
-| copilot-cli (WSL) | `~/.copilot/copilot-instructions.md` | Same dual-mode as Win, delivered via WSL cross-copy |
+| Runtime            | Destination Path                                           | Delivery                                                                                                                                                         |
+| :----------------- | :--------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VS Code (Stable)   | `%APPDATA%/Code/User/prompts/*.instructions.md`            | Direct file copy                                                                                                                                                 |
+| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.instructions.md` | Direct file copy                                                                                                                                                 |
+| copilot-cli (Win)  | `%USERPROFILE%/.copilot/copilot-instructions.md`           | Concatenation of all `.instructions.md` files into single file (Mode Concat) **OR** directory-based via `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` env var (Mode EnvVar) |
+| copilot-cli (WSL)  | `~/.copilot/copilot-instructions.md`                       | Same dual-mode as Win, delivered via WSL cross-copy                                                                                                              |
 
 **Script:** `scripts/publish/publish-instructions.ps1` — currently targets VS Code only. CLI and WSL targets are **not yet implemented** (⚠️ Manual). Planned redesign adds `-Mode Concat` (default) and `-Mode EnvVar` parameters.
 
@@ -58,12 +58,12 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 ### Skills
 
-| Runtime | Destination Path | Delivery |
-|:---|:---|:---|
-| VS Code (Stable) | Loaded from `%USERPROFILE%/.copilot/skills/<name>/SKILL.md` | Direct directory copy (recursive) |
-| VS Code (Insiders) | Same as Stable | Same personal path |
-| copilot-cli (Win) | `%USERPROFILE%/.copilot/skills/<name>/SKILL.md` | Direct directory copy (recursive) |
-| copilot-cli (WSL) | `~/.copilot/skills/<name>/SKILL.md` | WSL cross-copy (`wsl bash -c "cp -r ..."`) |
+| Runtime            | Destination Path                                            | Delivery                                   |
+| :----------------- | :---------------------------------------------------------- | :----------------------------------------- |
+| VS Code (Stable)   | Loaded from `%USERPROFILE%/.copilot/skills/<name>/SKILL.md` | Direct directory copy (recursive)          |
+| VS Code (Insiders) | Same as Stable                                              | Same personal path                         |
+| copilot-cli (Win)  | `%USERPROFILE%/.copilot/skills/<name>/SKILL.md`             | Direct directory copy (recursive)          |
+| copilot-cli (WSL)  | `~/.copilot/skills/<name>/SKILL.md`                         | WSL cross-copy (`wsl bash -c "cp -r ..."`) |
 
 **Script:** `scripts/publish/publish-skills.ps1` — targets all destinations including WSL. Also publishes to `~/.claude/skills/` and `~/.codex/skills/` for cross-assistant compatibility. Uses `-SkipWSL` opt-out.
 
@@ -71,11 +71,11 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 ### Hooks
 
-| Runtime | Destination Path | Delivery |
-|:---|:---|:---|
-| VS Code | `.github/hooks/*.hooks.json` (repo-scoped) | Direct file copy within workspace |
-| copilot-cli (Win) | `.github/hooks/*.hooks.json` (repo-scoped, CWD-discovered) | Same repo-scoped mechanism |
-| copilot-cli (WSL) | `.github/hooks/*.hooks.json` (in WSL-cloned repo) | Repo-scoped: works if repo is cloned in WSL |
+| Runtime           | Destination Path                                           | Delivery                                    |
+| :---------------- | :--------------------------------------------------------- | :------------------------------------------ |
+| VS Code           | `.github/hooks/*.hooks.json` (repo-scoped)                 | Direct file copy within workspace           |
+| copilot-cli (Win) | `.github/hooks/*.hooks.json` (repo-scoped, CWD-discovered) | Same repo-scoped mechanism                  |
+| copilot-cli (WSL) | `.github/hooks/*.hooks.json` (in WSL-cloned repo)          | Repo-scoped: works if repo is cloned in WSL |
 
 **Script:** `scripts/publish/publish-hooks.ps1` — copies from `hooks/` to `.github/hooks/` in the workspace root. Both VS Code and copilot-cli discover hooks from `.github/hooks/` when operating on the repo. No personal (`~/.copilot/`) hook path publish is needed for repo-scoped hooks.
 
@@ -83,21 +83,21 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 ### Prompts
 
-| Runtime | Destination Path | Delivery |
-|:---|:---|:---|
-| VS Code (Stable) | `%APPDATA%/Code/User/prompts/*.prompt.md` | Direct file copy |
-| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.prompt.md` | Direct file copy |
-| copilot-cli | ❌ N/A | No `.prompt.md` discovery in copilot-cli |
+| Runtime            | Destination Path                                     | Delivery                                 |
+| :----------------- | :--------------------------------------------------- | :--------------------------------------- |
+| VS Code (Stable)   | `%APPDATA%/Code/User/prompts/*.prompt.md`            | Direct file copy                         |
+| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.prompt.md` | Direct file copy                         |
+| copilot-cli        | ❌ N/A                                                | No `.prompt.md` discovery in copilot-cli |
 
 **Script:** `scripts/publish/publish-prompts.ps1` — targets VS Code only. Prompts are a VS Code-specific artifact with no copilot-cli equivalent.
 
 ### Toolsets
 
-| Runtime | Destination Path | Delivery |
-|:---|:---|:---|
-| VS Code (Stable) | `%APPDATA%/Code/User/prompts/*.toolsets.jsonc` | Direct file copy |
-| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.toolsets.jsonc` | Direct file copy |
-| copilot-cli | ❌ N/A | No `.toolsets.jsonc` discovery; CLI uses `tools:` frontmatter and `--tools` flags |
+| Runtime            | Destination Path                                          | Delivery                                                                          |
+| :----------------- | :-------------------------------------------------------- | :-------------------------------------------------------------------------------- |
+| VS Code (Stable)   | `%APPDATA%/Code/User/prompts/*.toolsets.jsonc`            | Direct file copy                                                                  |
+| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.toolsets.jsonc` | Direct file copy                                                                  |
+| copilot-cli        | ❌ N/A                                                     | No `.toolsets.jsonc` discovery; CLI uses `tools:` frontmatter and `--tools` flags |
 
 **Script:** `scripts/publish/publish-toolsets.ps1` — targets VS Code only. Toolsets have no file-format equivalent in copilot-cli. CLI tool filtering is achieved through agent frontmatter `tools:` array and CLI flags.
 
@@ -113,14 +113,14 @@ Each artifact type is assessed against three levels of cross-runtime compatibili
 
 ### Assessment Table
 
-| Artifact | File Format | Semantic | Behavioral | Verdict |
-|:---|:---:|:---:|:---:|:---|
-| **Skills** | ✅ | ✅ | ✅ | **Shareable** |
-| **Hooks** | ✅ | ✅ | ⚠️ | **Mostly Shareable** |
-| **Instructions** | ✅ | ⚠️ | ❌ | **Content Shareable / Delivery Not** |
-| **Agents** | ✅ | ⚠️ | ❌ | **Not Shareable** |
-| **Prompts** | ❌ | ❌ | ❌ | **VS Code Only** |
-| **Toolsets** | ❌ | ❌ | ❌ | **VS Code Only** |
+| Artifact         | File Format | Semantic | Behavioral | Verdict                              |
+| :--------------- | :---------: | :------: | :--------: | :----------------------------------- |
+| **Skills**       |      ✅      |    ✅     |     ✅      | **Shareable**                        |
+| **Hooks**        |      ✅      |    ✅     |     ⚠️      | **Mostly Shareable**                 |
+| **Instructions** |      ✅      |    ⚠️     |     ❌      | **Content Shareable / Delivery Not** |
+| **Agents**       |      ✅      |    ⚠️     |     ❌      | **Not Shareable**                    |
+| **Prompts**      |      ❌      |    ❌     |     ❌      | **VS Code Only**                     |
+| **Toolsets**     |      ❌      |    ❌     |     ❌      | **VS Code Only**                     |
 
 ### Per-Artifact Analysis
 
@@ -170,11 +170,11 @@ Each artifact type is assessed against three levels of cross-runtime compatibili
 
 Cells currently at ⚠️ Manual represent gaps where the runtime supports the artifact but the workspace has no automated publish flow. Prioritized by impact:
 
-| Priority | Artifact | Runtime | Current State | Gap Description | Recommended Action |
-|:---:|:---|:---|:---:|:---|:---|
-| **1 (Critical)** | Instructions | copilot-cli (Win) | ⚠️ | CLI supports instructions via `~/.copilot/copilot-instructions.md` or `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, but `publish-instructions.ps1` only targets VS Code paths | Redesign `publish-instructions.ps1` with `-Mode Concat` (default) and `-Mode EnvVar` options targeting `%USERPROFILE%/.copilot/copilot-instructions.md` |
-| **2 (High)** | Instructions | copilot-cli (WSL) | ⚠️ | Same as above, extended to WSL filesystem | Add WSL support to `publish-instructions.ps1` via shared `wsl-helpers.ps1` utility, targeting `~/.copilot/copilot-instructions.md` in WSL home |
-| **3 (Low)** | Hooks | copilot-cli (WSL) | ⚠️ | Hooks publish to `.github/hooks/` repo-scoped. If repo is Windows-only and user runs CLI in WSL with a separate repo clone, hooks must be in that clone | Minor: document that hooks are repo-scoped and travel with the repository. No additional publish target needed for most workflows |
+|     Priority     | Artifact     | Runtime           | Current State | Gap Description                                                                                                                                                     | Recommended Action                                                                                                                                      |
+| :--------------: | :----------- | :---------------- | :-----------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1 (Critical)** | Instructions | copilot-cli (Win) |       ⚠️       | CLI supports instructions via `~/.copilot/copilot-instructions.md` or `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, but `publish-instructions.ps1` only targets VS Code paths | Redesign `publish-instructions.ps1` with `-Mode Concat` (default) and `-Mode EnvVar` options targeting `%USERPROFILE%/.copilot/copilot-instructions.md` |
+|   **2 (High)**   | Instructions | copilot-cli (WSL) |       ⚠️       | Same as above, extended to WSL filesystem                                                                                                                           | Add WSL support to `publish-instructions.ps1` via shared `wsl-helpers.ps1` utility, targeting `~/.copilot/copilot-instructions.md` in WSL home          |
+|   **3 (Low)**    | Hooks        | copilot-cli (WSL) |       ⚠️       | Hooks publish to `.github/hooks/` repo-scoped. If repo is Windows-only and user runs CLI in WSL with a separate repo clone, hooks must be in that clone             | Minor: document that hooks are repo-scoped and travel with the repository. No additional publish target needed for most workflows                       |
 
 ### Non-Gaps (Clarification)
 

@@ -18,11 +18,11 @@ Only the `agents/` directory needs restructuring — all other artifact director
 
 Three naming conventions were evaluated:
 
-| Convention | Pros | Cons | Verdict |
-|:---|:---|:---|:---:|
-| **Suffix** (`ralph-v2.vscode.agent.md` / `ralph-v2.cli.agent.md`) | All agents visible in one listing | Both platforms use `*.agent.md` glob for discovery — **duplicate agent registration risk**. copilot-cli may interpret `ralph-v2.vscode` as the agent name | ❌ Risky |
-| **Subdirectory** (`agents/ralph-v2/`, `agents/cli/`) | Clean separation; publish scripts copy from correct subdirectory; no cross-contamination | Requires publish script to select source directory | ✅ Recommended |
-| **Conditional sections** (single file with platform markers) | Single source of truth | Neither runtime supports conditional logic in `.agent.md` — no `#ifdef` equivalent in Markdown | ❌ Not viable |
+| Convention                                                        | Pros                                                                                     | Cons                                                                                                                                                      |    Verdict    |
+| :---------------------------------------------------------------- | :--------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------: |
+| **Suffix** (`ralph-v2.vscode.agent.md` / `ralph-v2.cli.agent.md`) | All agents visible in one listing                                                        | Both platforms use `*.agent.md` glob for discovery — **duplicate agent registration risk**. copilot-cli may interpret `ralph-v2.vscode` as the agent name |    ❌ Risky    |
+| **Subdirectory** (`agents/ralph-v2/`, `agents/cli/`)              | Clean separation; publish scripts copy from correct subdirectory; no cross-contamination | Requires publish script to select source directory                                                                                                        | ✅ Recommended |
+| **Conditional sections** (single file with platform markers)      | Single source of truth                                                                   | Neither runtime supports conditional logic in `.agent.md` — no `#ifdef` equivalent in Markdown                                                            | ❌ Not viable  |
 
 The subdirectory convention is the safest approach because:
 - `publish-agents.ps1` already uses `Get-ChildItem -Recurse` for agent discovery, so subdirectory agents are found.
@@ -68,38 +68,38 @@ Per Q-FDB-008, three categories prevent a single `.agent.md` file from serving b
 
 Fields that are silently ignored on the non-target platform:
 
-| Field | VS Code | copilot-cli | Effect When Ignored |
-|:---|:---:|:---:|:---|
-| `agents:` | ✅ Required | ❌ Ignored | Subagent orchestration lost — CLI cannot delegate to child agents via this mechanism |
-| `argument-hint:` | ✅ Supported | ❌ Ignored | User guidance in agent picker lost (cosmetic) |
-| `user-invocable:` | ✅ Supported | ❌ Ignored | VS Code agent picker visibility lost (cosmetic) |
-| `model:` | ❌ Ignored | ✅ Supported | LLM model override not available in VS Code |
-| `infer:` | ❌ Ignored | ✅ Supported | TaskTool visibility control not available in VS Code |
-| `mcpServers:` | ❌ Ignored | ✅ Supported | Bundled MCP server configuration not available in VS Code |
-| `name:` | ✅ Shared | ✅ Shared | — |
-| `description:` | ✅ Shared | ✅ Shared | — |
-| `tools:` | ✅ Shared | ✅ Shared | Works on both, but tool names differ (see category 2) |
+| Field             |   VS Code   | copilot-cli | Effect When Ignored                                                                  |
+| :---------------- | :---------: | :---------: | :----------------------------------------------------------------------------------- |
+| `agents:`         | ✅ Required  |  ❌ Ignored  | Subagent orchestration lost — CLI cannot delegate to child agents via this mechanism |
+| `argument-hint:`  | ✅ Supported |  ❌ Ignored  | User guidance in agent picker lost (cosmetic)                                        |
+| `user-invocable:` | ✅ Supported |  ❌ Ignored  | VS Code agent picker visibility lost (cosmetic)                                      |
+| `model:`          |  ❌ Ignored  | ✅ Supported | LLM model override not available in VS Code                                          |
+| `infer:`          |  ❌ Ignored  | ✅ Supported | TaskTool visibility control not available in VS Code                                 |
+| `mcpServers:`     |  ❌ Ignored  | ✅ Supported | Bundled MCP server configuration not available in VS Code                            |
+| `name:`           |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
+| `description:`    |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
+| `tools:`          |  ✅ Shared   |  ✅ Shared   | Works on both, but tool names differ (see category 2)                                |
 
 ### 2. Tools Namespace Differences
 
 The `tools:` array uses different namespace references per platform. Unknown tools are **silently ignored** — no errors, but **no functionality** either.
 
-| VS Code Tool | CLI Equivalent | Notes |
-|:---|:---|:---|
-| `execute/runInTerminal` | `bash` | Primary command execution |
-| `read/readFile` | `view` | File reading |
-| `edit/editFiles` | `edit` | File editing |
-| `edit/createFile` | `create` | File creation |
-| `edit/createDirectory` | `bash` (via `mkdir`) | No dedicated tool in CLI |
-| `search` | Built-in (grep/glob) | Namespace differs |
-| `web` | No direct equivalent | CLI has no built-in web tool |
-| `agent` | `task` | Subagent invocation mechanism |
-| `vscode/memory` | No equivalent | Memory tool is VS Code-only |
-| `execute/testFailure` | No equivalent | — |
-| `execute/runTests` | No equivalent | — |
-| `read/problems` | No equivalent | — |
-| `read/terminalSelection` | No equivalent | — |
-| `read/terminalLastCommand` | No equivalent | — |
+| VS Code Tool                                        | CLI Equivalent                    | Notes                              |
+| :-------------------------------------------------- | :-------------------------------- | :--------------------------------- |
+| `execute/runInTerminal`                             | `bash`                            | Primary command execution          |
+| `read/readFile`                                     | `view`                            | File reading                       |
+| `edit/editFiles`                                    | `edit`                            | File editing                       |
+| `edit/createFile`                                   | `create`                          | File creation                      |
+| `edit/createDirectory`                              | `bash` (via `mkdir`)              | No dedicated tool in CLI           |
+| `search`                                            | Built-in (grep/glob)              | Namespace differs                  |
+| `web`                                               | No direct equivalent              | CLI has no built-in web tool       |
+| `agent`                                             | `task`                            | Subagent invocation mechanism      |
+| `vscode/memory`                                     | No equivalent                     | Memory tool is VS Code-only        |
+| `execute/testFailure`                               | No equivalent                     | —                                  |
+| `execute/runTests`                                  | No equivalent                     | —                                  |
+| `read/problems`                                     | No equivalent                     | —                                  |
+| `read/terminalSelection`                            | No equivalent                     | —                                  |
+| `read/terminalLastCommand`                          | No equivalent                     | —                                  |
 | MCP tools (`mcp_docker/*`, `microsoftdocs/*`, etc.) | MCP tools (via `mcp-config.json`) | Same tools, discovered differently |
 
 ### 3. Body-Level Instruction Differences
@@ -115,14 +115,14 @@ Subtle references in the Markdown body that create behavioral drift:
 
 The 6 ralph-v2 agents and their specific incompatibility categories:
 
-| Agent | Lines | Frontmatter Issues | Tools Issues | Body Issues | Variant Complexity |
-|:---|:---:|:---|:---|:---|:---:|
-| **Orchestrator** (`ralph-v2.agent.md`) | 774 | `agents:` (5 subagents), `argument-hint:`, `user-invocable:` | `agent`, `execute/*`, `read/*`, `edit/*`, `search`, `vscode/memory` | `@SubAgent` references, memory tool instructions | **High** — subagent orchestration is the breaking point |
-| **Executor** (`ralph-v2-executor.agent.md`) | 294 | `argument-hint:`, `user-invocable:` | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, `deepwiki/*`, `aspire/*`, MCP tools | Tool name references in workflow instructions | Medium |
-| **Planner** (`ralph-v2-planner.agent.md`) | 571 | `argument-hint:`, `user-invocable:` | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, MCP tools | Tool name references | Medium |
-| **Questioner** (`ralph-v2-questioner.agent.md`) | 372 | `argument-hint:`, `user-invocable:` | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `microsoftdocs/*`, `github/*`, MCP tools | Tool name references, GitHub MCP tool references | Medium |
-| **Reviewer** (`ralph-v2-reviewer.agent.md`) | 690 | `argument-hint:`, `user-invocable:` | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, `aspire/*`, MCP tools | Tool name references | Medium |
-| **Librarian** (`ralph-v2-librarian.agent.md`) | 578 | `argument-hint:`, `user-invocable:` | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, MCP tools | Tool name references, git-atomic-commit skill references | Medium |
+| Agent                                           | Lines | Frontmatter Issues                                           | Tools Issues                                                                                           | Body Issues                                              |                   Variant Complexity                    |
+| :---------------------------------------------- | :---: | :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- | :------------------------------------------------------- | :-----------------------------------------------------: |
+| **Orchestrator** (`ralph-v2.agent.md`)          |  774  | `agents:` (5 subagents), `argument-hint:`, `user-invocable:` | `agent`, `execute/*`, `read/*`, `edit/*`, `search`, `vscode/memory`                                    | `@SubAgent` references, memory tool instructions         | **High** — subagent orchestration is the breaking point |
+| **Executor** (`ralph-v2-executor.agent.md`)     |  294  | `argument-hint:`, `user-invocable:`                          | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, `deepwiki/*`, `aspire/*`, MCP tools | Tool name references in workflow instructions            |                         Medium                          |
+| **Planner** (`ralph-v2-planner.agent.md`)       |  571  | `argument-hint:`, `user-invocable:`                          | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, MCP tools                           | Tool name references                                     |                         Medium                          |
+| **Questioner** (`ralph-v2-questioner.agent.md`) |  372  | `argument-hint:`, `user-invocable:`                          | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `microsoftdocs/*`, `github/*`, MCP tools             | Tool name references, GitHub MCP tool references         |                         Medium                          |
+| **Reviewer** (`ralph-v2-reviewer.agent.md`)     |  690  | `argument-hint:`, `user-invocable:`                          | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, `aspire/*`, MCP tools               | Tool name references                                     |                         Medium                          |
+| **Librarian** (`ralph-v2-librarian.agent.md`)   |  578  | `argument-hint:`, `user-invocable:`                          | `execute/*`, `read/*`, `edit/*`, `search`, `web`, `vscode/memory`, MCP tools                           | Tool name references, git-atomic-commit skill references |                         Medium                          |
 
 **Key finding**: The Orchestrator has the **highest variant complexity** because it is the only agent using the `agents:` frontmatter key and `@SubAgent` delegation pattern — both of which have no shared syntax across platforms. All other agents have medium complexity (frontmatter cosmetic + tool namespace remapping + body text tool references).
 
@@ -132,40 +132,40 @@ The 6 ralph-v2 agents and their specific incompatibility categories:
 
 Each ralph-v2 agent's **platform-agnostic content** is extracted into a shared instruction file:
 
-| Content Type | Moves to Shared Instruction | Stays in Agent Variant |
-|:---|:---:|:---:|
-| Persona definition (role, responsibilities) | ✅ | — |
-| Rules and constraints | ✅ | — |
-| Workflow steps (abstract logic) | ✅ | — |
-| Artifact tables (file structures, report templates) | ✅ | — |
-| Signal protocol definitions | ✅ | — |
-| Contract (input/output schema) | ✅ | — |
-| Frontmatter (`name:`, `description:`, `tools:`) | — | ✅ |
-| Platform-specific fields (`agents:`, `infer:`, `mcpServers:`) | — | ✅ |
-| Tool-specific instructions ("use `execute/runInTerminal`") | — | ✅ (remapped per platform) |
+| Content Type                                                  | Moves to Shared Instruction |  Stays in Agent Variant   |
+| :------------------------------------------------------------ | :-------------------------: | :-----------------------: |
+| Persona definition (role, responsibilities)                   |              ✅              |             —             |
+| Rules and constraints                                         |              ✅              |             —             |
+| Workflow steps (abstract logic)                               |              ✅              |             —             |
+| Artifact tables (file structures, report templates)           |              ✅              |             —             |
+| Signal protocol definitions                                   |              ✅              |             —             |
+| Contract (input/output schema)                                |              ✅              |             —             |
+| Frontmatter (`name:`, `description:`, `tools:`)               |              —              |             ✅             |
+| Platform-specific fields (`agents:`, `infer:`, `mcpServers:`) |              —              |             ✅             |
+| Tool-specific instructions ("use `execute/runInTerminal`")    |              —              | ✅ (remapped per platform) |
 
 ### Proposed Shared Instruction Files
 
-| Shared Instruction | Source Agent | Estimated Lines |
-|:---|:---|:---:|
-| `instructions/ralph-v2-orchestrator.instructions.md` | Orchestrator | ~700 |
-| `instructions/ralph-v2-executor.instructions.md` | Executor | ~250 |
-| `instructions/ralph-v2-planner.instructions.md` | Planner | ~520 |
-| `instructions/ralph-v2-questioner.instructions.md` | Questioner | ~330 |
-| `instructions/ralph-v2-reviewer.instructions.md` | Reviewer | ~640 |
-| `instructions/ralph-v2-librarian.instructions.md` | Librarian | ~530 |
+| Shared Instruction                                   | Source Agent | Estimated Lines |
+| :--------------------------------------------------- | :----------- | :-------------: |
+| `instructions/ralph-v2-orchestrator.instructions.md` | Orchestrator |      ~700       |
+| `instructions/ralph-v2-executor.instructions.md`     | Executor     |      ~250       |
+| `instructions/ralph-v2-planner.instructions.md`      | Planner      |      ~520       |
+| `instructions/ralph-v2-questioner.instructions.md`   | Questioner   |      ~330       |
+| `instructions/ralph-v2-reviewer.instructions.md`     | Reviewer     |      ~640       |
+| `instructions/ralph-v2-librarian.instructions.md`    | Librarian    |      ~530       |
 
 ### Estimated Size Reduction
 
-| Agent | Current Size | Shared Instruction | VS Code Variant | CLI Variant |
-|:---|:---:|:---:|:---:|:---:|
-| Orchestrator | 774 lines | ~700 lines | ~50 lines | ~60 lines |
-| Executor | 294 lines | ~250 lines | ~30 lines | ~40 lines |
-| Planner | 571 lines | ~520 lines | ~40 lines | ~45 lines |
-| Questioner | 372 lines | ~330 lines | ~35 lines | ~40 lines |
-| Reviewer | 690 lines | ~640 lines | ~40 lines | ~45 lines |
-| Librarian | 578 lines | ~530 lines | ~40 lines | ~45 lines |
-| **Totals** | **3,279 lines** | **~2,970 lines** (shared) | **~235 lines** | **~275 lines** |
+| Agent        |  Current Size   |    Shared Instruction     | VS Code Variant |  CLI Variant   |
+| :----------- | :-------------: | :-----------------------: | :-------------: | :------------: |
+| Orchestrator |    774 lines    |        ~700 lines         |    ~50 lines    |   ~60 lines    |
+| Executor     |    294 lines    |        ~250 lines         |    ~30 lines    |   ~40 lines    |
+| Planner      |    571 lines    |        ~520 lines         |    ~40 lines    |   ~45 lines    |
+| Questioner   |    372 lines    |        ~330 lines         |    ~35 lines    |   ~40 lines    |
+| Reviewer     |    690 lines    |        ~640 lines         |    ~40 lines    |   ~45 lines    |
+| Librarian    |    578 lines    |        ~530 lines         |    ~40 lines    |   ~45 lines    |
+| **Totals**   | **3,279 lines** | **~2,970 lines** (shared) | **~235 lines**  | **~275 lines** |
 
 **Net effect**: 3,279 lines (6 files) → 2,970 + 235 + 275 = 3,480 lines (18 files). The ~6% increase in total line count is offset by:
 - **Single source of truth** for agent behavior — update once, both variants get it
@@ -197,11 +197,11 @@ publish-agents.ps1 -Platform cli        # Copies from agents/cli/ to CLI paths
 publish-agents.ps1                      # Default: publishes both
 ```
 
-| Parameter | Source Directory | Destinations |
-|:---|:---|:---|
+| Parameter          | Source Directory                                  | Destinations                                                              |
+| :----------------- | :------------------------------------------------ | :------------------------------------------------------------------------ |
 | `-Platform vscode` | `agents/ralph-v2/`, `agents/` (root-level agents) | `%APPDATA%/Code/User/prompts/`, `%APPDATA%/Code - Insiders/User/prompts/` |
-| `-Platform cli` | `agents/cli/` | `%USERPROFILE%/.copilot/agents/`, WSL `~/.copilot/agents/` |
-| (default) | All of the above | All of the above |
+| `-Platform cli`    | `agents/cli/`                                     | `%USERPROFILE%/.copilot/agents/`, WSL `~/.copilot/agents/`                |
+| (default)          | All of the above                                  | All of the above                                                          |
 
 **Non-ralph agents** at the `agents/` root (e.g., `generic-research.agent.md`, `planner.agent.md`) are published to **VS Code only** by default, since they do not have CLI variants. Future work may add CLI variants for individual non-ralph agents as needed.
 
@@ -229,12 +229,12 @@ Agent variants are **authored manually**, not auto-generated from a single sourc
 
 A `scripts/publish/validate-agent-variants.ps1` script can detect variant drift without enforcing auto-generation:
 
-| Check | Description |
-|:---|:---|
-| Shared instruction reference | Both VS Code and CLI variants for the same agent reference the same shared `.instructions.md` file |
-| Cross-platform field usage | VS Code variant doesn't depend on CLI-only fields (`infer:`, `mcpServers:`) for functionality |
-| Tool namespace compliance | CLI variant doesn't include VS Code-only tool namespaces (`execute/*`, `read/*`, `edit/*`) in its `tools:` array |
-| Completeness | Every agent in `agents/ralph-v2/` has a corresponding variant in `agents/cli/` (and vice versa) |
+| Check                        | Description                                                                                                      |
+| :--------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| Shared instruction reference | Both VS Code and CLI variants for the same agent reference the same shared `.instructions.md` file               |
+| Cross-platform field usage   | VS Code variant doesn't depend on CLI-only fields (`infer:`, `mcpServers:`) for functionality                    |
+| Tool namespace compliance    | CLI variant doesn't include VS Code-only tool namespaces (`execute/*`, `read/*`, `edit/*`) in its `tools:` array |
+| Completeness                 | Every agent in `agents/ralph-v2/` has a corresponding variant in `agents/cli/` (and vice versa)                  |
 
 This validation is **advisory** — it warns about drift but does not block publishing. Implementation of this script is deferred along with the variant files themselves.
 
@@ -262,26 +262,26 @@ When adding a third runtime variant:
 
 ## Scope and Deferral
 
-| Item | Status | Notes |
-|:---|:---:|:---|
-| Directory structure convention | ✅ Decided | Subdirectory (`agents/ralph-v2/`, `agents/cli/`) |
-| Shared instructions extraction strategy | ✅ Decided | Platform-agnostic content → `instructions/ralph-v2-*.instructions.md` |
-| Per-agent incompatibility analysis | ✅ Documented | 6 agents analyzed across 3 categories |
-| Publish flow adjustments design | ✅ Designed | `-Platform vscode\|cli` parameter |
-| Authoring model | ✅ Decided | Manual with optional validation |
-| **Creation of 6 CLI agent variant files** | ⏳ Deferred | **Iteration 3** |
-| **Extraction of 6 shared instruction files** | ⏳ Deferred | **Iteration 3** |
-| **Implementation of `-Platform` parameter** | ⏳ Deferred | **Iteration 3** |
-| **Validation script implementation** | ⏳ Deferred | **Iteration 3** |
+| Item                                         |    Status    | Notes                                                                 |
+| :------------------------------------------- | :----------: | :-------------------------------------------------------------------- |
+| Directory structure convention               |  ✅ Decided   | Subdirectory (`agents/ralph-v2/`, `agents/cli/`)                      |
+| Shared instructions extraction strategy      |  ✅ Decided   | Platform-agnostic content → `instructions/ralph-v2-*.instructions.md` |
+| Per-agent incompatibility analysis           | ✅ Documented | 6 agents analyzed across 3 categories                                 |
+| Publish flow adjustments design              |  ✅ Designed  | `-Platform vscode\|cli` parameter                                     |
+| Authoring model                              |  ✅ Decided   | Manual with optional validation                                       |
+| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 3**                                                       |
+| **Extraction of 6 shared instruction files** |  ⏳ Deferred  | **Iteration 3**                                                       |
+| **Implementation of `-Platform` parameter**  |  ⏳ Deferred  | **Iteration 3**                                                       |
+| **Validation script implementation**         |  ⏳ Deferred  | **Iteration 3**                                                       |
 
 ## Grounding
 
-| Decision | Source |
-|:---------|:-------|
-| Three categories of incompatibility | Q-FDB-008 |
-| Subdirectory convention over suffix | Q-FDB-009 |
-| Shared instructions extraction (~50-line variants) | Q-FDB-010 |
-| Manual authoring with optional validation | Q-FDB-011 |
-| Only `agents/` needs restructuring | Q-FDB-012 |
-| Design for 2 runtimes, extensible for 3rd | Q-FDB-014 |
-| Agents require per-runtime variants | ISS-003, runtime-support-framework.md Shareability Assessment |
+| Decision                                           | Source                                                        |
+| :------------------------------------------------- | :------------------------------------------------------------ |
+| Three categories of incompatibility                | Q-FDB-008                                                     |
+| Subdirectory convention over suffix                | Q-FDB-009                                                     |
+| Shared instructions extraction (~50-line variants) | Q-FDB-010                                                     |
+| Manual authoring with optional validation          | Q-FDB-011                                                     |
+| Only `agents/` needs restructuring                 | Q-FDB-012                                                     |
+| Design for 2 runtimes, extensible for 3rd          | Q-FDB-014                                                     |
+| Agents require per-runtime variants                | ISS-003, runtime-support-framework.md Shareability Assessment |

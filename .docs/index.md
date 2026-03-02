@@ -14,13 +14,17 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to Configure VS Code to Auto-Approve Terminal Commands with Dynamic Arguments](how-to/copilot/how-to-configure-vscode-terminal-autoapprove.md)
 - [How to use Copilot FC commands](how-to/copilot/how-to-use-copilot-fc-commands.md)
 - [How to Publish Customizations for Copilot CLI](how-to/copilot/how-to-publish-customizations-for-copilot-cli.md)
+- [How to Add Multi-Runtime Support to a Publish Script](how-to/copilot/how-to-add-multi-runtime-support-to-publish-scripts.md)
 
 ### Ralph
 
 - [Docs To Specs Migration](how-to/ralph/docs-to-specs-migration.md)
 - [How to extract iteration knowledge with Diátaxis](how-to/ralph/how-to-extract-iteration-knowledge-with-diataxis.md)
+- [How to Integrate Sub-Category Resolution into Knowledge Promotion](how-to/ralph/integrate-categorizer-into-promotion.md)
+- [How to Ensure Promoted Knowledge Is Self-Contained](how-to/ralph/self-contained-knowledge-promotion.md)
 - [V2.10.0 Migration Patterns](how-to/ralph/v2.10.0-migration-patterns.md)
 - [Verify Rename Cascade](how-to/ralph/verify-rename-cascade.md)
+- [How to Reorganize a Diátaxis Wiki into Domain-Based Sub-Categories](how-to/ralph/wiki-domain-reorganization.md)
 
 ## Reference
 
@@ -35,14 +39,17 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Copilot FC Workspace Command Reference](reference/copilot/copilot-fc-reference.md)
 - [GitHub Copilot Prompt Files (.prompt.md) Reference](reference/copilot/copilot-prompt-files.md)
 - [Copilot CLI Customization Support Matrix](reference/copilot/copilot-cli-customization-matrix.md)
+- [wsl-helpers.ps1 API Reference](reference/copilot/wsl-helpers-api-reference.md)
 
 ### Ralph
 
+- [Diátaxis Sub-Category Heuristic (Three-Rule Classification)](reference/ralph/diataxis-subcategory-heuristic.md)
 - [Ralph Session Artifact Templates](reference/ralph/ralph-artifact-templates.md)
 - [Ralph Subagent Contracts](reference/ralph/ralph-subagent-contracts.md)
 - [Rename Blast Radius](reference/ralph/rename-blast-radius.md)
 - [Self Critique Checklist](reference/ralph/self-critique-checklist.md)
 - [Specs Frontmatter Convention](reference/ralph/specs-frontmatter-convention.md)
+- [Targeted INFO Signal Convention](reference/ralph/targeted-info-signal-convention.md)
 - [V2.10.0 Contract Changes](reference/ralph/v2.10.0-contract-changes.md)
 
 ## Explanation
@@ -64,10 +71,12 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Understanding Copilot VS Code Custom Instructions Injection](explanation/copilot/copilot-vscode-instructions-injection.md)
 - [Copilot CLI vs VS Code Customization: Architectural Differences](explanation/copilot/copilot-cli-vs-vscode-customization.md)
 - [Ralph-v2 Tool Compatibility in Copilot CLI](explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md)
+- [Framework-First Approach to Multi-Runtime Infrastructure](explanation/copilot/framework-first-multi-runtime-planning.md)
 
 ### Ralph
 
 - [Curate Rename Rationale](explanation/ralph/curate-rename-rationale.md)
 - [Ralph v1 Orchestrator State Machine](explanation/ralph/ralph-v1-state-machine.md)
+- [Why the Self-Critique Checklist Was Extended from 9 to 11 Dimensions](explanation/ralph/self-critique-extension-rationale.md)
 - [V2.10.0 Design Rationale](explanation/ralph/v2.10.0-design-rationale.md)
 
