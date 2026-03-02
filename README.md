@@ -159,6 +159,23 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 - Toolset naming: `toolsets/<name>.toolsets.jsonc`
 - Use forward slashes in markdown links.
 
+## OpenSpec Specifications
+
+Behavioral specifications for the Ralph v2 multi-agent system live under `openspec/specs/`. Each domain has its own `spec.md` following the OpenSpec SDD convention.
+
+| Domain | Path | Description |
+|--------|------|-------------|
+| Session | `openspec/specs/session/spec.md` | Abstract vocabulary, session/iteration model, artifact ownership, progress tracking |
+| Signals | `openspec/specs/signals/spec.md` | Live intervention protocol — 4 signal types, acknowledgment, polling |
+| Orchestration | `openspec/specs/orchestration/spec.md` | 10-state machine, transitions, routing, messenger protocol |
+| Planning | `openspec/specs/planning/spec.md` | 9-mode task management, breakdown algorithm, grounding |
+| Discovery | `openspec/specs/discovery/spec.md` | 3-mode Q&A discovery, research protocol |
+| Execution | `openspec/specs/execution/spec.md` | Single-task execution model, rework, dependency inheritance |
+| Review | `openspec/specs/review/spec.md` | 4-mode quality assurance, version control commit |
+| Knowledge | `openspec/specs/knowledge/spec.md` | 4-stage Diátaxis knowledge pipeline |
+
+> **Deprecated specs**: The 3 ad-hoc specs under `agents/ralph-v2/specs/` (`normalization.spec.md`, `live-signals.spec.md`, `ralph-v2-stop-hook-metadata-finalization.spec.md`) are deprecated. Each contains a `superseded_by:` pointer to its OpenSpec replacement.
+
 ## Related References
 
 - Workspace authoring rules: `.github/copilot-instructions.md`
@@ -166,6 +183,7 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 - Skills-specific guidance: `skills/README.md`
 - Toolset registry: `toolsets/index.md`
 - Ralph v2 system docs: `agents/ralph-v2/README.md`
+- OpenSpec configuration: `openspec/config.yaml`
 
 ## Troubleshooting
 
