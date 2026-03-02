@@ -18,6 +18,10 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to Extract Shared Instructions from Agent Files](how-to/copilot/how-to-extract-shared-instructions-from-agents.md)
 - [How to Create CLI Agent Variants from VS Code Agents](how-to/copilot/how-to-create-cli-agent-variants.md)
 
+### OpenSpec
+
+- [How to Validate OpenSpec Specs](how-to/openspec/how-to-validate-openspec-specs.md)
+
 ### Ralph
 
 - [Docs To Specs Migration](how-to/ralph/docs-to-specs-migration.md)
@@ -46,6 +50,11 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Platform-Aware publish-agents.ps1 Design Reference](reference/copilot/platform-aware-publish-agents-design.md)
 - [Copilot CLI Custom Agent Frontmatter Schema Reference](reference/copilot/copilot-cli-agent-frontmatter-schema.md)
 
+### OpenSpec
+
+- [OpenSpec Ralph-v2 Domain Map](reference/openspec/openspec-ralph-v2-domain-map.md)
+- [OpenSpec Workspace Scoping Convention](reference/openspec/openspec-workspace-scoping-convention.md)
+
 ### Ralph
 
 - [Diátaxis Sub-Category Heuristic (Three-Rule Classification)](reference/ralph/diataxis-subcategory-heuristic.md)
@@ -65,6 +74,10 @@ This index links Diátaxis-organized documentation for the workspace.
 - [**Architecting the Agentic Interface: A Comprehensive Research Report on UX/UI Patterns, Generative Protocols, and Dual-Pane Frameworks for Autonomous Systems**](explanation/blazor-agui/agentic-ux-spec-research.md)
 - [Unified Architectural Specification for Agentic User Experiences: Blazor, AG-UI, and the Nebula Design System](explanation/blazor-agui/agentic-ux-unified-spec-blazor-agui.md)
 - [**Implementing Agentic UX/UI Patterns with “Blazor Blueprint UI Library”: A Comprehensive Architectural Blueprint**](explanation/blazor-agui/agentic-uxui-blazor-blueprint.md)
+
+### OpenSpec
+
+- [Runtime-Agnostic Spec Abstraction](explanation/openspec/runtime-agnostic-spec-abstraction.md)
 
 ### Copilot
 
