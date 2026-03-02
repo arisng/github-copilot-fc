@@ -1,6 +1,7 @@
 ---
 name: Ralph-v2-Planner
 description: Planning agent v2 with isolated task files, iteration-scoped artifacts, and REPLANNING mode for feedback-driven iteration support
+infer: true
 tools:
   - bash
   - view

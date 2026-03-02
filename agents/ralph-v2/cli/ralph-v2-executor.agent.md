@@ -1,6 +1,7 @@
 ---
 name: Ralph-v2-Executor
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
+infer: true
 tools:
   - bash
   - view

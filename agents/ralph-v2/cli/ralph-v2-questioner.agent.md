@@ -1,6 +1,7 @@
 ---
 name: Ralph-v2-Questioner
 description: Q&A discovery agent v2 with feedback-analysis mode for replanning and structured question files per category
+infer: true
 tools:
   - bash
   - view

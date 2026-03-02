@@ -1,7 +1,7 @@
 ---
 name: Ralph-v2-Orchestrator
 description: Orchestration agent v2 with structured feedback loops, isolated task files, and REPLANNING state for iteration support
-disable-model-invocation: true
+infer: false
 tools:
   - bash
   - view
