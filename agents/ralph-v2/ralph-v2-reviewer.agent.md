@@ -5,9 +5,9 @@ argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW
 user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.12.0
+  version: 2.13.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-03-02T11:23:30+07:00
+  updated_at: 2026-03-02T12:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -436,7 +436,7 @@ Create `iterations/<N>/review.md` using the structured template below. Every sec
 iteration: <N>
 review_date: <ISO8601 timestamp>
 reviewer: Ralph-v2-Reviewer
-overall_verdict: Complete | Needs Feedback
+overall_verdict: Complete | Needs Rework | Needs Feedback
 session_id: <SESSION_ID>
 ---
 
@@ -541,9 +541,34 @@ Actionable items for the next iteration or session closure:
 ```
 
 **Action 2: Update Iteration Metadata**
-If assessment is "Complete" or "Gaps Identified" (iteration finished):
-Update `iterations/<N>/metadata.yaml`:
-- Set `completed_at: <timestamp>`
+Do NOT set `completed_at` here. The Orchestrator defers `iterations/<N>/metadata.yaml` `completed_at` to the moment SESSION_REVIEW passes with `active_issue_count == 0` after applying the configured `issue_severity_threshold`.
+
+> **Note:** `completed_at` being absent while state is SESSION_CRITIQUE_REPLAN or BATCHING (critique loop) is expected and correct.
+
+### 5. Report to Orchestrator
+
+After generating the session review document, return this structured JSON to the Orchestrator:
+
+```json
+{
+  "mode": "SESSION_REVIEW",
+  "session_review_cycle": "<C>",
+  "assessment": "Complete | Needs Rework",
+  "issues_found": {
+    "critical_count": "<N>",
+    "major_count": "<N>",
+    "minor_count": "<N>",
+    "total_count": "<N>"
+  },
+  "review_document": "iterations/<N>/review.md"
+}
+```
+
+**`assessment` derivation rules:**
+- `"Complete"` — `Issues Found` section has only `"None"` entries across Critical, Major, and Minor.
+- `"Needs Rework"` — at least one issue exists in any severity category of `Issues Found`.
+
+> `session_review_cycle` echoes the `SESSION_REVIEW_CYCLE` value passed by the Orchestrator (or `0` if not provided). The Orchestrator uses `issues_found` counts combined with the session-configured `issue_severity_threshold` to determine whether to loop via SESSION_CRITIQUE_REPLAN or advance to KNOWLEDGE_EXTRACTION. **Never encode routing decisions inside `review.md`** — this report is the SSOT for that decision.
 
 ## Workflow: COMMIT
 

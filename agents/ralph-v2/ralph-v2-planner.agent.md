@@ -1,13 +1,13 @@
 ---
 name: Ralph-v2-Planner
 description: Planning agent v2 with isolated task files, iteration-scoped artifacts, and REPLANNING mode for feedback-driven iteration support
-argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE), and ITERATION for planning
+argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), and ITERATION for planning
 user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'vscode/memory']
 metadata:
-  version: 2.12.0
+  version: 2.13.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-03-02T11:23:30+07:00
+  updated_at: 2026-03-02T12:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -213,6 +213,79 @@ tasks_defined: 0
 > | **Output** | Updated existing task files + optional new tasks | New task files; original marked `[C]` |
 > | **Invocation** | Orchestrator REPLANNING state | Orchestrator timeout recovery policy exclusively |
 
+### Mode: CRITIQUE_TRIAGE
+**Scope**: Analyze SESSION_REVIEW issues and plan gap-filling task structure for the self-critique loop.
+**Triggered by:** SESSION_CRITIQUE_REPLAN state.
+
+**Inputs:**
+- `ITERATION`: current iteration number
+- `REVIEW_PATH`: `iterations/<N>/review.md`
+- `SESSION_REVIEW_CYCLE`: C (integer, 1-based)
+
+**Process:**
+1. Read `REVIEW_PATH` — extract all issues from `## Issues Found` (Critical, Major, Minor)
+2. Group issues by theme/component to identify logical fix batches
+3. Decide brainstorm/research necessity:
+   - `brainstorm_needed = true`: issues span multiple domains or require architectural decisions not grounded in existing Q&A
+   - `research_needed = true`: issues require external knowledge or verification beyond existing workspace artifacts
+   - Otherwise: set both to `false` (well-scoped targeted fixes)
+4. Append `## Critique Planning Progress (Iteration <N>, Cycle <C>)` to `iterations/<N>/progress.md`:
+   ```markdown
+   ## Critique Planning Progress (Iteration <N>, Cycle <C>)
+   - [x] plan-critique-triage (completed: <timestamp>)
+   - [ ] plan-critique-brainstorm  ← only if brainstorm_needed
+   - [ ] plan-critique-research    ← only if research_needed
+   - [ ] plan-critique-breakdown
+   ```
+5. Return structured response
+
+**Return:**
+```json
+{
+  "status": "completed",
+  "mode": "CRITIQUE_TRIAGE",
+  "iteration": "<N>",
+  "session_review_cycle": "<C>",
+  "brainstorm_needed": "true | false",
+  "research_needed": "true | false",
+  "issue_groups": ["description of group 1", "..."],
+  "files_updated": ["iterations/<N>/progress.md"]
+}
+```
+
+### Mode: CRITIQUE_BREAKDOWN
+**Scope**: Create gap-filling task files from SESSION_REVIEW issues for the self-critique loop.
+**Triggered by:** SESSION_CRITIQUE_REPLAN state (after CRITIQUE_TRIAGE, and optional brainstorm/research).
+
+**Inputs:**
+- `ITERATION`: current iteration number
+- `REVIEW_PATH`: `iterations/<N>/review.md`
+- `SESSION_REVIEW_CYCLE`: C (integer, 1-based)
+
+**Process:**
+1. Read `REVIEW_PATH` — re-parse all issues from `## Issues Found`
+2. If `iterations/<N>/questions/critique-<C>.md` exists, read it for additional context and grounding
+3. Group issues into logical fix tasks (typically 1–4 tasks per cycle)
+4. For each task group:
+   a. Create `iterations/<N>/tasks/task-critique-<C>-<seq>.md` using the standard task file template
+   b. **Grounding rule for critique tasks**: minimum 1 review issue reference (e.g., `ISS-C-001`, `ISS-M-001`, `ISS-m-001` from `review.md`) + 1 additional reference (Q-ID from `critique-<C>.md` if available; otherwise a second issue ref)
+   c. **`id` field format**: `task-critique-<C>-<seq>` (e.g., `task-critique-1-1`)
+   d. Set task `type`: `Sequential` if ordering matters; `Parallelizable` otherwise
+5. Append new tasks to `iterations/<N>/progress.md` under `## Implementation Progress (Iteration N)` as `[ ]`
+6. Mark `plan-critique-breakdown [x]` in `## Critique Planning Progress (Iteration N, Cycle C)` section
+
+**Return:**
+```json
+{
+  "status": "completed",
+  "mode": "CRITIQUE_BREAKDOWN",
+  "iteration": "<N>",
+  "session_review_cycle": "<C>",
+  "tasks_created": ["task-critique-<C>-1", "..."],
+  "files_updated": ["iterations/<N>/progress.md", "iterations/<N>/tasks/task-critique-<C>-*.md"]
+}
+```
+
 ## Workflow
 
 ### 0. Skills Directory Resolution
@@ -284,6 +357,18 @@ applyTo: ".ralph-sessions/<SESSION_ID>/**"
 
 ## Timeouts
 - task_wip_minutes: 120
+
+## Session Review
+# Controls the self-critique loop in SESSION_REVIEW state.
+# issue_severity_threshold: "any" | "major" | "critical"
+#   "any"      → loop triggers when any issue (Critical + Major + Minor) exists
+#   "major"    → loop triggers only on Critical and Major issues
+#   "critical" → loop triggers only on Critical issues
+- issue_severity_threshold: "any"
+# max_critique_cycles: <integer> | null
+#   null       → unlimited loops (until no active issues remain)
+#   <integer>  → cap at N cycles; advances to KNOWLEDGE_EXTRACTION after cap
+- max_critique_cycles: null
 
 ## Target Files
 [Explicitly specifying paths of target files and session artifacts in bullet points. Subagents will might reference these files during task execution (selectively choose among these files, not required to read all).]
@@ -388,6 +473,10 @@ tasks:
   completed: 0
   failed: 0
   pending: 0
+session_review:
+  cycle: 0
+  issue_severity_threshold: "any"
+  max_critique_cycles: null
 ```
 
 # Step 5: Mark plan-init complete

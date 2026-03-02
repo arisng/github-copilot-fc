@@ -5,9 +5,9 @@ argument-hint: Specify the Ralph session path, MODE (brainstorm, research, feedb
 user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'vscode/memory']
 metadata:
-  version: 2.12.0
+  version: 2.13.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-03-02T11:23:30+07:00
+  updated_at: 2026-03-02T12:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -41,6 +41,7 @@ You are a specialized Q&A discovery agent v2. Your role is:
 | `iterations/<N>/questions/assumptions.md` | Assumptions questions | brainstorm mode |
 | `iterations/<N>/questions/risks.md` | Risks questions | brainstorm mode |
 | `iterations/<N>/questions/feedback-driven.md` | Feedback analysis questions | feedback-analysis mode |
+| `iterations/<N>/questions/critique-<C>.md` | Self-critique gap questions (cycle C) | brainstorm mode (SOURCE: critique) |
 
 ### Question File Structure
 
@@ -199,13 +200,25 @@ If CYCLE > planning.max_cycles:
   - Mark plan-brainstorm as [x] in iterations/<ITERATION>/progress.md
   - Return status completed
 
-# Step 1: Analyze iterations/<ITERATION>/plan.md
-Identify knowledge gaps in category:
-- Technical: Architecture, tools, dependencies, APIs
-- Requirements: User needs, acceptance criteria, scope
-- Constraints: Time, resources, technical limits
-- Assumptions: Unstated beliefs, dependencies
-- Risks: Failure modes, edge cases, dependencies
+# --- SOURCE: critique (self-critique loop) ---
+# When SOURCE == "critique" is provided by the Orchestrator, seed questions from
+# the SESSION_REVIEW issues rather than from plan.md.
+# All other brainstorm steps apply normally EXCEPT Step 1 (replaced below).
+
+# Step 1: Analyze source
+IF SOURCE == "critique":
+  Read REVIEW_PATH (iterations/<ITERATION>/review.md)
+  Extract all issues from ## Issues Found (Critical, Major, Minor)
+  Use issue descriptions as the knowledge-gap seed for question generation
+  TARGET CATEGORY: critique (produces iterations/<ITERATION>/questions/critique-<C>.md)
+ELSE:
+  Analyze iterations/<ITERATION>/plan.md
+  Identify knowledge gaps in category:
+  - Technical: Architecture, tools, dependencies, APIs
+  - Requirements: User needs, acceptance criteria, scope
+  - Constraints: Time, resources, technical limits
+  - Assumptions: Unstated beliefs, dependencies
+  - Risks: Failure modes, edge cases, dependencies
 
 # Step 1.5: Check Live Signals
 Poll signals/inputs/
@@ -226,6 +239,12 @@ cycle: <C>
 created_at: <timestamp>
 updated_at: <timestamp>
 ---
+
+> **When SOURCE == "critique":**
+> Write to `iterations/<ITERATION>/questions/critique-<C>.md` instead.
+> Use `category: critique` and `cycle: <C>` in the frontmatter.
+> Question IDs use prefix `Q-CRT-` (e.g., `Q-CRT-001`).
+> Reference the source issue ID in each question (e.g., `Source Issue: ISS-m-001`).
 
 # Questions: <Category> (Iteration <N>, Cycle <C>)
 
@@ -255,7 +274,9 @@ If CYCLE > planning.max_cycles:
   - Return status completed
 
 # Step 1: Read questions file
-Load iterations/<ITERATION>/questions/<category>.md
+# When QUESTION_CATEGORY == "critique-<C>" → load iterations/<ITERATION>/questions/critique-<C>.md
+# Otherwise → load iterations/<ITERATION>/questions/<category>.md
+Load the appropriate questions file based on QUESTION_CATEGORY.
 
 # Step 2: Research each unanswered question
 For each question with Status: Unanswered:
@@ -367,6 +388,8 @@ After completing work:
   - plan-research: [x] (if applicable)
   - plan-rebrainstorm: [x] (if feedback-analysis mode)
   - plan-reresearch: [x] (if research on feedback-driven questions)
+  - plan-critique-brainstorm: [x] (if brainstorm with SOURCE: critique)
+  - plan-critique-research: [x] (if research with QUESTION_CATEGORY: critique-<C>)
 
 ### 4. Return Summary
 
@@ -376,7 +399,7 @@ After completing work:
   "mode": "brainstorm | research | feedback-analysis",
   "iteration": "number",
   "cycle": "number",
-  "category": "technical | requirements | constraints | assumptions | risks | feedback-driven",
+  "category": "technical | requirements | constraints | assumptions | risks | feedback-driven | critique",
   "questions_generated": "number",
   "questions_answered": "number (research mode)",
   "priority_breakdown": {

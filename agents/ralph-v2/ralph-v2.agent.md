@@ -6,9 +6,9 @@ user-invocable: true
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'vscode/memory']
 agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
 metadata:
-  version: 2.12.0
+  version: 2.13.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-03-01T11:48:00+07:00
+  updated_at: 2026-03-02T12:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -124,6 +124,29 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 └──────┬──────┘
        │ Invoke Ralph-v2-Reviewer (MODE: SESSION_REVIEW)
        │ → Generates iterations/<N>/review.md
+       │ → Returns issues_found counts
+       │
+       ├─── active_issue_count > 0 AND cycle < max_critique_cycles ──────────────┐
+       │                                                                          ▼
+       │                                                              ┌──────────────────────┐
+       │                                                              │ SESSION_CRITIQUE_     │
+       │                                                              │   REPLAN              │
+       │                                                              └──────────┬───────────┘
+       │                                                                         │ plan-critique-triage  → Ralph-v2-Planner (CRITIQUE_TRIAGE)
+       │                                                                         │ plan-critique-brainstorm (opt) → Questioner (brainstorm, SOURCE: critique)
+       │                                                                         │ plan-critique-research (opt)   → Questioner (research, critique-<C>)
+       │                                                                         │ plan-critique-breakdown → Ralph-v2-Planner (CRITIQUE_BREAKDOWN)
+       │                                                                         │ All critique tasks [x]
+       │                                                                         ▼
+       │                                                              ┌──────────────────────┐
+       │                                                              │      BATCHING         │
+       │                                                              └──────────┬───────────┘
+       │                                                                         │
+       │         ┌─────────────────────────────────────────────────────────────┘
+       │         │ (loop back to SESSION_REVIEW for next critique cycle)
+       │
+       ├─── active_issue_count == 0  OR  cycle >= max_critique_cycles
+       │
        ▼
 ┌─────────────┐
 │ KNOWLEDGE_  │ ─── Extract, stage, and promote knowledge (conditional)
@@ -174,6 +197,9 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - `version`, `session_id`, `created_at`, `updated_at`, `iteration`
 - `orchestrator.state`, `orchestrator.previous_state` (optional, set when transitioning to REPLANNING)
 - `tasks.total`, `tasks.completed`, `tasks.failed`, `tasks.pending`
+- `session_review.cycle` (int, default `0`) — incremented each time SESSION_CRITIQUE_REPLAN is entered; reset to `0` at new iteration start
+- `session_review.issue_severity_threshold` (string, default `"any"`) — loaded once from `<SESSION_ID>.instructions.md`; controls which issue severities trigger the self-critique loop (`"any"` | `"major"` | `"critical"`)
+- `session_review.max_critique_cycles` (int or null, default `null`) — loaded once from `<SESSION_ID>.instructions.md`; `null` = unlimited; set to a positive integer to cap loop cycles
 
 **Valid Planning Task Names:**
 
@@ -189,6 +215,12 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - `plan-update`
 - `plan-rebreakdown`
 
+*Critique tasks (within iteration N, per cycle C):*
+- `plan-critique-triage`
+- `plan-critique-brainstorm` (optional — only present if CRITIQUE_TRIAGE sets `brainstorm_needed: true`)
+- `plan-critique-research` (optional — only present if CRITIQUE_TRIAGE sets `research_needed: true`)
+- `plan-critique-breakdown`
+
 *Knowledge tasks (any iteration):*
 - `plan-knowledge-extraction`
 - `plan-knowledge-staging`
@@ -198,6 +230,12 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - `plan-knowledge-extraction`: `[ ]` | `[x]` | `[C]`
 - `plan-knowledge-staging`: `[ ]` | `[x]` | `[C]`
 - `plan-knowledge-promotion`: `[ ]` | `[x]` | `[C]`
+
+**Critique Planning Progress (Iteration N, Cycle C):** *(optional section; appended to `iterations/<N>/progress.md` by Planner on first entry into SESSION_CRITIQUE_REPLAN)*
+- `plan-critique-triage`: `[ ]` | `[x]`
+- `plan-critique-brainstorm`: `[ ]` | `[x]` (optional)
+- `plan-critique-research`: `[ ]` | `[x]` (optional)
+- `plan-critique-breakdown`: `[ ]` | `[x]`
 
 ### Timeout Recovery Policy
 
@@ -262,6 +300,8 @@ ELSE:
         - planning.max_cycles (default 5)
         - retries.max_subagent_retries (default 3)
         - timeouts.task_wip_minutes (default 120)
+        - session_review.issue_severity_threshold (default "any")
+        - session_review.max_critique_cycles (default null)
     READ metadata.yaml
     IF metadata.yaml exists:
         STATE = metadata.yaml.orchestrator.state
@@ -641,10 +681,23 @@ STATE = BATCHING
 ### 8. State: SESSION_REVIEW
 
 ```
+# Check Live Signals
+RUN Poll-Signals
+    IF ABORT: EXIT
+    IF PAUSE: WAIT
+    IF INFO: Inject message into review context for consideration
+    IF STEER:
+        LOG "Steering signal received: <message>"
+        PASS signal message to Reviewer context in next invocation
+
+# Read current critique cycle counter (persisted across loops)
+C = metadata.yaml.session_review.cycle (default 0)
+
 INVOKE Ralph-v2-Reviewer
     MODE: SESSION_REVIEW
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     ITERATION: <current iteration>
+    SESSION_REVIEW_CYCLE: C
     ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
 
 ON completion:
@@ -653,23 +706,147 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# Update session status based on review outcome (Assessment -> Status)
-IF Reviewer output "assessment" == "Complete":
-    NEW_STATUS = "completed"
+# --- Self-Critique Loop Decision ---
+# Apply issue_severity_threshold to determine active issue count
+ISSUE_SEVERITY_THRESHOLD = session_review.issue_severity_threshold (loaded in Session Resolution; default "any")
+
+IF ISSUE_SEVERITY_THRESHOLD == "any":
+    ACTIVE_ISSUE_COUNT = Reviewer output "issues_found.total_count"
+ELSE IF ISSUE_SEVERITY_THRESHOLD == "major":
+    ACTIVE_ISSUE_COUNT = issues_found.critical_count + issues_found.major_count
+ELSE IF ISSUE_SEVERITY_THRESHOLD == "critical":
+    ACTIVE_ISSUE_COUNT = issues_found.critical_count
+
+IF ACTIVE_ISSUE_COUNT == 0:
+    # No active issues — finalize iteration timing and advance to KNOWLEDGE_EXTRACTION
+    UPDATE iterations/<ITERATION>/metadata.yaml: completed_at: <timestamp>
+    INVOKE Ralph-v2-Planner
+        MODE: UPDATE_METADATA
+        SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+        STATUS: "completed"
+    ON timeout or error:
+        APPLY Timeout Recovery Policy
+    UPDATE metadata.yaml:
+        - state: KNOWLEDGE_EXTRACTION
+        - session_review.cycle: 0  # reset for any future iteration
+    STATE = KNOWLEDGE_EXTRACTION
+
 ELSE:
-    NEW_STATUS = "awaiting_feedback"
+    # Active issues exist — check loop cap before re-entering critique
+    MAX_CRITIQUE_CYCLES = session_review.max_critique_cycles (loaded in Session Resolution; null = unlimited)
 
-UPDATE `metadata.yaml` with `state: KNOWLEDGE_EXTRACTION`
+    IF MAX_CRITIQUE_CYCLES is not null AND C >= MAX_CRITIQUE_CYCLES:
+        LOG WARNING "SESSION_REVIEW self-critique cap hit (cycle=<C>, max=<MAX_CRITIQUE_CYCLES>). Advancing to KNOWLEDGE_EXTRACTION with <ACTIVE_ISSUE_COUNT> active issue(s) unresolved."
+        UPDATE iterations/<ITERATION>/metadata.yaml: completed_at: <timestamp>
+        INVOKE Ralph-v2-Planner
+            MODE: UPDATE_METADATA
+            SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+            STATUS: "awaiting_feedback"
+        ON timeout or error:
+            APPLY Timeout Recovery Policy
+        UPDATE metadata.yaml:
+            - state: KNOWLEDGE_EXTRACTION
+            - session_review.cycle: 0
+        STATE = KNOWLEDGE_EXTRACTION
 
-INVOKE Ralph-v2-Planner
-    MODE: UPDATE_METADATA
-    SESSION_PATH: .ralph-sessions/<SESSION_ID>/
-    STATUS: NEW_STATUS
+    ELSE:
+        # Increment cycle and enter critique replanning
+        NEW_CYCLE = C + 1
+        UPDATE metadata.yaml:
+            - state: SESSION_CRITIQUE_REPLAN
+            - session_review.cycle: NEW_CYCLE
+        STATE = SESSION_CRITIQUE_REPLAN
+```
 
-ON timeout or error:
-    APPLY Timeout Recovery Policy
+### 8.5. State: SESSION_CRITIQUE_REPLAN
 
-STATE = KNOWLEDGE_EXTRACTION
+```
+# Route critique planning tasks (mirrors PLANNING state pattern)
+# Critique planning tasks live in progress.md under:
+#   "## Critique Planning Progress (Iteration N, Cycle C)"
+
+# Check Live Signals
+RUN Poll-Signals
+    IF ABORT: EXIT
+    IF PAUSE: WAIT
+    IF INFO: Inject message into review context for consideration
+
+READ iterations/<ITERATION>/progress.md
+C = metadata.yaml.session_review.cycle  # current cycle (already incremented in State 8)
+
+# Routing: find the first incomplete critique planning task for cycle C
+
+IF plan-critique-triage (Cycle C) not present in progress.md OR not [x]:
+    INVOKE Ralph-v2-Planner
+        SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+        MODE: CRITIQUE_TRIAGE
+        ITERATION: <current iteration>
+        REVIEW_PATH: iterations/<ITERATION>/review.md
+        SESSION_REVIEW_CYCLE: C
+        ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
+
+    ON completion:
+        CAPTURE message_to_next → BUFFER as PENDING_CONTEXT
+        # Planner appended "## Critique Planning Progress (Iteration N, Cycle C)"
+        # to progress.md with plan-critique-triage [x] and optional subtasks
+
+    ON timeout or error:
+        APPLY Timeout Recovery Policy
+
+ELSE IF plan-critique-brainstorm (Cycle C) exists in progress.md AND not [x]:
+    INVOKE Ralph-v2-Questioner
+        SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+        MODE: brainstorm
+        SOURCE: critique
+        ITERATION: <current iteration>
+        REVIEW_PATH: iterations/<ITERATION>/review.md
+        CYCLE: C
+        ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
+
+    ON completion:
+        CAPTURE message_to_next → BUFFER as PENDING_CONTEXT
+
+    ON timeout or error:
+        APPLY Timeout Recovery Policy
+
+ELSE IF plan-critique-research (Cycle C) exists in progress.md AND not [x]:
+    INVOKE Ralph-v2-Questioner
+        SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+        MODE: research
+        ITERATION: <current iteration>
+        CYCLE: C
+        QUESTION_CATEGORY: critique-<C>
+        ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
+
+    ON completion:
+        CAPTURE message_to_next → BUFFER as PENDING_CONTEXT
+
+    ON timeout or error:
+        APPLY Timeout Recovery Policy
+
+ELSE IF plan-critique-breakdown (Cycle C) not [x]:
+    INVOKE Ralph-v2-Planner
+        SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+        MODE: CRITIQUE_BREAKDOWN
+        ITERATION: <current iteration>
+        REVIEW_PATH: iterations/<ITERATION>/review.md
+        SESSION_REVIEW_CYCLE: C
+        ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
+
+    ON completion:
+        CAPTURE message_to_next → BUFFER as PENDING_CONTEXT
+
+    ON timeout or error:
+        APPLY Timeout Recovery Policy
+
+ELSE:
+    # All critique planning tasks [x] — execute gap-filling tasks
+    # Gap-filling tasks were added to Implementation Progress (Iteration N) by CRITIQUE_BREAKDOWN
+    UPDATE metadata.yaml with state: BATCHING
+    STATE = BATCHING
+    # Flow: BATCHING → EXECUTING_BATCH → REVIEWING_BATCH → BATCHING (loop)
+    # → SESSION_REVIEW re-invoked with incremented cycle; loop continues until
+    #   ACTIVE_ISSUE_COUNT == 0 or max_critique_cycles cap is hit
 ```
 
 ### 9. State: KNOWLEDGE_EXTRACTION

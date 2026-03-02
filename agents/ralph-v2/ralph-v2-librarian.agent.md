@@ -5,9 +5,9 @@ argument-hint: Provide SESSION_PATH, ITERATION, and MODE (EXTRACT, STAGE, PROMOT
 user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.12.0
-  created_at: 2026-02-13T00:00:00Z
-  updated_at: 2026-03-02T00:00:00+07:00
+  version: 2.13.0
+  created_at: 2026-02-07T00:00:00Z
+  updated_at: 2026-03-02T12:00:00+07:00
   timezone: UTC+7
 ---
 
