@@ -34,7 +34,7 @@ The [official comparison page](https://docs.github.com/en/copilot/concepts/agent
 | 5   | **Hooks**                      | `hooks/*.hooks.json`                  | Same JSON schema as VS Code. Supported lifecycle events: `sessionStart`, `sessionEnd`, `agentStop`, `subagentStop`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`. `preToolUse` can `deny`/`allow`/`ask`.                                     |
 | 6   | **Subagents**                  | `agents:` frontmatter key             | **Different mechanism.** CLI uses `infer: true` (default) + TaskTool auto-delegation, NOT the `agents:` array key. The `agents:` key is silently ignored in CLI. |
 | 7   | **Custom Agents** (invocation) | Agent modes in VS Code                | CLI: `/agent <name>` or `--agent <name>`. VS Code: `@agent` in chat.                                                                                                                                                                   |
-| 8   | **Plugins**                    | No workspace equivalent               | CLI-only packaging system. Plugins bundle agents, skills, hooks, and MCP servers. Installed via `/plugin install`.                                                                                                                     |
+| 8   | **Plugins**                    | `plugins/*/plugin.json`               | CLI packaging system bundling agents, skills, hooks, instructions, and MCP servers into distributable units. Manifest schema: `name` (required), plus optional `description`, `version`, `author`, `agents`, `skills`, `hooks`, `instructions`, `config`, `system`. Install via `copilot plugin install ./plugins/<name>`. Workspace pilot: `plugins/ralph-v2/`. See [CLI Plugin Reference](cli-plugin-reference.md) and [publish-plugins.ps1](../../../scripts/publish/publish-plugins.ps1). |
 
 ---
 
@@ -167,6 +167,9 @@ This redirects the entire `~/.copilot/` tree (agents, skills, MCP config, instru
 | **How-to**      | Publish customizations for Copilot CLI   | `.docs/how-to/copilot/how-to-publish-customizations-for-copilot-cli.md`                                             |
 | **Explanation** | CLI vs VS Code customization differences | `.docs/explanation/copilot/copilot-cli-vs-vscode-customization.md`                                                  |
 | **Explanation** | Ralph-v2 tool compatibility              | `.docs/explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md`                                              |
+| **Reference**   | CLI Plugin Reference                     | `.docs/reference/copilot/cli-plugin-reference.md`                                                                    |
+| **How-to**      | How to Create a CLI Plugin               | `.docs/how-to/copilot/how-to-create-cli-plugin.md`                                                                  |
+| **Explanation** | About CLI Plugins                        | `.docs/explanation/copilot/about-cli-plugins.md`                                                                     |
 | **External**    | Official comparing CLI features          | [docs.github.com](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/comparing-cli-features)            |
 | **External**    | Custom agents docs                       | [docs.github.com](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-custom-agents)    |
 | **External**    | Custom instructions docs                 | [docs.github.com](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions) |

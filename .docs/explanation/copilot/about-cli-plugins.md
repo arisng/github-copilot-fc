@@ -1,0 +1,148 @@
+# About CLI Plugins
+
+> **Related**: [CLI Plugin Reference](../../reference/copilot/cli-plugin-reference.md) · [How to Create a CLI Plugin](../../how-to/copilot/how-to-create-cli-plugin.md) · [Customization Matrix](../../reference/copilot/copilot-cli-customization-matrix.md)
+
+This document explains what Copilot CLI plugins are, why they exist, and how they fit into the broader customization ecosystem. For step-by-step authoring instructions, see the linked how-to guide. For schema and command details, see the reference doc.
+
+---
+
+## What Are Plugins?
+
+A plugin is a **self-contained bundle** of GitHub Copilot customization artifacts — agents, skills, instructions, hooks, tools, and configuration — distributed as a single installable unit. Instead of manually copying individual `.agent.md` files, `SKILL.md` directories, and hook configs to their respective discovery paths, a plugin packages them together under one `plugin.json` manifest and installs them with a single command.
+
+```bash
+copilot plugin install ./plugins/ralph-v2
+```
+
+This installs all the agents, skills, hooks, and instructions declared in the plugin manifest in one step.
+
+---
+
+## Why Plugins Exist
+
+### The Problem: Manual Configuration Overhead
+
+Without plugins, setting up a complete Copilot workflow requires:
+
+1. Copying agent files to `~/.copilot/agents/`
+2. Copying skill directories to `~/.copilot/skills/`
+3. Publishing hooks to `.github/hooks/`
+4. Configuring MCP servers in `mcp-config.json`
+5. Setting up instructions in the right paths
+
+Each step involves knowing the right discovery path, the right file format, and the right naming conventions. Sharing this setup with a teammate means documenting every step — and keeping those instructions updated as the workflow evolves.
+
+### The Solution: Bundle and Distribute
+
+Plugins solve this by:
+
+- **Bundling**: All components are declared in one manifest (`plugin.json`) with relative paths to each artifact type.
+- **Installing**: One command (`copilot plugin install`) handles discovery path resolution and component placement.
+- **Versioning**: `plugin.json` includes a `version` field, enabling controlled updates via `copilot plugin update`.
+- **Lifecycle management**: Plugins can be enabled, disabled, updated, and uninstalled cleanly.
+
+---
+
+## Plugins vs. Manual Configuration
+
+Both approaches are valid. The right choice depends on your workflow:
+
+| Factor | Plugins | Manual Configuration (Publish Scripts) |
+|--------|---------|---------------------------------------|
+| **Setup speed** | One command installs everything | Multiple publish scripts per artifact type |
+| **Best for** | Distribution to other machines/teams | Local development iteration |
+| **Update workflow** | `copilot plugin update <name>` | Re-run publish scripts |
+| **Granularity** | All-or-nothing per plugin | Individual artifact control |
+| **Temporary removal** | `copilot plugin disable <name>` | Delete files from discovery paths |
+| **Audience** | Team members, new machine setup | Solo developer, active authoring |
+
+### When to Use Plugins
+
+- **Setting up a new machine**: Install your complete workflow with one command instead of running multiple publish scripts
+- **Sharing with teammates**: Distribute a tested, versioned bundle instead of setup instructions
+- **Version-controlled distribution**: Pin a specific plugin version for consistency across a team
+- **Clean separation**: Keep experimental workflows isolated — disable a plugin when not needed
+
+### When to Use Manual Configuration
+
+- **Active development**: Publish scripts provide faster iteration when editing individual agents or skills
+- **Selective customization**: You only need some artifacts from a workflow, not the full bundle
+- **VS Code primary**: Plugins are a CLI concept — VS Code uses its own discovery paths
+
+### Coexistence Warning
+
+Plugins and publish scripts can coexist, but be aware of **precedence conflicts**. User-level agents in `~/.copilot/agents/` (placed by `publish-agents.ps1`) take precedence over plugin agents due to the first-found-wins loading order. If the same agent exists in both locations, the user-level copy wins, which can cause version drift.
+
+**Recommendation**: Choose one distribution channel per artifact. Use publish scripts during development, switch to plugin distribution for sharing.
+
+---
+
+## Loading Precedence
+
+The CLI resolves artifacts using a first-found-wins model (except MCP servers, which use last-wins):
+
+1. **User-level** (`~/.copilot/`) — highest priority
+2. **Project-level** (`.github/`) — repository-specific
+3. **Parent directories** — walked upward from CWD
+4. **Plugin components** — installed plugin directories
+5. **Remote/organization** — enterprise-configured agents
+
+This means a user-level agent with the same name as a plugin agent will shadow the plugin version. This is by design — it allows users to override plugin defaults — but it creates a version drift risk when both publish scripts and plugins target the same agents.
+
+---
+
+## Team Distribution Scenarios
+
+### Scenario 1: Solo Developer, Multiple Machines
+
+1. Author plugins in the workspace (`plugins/<name>/plugin.json`)
+2. Push to GitHub
+3. On a new machine: `copilot plugin install github.com/owner/repo:plugins/<name>`
+
+### Scenario 2: Team Sharing via Repository
+
+1. Create a plugin with self-contained components (not relative paths)
+2. Commit to a shared repository
+3. Team members install: `copilot plugin install github.com/team/plugins-repo:plugins/<name>`
+4. Updates: `copilot plugin update <name>`
+
+### Scenario 3: Organization-Wide Distribution
+
+1. Publish plugins to a private marketplace
+2. Register the marketplace: `copilot plugin marketplace add org/marketplace`
+3. Team members install: `copilot plugin install @org/plugin-name`
+
+> **Note:** Scenario 3 requires marketplace infrastructure, which is **deferred** to a future iteration.
+
+---
+
+## Marketplace Ecosystem
+
+The Copilot CLI plugin system includes a marketplace mechanism for discovering and distributing plugins. Two marketplaces are registered by default:
+
+- **copilot-plugins** — Official GitHub Copilot plugin repository
+- **awesome-copilot** — Community-curated plugin collection
+
+Marketplace features include:
+
+- `copilot plugin search <query>` — Search across registered marketplaces
+- `copilot plugin install @owner/name` — Install from marketplace
+- `copilot plugin marketplace add <repo>` — Register additional marketplaces
+
+### Current Status
+
+Marketplace publishing is **deferred** to a future iteration of this workspace. The pilot plugin (`plugins/ralph-v2/`) is distributed via local path and direct GitHub URL installs. Marketplace infrastructure (creating `marketplace.json`, hosting, versioning strategy) will be addressed when the plugin system matures.
+
+For current installation methods, see the [How to Create a CLI Plugin](../../how-to/copilot/how-to-create-cli-plugin.md) guide.
+
+---
+
+## Workspace Plugin Pilot
+
+The workspace includes a pilot plugin at `plugins/ralph-v2/` that bundles the ralph-v2 multi-agent orchestration system for Copilot CLI. This pilot demonstrates:
+
+- `plugin.json` manifest with relative paths to existing workspace artifacts
+- Integration with `publish-plugins.ps1` for automated installation
+- Coexistence with existing per-artifact publish scripts
+
+See [plugins/README.md](../../../plugins/README.md) for directory layout documentation.

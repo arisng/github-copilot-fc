@@ -1,0 +1,224 @@
+# CLI Plugin Reference
+
+> **Last verified**: GA v0.0.420 (February 2026)
+> **Related**: [About CLI Plugins](../../explanation/copilot/about-cli-plugins.md) · [How to Create a CLI Plugin](../../how-to/copilot/how-to-create-cli-plugin.md) · [Customization Matrix](copilot-cli-customization-matrix.md)
+
+This reference documents the `plugin.json` manifest schema, CLI commands, installation spec patterns, directory conventions, and loading precedence for GitHub Copilot CLI plugins.
+
+---
+
+## Directory Conventions
+
+### Workspace Layout
+
+Plugins are authored in the workspace under `plugins/` at the repository root:
+
+```
+plugins/
+  <name>/
+    plugin.json          # Plugin manifest (required)
+    agents/              # Agent files (optional)
+    instructions/        # Instruction files (optional)
+    skills/              # Skill directories (optional)
+    hooks/               # Hook configs (optional)
+    tools/               # Tool definitions (optional)
+    config/              # Configuration files (optional)
+    system.md            # System prompt (optional)
+```
+
+The directory name should match the `name` field in `plugin.json`. See [plugins/README.md](../../../plugins/README.md) for the workspace's plugin directory documentation.
+
+### File Locations
+
+`plugin.json` can be placed at three locations within a repository:
+
+| Location | Use Case |
+|----------|----------|
+| `plugins/<name>/plugin.json` | Workspace-authored plugins (this workspace's convention) |
+| `.github/plugin/plugin.json` | Repository-level plugin for marketplace listing |
+| `.claude-plugin/plugin.json` | Alternative convention (Claude-origin) |
+
+For workspace plugins, use the flat `plugins/<name>/plugin.json` convention. The `.github/plugin/` convention is for repositories that ARE plugin marketplaces.
+
+---
+
+## plugin.json Schema
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Plugin identifier. Must be lowercase, hyphenated (kebab-case), max 64 characters. |
+
+### Optional Metadata Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Human-readable description of the plugin's purpose. |
+| `version` | string | Semantic version string (e.g., `"1.0.0"`). |
+| `author` | string \| object | Author name or `{ "name": "...", "email": "...", "url": "..." }`. |
+| `license` | string | SPDX license identifier (e.g., `"MIT"`). |
+| `homepage` | string | URL to the plugin's homepage or documentation. |
+| `bugs` | string \| object | URL or `{ "url": "...", "email": "..." }` for bug reports. |
+| `repository` | string \| object | URL or `{ "type": "git", "url": "..." }` for the source repository. |
+| `keywords` | array | Array of strings for searchability (e.g., `["orchestration", "agents"]`). |
+| `strict` | boolean | If `true`, plugin components override user-level equivalents. Default: `false`. |
+| `system` | string | Relative path to a system prompt file (e.g., `"system.md"`). |
+
+### Component Path Fields
+
+Component paths are relative to the plugin directory and point to the resources the plugin bundles:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `agents` | string | `"agents/"` | Path to directory containing `.agent.md` files. |
+| `tools` | string | `"tools/"` | Path to directory containing tool definitions. |
+| `instructions` | string | `"instructions/"` | Path to directory containing `.instructions.md` files. |
+| `hooks` | string | `"hooks/"` | Path to hooks configuration file or directory. |
+| `config` | string | `"config/"` | Path to configuration files directory. |
+
+> **Note:** Component paths can point outside the plugin directory using relative paths (e.g., `"../../agents/ralph-v2/cli/"`) for workspace-internal plugins that reference existing artifacts. For distributed plugins, all components should be self-contained within the plugin directory.
+
+### Example: Minimal Manifest
+
+```json
+{
+  "name": "my-plugin"
+}
+```
+
+### Example: Full Manifest
+
+```json
+{
+  "name": "ralph-v2",
+  "description": "Multi-agent session orchestration system for Copilot CLI",
+  "version": "1.0.0",
+  "author": "github-copilot-fc",
+  "license": "MIT",
+  "keywords": ["orchestration", "agents", "multi-agent"],
+  "agents": "agents/",
+  "skills": "skills/",
+  "hooks": "hooks/",
+  "instructions": "instructions/"
+}
+```
+
+See the workspace pilot plugin at [plugins/ralph-v2/plugin.json](../../../plugins/ralph-v2/plugin.json) for a real-world example.
+
+---
+
+## CLI Commands
+
+All plugin commands use the `/plugins` prefix within a Copilot CLI session or `copilot plugin` from the shell.
+
+### Discovery & Information
+
+| Command | Description |
+|---------|-------------|
+| `/plugins list` | List all installed plugins and their status (enabled/disabled). |
+| `/plugins show <name>` | Show detailed information about a specific plugin (manifest fields, components, install source). |
+| `/plugins search <query>` | Search registered marketplaces for plugins matching the query. |
+
+### Installation & Removal
+
+| Command | Description |
+|---------|-------------|
+| `/plugins install <spec>` | Install a plugin from a local path, GitHub URL, or marketplace. See [Install Spec Patterns](#install-spec-patterns). |
+| `/plugins uninstall <name>` | Remove an installed plugin and its components. |
+| `/plugins update <name>` | Update a plugin to the latest version from its original source. |
+
+### Lifecycle Management
+
+| Command | Description |
+|---------|-------------|
+| `/plugins enable <name>` | Re-enable a previously disabled plugin. |
+| `/plugins disable <name>` | Temporarily disable a plugin without uninstalling it. Components are not loaded until re-enabled. |
+
+### Authoring & Publishing
+
+| Command | Description |
+|---------|-------------|
+| `/plugins create <name>` | Scaffold a new plugin directory with a template `plugin.json`. |
+| `/plugins validate [path]` | Validate a `plugin.json` manifest for schema correctness. Reports errors and warnings. |
+| `/plugins publish [path]` | Publish a plugin to a marketplace (requires marketplace registration). |
+
+### Shell Equivalents
+
+Commands can also be run from the shell as `copilot plugin <command>`:
+
+```bash
+copilot plugin install ./plugins/ralph-v2
+copilot plugin list
+copilot plugin show ralph-v2
+copilot plugin uninstall ralph-v2
+```
+
+---
+
+## Install Spec Patterns
+
+The `/plugins install` command accepts multiple source formats:
+
+| Pattern | Example | Description |
+|---------|---------|-------------|
+| `@owner/name` | `@copilot-fc/ralph-v2` | Install from a registered marketplace. |
+| `@owner/name@version` | `@copilot-fc/ralph-v2@1.0.0` | Install a specific version from marketplace. |
+| GitHub URL | `github.com/owner/repo:plugins/name` | Install directly from a GitHub repository path. |
+| Local path | `./plugins/ralph-v2` | Install from a local directory containing `plugin.json`. |
+| Marketplace name | `ralph-v2` | Shorthand — searches default marketplaces. |
+
+### Default Marketplaces
+
+Two marketplaces are registered by default:
+
+- `copilot-plugins` — Official GitHub Copilot plugin repository
+- `awesome-copilot` — Community-curated plugin collection
+
+Additional marketplaces can be registered via `copilot plugin marketplace add`.
+
+> **Note:** Marketplace publishing is **deferred** to a future iteration. Currently, local path and GitHub URL installs are the primary distribution methods. See [About CLI Plugins](../../explanation/copilot/about-cli-plugins.md) for marketplace ecosystem status.
+
+---
+
+## Loading Precedence
+
+When multiple sources define the same artifact (e.g., an agent with the same name), the CLI uses a first-found-wins model for agents and skills:
+
+| Priority | Source | Example Path |
+|----------|--------|-------------|
+| 1 (highest) | User-level | `~/.copilot/agents/`, `~/.copilot/skills/` |
+| 2 | Project-level | `.github/agents/`, `.github/instructions/` |
+| 3 | Parent directories | Walked upward from CWD |
+| 4 | Plugin components | Installed plugin agent/skill directories |
+| 5 (lowest) | Remote/org agents | Organization or enterprise-configured agents |
+
+> **MCP exception:** MCP server definitions use **last-wins** precedence (opposite of agents/skills).
+
+### Implications for Publish Scripts
+
+User-level agents in `~/.copilot/agents/` (placed by `publish-agents.ps1`) take precedence over plugin agents. If the same agent exists both as a user-level file and inside a plugin, the user-level copy wins. **Recommendation**: Use one distribution channel per artifact — publish scripts for local development, plugins for team distribution.
+
+See [publish-plugins.ps1](../../../scripts/publish/publish-plugins.ps1) for the workspace's plugin installation automation.
+
+---
+
+## Publish Script Reference
+
+The workspace provides `scripts/publish/publish-plugins.ps1` for automating plugin installation:
+
+```powershell
+# Install all workspace plugins
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+
+# Install a specific plugin
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins ralph-v2
+
+# Force reinstall (uninstall + reinstall)
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Force
+
+# Skip WSL installation
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -SkipWSL
+```
+
+The script discovers plugins in `plugins/`, filters by name if specified, and delegates to `copilot plugin install` for each discovered plugin. See [How to Publish Customizations for Copilot CLI](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md) for the broader publish workflow.
