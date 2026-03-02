@@ -8,13 +8,13 @@ This document explains what Copilot CLI plugins are, why they exist, and how the
 
 ## What Are Plugins?
 
-A plugin is a **self-contained bundle** of GitHub Copilot customization artifacts — agents, skills, instructions, hooks, tools, and configuration — distributed as a single installable unit. Instead of manually copying individual `.agent.md` files, `SKILL.md` directories, and hook configs to their respective discovery paths, a plugin packages them together under one `plugin.json` manifest and installs them with a single command.
+A plugin is a **self-contained bundle** of GitHub Copilot customization artifacts — agents, skills, hooks, commands, MCP servers, and LSP servers — distributed as a single installable unit. Instead of manually copying individual `.agent.md` files, `SKILL.md` directories, and hook configs to their respective discovery paths, a plugin packages them together under one `plugin.json` manifest and installs them with a single command.
 
 ```bash
 copilot plugin install ./plugins/ralph-v2
 ```
 
-This installs all the agents, skills, hooks, and instructions declared in the plugin manifest in one step.
+This installs all the components declared in the plugin manifest in one step.
 
 ---
 
@@ -28,7 +28,6 @@ Without plugins, setting up a complete Copilot workflow requires:
 2. Copying skill directories to `~/.copilot/skills/`
 3. Publishing hooks to `.github/hooks/`
 4. Configuring MCP servers in `mcp-config.json`
-5. Setting up instructions in the right paths
 
 Each step involves knowing the right discovery path, the right file format, and the right naming conventions. Sharing this setup with a teammate means documenting every step — and keeping those instructions updated as the workflow evolves.
 
@@ -77,6 +76,23 @@ Plugins and publish scripts can coexist, but be aware of **precedence conflicts*
 
 ---
 
+## Where Plugins Are Installed
+
+Plugin files are **copied** (cached) on install — not symlinked. To pick up local changes after editing a plugin, you must reinstall it with `copilot plugin install`.
+
+| Source | Install Path |
+|--------|-------------|
+| Direct install (reference page) | `~/.copilot/state/installed-plugins/<NAME>/` |
+| Direct install (how-to page) | `~/.copilot/installed-plugins/_direct/<NAME>/` |
+| Marketplace install | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
+| Marketplace cache | `~/.copilot/state/marketplace-cache/` |
+
+> **⚠️ Documented inconsistency:** Two official GitHub docs disagree on direct install paths. The [CLI Plugin Reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) uses `~/.copilot/state/installed-plugins/<NAME>/`, while the [How-to: Finding and Installing Plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) uses `~/.copilot/installed-plugins/_direct/<NAME>/`. Key differences: the `state/` prefix (reference has it, how-to doesn't) and the `_direct/` subdirectory (how-to has it, reference doesn't). Verify the actual path on your local filesystem after installing a plugin.
+
+On Windows, `~` resolves to `%USERPROFILE%` (e.g., `C:\Users\<username>\.copilot\...`).
+
+---
+
 ## Loading Precedence
 
 The CLI resolves artifacts using a first-found-wins model (except MCP servers, which use last-wins):
@@ -118,14 +134,10 @@ This means a user-level agent with the same name as a plugin agent will shadow t
 
 ## Marketplace Ecosystem
 
-The Copilot CLI plugin system includes a marketplace mechanism for discovering and distributing plugins. Two marketplaces are registered by default:
-
-- **copilot-plugins** — Official GitHub Copilot plugin repository
-- **awesome-copilot** — Community-curated plugin collection
+The Copilot CLI plugin system includes a marketplace mechanism for discovering and distributing plugins.
 
 Marketplace features include:
 
-- `copilot plugin search <query>` — Search across registered marketplaces
 - `copilot plugin install @owner/name` — Install from marketplace
 - `copilot plugin marketplace add <repo>` — Register additional marketplaces
 
