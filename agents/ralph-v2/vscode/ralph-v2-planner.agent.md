@@ -13,7 +13,7 @@ metadata:
 
 # Ralph-v2 Planner (VS Code)
 
-> **Shared instructions**: The platform-agnostic planning workflow, modes (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), templates, artifacts, signals, and contract for this agent are defined in [instructions/ralph-v2-planner.instructions.md](../../instructions/ralph-v2-planner.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
+> **Shared instructions**: The platform-agnostic planning workflow, modes (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), templates, artifacts, signals, and contract for this agent are defined in [instructions/ralph-v2-planner.instructions.md](../../../instructions/ralph-v2-planner.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
 >
 > **You MUST read the shared instruction file before executing any planning mode.**
 

@@ -14,7 +14,7 @@ metadata:
 
 # Ralph-v2 Orchestrator (VS Code)
 
-> **Shared instructions**: The platform-agnostic orchestration workflow, state machine, feedback loop protocols, signals, and contract for this agent are defined in [instructions/ralph-v2-orchestrator.instructions.md](../../instructions/ralph-v2-orchestrator.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
+> **Shared instructions**: The platform-agnostic orchestration workflow, state machine, feedback loop protocols, signals, and contract for this agent are defined in [instructions/ralph-v2-orchestrator.instructions.md](../../../instructions/ralph-v2-orchestrator.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
 >
 > **You MUST read the shared instruction file before executing any orchestration logic.**
 

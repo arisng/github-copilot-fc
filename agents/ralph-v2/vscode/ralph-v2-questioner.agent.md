@@ -13,7 +13,7 @@ metadata:
 
 # Ralph-v2 Questioner (VS Code)
 
-> **Shared instructions**: The platform-agnostic Q&A discovery workflow, modes (brainstorm, research, feedback-analysis), question templates, signals, and contract for this agent are defined in [instructions/ralph-v2-questioner.instructions.md](../../instructions/ralph-v2-questioner.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
+> **Shared instructions**: The platform-agnostic Q&A discovery workflow, modes (brainstorm, research, feedback-analysis), question templates, signals, and contract for this agent are defined in [instructions/ralph-v2-questioner.instructions.md](../../../instructions/ralph-v2-questioner.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
 >
 > **You MUST read the shared instruction file before executing any Q&A mode.**
 

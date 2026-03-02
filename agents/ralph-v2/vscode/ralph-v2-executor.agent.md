@@ -13,7 +13,7 @@ metadata:
 
 # Ralph-v2 Executor (VS Code)
 
-> **Shared instructions**: The platform-agnostic task execution workflow, rules, artifacts, signals, and contract for this agent are defined in [instructions/ralph-v2-executor.instructions.md](../../instructions/ralph-v2-executor.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
+> **Shared instructions**: The platform-agnostic task execution workflow, rules, artifacts, signals, and contract for this agent are defined in [instructions/ralph-v2-executor.instructions.md](../../../instructions/ralph-v2-executor.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
 >
 > **You MUST read the shared instruction file before executing any task.**
 

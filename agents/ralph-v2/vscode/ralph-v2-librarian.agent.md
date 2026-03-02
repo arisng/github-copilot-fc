@@ -13,7 +13,7 @@ metadata:
 
 # Ralph-v2 Librarian (VS Code)
 
-> **Shared instructions**: The platform-agnostic knowledge management workflow, modes (EXTRACT, STAGE, PROMOTE, COMMIT), merge algorithm, Diataxis classification, signals, and contract for this agent are defined in [instructions/ralph-v2-librarian.instructions.md](../../instructions/ralph-v2-librarian.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
+> **Shared instructions**: The platform-agnostic knowledge management workflow, modes (EXTRACT, STAGE, PROMOTE, COMMIT), merge algorithm, Diataxis classification, signals, and contract for this agent are defined in [instructions/ralph-v2-librarian.instructions.md](../../../instructions/ralph-v2-librarian.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
 >
 > **You MUST read the shared instruction file before executing any knowledge management mode.**
 

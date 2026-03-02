@@ -13,7 +13,7 @@ metadata:
 
 # Ralph-v2 Reviewer (VS Code)
 
-> **Shared instructions**: The platform-agnostic quality assurance workflow, review modes (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), commit workflow, signals, and contract for this agent are defined in [instructions/ralph-v2-reviewer.instructions.md](../../instructions/ralph-v2-reviewer.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
+> **Shared instructions**: The platform-agnostic quality assurance workflow, review modes (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), commit workflow, signals, and contract for this agent are defined in [instructions/ralph-v2-reviewer.instructions.md](../../../instructions/ralph-v2-reviewer.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
 >
 > **You MUST read the shared instruction file before executing any review mode.**
 
