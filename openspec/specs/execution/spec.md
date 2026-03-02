@@ -8,6 +8,8 @@ updated_at: 2026-03-02T16:24:32+07:00
 
 # Execution Specification
 
+## Purpose
+
 This specification defines the behavioral contracts for the Execution Role — the role responsible for implementing exactly one Task Definition Record per invocation. It establishes the single-task execution model, the execution parameter set, the five-step execution workflow, the progress status lifecycle, the dependency inheritance protocol, the rework protocol, the two-part Task Report structure, and design-time validation scope. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix).
 
 ## Execution Parameters
@@ -98,7 +100,7 @@ The Execution Role MUST NOT overwrite or modify Task Reports from previous attem
 #### EXEC-019: Two-Part Report Model
 The Task Report MUST consist of exactly two parts:
 - **Part 1: Implementation Report** — authored by the Execution Role during the Report step.
-- **Part 2: Review Report** — reserved for the Review Role. The Execution Role MUST NOT write to Part 2.
+- **Part 2: Review Report** — reserved for the Review Role. The Execution Role MUST NOT modify Part 2.
 
 #### EXEC-020: Part 1 Mandatory Sections
 Part 1 of the Task Report MUST include at minimum:
@@ -265,7 +267,7 @@ GIVEN the Execution Role is in the Report step
 WHEN it creates the Task Report
 THEN Part 1 (Implementation Report) is fully populated
 AND Part 2 (Review Report) exists as a reserved section with no content
-AND the Execution Role does not write to Part 2
+AND the Execution Role does not modify Part 2
 ```
 
 ### SC-EXEC-011: Pre-Execution ABORT Signal

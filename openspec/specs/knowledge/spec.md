@@ -8,6 +8,8 @@ updated_at: 2026-03-02T16:37:13+07:00
 
 # Knowledge Specification
 
+## Purpose
+
 This specification defines the behavioral contracts for the Knowledge Role — the role responsible for extracting reusable knowledge from iteration artifacts, staging it to session scope, promoting it to the workspace-level Knowledge Repository, and persisting promoted changes atomically. It establishes the four-stage knowledge pipeline, the Diátaxis classification model, the deterministic merge algorithm, three preflight gates, scope progression semantics, the skip-promotion convention, cancellation propagation, and knowledge artifact metadata. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix).
 
 ## Knowledge Pipeline
@@ -132,10 +134,10 @@ In EXTRACT mode, the Knowledge Role MUST scan the following iteration artifacts 
 The Knowledge Role MUST filter collected evidence to retain only reusable knowledge: stable guidance, contracts, workflows, architectural decisions, and conventions. Transient or iteration-specific artifacts (debug logs, temporary test outputs, status-tracking artifacts) MUST be discarded.
 
 #### KNOW-021: Write Scope — EXTRACT
-In EXTRACT mode, the Knowledge Role MUST write only to the Knowledge Extraction Area within the current Iteration Container. The role MUST NOT write to the Knowledge Staging Area or the Knowledge Repository during EXTRACT.
+In EXTRACT mode, the Knowledge Role MUST persist only to the Knowledge Extraction Area within the current Iteration Container. The role MUST NOT modify the Knowledge Staging Area or the Knowledge Repository during EXTRACT.
 
 #### KNOW-022: Manifest Update — EXTRACT
-After writing extracted artifacts, the Knowledge Role MUST update the Knowledge Extraction Area manifest with an entry for each extracted item, including: the artifact reference, the Diátaxis category, the extraction timestamp, and the source artifact references.
+After persisting extracted artifacts, the Knowledge Role MUST update the Knowledge Extraction Area manifest with an entry for each extracted item, including: the artifact reference, the Diátaxis category, the extraction timestamp, and the source artifact references.
 
 #### KNOW-023: Empty Extraction — Cancellation Cascade
 If the EXTRACT stage produces zero knowledge items, the Knowledge Role MUST:
@@ -161,7 +163,7 @@ When the Cherry Pick parameter is provided, the Knowledge Role MUST stage only t
 When scanning the Knowledge Staging Area, the Knowledge Role MUST skip any artifact whose promoted indicator is set to its positive state (per KNOW-012). Promoted artifacts are finalized and MUST NOT be overwritten during staging.
 
 #### KNOW-028: Write Scope — STAGE
-In STAGE mode, the Knowledge Role MUST write only to the Knowledge Staging Area. The role MUST NOT write to the Knowledge Extraction Area or the Knowledge Repository during STAGE.
+In STAGE mode, the Knowledge Role MUST persist only to the Knowledge Staging Area. The role MUST NOT modify the Knowledge Extraction Area or the Knowledge Repository during STAGE.
 
 #### KNOW-029: Source Metadata Update — STAGE
 For each artifact successfully staged, the Knowledge Role MUST update the source artifact's metadata in the Knowledge Extraction Area: set the staged indicator to its positive state and record the staging timestamp (per KNOW-012).
@@ -182,7 +184,7 @@ Before beginning promotion, the Knowledge Role MUST poll the Signal Channel (Inb
 In PROMOTE mode, the Knowledge Role MUST select only artifacts from the Knowledge Staging Area whose promoted indicator is in its negative state (per KNOW-012). If zero unpromoted items exist, the Knowledge Role MUST mark the promotion progress entry as cancelled with a note and return a skipped outcome.
 
 #### KNOW-033: Write Scope — PROMOTE
-In PROMOTE mode, the Knowledge Role MUST write to the Knowledge Repository (for promoted content) and to the Knowledge Staging Area (to update promotion metadata per KNOW-012). The role MUST NOT write to the Knowledge Extraction Area during PROMOTE.
+In PROMOTE mode, the Knowledge Role MUST persist to the Knowledge Repository (for promoted content) and update the Knowledge Staging Area (to record promotion metadata per KNOW-012). The role MUST NOT modify the Knowledge Extraction Area during PROMOTE.
 
 #### KNOW-034: Content Transformation on Promotion
 When artifacts are promoted to the Knowledge Repository, the Knowledge Role MUST apply the following transformations:
@@ -284,7 +286,7 @@ When the Source Iterations parameter specifies multiple iterations, the Knowledg
 ### Pipeline Orchestration Integration
 
 #### KNOW-057: KNOWLEDGE_EXTRACTION State Routing
-The Orchestration Role invokes the Knowledge Role in the KNOWLEDGE_EXTRACTION state (per ORCH-011). The default invocation sequence is EXTRACT → STAGE → PROMOTE. The Orchestration Role auto-sequences all three stages unless the pipeline is interrupted by a signal or cancellation cascade.
+The Orchestration Role MUST invoke the Knowledge Role in the KNOWLEDGE_EXTRACTION state (per ORCH-011). The default invocation sequence MUST be EXTRACT → STAGE → PROMOTE. The Orchestration Role MUST auto-sequence all three stages unless the pipeline is interrupted by a signal or cancellation cascade.
 
 #### KNOW-058: Pipeline Completion Guard
 The transition from KNOWLEDGE_EXTRACTION to the terminal state (per ORCH-011) MUST occur when:
@@ -810,10 +812,10 @@ THEN the Knowledge Staging Area persistent manifest reflects all 3 items with th
 **Validates**: KNOW-033
 ```
 GIVEN the Knowledge Role is executing in PROMOTE mode
-WHEN the role writes promoted artifacts
-THEN writes to the Knowledge Repository contain promoted content
-AND writes to the Knowledge Staging Area are limited to promotion metadata updates
-AND no writes go to the Knowledge Extraction Area
+WHEN the role persists promoted artifacts
+THEN persisted content in the Knowledge Repository contains promoted content
+AND updates to the Knowledge Staging Area are limited to promotion metadata
+AND no updates go to the Knowledge Extraction Area
 ```
 
 ### SC-KNOW-054: Promotion Metadata Updated in Staging Area

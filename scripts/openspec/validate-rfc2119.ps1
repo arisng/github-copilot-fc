@@ -23,7 +23,10 @@ $ErrorActionPreference = 'Stop'
 # Constants
 # ---------------------------------------------------------------------------
 $DomainPrefixes = @('SES', 'SIG', 'ORCH', 'PLAN', 'DISC', 'EXEC', 'REV', 'KNOW')
-$IdPattern = '(' + ($DomainPrefixes -join '|') + ')-(\d{3})'
+# Requirement ID pattern — negative lookbehind excludes scenario prefixes (SC-DISC-001)
+$IdPattern = '(?<!-)(' + ($DomainPrefixes -join '|') + ')-(\d{3})'
+# Scenario heading pattern — matches SC-DISC-001 etc.
+$ScenarioIdPattern = 'SC-(' + ($DomainPrefixes -join '|') + ')-(\d{3})'
 $Rfc2119Keywords = @('MUST NOT', 'SHALL NOT', 'SHOULD NOT', 'MUST', 'SHALL', 'SHOULD', 'MAY')
 # Pattern matches RFC 2119 keywords as standalone uppercase words
 $Rfc2119Pattern = '\b(' + (($Rfc2119Keywords | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\b'
@@ -141,6 +144,92 @@ function Test-ScenarioPresence {
     return ($hasGiven -and $hasWhen -and $hasThen)
 }
 
+function Get-ScenarioCoverage {
+    <#
+    .SYNOPSIS
+        Scans spec files for scenario blocks (SC-*) and extracts which requirement
+        IDs each scenario validates via **Validates**: lines. Returns a set of
+        requirement IDs that are covered by at least one valid scenario.
+    #>
+    [CmdletBinding()]
+    param(
+        [System.IO.FileInfo[]]$Files,
+        [string]$ScPattern,
+        [string]$ReqPattern
+    )
+
+    $coveredIds = @{}
+    $validatesPattern = '\*\*Validates\*\*:\s*(.+)'
+
+    foreach ($file in $Files) {
+        $lines = Get-Content -Path $file.FullName -Encoding utf8
+        $inScenarioBlock = $false
+        $blockLines = @()
+        $blockValidatesIds = @()
+
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            $line = $lines[$i]
+
+            # Detect any heading
+            if ($line -match '^#{1,6}\s+(.+)$') {
+                # Flush previous scenario block
+                if ($inScenarioBlock) {
+                    $hasGiven = $false; $hasWhen = $false; $hasThen = $false
+                    foreach ($bl in $blockLines) {
+                        if ($bl -match '\bGIVEN\b') { $hasGiven = $true }
+                        if ($bl -match '\bWHEN\b') { $hasWhen = $true }
+                        if ($bl -match '\bTHEN\b') { $hasThen = $true }
+                    }
+                    if ($hasGiven -and $hasWhen -and $hasThen) {
+                        foreach ($id in $blockValidatesIds) {
+                            $coveredIds[$id] = $true
+                        }
+                    }
+                }
+
+                # Check if this heading starts a scenario block (SC- prefix)
+                $headingText = $Matches[1]
+                if ($headingText -match 'SC-') {
+                    $inScenarioBlock = $true
+                    $blockLines = @()
+                    $blockValidatesIds = @()
+                }
+                else {
+                    $inScenarioBlock = $false
+                }
+                continue
+            }
+
+            if ($inScenarioBlock) {
+                $blockLines += $line
+                if ($line -match $validatesPattern) {
+                    $idMatches = [regex]::Matches($Matches[1], $ReqPattern)
+                    foreach ($m in $idMatches) {
+                        $blockValidatesIds += $m.Value
+                    }
+                }
+            }
+        }
+
+        # Flush last scenario block
+        if ($inScenarioBlock) {
+            $hasGiven = $false; $hasWhen = $false; $hasThen = $false
+            foreach ($bl in $blockLines) {
+                if ($bl -match '\bGIVEN\b') { $hasGiven = $true }
+                if ($bl -match '\bWHEN\b') { $hasWhen = $true }
+                if ($bl -match '\bTHEN\b') { $hasThen = $true }
+            }
+            if ($hasGiven -and $hasWhen -and $hasThen) {
+                foreach ($id in $blockValidatesIds) {
+                    $coveredIds[$id] = $true
+                }
+            }
+        }
+    }
+
+    return $coveredIds
+}
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -163,6 +252,9 @@ function Invoke-Rfc2119Audit {
     $missingScenario = 0
     $specsRootResolved = (Resolve-Path (Join-Path $SpecsRoot '..')).Path
 
+    # Phase 1: Collect scenario coverage across all files
+    $scenarioCoverage = Get-ScenarioCoverage -Files $specFiles -ScPattern $ScenarioIdPattern -ReqPattern $IdPattern
+
     foreach ($file in $specFiles) {
         $relativePath = $file.FullName.Replace($specsRootResolved, '').TrimStart('\', '/')
         $blocks = Get-RequirementBlocks -FilePath $file.FullName -Pattern $IdPattern
@@ -170,8 +262,10 @@ function Invoke-Rfc2119Audit {
         foreach ($block in $blocks) {
             $totalRequirements++
 
+            # Check RFC 2119 keyword presence in requirement block
             $hasKeyword = Test-Rfc2119Presence -Lines $block.Lines -Pattern $Rfc2119Pattern
-            $hasScenario = Test-ScenarioPresence -Lines $block.Lines
+            # Check scenario coverage via cross-reference (not inline)
+            $hasScenario = $scenarioCoverage.ContainsKey($block.Id)
 
             if (-not $hasKeyword) {
                 Write-Information "  MISSING RFC 2119: $($block.Id) at $relativePath`:$($block.StartLine)" -InformationAction Continue

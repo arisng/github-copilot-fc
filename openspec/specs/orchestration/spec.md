@@ -8,6 +8,8 @@ updated_at: 2026-03-02T15:42:16+07:00
 
 # Orchestration Specification
 
+## Purpose
+
 This specification defines the state machine backbone that drives all role invocations. It establishes the system's ten states, their transition rules with behavioral guards, the role routing model, and four cross-cutting protocols: Messenger Protocol, Timeout Recovery Escalation, Schema Validation on Resume, and Critique Self-Loop. All other domain specifications receive their invocation patterns from the routing table defined here. This specification depends on Session vocabulary (SES- prefix) and the Signal protocol (SIG- prefix).
 
 ## State Machine Definition
@@ -24,7 +26,7 @@ The system defines exactly ten states. Each state represents a distinct phase of
 | 6 | **SESSION_REVIEW** | Iteration assessment — the Review Role produces the Iteration Review Report and returns issue counts |
 | 7 | **SESSION_CRITIQUE_REPLAN** | Critique replanning — the Planning Role triages issues and the Discovery Role optionally brainstorms and researches; the Planning Role produces gap-filling tasks |
 | 8 | **KNOWLEDGE_EXTRACTION** | Knowledge pipeline — the Knowledge Role extracts, stages, and promotes reusable knowledge |
-| 9 | **COMPLETE** | Terminal state — all tasks are finished or awaiting feedback; broadcast signals are finalized |
+| 9 | **COMPLETE** | Final state — all tasks are finished or awaiting feedback; broadcast signals are finalized |
 | 10 | **REPLANNING** | Feedback-driven replanning — the Planning Role triages feedback intent and routes to either full replanning or fast-path knowledge promotion |
 
 ## Transition Table
@@ -212,7 +214,7 @@ When the Knowledge Role is available, the Orchestration Role MUST invoke it in e
 ### Orchestration Role Boundaries
 
 #### ORCH-034: Write Restriction
-The Orchestration Role MUST NOT write to any artifact other than the Session State Store. All other artifact mutations MUST be delegated to the appropriate role as defined in the ownership model (per SES-012).
+The Orchestration Role MUST NOT modify any artifact other than the Session State Store. All other artifact mutations MUST be delegated to the appropriate role as defined in the ownership model (per SES-012).
 
 #### ORCH-035: No Self-Execution
 The Orchestration Role MUST NOT perform work belonging to any other role. It MUST NOT analyze workspace content, implement tasks, review code, extract knowledge, or generate plans. Its sole function is state machine evaluation, role routing, and protocol enforcement.

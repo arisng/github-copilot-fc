@@ -8,6 +8,8 @@ updated_at: 2026-03-02T15:30:44+07:00
 
 # Session Specification
 
+## Purpose
+
 This specification defines the foundational behavioral contracts for the multi-agent orchestration system. It establishes the abstract vocabulary, session identity model, iteration model, artifact ownership, progress tracking protocol, capability discovery protocol, and single-mode enforcement rule. All other domain specifications reference the vocabulary and ownership table defined here.
 
 ## Abstract Vocabulary Table
@@ -77,9 +79,9 @@ Artifacts within a completed Iteration Container MUST NOT be modified by subsequ
 ### Artifact Ownership Table
 
 #### SES-012: Normative Ownership Model
-The system MUST enforce the following ownership model. Only the designated owner role(s) with write authority MAY mutate each artifact. All other roles have read-only access unless explicitly listed.
+The system MUST enforce the following ownership model. Only the designated owner role(s) with mutation authority MAY mutate each artifact. All other roles have read-only access unless explicitly listed.
 
-| Abstract Artifact | Write Authority | Notes |
+| Abstract Artifact | mutation authority | Notes |
 |---|---|---|
 | Session State Store | Planning Role (init), Orchestration Role (transitions) | State machine SSOT |
 | Iteration State Store | Planning Role (init), Review Role (timing updates) | Timing SSOT |
@@ -123,7 +125,7 @@ Status transitions MUST follow these rules:
 The Progress Tracker MUST include: a legend defining the status markers, a planning progress section listing planning-phase tasks, and an implementation progress section listing execution-phase tasks grouped by wave.
 
 #### SES-018: Update Discipline
-Every role that writes to the Progress Tracker MUST update it at the start of work (marking in-progress) and at the end of work (marking the final status). The Orchestration Role MUST NOT write to the Progress Tracker — it has read-only access.
+Every role that updates the Progress Tracker MUST do so at the start of work (marking in-progress) and at the end of work (marking the final status). The Orchestration Role MUST NOT update the Progress Tracker — it has read-only access.
 
 #### SES-019: Progress-Task Consistency
 The set of tasks listed in the Progress Tracker MUST equal the set of Task Definition Records within the same Iteration Container. No task MAY exist in one but not the other.
@@ -209,7 +211,7 @@ GIVEN the Orchestration Role is active
 WHEN it attempts to modify the Progress Tracker
 THEN the modification is rejected (Orchestration Role has read-only access to Progress Tracker)
 AND WHEN the Execution Role updates the Progress Tracker to mark a task in-progress
-THEN the modification succeeds (Execution Role has write authority)
+THEN the modification succeeds (Execution Role has mutation authority)
 ```
 
 ### SC-SES-006: SSOT Violation Detection

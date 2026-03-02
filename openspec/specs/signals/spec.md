@@ -8,6 +8,8 @@ updated_at: 2026-03-02T15:36:23+07:00
 
 # Signals Specification
 
+## Purpose
+
 This specification defines the cross-cutting signal protocol — the typed, targeted, ordered message delivery system with acknowledgment and lifecycle management. Every role specification references this protocol at its behavioral checkpoints. The signal protocol depends only on Session vocabulary (SES- prefix); all other domain specifications depend on this protocol.
 
 ## Signal Types

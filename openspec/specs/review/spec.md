@@ -8,6 +8,8 @@ updated_at: 2026-03-02T16:31:00+07:00
 
 # Review Specification
 
+## Purpose
+
 This specification defines the behavioral contracts for the Review Role — the role responsible for validating task implementations, producing iteration-wide assessments, persisting qualified changes, and handling execution failures. It establishes four review modes, three review dimensions, the verdict system, the workload inference protocol, the change persistence model, the session review lifecycle, and the cross-agent normalization checklist. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), the Signal protocol (SIG- prefix), and references Execution outputs (EXEC- prefix) and Planning structures (PLAN- prefix).
 
 ## Review Modes
@@ -253,7 +255,7 @@ Persistence failure MUST NOT alter the task's review verdict. If persistence fai
 ### TIMEOUT_FAIL Mode
 
 #### REV-038: Timeout-Fail Purpose
-TIMEOUT_FAIL mode handles the case where the Execution Role timed out, crashed, or otherwise failed to produce a Task Report. The Review Role administratively marks the task as failed so the Orchestration Role can proceed.
+TIMEOUT_FAIL mode MUST handle the case where the Execution Role timed out, crashed, or otherwise failed to produce a Task Report. The Review Role MUST administratively mark the task as failed so the Orchestration Role can proceed.
 
 #### REV-039: Report Existence Check
 In TIMEOUT_FAIL mode, the Review Role MUST check whether any Task Report exists for the specified task in the current Iteration Container. If no report exists, the Review Role MUST create a minimal Task Report recording the timeout event.
@@ -278,7 +280,7 @@ The Cross-Agent Normalization Checklist MUST include exactly seven checks:
 |---|---|---|
 | (a) | **Version Consistency** | All role artifact metadata version fields MUST match the target release version |
 | (b) | **No Bare Artifact References** | Zero bare Progress Tracker, Iteration Plan, Task Definition Record, Discovery Record, or Task Report references MUST appear outside of path pattern examples — every reference MUST use qualified paths |
-| (c) | **Knowledge Directory Structure** | The knowledge repository directory structure MUST match the categories defined by the Knowledge Role specification |
+| (c) | **Knowledge Organizational Structure** | The knowledge repository organizational structure MUST match the categories defined by the Knowledge Role specification |
 | (d) | **Signal Checkpoint Formatting** | All signal checkpoint blocks MUST have intact formatting — no split tokens across lines |
 | (e) | **Lifecycle Hook Path Accuracy** | Lifecycle hook descriptions MUST reference current artifact paths — no stale path references |
 | (f) | **Priority Count Accuracy** | Summary counts in aggregate views MUST match actual enumerated lists |
@@ -612,7 +614,7 @@ AND the issue is recorded in the Issues Found section of the Iteration Review Re
 ### SC-REV-023: Cross-Agent Normalization — All Checks Pass
 **Validates**: REV-042, REV-043, REV-044
 ```
-GIVEN all role artifacts have consistent versions, qualified path references, correct directory structure, intact formatting, accurate hook paths, matching counts, and verified version uniformity
+GIVEN all role artifacts have consistent versions, qualified path references, correct organizational structure, intact formatting, accurate hook paths, matching counts, and verified version uniformity
 WHEN the Review Role executes all seven normalization checks
 THEN all checks report Pass
 AND the Cross-Agent Consistency section records seven Pass results with supporting notes

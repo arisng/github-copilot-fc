@@ -8,6 +8,8 @@ updated_at: 2026-03-02T16:10:48+07:00
 
 # Planning Specification
 
+## Purpose
+
 This specification defines the behavioral contracts for the Planning Role — the role responsible for session initialization, task breakdown, replanning, state repair, and critique-driven gap-filling. It establishes nine planning modes, the Task Definition Record structure, the multi-pass breakdown algorithm, grounding requirements, the Iteration Plan lifecycle, and wave optimization. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix).
 
 ## Planning Modes
@@ -245,11 +247,11 @@ Before beginning the multi-pass breakdown algorithm in TASK_BREAKDOWN mode, the 
 
 ### Artifact Ownership Integration
 
-#### PLAN-040: Planning Role Write Authority
-The Planning Role has write authority over the following artifacts (per SES-012): Session State Store (initialization only), Iteration State Store (initialization only), Iteration Plan, Task Definition Records, Progress Tracker, Active Session Pointer (initialization only), and Lifecycle Hook Gate (initialization only). The Planning Role MUST NOT write to artifacts outside this set.
+#### PLAN-040: Planning Role mutation authority
+The Planning Role has mutation authority over the following artifacts (per SES-012): Session State Store (initialization only), Iteration State Store (initialization only), Iteration Plan, Task Definition Records, Progress Tracker, Active Session Pointer (initialization only), and Lifecycle Hook Gate (initialization only). The Planning Role MUST NOT modify artifacts outside this set.
 
 #### PLAN-041: Progress Tracker Update Discipline
-When the Planning Role writes to the Progress Tracker, it MUST follow the update discipline defined in SES-018: update at the start of work (marking in-progress) and at the end of work (marking the final status). The Planning Role's Progress Tracker updates are limited to planning-phase entries and task definition entries — it MUST NOT modify execution-phase or review-phase status markers owned by other roles.
+When the Planning Role updates the Progress Tracker, it MUST follow the update discipline defined in SES-018: update at the start of work (marking in-progress) and at the end of work (marking the final status). The Planning Role's Progress Tracker updates are limited to planning-phase entries and task definition entries — it MUST NOT modify execution-phase or review-phase status markers owned by other roles.
 
 ## Scenarios
 
@@ -501,14 +503,14 @@ AND GIVEN the system is in iteration 1 and INITIALIZE mode
 THEN the replanning history section is omitted from the Iteration Plan
 ```
 
-### SC-PLAN-024: Write Authority Enforcement
+### SC-PLAN-024: mutation authority Enforcement
 **Validates**: PLAN-040
 ```
 GIVEN the Planning Role is executing in TASK_BREAKDOWN mode
 WHEN it needs to create Task Definition Records and update the Iteration Plan
-THEN both operations succeed (Planning Role has write authority per SES-012)
+THEN both operations succeed (Planning Role has mutation authority per SES-012)
 AND WHEN it attempts to modify a Task Report (owned by the Execution and Review Roles)
-THEN the modification is rejected — the Planning Role has no write authority over Task Reports
+THEN the modification is rejected — the Planning Role has no mutation authority over Task Reports
 ```
 
 ### SC-PLAN-025: Progress Tracker Update Discipline
@@ -536,7 +538,7 @@ AND returns an error indicating that only one mode per invocation is permitted
 ```
 GIVEN the Planning Role has created an Iteration Plan in INITIALIZE mode
 WHEN the Discovery Role attempts to modify the Iteration Plan
-THEN the modification is rejected — only the Planning Role has write authority
+THEN the modification is rejected — only the Planning Role has mutation authority
 AND WHEN the Planning Role is invoked in UPDATE mode
 THEN the Iteration Plan modification succeeds
 ```
