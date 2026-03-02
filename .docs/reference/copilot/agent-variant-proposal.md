@@ -14,51 +14,59 @@ Only the `agents/` directory needs restructuring — all other artifact director
 
 ### Convention: Subdirectories Over Suffixes
 
-**Recommendation**: Use subdirectories (`agents/ralph-v2/`, `agents/cli/`) to separate runtime variants.
+**Recommendation**: Use nested subdirectories under each agent group (`agents/ralph-v2/vscode/`, `agents/ralph-v2/cli/`) to separate runtime variants.
 
 Three naming conventions were evaluated:
 
 | Convention                                                        | Pros                                                                                     | Cons                                                                                                                                                      |    Verdict    |
 | :---------------------------------------------------------------- | :--------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------: |
 | **Suffix** (`ralph-v2.vscode.agent.md` / `ralph-v2.cli.agent.md`) | All agents visible in one listing                                                        | Both platforms use `*.agent.md` glob for discovery — **duplicate agent registration risk**. copilot-cli may interpret `ralph-v2.vscode` as the agent name |    ❌ Risky    |
-| **Subdirectory** (`agents/ralph-v2/`, `agents/cli/`)              | Clean separation; publish scripts copy from correct subdirectory; no cross-contamination | Requires publish script to select source directory                                                                                                        | ✅ Recommended |
+| **Subdirectory** (`agents/ralph-v2/vscode/`, `agents/ralph-v2/cli/`) | Clean separation; encapsulation under agent group; symmetric structure; publish scripts copy from correct subdirectory; no cross-contamination | Requires publish script to select source directory; file moves required for existing VS Code agents                                                        | ✅ Recommended |
 | **Conditional sections** (single file with platform markers)      | Single source of truth                                                                   | Neither runtime supports conditional logic in `.agent.md` — no `#ifdef` equivalent in Markdown                                                            | ❌ Not viable  |
 
-The subdirectory convention is the safest approach because:
+The nested subdirectory convention is the safest approach because:
 - `publish-agents.ps1` already uses `Get-ChildItem -Recurse` for agent discovery, so subdirectory agents are found.
 - For CLI publishing to `~/.copilot/agents/`, the script copies files to a flat destination — subdirectory source → flat destination is a standard pattern.
 - No risk of the wrong platform picking up the other platform's variants.
+- Both variants and shared content are encapsulated under one agent group directory.
 
 ### Proposed Layout
 
 ```
 agents/
-├── ralph-v2/                          # VS Code variants (current location, no move needed)
-│   ├── ralph-v2.agent.md              # Orchestrator (VS Code)
-│   ├── ralph-v2-executor.agent.md     # Executor (VS Code)
-│   ├── ralph-v2-planner.agent.md      # Planner (VS Code)
-│   ├── ralph-v2-questioner.agent.md   # Questioner (VS Code)
-│   ├── ralph-v2-reviewer.agent.md     # Reviewer (VS Code)
-│   ├── ralph-v2-librarian.agent.md    # Librarian (VS Code)
-│   ├── README.md
-│   ├── docs/
-│   └── specs/
-├── cli/                               # CLI variants (new)
-│   ├── ralph-v2.agent.md              # Orchestrator (CLI)
-│   ├── ralph-v2-executor.agent.md     # Executor (CLI)
-│   ├── ralph-v2-planner.agent.md      # Planner (CLI)
-│   ├── ralph-v2-questioner.agent.md   # Questioner (CLI)
-│   ├── ralph-v2-reviewer.agent.md     # Reviewer (CLI)
-│   └── ralph-v2-librarian.agent.md    # Librarian (CLI)
+├── ralph-v2/                          # Agent group: shared content + per-runtime variants
+│   ├── README.md                      # Shared documentation
+│   ├── docs/                          # Shared design docs
+│   ├── specs/                         # Shared specifications
+│   ├── vscode/                        # VS Code variants (moved from parent via git mv)
+│   │   ├── ralph-v2.agent.md          # Orchestrator (VS Code)
+│   │   ├── ralph-v2-executor.agent.md # Executor (VS Code)
+│   │   ├── ralph-v2-planner.agent.md  # Planner (VS Code)
+│   │   ├── ralph-v2-questioner.agent.md # Questioner (VS Code)
+│   │   ├── ralph-v2-reviewer.agent.md # Reviewer (VS Code)
+│   │   └── ralph-v2-librarian.agent.md # Librarian (VS Code)
+│   └── cli/                           # CLI variants (new)
+│       ├── ralph-v2.agent.md          # Orchestrator (CLI)
+│       ├── ralph-v2-executor.agent.md # Executor (CLI)
+│       ├── ralph-v2-planner.agent.md  # Planner (CLI)
+│       ├── ralph-v2-questioner.agent.md # Questioner (CLI)
+│       ├── ralph-v2-reviewer.agent.md # Reviewer (CLI)
+│       └── ralph-v2-librarian.agent.md # Librarian (CLI)
 ├── generic-research.agent.md          # Non-ralph agents (unchanged)
 ├── planner.agent.md
 └── ...
 ```
 
 **Key decisions**:
-- `agents/ralph-v2/` retains current VS Code agents in-place — **no file moves required** for the existing, primary development environment.
-- `agents/cli/` contains CLI-specific variants as new files.
+- VS Code agents are **moved** from `agents/ralph-v2/` into `agents/ralph-v2/vscode/` via `git mv` — this creates a symmetric structure where both variants are nested under the agent group.
+- CLI variants are created as new files in `agents/ralph-v2/cli/`.
+- Shared content (`README.md`, `docs/`, `specs/`) remains at the `agents/ralph-v2/` parent level, accessible to both variants.
 - Non-ralph agents (`generic-research`, `planner`, `mermaid`, etc.) remain at `agents/` root — they are not part of the ralph-v2 multi-agent system and do not currently need CLI variants.
+
+**Three advantages of the nested convention** (Q-FDB-004):
+1. **Encapsulation**: All content for an agent group lives under one parent directory — variants, shared docs, and specs are co-located.
+2. **Symmetry**: Both `vscode/` and `cli/` are peer subdirectories under the same parent, making the structure self-documenting.
+3. **Discovery simplicity**: Listing `agents/ralph-v2/` reveals both variants and shared content in one view, rather than requiring knowledge of a separate `agents/cli/` root directory.
 
 ## Three Categories of Incompatibility
 
@@ -192,16 +200,16 @@ This abstraction makes instructions work regardless of the platform's tool namin
 Add a `-Platform` parameter to `publish-agents.ps1`:
 
 ```
-publish-agents.ps1 -Platform vscode    # Copies from agents/ralph-v2/ to VS Code paths
-publish-agents.ps1 -Platform cli        # Copies from agents/cli/ to CLI paths
+publish-agents.ps1 -Platform vscode    # Copies from agents/*/vscode/ to VS Code paths
+publish-agents.ps1 -Platform cli        # Copies from agents/*/cli/ to CLI paths
 publish-agents.ps1                      # Default: publishes both
 ```
 
-| Parameter          | Source Directory                                  | Destinations                                                              |
-| :----------------- | :------------------------------------------------ | :------------------------------------------------------------------------ |
-| `-Platform vscode` | `agents/ralph-v2/`, `agents/` (root-level agents) | `%APPDATA%/Code/User/prompts/`, `%APPDATA%/Code - Insiders/User/prompts/` |
-| `-Platform cli`    | `agents/cli/`                                     | `%USERPROFILE%/.copilot/agents/`, WSL `~/.copilot/agents/`                |
-| (default)          | All of the above                                  | All of the above                                                          |
+| Parameter          | Source Directory                                           | Destinations                                                              |
+| :----------------- | :--------------------------------------------------------- | :------------------------------------------------------------------------ |
+| `-Platform vscode` | `agents/*/vscode/`, `agents/` (root-level agents)          | `%APPDATA%/Code/User/prompts/`, `%APPDATA%/Code - Insiders/User/prompts/` |
+| `-Platform cli`    | `agents/*/cli/`                                            | `%USERPROFILE%/.copilot/agents/`, WSL `~/.copilot/agents/`                |
+| (default)          | All of the above                                           | All of the above                                                          |
 
 **Non-ralph agents** at the `agents/` root (e.g., `generic-research.agent.md`, `planner.agent.md`) are published to **VS Code only** by default, since they do not have CLI variants. Future work may add CLI variants for individual non-ralph agents as needed.
 
@@ -209,8 +217,8 @@ publish-agents.ps1                      # Default: publishes both
 
 Both VS Code and CLI discovery expect flat file placement at the destination (no subdirectories). The publish script must strip the source subdirectory structure when copying:
 
-- `agents/ralph-v2/ralph-v2.agent.md` → `%APPDATA%/Code/User/prompts/ralph-v2.agent.md`
-- `agents/cli/ralph-v2.agent.md` → `%USERPROFILE%/.copilot/agents/ralph-v2.agent.md`
+- `agents/ralph-v2/vscode/ralph-v2.agent.md` → `%APPDATA%/Code/User/prompts/ralph-v2.agent.md`
+- `agents/ralph-v2/cli/ralph-v2.agent.md` → `%USERPROFILE%/.copilot/agents/ralph-v2.agent.md`
 
 Both variants share the same filename (`ralph-v2.agent.md`) — they go to different destinations, so no collision occurs.
 
@@ -233,8 +241,8 @@ A `scripts/publish/validate-agent-variants.ps1` script can detect variant drift 
 | :--------------------------- | :--------------------------------------------------------------------------------------------------------------- |
 | Shared instruction reference | Both VS Code and CLI variants for the same agent reference the same shared `.instructions.md` file               |
 | Cross-platform field usage   | VS Code variant doesn't depend on CLI-only fields (`infer:`, `mcpServers:`) for functionality                    |
-| Tool namespace compliance    | CLI variant doesn't include VS Code-only tool namespaces (`execute/*`, `read/*`, `edit/*`) in its `tools:` array |
-| Completeness                 | Every agent in `agents/ralph-v2/` has a corresponding variant in `agents/cli/` (and vice versa)                  |
+| Tool namespace compliance    | CLI variant doesn't include VS Code-only tool namespaces (`execute/*`, `read/*`, `edit/*`) in its `tools:` array  |
+| Completeness                 | Every agent in `agents/ralph-v2/vscode/` has a corresponding variant in `agents/ralph-v2/cli/` (and vice versa)  |
 
 This validation is **advisory** — it warns about drift but does not block publishing. Implementation of this script is deferred along with the variant files themselves.
 
@@ -244,17 +252,18 @@ This validation is **advisory** — it warns about drift but does not block publ
 
 This proposal targets exactly two runtimes: **VS Code** and **copilot-cli**. The subdirectory convention is inherently extensible:
 
-- Adding a future runtime (e.g., "Copilot Cloud") means creating `agents/cloud/` — no restructuring of existing `agents/ralph-v2/` or `agents/cli/` directories required.
+- Adding a future runtime (e.g., "Copilot Cloud") means creating `agents/ralph-v2/cloud/` — no restructuring of existing `agents/ralph-v2/vscode/` or `agents/ralph-v2/cli/` directories required.
 - The `-Platform` parameter in `publish-agents.ps1` accepts new values without breaking existing behavior.
 - Shared instructions remain the single source of truth regardless of how many platform variants exist.
+- New runtimes are **nested under the agent group**, not at the `agents/` root — keeping the encapsulation pattern consistent.
 
-No empty `agents/cloud/` directory is created preemptively. The YAGNI principle applies: solve today's known problems, not tomorrow's hypothetical ones.
+No empty `agents/ralph-v2/cloud/` directory is created preemptively. The YAGNI principle applies: solve today's known problems, not tomorrow's hypothetical ones.
 
 ### Extensibility Checklist for New Runtimes
 
 When adding a third runtime variant:
 
-1. Create `agents/<runtime>/` directory with variant agent files
+1. Create `agents/<agent-group>/<runtime>/` directory with variant agent files
 2. Extract any new platform-specific fields into the variant frontmatter
 3. Add the runtime to the `-Platform` parameter in `publish-agents.ps1`
 4. Add a column to the runtime-support framework matrix
@@ -264,13 +273,14 @@ When adding a third runtime variant:
 
 | Item                                         |    Status    | Notes                                                                 |
 | :------------------------------------------- | :----------: | :-------------------------------------------------------------------- |
-| Directory structure convention               |  ✅ Decided   | Subdirectory (`agents/ralph-v2/`, `agents/cli/`)                      |
+| Directory structure convention               |  ✅ Decided   | Nested subdirectory (`agents/ralph-v2/vscode/`, `agents/ralph-v2/cli/`). VS Code agents **moved** via `git mv` for symmetric structure. |
 | Shared instructions extraction strategy      |  ✅ Decided   | Platform-agnostic content → `instructions/ralph-v2-*.instructions.md` |
 | Per-agent incompatibility analysis           | ✅ Documented | 6 agents analyzed across 3 categories                                 |
-| Publish flow adjustments design              |  ✅ Designed  | `-Platform vscode\|cli` parameter                                     |
+| Publish flow adjustments design              |  ✅ Designed  | `-Platform vscode\|cli` parameter; source dirs: `agents/*/vscode/`, `agents/*/cli/` |
 | Authoring model                              |  ✅ Decided   | Manual with optional validation                                       |
-| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 3**                                                       |
+| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 3** — `agents/ralph-v2/cli/`                              |
 | **Extraction of 6 shared instruction files** |  ⏳ Deferred  | **Iteration 3**                                                       |
+| **Move VS Code agents to `vscode/` subdir**  |  ⏳ Deferred  | **Iteration 3** — `git mv` into `agents/ralph-v2/vscode/`            |
 | **Implementation of `-Platform` parameter**  |  ⏳ Deferred  | **Iteration 3**                                                       |
 | **Validation script implementation**         |  ⏳ Deferred  | **Iteration 3**                                                       |
 
