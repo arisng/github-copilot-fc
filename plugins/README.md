@@ -95,21 +95,61 @@ Plugins **supplement** the existing publish-script workflow — they do not repl
 
 - **Publish scripts** (`scripts/publish/publish-*.ps1`) remain the source of truth for distributing individual artifacts (agents, skills, instructions, hooks) to their standard platform-specific locations.
 - **Plugins** bundle multiple artifacts into a single installable unit for distribution to other users or machines.
+- **Bundling is default**: `publish-plugins.ps1` produces a self-contained `.build/` directory automatically. Use `-SkipBundle` only for development/debugging — it emits a warning because relative paths may not resolve correctly after `copilot plugin install`.
 
 Use publish scripts for local development iteration. Use plugins for packaging and sharing complete workflows.
 
-## Instruction Delivery
+## Instruction Embedding
 
-The `instructions` field is **not** part of the `plugin.json` schema. The Copilot CLI has no plugin-based instruction loading path — the [loading order](https://docs.github.com/en/copilot/reference/cli-plugin-reference) resolves instructions from `AGENTS.md`, `~/.copilot/copilot-instructions.md`, `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and project `.github/copilot-instructions.md`, but never from installed plugins.
+The `instructions` field is **not** part of the `plugin.json` schema, and the Copilot CLI does not load instruction files from installed plugins at runtime. To solve this, the publish pipeline **embeds** instruction content directly into agent files at bundle time.
 
-**Implication:** If your plugin's agents rely on shared instruction files (e.g., `.instructions.md` files for orchestration logic), those instruction files must be delivered separately.
+### How it works
 
-**Workaround:** Use `scripts/publish/publish-instructions.ps1` alongside `scripts/publish/publish-plugins.ps1` to distribute instruction files to the standard CLI instruction paths.
+1. **EMBED markers** — Agent source files contain a placeholder comment where instruction content should be inlined:
 
-For workspace plugins like `ralph-v2`, this means the publish workflow is:
+   ```markdown
+   <!-- EMBED: ralph-v2-executor.instructions.md -->
+   ```
 
-1. `publish-plugins.ps1 -Bundle` — bundles and installs agent/skill/hook components
-2. `publish-instructions.ps1` — copies instruction files to `~/.copilot/` or the configured instruction directory
+2. **`Merge-AgentInstructions`** — During `Build-PluginBundle`, this function scans `.build/agents/` for EMBED markers and resolves them:
+   - Reads the referenced file from `instructions/`
+   - Strips the instruction file's YAML frontmatter and first H1 header
+   - Replaces the marker line with the stripped content
+   - Preserves the agent's own YAML frontmatter verbatim (including `mcp-servers:`)
+
+3. **Validation** — After merging, the function:
+   - Checks the merged body length is ≤ 30,000 characters (copilot-cli limit — applies to markdown body only, not YAML frontmatter)
+   - Warns if required section markers (`<persona>`, `<rules>`, signal protocol, `<contract>`) are missing
+
+### Build pipeline flow
+
+```
+Copy (source → .build/) → Merge (resolve EMBED markers) → Validate (paths + char limits)
+```
+
+### Trimmed instruction variants
+
+Some agents have large instruction files that exceed the 30K body limit when combined with the agent body. For these, trimmed variants are created:
+
+- `ralph-v2-reviewer.cli-embed.instructions.md` — trimmed Reviewer instructions
+- `ralph-v2-librarian.cli-embed.instructions.md` — trimmed Librarian instructions
+
+Trimming removes templates, checklists, verbose examples, and redundant reference material while preserving persona, rules, core workflow, signal protocol, and contract sections.
+
+### Orchestrator exclusion
+
+The Orchestrator agent is currently excluded from instruction embedding — its combined body + instructions exceed 46K characters, well over the 30K limit. This requires a follow-up iteration to address with more aggressive trimming or structural changes.
+
+## Instruction Delivery (Legacy)
+
+For agents that are **not** embedded, instruction files must still be delivered separately using `publish-instructions.ps1`:
+
+```powershell
+# Deliver instruction files to standard CLI paths
+pwsh -NoProfile -File scripts/publish/publish-instructions.ps1
+```
+
+The CLI resolves instructions from `AGENTS.md`, `~/.copilot/copilot-instructions.md`, `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and project `.github/copilot-instructions.md` — but never from installed plugin directories.
 
 ## Marketplace Publishing
 

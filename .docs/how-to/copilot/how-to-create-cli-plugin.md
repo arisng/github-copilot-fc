@@ -95,7 +95,7 @@ For workspace plugins that reference existing artifacts, use relative paths in `
 }
 ```
 
-This is the approach used by the workspace's pilot plugin at [plugins/ralph-v2/plugin.json](../../../plugins/ralph-v2/plugin.json). For team distribution, use `publish-plugins.ps1 -Bundle` to create a self-contained copy with all referenced files resolved into the plugin directory.
+This is the approach used by the workspace's pilot plugin at [plugins/ralph-v2/plugin.json](../../../plugins/ralph-v2/plugin.json). For team distribution, run `publish-plugins.ps1` to create a self-contained bundle — bundling is the default behavior. Use `-SkipBundle` only for development/debugging.
 
 ## Step 4: Install locally
 
@@ -155,6 +155,8 @@ Or use the publish script with `-Force`:
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin -Force
 ```
 
+> **Note:** Bundling is the default behavior. Use `-SkipBundle` only for development when you want to skip the bundle build step.
+
 ### Temporarily disable a plugin
 
 ```bash
@@ -175,19 +177,22 @@ See [publish-plugins.ps1](../../../scripts/publish/publish-plugins.ps1) for all 
 
 ## Instruction delivery
 
-Plugins cannot deliver instruction files — the `instructions` field does not exist in the `plugin.json` schema, and the CLI does not load instructions from installed plugin directories.
+Plugins cannot deliver instruction files via `plugin.json` — the `instructions` field does not exist in the schema, and the CLI does not load instructions from installed plugin directories.
 
-If your plugin's agents depend on shared instruction files (e.g., `*.instructions.md` files for orchestration or coding standards), distribute those separately using `publish-instructions.ps1`:
+The recommended solution is **instruction embedding**: agent source files include `<!-- EMBED: filename -->` markers that are resolved at bundle time by `Merge-AgentInstructions`. This inlines instruction content directly into the agent body, producing self-contained agent files that carry their full workflow, rules, and signal protocol.
 
 ```powershell
-# Install the plugin
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin -Bundle
+# Install the plugin (bundling + embedding is default)
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin
+```
 
-# Separately deliver instruction files
+For agents that are not embedded (e.g., due to size constraints), deliver instruction files separately:
+
+```powershell
 pwsh -NoProfile -File scripts/publish/publish-instructions.ps1
 ```
 
-See [plugins/README.md](../../../plugins/README.md#instruction-delivery) for the full rationale and workaround details.
+See [plugins/README.md](../../../plugins/README.md#instruction-embedding) for the full embedding architecture details.
 
 ## Marketplace publishing
 
