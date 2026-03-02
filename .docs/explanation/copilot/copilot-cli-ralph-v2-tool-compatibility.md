@@ -121,6 +121,8 @@ The analysis is grounded in research from Q-TECH-001 through Q-TECH-008, Q-ASM-0
 
 ## Per-Agent Readiness Summary
 
+> **Runtime variant assumption (iteration 2):** The readiness assessments below assume that each ralph-v2 agent will be authored as a **platform-specific variant** for copilot-cli, not that the existing VS Code agent files will be used as-is. Under the variant model, shared platform-agnostic logic lives in `.instructions.md` files, and CLI variants use CLI-native tool names (`bash`, `view`, `edit`, `create`, `task`) and CLI-specific frontmatter (`infer:`, `mcpServers:`). This means the "Shell-fallback" and "Unavailable" categories represent the residual gaps *after* tool namespace remapping — not the total migration effort. The Orchestrator's `agents:` → `infer:` + TaskTool architectural change is handled at the variant level, not at runtime. See [agent-variant-proposal.md](../../reference/copilot/agent-variant-proposal.md) for the variant design and [runtime-support-framework.md](../../reference/copilot/runtime-support-framework.md) for the full support matrix.
+
 ### Ralph-v2-Orchestrator
 
 **Declared tools**: `execute/getTerminalOutput`, `execute/awaitTerminal`, `execute/killTerminal`, `execute/runInTerminal`, `read/problems`, `read/readFile`, `read/terminalSelection`, `read/terminalLastCommand`, `agent`, `edit/createDirectory`, `edit/createFile`, `edit/editFiles`, `search`, `mcp_docker/sequentialthinking`, `vscode/memory`

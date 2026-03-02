@@ -72,6 +72,30 @@ Agent `.agent.md` files work in both VS Code and CLI, but the schema differs. Un
 
 See the [schema comparison](../../explanation/copilot/copilot-cli-vs-vscode-customization.md#agent-frontmatter-schema-comparison) for the full property table.
 
+### Variant-aware publishing (iteration 2)
+
+Agents are **not behaviorally shareable** across runtimes — a single `.agent.md` file cannot produce identical behavior on VS Code and copilot-cli (see [runtime-support-framework.md](../../reference/copilot/runtime-support-framework.md#agents--not-shareable-)). The workspace uses a **subdirectory convention** to separate variants:
+
+- `agents/ralph-v2/` — VS Code variants (current location, unchanged)
+- `agents/cli/` — copilot-cli variants (new, to be created in iteration 3)
+
+When CLI variants exist, the publish flow becomes platform-aware:
+
+```powershell
+# Publish VS Code variants only
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform vscode -Force
+
+# Publish CLI variants only
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform cli -Force
+
+# Publish both (default)
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Force
+```
+
+Both VS Code and CLI discovery expect **flat** file placement at the destination — the publish script strips the source subdirectory structure when copying. Shared platform-agnostic logic lives in `.instructions.md` files referenced by both variants, so updates to agent behavior only need to happen once.
+
+See [agent-variant-proposal.md](../../reference/copilot/agent-variant-proposal.md) for the full directory layout, shared instruction extraction strategy, and `-Platform` parameter design.
+
 ---
 
 ## Publishing skills

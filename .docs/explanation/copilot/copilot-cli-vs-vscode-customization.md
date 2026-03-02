@@ -42,6 +42,8 @@ Both platforms read `.agent.md` files with YAML frontmatter, but support differe
 
 An agent file written for VS Code that uses `agents:` and `argument-hint:` will still load in CLI. The unsupported keys are silently dropped. However, the subagent orchestration behavior will differ — see [Subagent Orchestration](#subagent-orchestration) below.
 
+> **Runtime variant model (iteration 2):** Because agents are not behaviorally shareable across runtimes (tool namespaces, frontmatter fields, and body-level instructions all diverge), the workspace adopts a **per-runtime variant approach**. Platform-agnostic content (persona, rules, workflows, artifact templates, signal protocols) is extracted into shared `.instructions.md` files. Each runtime then gets a thin variant agent (~50 lines) containing only platform-specific frontmatter (`agents:` + VS Code tools, or `infer:` + `mcpServers:` + CLI tools) and tool-specific instructions. This keeps a single source of truth for agent behavior while allowing each platform to use its native capabilities. See [agent-variant-proposal.md](../../reference/copilot/agent-variant-proposal.md) for the full directory structure and extraction strategy.
+
 ---
 
 ## Tool Namespace Differences
