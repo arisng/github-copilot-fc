@@ -21,14 +21,29 @@ A feedback-driven, multi-agent system with isolated task files, structured itera
 ### Agent Directory
 
 ```
+agents/
+└── ralph-v2/
+    ├── README.md
+    ├── vscode/
+    │   ├── ralph-v2.agent.md
+    │   ├── ralph-v2-executor.agent.md
+    │   ├── ralph-v2-planner.agent.md
+    │   ├── ralph-v2-questioner.agent.md
+    │   ├── ralph-v2-reviewer.agent.md
+    │   └── ralph-v2-librarian.agent.md
+    └── cli/
+        ├── ralph-v2.agent.md
+        ├── ralph-v2-executor.agent.md
+        ├── ralph-v2-planner.agent.md
+        ├── ralph-v2-questioner.agent.md
+        ├── ralph-v2-reviewer.agent.md
+        └── ralph-v2-librarian.agent.md
+```
+
+> **Note**: `specs/`, `docs/`, and shared files remain at the `ralph-v2/` root.
+
+```
 agents/ralph-v2/
-├── ralph-v2.agent.md              # Orchestrator (state machine, routing)
-├── ralph-v2-planner.agent.md      # Planning (plan.md, tasks, waves)
-├── ralph-v2-questioner.agent.md   # Q&A discovery (brainstorm/research/feedback-analysis)
-├── ralph-v2-executor.agent.md     # Task execution (implementation, design-time validation)
-├── ralph-v2-reviewer.agent.md     # Quality assurance (review, COMMIT, runtime validation)
-├── ralph-v2-librarian.agent.md    # Knowledge management (EXTRACT/STAGE/PROMOTE)
-├── README.md                      # This file (single entry point)
 ├── specs/                         # Feature specifications (YAML frontmatter)
 │   ├── live-signals.spec.md       # Live signal protocol spec (v2.10.0, implemented)
 │   ├── normalization.spec.md      # SSOT normalization spec (v2.2.0, implemented)

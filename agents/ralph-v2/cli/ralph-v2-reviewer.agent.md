@@ -26,6 +26,6 @@ metadata:
 - **Search**: `bash` with `grep`, `find`, `cat` for codebase exploration
 - **Testing**: `bash` for running test commands directly
 - **Diagnostics**: `bash` with build/lint commands for compile-time validation
-- **MCP tools (shared)**: Docker MCP gateway (via `~/.copilot/mcp-config.json`): Sequential Thinking, Brave Search (web_search + summarizer), Fetch, DuckDuckGo
+- **MCP tools (shared)**: Docker MCP gateway (via `~/.copilot/mcp-config.json`): Sequential Thinking, Brave Search (web_search + summarizer), Fetch, Context7, DuckDuckGo
 - **No persistent memory**: copilot-cli has no built-in memory tool; use session files for context persistence
 - **No `web` tool**: Use Brave Search and Fetch MCP tools for web research
