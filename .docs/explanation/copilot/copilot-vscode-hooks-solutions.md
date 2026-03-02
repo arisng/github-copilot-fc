@@ -1,5 +1,7 @@
 # Copilot VS Code Hook-like Capabilities: Solutions Analysis
 
+Status: Deprecated (DO NOT USE THIS DOCUMENT AS A REFERENCE) — Copilot VS Code now supports hooks officially. This document is retained for historical reference on the research and solution analysis process.
+
 ## Overview
 
 This document analyzes solutions to achieve Claude Code hook-like capabilities within GitHub Copilot for VS Code, based on the Claude Code hooks research. While Copilot lacks the deep integration of Claude Code hooks, VS Code's rich extensibility ecosystem provides multiple approaches to implement similar deterministic controls and automation.

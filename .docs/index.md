@@ -44,6 +44,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [wsl-helpers.ps1 API Reference](reference/copilot/wsl-helpers-api-reference.md)
 - [Agent Variant Directory Convention](reference/copilot/agent-variant-directory-convention.md)
 - [Platform-Aware publish-agents.ps1 Design Reference](reference/copilot/platform-aware-publish-agents-design.md)
+- [Copilot CLI Custom Agent Frontmatter Schema Reference](reference/copilot/copilot-cli-agent-frontmatter-schema.md)
 
 ### Ralph
 
@@ -77,6 +78,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph-v2 Tool Compatibility in Copilot CLI](explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md)
 - [Framework-First Approach to Multi-Runtime Infrastructure](explanation/copilot/framework-first-multi-runtime-planning.md)
 - [Shared Instruction Pattern: Why It Exists and Its Trade-offs](explanation/copilot/shared-instruction-pattern-trade-offs.md)
+- [The `infer` Key Retirement: Rationale and Migration](explanation/copilot/infer-key-retirement-and-migration.md)
 
 ### Ralph
 
