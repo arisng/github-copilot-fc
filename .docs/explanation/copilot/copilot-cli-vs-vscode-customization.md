@@ -23,18 +23,18 @@ These different runtime environments drive every architectural difference descri
 
 Both platforms read `.agent.md` files with YAML frontmatter, but support different property sets. Unrecognized properties are **silently ignored** on both platforms — agents degrade gracefully rather than failing.
 
-| Property | Type | CLI | VS Code | Purpose |
-|----------|------|:---:|:-------:|---------|
-| `name` | string | ✅ | ✅ | Agent display name. CLI derives from filename if omitted. |
-| `description` | string | ✅ | ✅ | Agent description. Required in VS Code. |
-| `instructions` | string | ✅ | ✅ | Markdown body after frontmatter. |
-| `tools` | array | ✅ | ✅ | Tool whitelist/blacklist. CLI supports glob patterns and `-` prefix for deny. |
-| `model` | string | ✅ | ❌ | CLI-only. Override the default LLM model per agent. |
-| `infer` | boolean | ✅ | ❌ | CLI-only. Controls whether other agents can delegate to this agent via TaskTool (default: `true`). |
-| `mcpServers` | object | ✅ | ❌ | CLI-only. Bundle MCP server definitions directly in the agent file. |
-| `agents` | array | ❌ | ✅ | VS Code-only. Declare subagent references for orchestration. |
-| `argument-hint` | string | ❌ | ✅ | VS Code-only. Hint text shown in the agent picker. |
-| `user-invocable` | boolean | ❌ | ✅ | VS Code-only. Controls whether the agent appears in the user-facing picker. |
+| Property         | Type    |  CLI  | VS Code | Purpose                                                                                            |
+| ---------------- | ------- | :---: | :-----: | -------------------------------------------------------------------------------------------------- |
+| `name`           | string  |   ✅   |    ✅    | Agent display name. CLI derives from filename if omitted.                                          |
+| `description`    | string  |   ✅   |    ✅    | Agent description. Required in VS Code.                                                            |
+| `instructions`   | string  |   ✅   |    ✅    | Markdown body after frontmatter.                                                                   |
+| `tools`          | array   |   ✅   |    ✅    | Tool whitelist/blacklist. CLI supports glob patterns and `-` prefix for deny.                      |
+| `model`          | string  |   ✅   |    ❌    | CLI-only. Override the default LLM model per agent.                                                |
+| `infer`          | boolean |   ✅   |    ❌    | CLI-only. Controls whether other agents can delegate to this agent via TaskTool (default: `true`). |
+| `mcpServers`     | object  |   ✅   |    ❌    | CLI-only. Bundle MCP server definitions directly in the agent file.                                |
+| `agents`         | array   |   ❌   |    ✅    | VS Code-only. Declare subagent references for orchestration.                                       |
+| `argument-hint`  | string  |   ❌   |    ✅    | VS Code-only. Hint text shown in the agent picker.                                                 |
+| `user-invocable` | boolean |   ❌   |    ✅    | VS Code-only. Controls whether the agent appears in the user-facing picker.                        |
 
 **Why the divergence?** VS Code agents operate within the extension host where subagent references must be explicitly declared (the `agents:` array). CLI agents operate in a flat namespace where any agent with `infer: true` is automatically visible as a delegatable tool — no explicit wiring needed.
 
@@ -50,18 +50,18 @@ An agent file written for VS Code that uses `agents:` and `argument-hint:` will 
 
 The built-in tools available to agents use completely different names across platforms. This is because VS Code tools are backed by editor APIs (diagnostics, terminals, extension host), while CLI tools are backed by direct filesystem and shell operations.
 
-| VS Code Tool | CLI Tool | Category | Notes |
-|-------------|----------|----------|-------|
-| `execute/runInTerminal` | `bash` | Shell execution | CLI uses `bash` on Linux/macOS, PowerShell on Windows. No terminal UI — output is captured directly. |
-| `read/readFile` | `view` | File reading | Functionally identical. CLI's `view` supports line ranges natively. |
-| `edit/editFiles` | `edit` | File editing | Both support string replacement. CLI's `edit` uses a unified edit model. |
-| *(via edit)* | `create` | File creation | CLI has a dedicated `create` tool. VS Code uses `edit/editFiles` or `create_file`. |
-| `search` | Built-in search | Code search | Both do codebase-level search. Underlying implementations differ. |
-| `agent` | `task` (TaskTool) | Subagent delegation | Architecturally different models (see below). |
-| `web` | **No built-in** | Web access | CLI has no built-in web tool. Mitigate with MCP servers (Brave Search, fetch). |
-| `vscode/memory` | **No equivalent** | Memory | CLI has implicit memory (automatic), not programmatic. Cannot `memory.create()`. |
-| `execute/runTests` | **No equivalent** | Test execution | CLI uses shell-based test runners via `bash`. |
-| `execute/testFailure` | **No equivalent** | Test diagnostics | CLI parses test output from `bash` invocations. |
+| VS Code Tool            | CLI Tool          | Category            | Notes                                                                                                |
+| ----------------------- | ----------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `execute/runInTerminal` | `bash`            | Shell execution     | CLI uses `bash` on Linux/macOS, PowerShell on Windows. No terminal UI — output is captured directly. |
+| `read/readFile`         | `view`            | File reading        | Functionally identical. CLI's `view` supports line ranges natively.                                  |
+| `edit/editFiles`        | `edit`            | File editing        | Both support string replacement. CLI's `edit` uses a unified edit model.                             |
+| *(via edit)*            | `create`          | File creation       | CLI has a dedicated `create` tool. VS Code uses `edit/editFiles` or `create_file`.                   |
+| `search`                | Built-in search   | Code search         | Both do codebase-level search. Underlying implementations differ.                                    |
+| `agent`                 | `task` (TaskTool) | Subagent delegation | Architecturally different models (see below).                                                        |
+| `web`                   | **No built-in**   | Web access          | CLI has no built-in web tool. Mitigate with MCP servers (Brave Search, fetch).                       |
+| `vscode/memory`         | **No equivalent** | Memory              | CLI has implicit memory (automatic), not programmatic. Cannot `memory.create()`.                     |
+| `execute/runTests`      | **No equivalent** | Test execution      | CLI uses shell-based test runners via `bash`.                                                        |
+| `execute/testFailure`   | **No equivalent** | Test diagnostics    | CLI parses test output from `bash` invocations.                                                      |
 
 **Why not just alias them?** The tools aren't purely renamed — they have different capabilities. `bash` captures stdout/stderr as text; `execute/runInTerminal` interacts with a terminal UI that persists. `view` is a stateless file read; `readFile` integrates with editor state. The different names reflect genuinely different underlying implementations.
 
@@ -129,13 +129,13 @@ export COPILOT_CUSTOM_INSTRUCTIONS_DIRS="/path/to/dir1:/path/to/dir2"
 
 **Key differences:**
 
-| Aspect | VS Code | CLI |
-|--------|---------|-----|
-| User-level location | Editor prompts directory (per-install) | `$HOME/.copilot/copilot-instructions.md` (single file) |
-| User-level granularity | Multiple files with individual `applyTo` | One file (all instructions concatenated) |
-| Env override | Not applicable | `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` |
-| Repo-level location | `.github/copilot-instructions.md` + `.github/instructions/` | Same ✓ |
-| `applyTo` support | Yes (user + repo level) | Yes (repo-level `.github/instructions/` only) |
+| Aspect                 | VS Code                                                     | CLI                                                    |
+| ---------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
+| User-level location    | Editor prompts directory (per-install)                      | `$HOME/.copilot/copilot-instructions.md` (single file) |
+| User-level granularity | Multiple files with individual `applyTo`                    | One file (all instructions concatenated)               |
+| Env override           | Not applicable                                              | `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`                     |
+| Repo-level location    | `.github/copilot-instructions.md` + `.github/instructions/` | Same ✓                                                 |
+| `applyTo` support      | Yes (user + repo level)                                     | Yes (repo-level `.github/instructions/` only)          |
 
 **Why the difference?** VS Code has a rich file-watching model — it monitors the prompts directory and dynamically evaluates `applyTo` against editor context. CLI runs as a one-shot or session process without persistent file watching. A single instructions file is simpler to load at session start.
 
@@ -202,13 +202,13 @@ Hooks share the **same JSON schema** across both platforms, making them the most
 
 ### Loading Path Differences
 
-| Aspect | VS Code | CLI |
-|--------|---------|-----|
-| Discovery path | `.github/hooks/` | CWD (repo root) or via plugins |
-| Installation | Publish to `.github/hooks/` | Place in repo root or package as plugin |
-| Lifecycle events | `sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred` | Same events ✓ |
-| `preToolUse` responses | `deny` / `allow` / `ask` | Same ✓ |
-| Plugin bundling | Not applicable | Plugins can bundle hooks |
+| Aspect                 | VS Code                                                                                           | CLI                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Discovery path         | `.github/hooks/`                                                                                  | CWD (repo root) or via plugins          |
+| Installation           | Publish to `.github/hooks/`                                                                       | Place in repo root or package as plugin |
+| Lifecycle events       | `sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred` | Same events ✓                           |
+| `preToolUse` responses | `deny` / `allow` / `ask`                                                                          | Same ✓                                  |
+| Plugin bundling        | Not applicable                                                                                    | Plugins can bundle hooks                |
 
 **Why similar?** Hooks were designed after both platforms existed and benefited from a unified specification. The JSON schema is platform-agnostic by design — hooks execute shell commands, which are inherently portable.
 
@@ -305,15 +305,15 @@ Alternatively, agents can use `bash` with `curl` for simple HTTP requests.
 
 Despite the differences, several customization concepts work identically across both platforms:
 
-| Concept | CLI Path | VS Code Path | Notes |
-|---------|----------|-------------|-------|
-| **Agent file format** | `*.agent.md` with YAML frontmatter | Same ✓ | Unrecognized keys silently ignored |
-| **Repo instructions** | `.github/copilot-instructions.md` | Same ✓ | Always loaded for all agents |
-| **Repo instruction files** | `.github/instructions/**/*.instructions.md` | Same ✓ | With `applyTo` support |
-| **Skills directory** | `~/.copilot/skills/` | Same ✓ | Folder-based, `SKILL.md` required |
-| **MCP config** | `~/.copilot/mcp-config.json` | `.vscode/mcp.json` or VS Code settings | Different file but same MCP protocol |
-| **Hook JSON schema** | `{ "version": 1, "hooks": {...} }` | Same ✓ | Portable across platforms |
-| **Graceful degradation** | Unrecognized frontmatter silently ignored | Same ✓ | Agents don't fail on unknown keys |
+| Concept                    | CLI Path                                    | VS Code Path                           | Notes                                |
+| -------------------------- | ------------------------------------------- | -------------------------------------- | ------------------------------------ |
+| **Agent file format**      | `*.agent.md` with YAML frontmatter          | Same ✓                                 | Unrecognized keys silently ignored   |
+| **Repo instructions**      | `.github/copilot-instructions.md`           | Same ✓                                 | Always loaded for all agents         |
+| **Repo instruction files** | `.github/instructions/**/*.instructions.md` | Same ✓                                 | With `applyTo` support               |
+| **Skills directory**       | `~/.copilot/skills/`                        | Same ✓                                 | Folder-based, `SKILL.md` required    |
+| **MCP config**             | `~/.copilot/mcp-config.json`                | `.vscode/mcp.json` or VS Code settings | Different file but same MCP protocol |
+| **Hook JSON schema**       | `{ "version": 1, "hooks": {...} }`          | Same ✓                                 | Portable across platforms            |
+| **Graceful degradation**   | Unrecognized frontmatter silently ignored   | Same ✓                                 | Agents don't fail on unknown keys    |
 
 These shared concepts form the foundation for cross-platform agent authoring. An agent that sticks to this common subset will work on both platforms without modification.
 

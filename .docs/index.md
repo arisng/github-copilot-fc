@@ -15,6 +15,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to use Copilot FC commands](how-to/copilot/how-to-use-copilot-fc-commands.md)
 - [How to Publish Customizations for Copilot CLI](how-to/copilot/how-to-publish-customizations-for-copilot-cli.md)
 - [How to Add Multi-Runtime Support to a Publish Script](how-to/copilot/how-to-add-multi-runtime-support-to-publish-scripts.md)
+- [How to Extract Shared Instructions from Agent Files](how-to/copilot/how-to-extract-shared-instructions-from-agents.md)
+- [How to Create CLI Agent Variants from VS Code Agents](how-to/copilot/how-to-create-cli-agent-variants.md)
 
 ### Ralph
 
@@ -40,6 +42,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [GitHub Copilot Prompt Files (.prompt.md) Reference](reference/copilot/copilot-prompt-files.md)
 - [Copilot CLI Customization Support Matrix](reference/copilot/copilot-cli-customization-matrix.md)
 - [wsl-helpers.ps1 API Reference](reference/copilot/wsl-helpers-api-reference.md)
+- [Agent Variant Directory Convention](reference/copilot/agent-variant-directory-convention.md)
+- [Platform-Aware publish-agents.ps1 Design Reference](reference/copilot/platform-aware-publish-agents-design.md)
 
 ### Ralph
 
@@ -72,6 +76,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Copilot CLI vs VS Code Customization: Architectural Differences](explanation/copilot/copilot-cli-vs-vscode-customization.md)
 - [Ralph-v2 Tool Compatibility in Copilot CLI](explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md)
 - [Framework-First Approach to Multi-Runtime Infrastructure](explanation/copilot/framework-first-multi-runtime-planning.md)
+- [Shared Instruction Pattern: Why It Exists and Its Trade-offs](explanation/copilot/shared-instruction-pattern-trade-offs.md)
 
 ### Ralph
 
