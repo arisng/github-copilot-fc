@@ -29,6 +29,7 @@ This appendix defines how shared state is normalized at iteration scope. The nor
 - `iterations/<N>/plan.md` (current plan with Replanning History)
 - `iterations/<N>/questions/<category>.md` (Q&A by category)
 - `iterations/<N>/knowledge/{tutorials,how-to,reference,explanation}/` (Diátaxis-categorized knowledge)
+- `iterations/<N>/tests/<id>.md` (test results for each task)
 
 **Session scope (authoritative, non-iteration):**
 - `metadata.yaml` (session-level state machine SSOT — Orchestrator-owned)
