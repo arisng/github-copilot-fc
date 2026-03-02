@@ -148,7 +148,7 @@ Each artifact type is assessed against three levels of cross-runtime compatibili
 #### Agents — Not Shareable ❌
 
 - **File Format:** Both runtimes read `*.agent.md` with YAML frontmatter + Markdown body. ✅
-- **Semantic:** Shared fields (`name`, `description`, `tools`) work on both. But critical fields differ: `agents:` (subagent declarations) is VS Code-only; `infer:` and `mcpServers:` are CLI-only. `tools:` array uses different namespaces (`execute/runInTerminal` vs `bash`). ⚠️
+- **Semantic:** Shared fields (`name`, `description`, `tools`) work on both. But critical fields differ: `agents:` (subagent declarations) is VS Code-only; `disable-model-invocation:` and `mcp-servers:` are CLI-only. `tools:` array uses different namespaces (`execute/runInTerminal` vs `bash`). ⚠️
 - **Behavioral:** An agent file authored for VS Code will load on CLI without errors (unknown fields silently ignored), but VS Code-specific tool references won't function. Subagent orchestration has no shared syntax. Body-level tool name references (`use execute/runInTerminal`) don't match CLI tool names. ❌
 - **Verdict:** Agents require **per-runtime variants**. Recommended approach: extract shared logic (persona, rules, workflows) into `.instructions.md` files; agent variants become thin platform-specific wrappers (~50 lines each) with platform-specific frontmatter and `tools:` arrays.
 

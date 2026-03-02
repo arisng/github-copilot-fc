@@ -80,10 +80,10 @@ Fields that are silently ignored on the non-target platform:
 | :---------------- | :---------: | :---------: | :----------------------------------------------------------------------------------- |
 | `agents:`         | ✅ Required  |  ❌ Ignored  | Subagent orchestration lost — CLI cannot delegate to child agents via this mechanism |
 | `argument-hint:`  | ✅ Supported |  ❌ Ignored  | User guidance in agent picker lost (cosmetic)                                        |
-| `user-invocable:` | ✅ Supported |  ❌ Ignored  | VS Code agent picker visibility lost (cosmetic)                                      |
-| `model:`          |  ❌ Ignored  | ✅ Supported | LLM model override not available in VS Code                                          |
-| `infer:`          |  ❌ Ignored  | ✅ Supported | TaskTool visibility control not available in VS Code                                 |
-| `mcpServers:`     |  ❌ Ignored  | ✅ Supported | Bundled MCP server configuration not available in VS Code                            |
+| `user-invocable:` | ✅ Supported |  ✅ Supported | Supported on both platforms — controls agent picker visibility. Default: `true`.     |
+| `model:`          |  ❌ Ignored  | ⚠️ Ignored  | Silently ignored by CLI coding-agent — model selection is via `/model` command or `--model` flag; no functional effect on either platform |
+| `disable-model-invocation:` | ❌ Ignored | ✅ Supported | CLI-only: prevents automatic agent inference. Replaces retired `infer: false`. Ignored by VS Code. |
+| `mcp-servers:`    |  ❌ Ignored  | ✅ Supported | Bundled MCP server configuration not available in VS Code                            |
 | `name:`           |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
 | `description:`    |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
 | `tools:`          |  ✅ Shared   |  ✅ Shared   | Works on both, but tool names differ (see category 2)                                |
@@ -149,7 +149,7 @@ Each ralph-v2 agent's **platform-agnostic content** is extracted into a shared i
 | Signal protocol definitions                                   |              ✅              |             —             |
 | Contract (input/output schema)                                |              ✅              |             —             |
 | Frontmatter (`name:`, `description:`, `tools:`)               |              —              |             ✅             |
-| Platform-specific fields (`agents:`, `infer:`, `mcpServers:`) |              —              |             ✅             |
+| Platform-specific fields (`agents:`, `disable-model-invocation:`, `mcp-servers:`) |              —              |             ✅             |
 | Tool-specific instructions ("use `execute/runInTerminal`")    |              —              | ✅ (remapped per platform) |
 
 ### Proposed Shared Instruction Files
