@@ -1,13 +1,12 @@
 ---
 name: Ralph-v2-Questioner
 description: Q&A discovery agent v2 with feedback-analysis mode for replanning and structured question files per category
-infer: true
 tools:
   - bash
   - view
   - edit
   - create
-mcpServers:
+mcp-servers:
   microsoftdocs:
     type: http
     url: https://learn.microsoft.com/api/mcp
@@ -33,7 +32,7 @@ metadata:
 - **File ops**: `view` for reading files, `edit` for modifying files, `create` for new files
 - **Search**: `bash` with `grep`, `find`, `cat` for codebase exploration
 - **MCP tools (shared)**: Docker MCP gateway (via `~/.copilot/mcp-config.json`): Sequential Thinking, Brave Search (web_search + summarizer), Fetch, Context7, DuckDuckGo
-- **MCP tools (agent-specific)**: Microsoft Docs (`microsoftdocs`), DeepWiki (`deepwiki`) — bundled via `mcpServers:` frontmatter
+- **MCP tools (agent-specific)**: Microsoft Docs (`microsoftdocs`), DeepWiki (`deepwiki`) — bundled via `mcp-servers:` frontmatter
 - **No persistent memory**: copilot-cli has no built-in memory tool; use session files for context persistence
 - **No `web` tool**: Use Brave Search and Fetch MCP tools for web research
 - **GitHub tools**: Built-in to copilot-cli — no separate configuration needed

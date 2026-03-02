@@ -1,13 +1,12 @@
 ---
 name: Ralph-v2-Executor
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
-infer: true
 tools:
   - bash
   - view
   - edit
   - create
-mcpServers:
+mcp-servers:
   microsoftdocs:
     type: http
     url: https://learn.microsoft.com/api/mcp
@@ -35,7 +34,7 @@ metadata:
 - **Testing**: `bash` for running test commands directly
 - **Diagnostics**: `bash` with build/lint commands for compile-time validation
 - **MCP tools (shared)**: Docker MCP gateway (via `~/.copilot/mcp-config.json`): Sequential Thinking, Brave Search (web_search + summarizer), Fetch, Context7, DuckDuckGo
-- **MCP tools (agent-specific)**: Microsoft Docs (`microsoftdocs`), DeepWiki (`deepwiki`) — bundled via `mcpServers:` frontmatter
+- **MCP tools (agent-specific)**: Microsoft Docs (`microsoftdocs`), DeepWiki (`deepwiki`) — bundled via `mcp-servers:` frontmatter
 - **No persistent memory**: copilot-cli has no built-in memory tool; use session files for context persistence
 - **No `web` tool**: Use Brave Search and Fetch MCP tools for web research
 - **GitHub tools**: Built-in to copilot-cli — no separate configuration needed
