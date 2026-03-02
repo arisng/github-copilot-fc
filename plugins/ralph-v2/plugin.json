@@ -3,13 +3,12 @@
   "description": "Ralph v2 orchestration system — structured feedback loops, isolated task files, and multi-agent workflow for iterative development",
   "version": "0.5.0",
   "author": "github-copilot-fc",
+  "strict": false,
   "agents": "../../agents/ralph-v2/cli/",
-  "instructions": "../../instructions/",
   "hooks": "../../hooks/",
   "skills": [
     "../../skills/diataxis/",
     "../../skills/git-atomic-commit/",
     "../../skills/openspec-sdd/"
-  ],
-  "config": "../../.ralph-sessions/"
+  ]
 }
