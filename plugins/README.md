@@ -1,6 +1,6 @@
 # Plugins
 
-Plugins are self-contained bundles of GitHub Copilot customization artifacts (agents, instructions, skills, hooks, tools) distributed as a single unit via the Copilot plugin system.
+Plugins are self-contained bundles of GitHub Copilot CLI customization artifacts (agents, skills, commands, hooks, MCP servers, LSP servers) distributed as a single installable unit via the `copilot plugin` system.
 
 ## Directory Layout
 
@@ -9,32 +9,44 @@ plugins/
   <name>/
     plugin.json          # Plugin manifest (required)
     agents/              # Agent files (optional)
-    instructions/        # Instruction files (optional)
     skills/              # Skill directories (optional)
+    commands/            # Command tool definitions (optional)
     hooks/               # Hook configs (optional)
-    tools/               # Tool definitions (optional)
-    config/              # Configuration files (optional)
-    system.md            # System prompt (optional)
 ```
 
 Each plugin lives in its own subdirectory under `plugins/`. The directory name should match the `name` field in `plugin.json`.
 
 ## plugin.json Schema
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | **Yes** | Plugin identifier (lowercase, hyphenated) |
-| `description` | No | Human-readable description |
-| `version` | No | Semantic version string |
-| `author` | No | Author name or organization |
-| `agents` | No | Relative path to agent files directory |
-| `tools` | No | Relative path to tool definitions directory |
-| `instructions` | No | Relative path to instruction files directory |
-| `hooks` | No | Relative path to hooks directory |
-| `config` | No | Relative path to configuration directory |
-| `system` | No | Relative path to system prompt file |
+### Metadata Fields
 
-Component path fields (`agents`, `tools`, `instructions`, `hooks`, `config`, `system`) use paths relative to the plugin directory.
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `name` | **Yes** | — | Plugin identifier (lowercase, hyphenated) |
+| `description` | No | — | Human-readable description |
+| `version` | No | — | Semantic version string |
+| `author` | No | — | Author name or organization |
+| `license` | No | — | License identifier (e.g. `MIT`) |
+| `homepage` | No | — | URL to plugin homepage |
+| `bugs` | No | — | URL for issue reporting |
+| `repository` | No | — | URL to source repository |
+| `keywords` | No | — | Array of keyword strings for discovery |
+| `strict` | No | `true` | Schema validation strictness — when `true`, unrecognized fields cause validation errors; when `false`, they are silently ignored |
+
+### Component Path Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agents` | string or string[] | Relative path(s) to agent files |
+| `skills` | string or string[] | Relative path(s) to skill directories |
+| `commands` | string or string[] | Relative path(s) to command tool definitions |
+| `hooks` | string or string[] | Relative path(s) to hook configurations |
+| `mcpServers` | string or string[] | Relative path(s) to MCP server definitions |
+| `lspServers` | string or string[] | Relative path(s) to LSP server definitions |
+
+All component paths are relative to the plugin directory. These are the **only** 6 official component fields in the plugin.json schema.
+
+> **Note:** `instructions` is NOT a plugin.json component field. Instruction files cannot be delivered via plugins. Use `scripts/publish/publish-instructions.ps1` for instruction distribution instead.
 
 ## Installation
 
@@ -44,15 +56,38 @@ Install a plugin from a local directory:
 copilot plugin install ./plugins/<name>
 ```
 
+The CLI **copies** (caches) the plugin contents — it does not create a symlink. To pick up local changes after editing, you must run `copilot plugin install` again.
+
+## Where Plugins Are Stored
+
+After installation, plugin files are cached on the local machine. The official documentation provides two slightly different path conventions:
+
+| Source | Direct Install Path | Marketplace Install Path |
+|--------|---------------------|--------------------------|
+| [Reference docs](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) | `~/.copilot/state/installed-plugins/<NAME>/` | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
+| [How-to docs](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) | `~/.copilot/installed-plugins/_direct/<NAME>/` | `~/.copilot/installed-plugins/<MARKETPLACE>/<NAME>/` |
+
+Key differences between the two official sources:
+- **`state/` prefix**: Reference docs include it; how-to docs do not.
+- **`_direct/` subdirectory**: How-to docs use it for direct installs; reference docs do not.
+
+Marketplace cache (reference docs): `~/.copilot/state/marketplace-cache/`
+
+> **⚠️** These paths are documented as-is from official GitHub docs (March 2026). The inconsistency has not been resolved upstream. Verify against your local installation if exact paths matter.
+
+On Windows, `~` resolves to `%USERPROFILE%` (e.g. `C:\Users\<user>\.copilot\...`).
+
 ## Loading Precedence
 
-When multiple sources define the same artifact, the first-found-wins rule applies:
+When multiple sources define the same artifact, the loading order is:
 
 1. **User-level** (`~/.copilot/`) — highest priority
 2. **Project-level** (`.github/`) — repository-specific
 3. **Parent directories** — walked upward from cwd
+4. **Plugin components** — from installed plugins
+5. **Remote/organization** — org-level policies
 
-Plugins installed at the user level take precedence over project-level plugins.
+Plugins load after local user and project customizations, so local overrides always take precedence.
 
 ## Relationship with Publish Scripts
 
