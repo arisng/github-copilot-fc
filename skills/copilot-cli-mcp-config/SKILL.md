@@ -19,18 +19,42 @@ Configure MCP servers for GitHub Copilot CLI using the `mcp-config.json` file, w
 export XDG_CONFIG_HOME="/path/to/your/config"
 ```
 
-## CLI Commands
+**Additional config at runtime**: Use the `--additional-mcp-config` flag to load extra MCP configuration files alongside the default:
 
 ```bash
-# Add MCP server interactively
-copilot /mcp add <server-name>
+copilot --additional-mcp-config /path/to/extra-mcp-config.json
+```
 
-# Show configured servers
+This merges the extra config with your default `mcp-config.json`, useful for project-specific servers without modifying the global file.
+
+## CLI Commands
+
+### Management Commands
+
+```bash
+# Add MCP server (interactive — Tab to navigate fields)
+copilot /mcp add
+
+# List configured servers (summary view)
 copilot /mcp show
 
-# Remove MCP server
-copilot /mcp remove <server-name>
+# Show details of a specific server
+copilot /mcp show SERVER-NAME
+
+# Edit an existing server configuration
+copilot /mcp edit SERVER-NAME
+
+# Delete an MCP server
+copilot /mcp delete SERVER-NAME
+
+# Disable a server (keeps config, stops loading)
+copilot /mcp disable SERVER-NAME
+
+# Re-enable a disabled server
+copilot /mcp enable SERVER-NAME
 ```
+
+> **Note**: `/mcp add` launches an interactive flow — there is no positional `<server-name>` argument. Use Tab to navigate between fields.
 
 ## Configuration Syntax
 
@@ -75,6 +99,8 @@ Run MCP server via local command:
 }
 ```
 
+> **Transport equivalence**: `local` and `stdio` work the same way — both launch a subprocess and communicate via stdin/stdout. `local` is the preferred name; `stdio` is still recognized as an alias.
+
 #### Type: `stdio` (Standard I/O Communication)
 
 Communicate via stdin/stdout (common for local servers):
@@ -113,7 +139,9 @@ Connect to HTTP-based MCP server:
 }
 ```
 
-#### Type: `sse` (Server-Sent Events)
+#### Type: `sse` (Server-Sent Events) — Deprecated
+
+> **Deprecation notice**: SSE transport is deprecated in the MCP specification. Use `http` (streamable HTTP) for new remote server connections. Existing `sse` configurations continue to work but should be migrated.
 
 Connect to SSE-based MCP server:
 
