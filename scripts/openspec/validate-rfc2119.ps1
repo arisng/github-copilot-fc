@@ -172,6 +172,9 @@ function Get-ScenarioCoverage {
 
             # Detect any heading
             if ($line -match '^#{1,6}\s+(.+)$') {
+                # Save heading text BEFORE flush loop overwrites $Matches
+                $headingText = $Matches[1]
+
                 # Flush previous scenario block
                 if ($inScenarioBlock) {
                     $hasGiven = $false; $hasWhen = $false; $hasThen = $false
@@ -188,7 +191,6 @@ function Get-ScenarioCoverage {
                 }
 
                 # Check if this heading starts a scenario block (SC- prefix)
-                $headingText = $Matches[1]
                 if ($headingText -match 'SC-') {
                     $inScenarioBlock = $true
                     $blockLines = @()
