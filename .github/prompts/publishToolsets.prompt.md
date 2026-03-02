@@ -2,7 +2,7 @@
 name: publishToolsets
 description: Publish specified toolsets to VS Code user toolsets directories.
 argument-hint: Comma-delimited list of toolset names (e.g., toolset1,toolset2)
-model: Raptor mini (Preview) (copilot)
+agent: agent
 metadata:
   version: 1.0.1
   author: arisng

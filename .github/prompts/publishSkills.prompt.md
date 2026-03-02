@@ -2,7 +2,7 @@
 name: publishSkills
 description: Publish specified skills to personal Copilot folders.
 argument-hint: Skill names to publish (comma-separated if multiple)
-model: Raptor mini (Preview) (copilot)
+agent: agent
 metadata:
   version: 1.0.1
   author: arisng

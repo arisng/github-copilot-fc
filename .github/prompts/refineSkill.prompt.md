@@ -2,6 +2,7 @@
 name: refineSkill
 description: Refine an existing skill using skill-creator based on provided resources or input.
 argument-hint: Specify the skill name to refine and the resources or user input for refinement.
+agent: agent
 metadata:
   version: 1.0.1
   author: arisng

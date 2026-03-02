@@ -2,7 +2,7 @@
 name: publishInstructions
 description: Publish specified instruction files to VS Code user prompts directories.
 argument-hint: One or more instruction names, separated by commas or using wildcards (e.g., "powershell,claude-skills" or "power*")
-model: Raptor mini (Preview) (copilot)
+agent: agent
 metadata:
   version: 1.0.0
   author: arisng
