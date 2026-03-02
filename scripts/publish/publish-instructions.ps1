@@ -236,7 +236,6 @@ function Publish-Instructions {
         # Write to WSL CLI target
         if ($wslAvailable) {
             $wslConcatPath = "$wslHome/.copilot/copilot-instructions.md"
-            $wslConcatDir = "$wslHome/.copilot"
 
             # Write concat content to a temp file, then copy to WSL
             $tempFile = [System.IO.Path]::GetTempFileName()
