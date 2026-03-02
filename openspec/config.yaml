@@ -1,0 +1,107 @@
+schema: spec-driven
+
+context: |
+  # Ralph-v2 — Runtime-Agnostic Behavioral Specifications
+  
+  ## Project
+  Ralph-v2 is a multi-agent orchestration system (v2.12.0) that coordinates
+  6 specialized roles through a 10-state state machine, live signal protocol,
+  structured feedback loops, and a knowledge pipeline. These specifications
+  describe pure behavioral contracts with no runtime, tool, OS, or format
+  assumptions — enabling derived runtime-specific implementations (VS Code,
+  CLI, SDK, Coding Agent) as separate change proposals.
+  
+  ## Domains (8)
+  - session — Session identity, iteration model, artifact ownership, abstract vocabulary
+  - signals — Signal types, targeting, delivery ordering, acknowledgment protocol
+  - orchestration — State machine, transitions, routing, metadata ownership
+  - planning — Plan creation, task breakdown, waves, replanning, grounding
+  - discovery — Brainstorm, research, feedback-analysis modes
+  - execution — Single-task implementation, progress tracking, rework
+  - review — Task review, session review, change persistence, verdicts
+  - knowledge — Extract/stage/promote pipeline, classification, merge algorithm
+  
+  ## Roles (6)
+  Orchestrator, Planner, Questioner, Executor, Reviewer, Librarian
+  
+  ## RFC 2119 Tiering Guidance
+  Apply RFC 2119 keywords based on behavioral criticality:
+  
+  - **MUST / SHALL** — Behavioral invariants that define system correctness.
+    If removing the behavior would break correctness guarantees, it is MUST.
+    Examples: state machine transitions, SSOT ownership, single-mode invocation,
+    task immutability, signal type semantics (4 types), Diátaxis four-category
+    classification, FIFO signal ordering, acknowledgment quorum rules.
+  
+  - **SHOULD** — Default behaviors with justified opt-out. Quality/efficiency
+    enhancements with a viable alternative.
+    Examples: auto-promote in knowledge pipeline, capability discovery at runtime,
+    sub-artifact-level change persistence, workload-aware review validation,
+    grounding requirements for task definitions.
+  
+  - **MAY** — Extension points and optional capabilities.
+    Examples: sub-category classification within Diátaxis categories,
+    cross-iteration staging, cherry-pick staging, session-specific
+    instruction overrides.
+  
+  ## Cross-Reference Convention
+  Requirement IDs use domain prefixes with sequential numbering:
+    SES-NNN  (session)
+    SIG-NNN  (signals)
+    ORCH-NNN (orchestration)
+    PLAN-NNN (planning)
+    DISC-NNN (discovery)
+    EXEC-NNN (execution)
+    REV-NNN  (review)
+    KNOW-NNN (knowledge)
+  
+  Cross-references use inline ID references: "Per SIG-001, the role MUST..."
+  This convention enables machine-parseable cross-domain traceability.
+  
+  ## Abstract Vocabulary Table
+  Spec authors MUST use these abstract terms instead of implementation-specific names.
+  
+  | Abstract Term                | Definition                                                        |
+  |------------------------------|-------------------------------------------------------------------|
+  | Progress Tracker             | Single source of truth for task completion status                 |
+  | Session State Store          | Authoritative record of the session state machine position        |
+  | Iteration State Store        | Timing and lifecycle metadata for a single iteration              |
+  | Task Definition Record       | Immutable, identity-bearing definition of a single task           |
+  | Iteration Plan               | Mutable planning artifact for the current iteration               |
+  | Task Report                  | Append-only record of implementation and review outcomes          |
+  | Discovery Record             | Per-category record of questions and research findings            |
+  | Signal Channel (inbound)     | Delivery channel for incoming intervention messages               |
+  | Signal Archive               | Storage for consumed/finalized signals                            |
+  | Knowledge Staging Area       | Session-scoped repository for merged knowledge                    |
+  | Knowledge Extraction Area    | Iteration-scoped repository for extracted knowledge               |
+  | Knowledge Repository         | Workspace-level persistent knowledge base                         |
+  | Iteration Review Report      | Holistic assessment of iteration outcomes                         |
+  | Feedback Collection          | Structured human feedback artifacts                               |
+  | Active Session Pointer       | Marker identifying the currently active session                   |
+  | Lifecycle Hook Gate          | Marker enabling lifecycle hook processing                         |
+  
+  ## Abstraction Boundary
+  The runtime-agnostic constraint applies to behavioral content (requirements
+  and scenarios) only. Spec format itself (markdown headers, frontmatter) follows
+  OpenSpec convention and is not subject to the runtime blocklist.
+
+rules:
+  specs:
+    - Use GIVEN/WHEN/THEN for all scenarios
+    - Every requirement MUST include at least one RFC 2119 keyword (MUST, SHALL, SHOULD, MAY, MUST NOT, SHALL NOT, SHOULD NOT)
+    - Every requirement MUST have at least one scenario
+    - Use requirement IDs with domain prefixes (SES-NNN, SIG-NNN, ORCH-NNN, PLAN-NNN, DISC-NNN, EXEC-NNN, REV-NNN, KNOW-NNN)
+    - Use Abstract Vocabulary Table terms — never implementation-specific names
+    - "FORBIDDEN TERMS — Editor/Runtime: VS Code, CLI, SDK, Coding Agent, Copilot, copilot-cli, GitHub Copilot, editor, IDE"
+    - "FORBIDDEN TERMS — OS/Shell: Windows, Linux, macOS, WSL, PowerShell, pwsh, bash, cmd, Terminal"
+    - "FORBIDDEN TERMS — Tool Names: git, run_in_terminal, semantic_search, read_file, edit_file, editFiles, readFile, grep, search, playwright, npm, pip, python3, node"
+    - "FORBIDDEN TERMS — File Formats: YAML, .yaml, .md, .json, .jsonl, .ps1, .sh, markdown, JSON, frontmatter"
+    - "FORBIDDEN TERMS — Path/Filesystem: file path separators, absolute paths, directory, folder, mkdir, filesystem, Test-Path, Get-Content"
+    - "FORBIDDEN SEMANTIC PATTERNS: reads the file, writes to disk, creates a directory, drops a file in, file-per-task, directory-based mailbox"
+    - Cross-reference other domain specs by requirement ID, not by natural-language description
+  proposal:
+    - Include rollback plan for risky changes
+    - Reference affected domain specs by requirement ID
+  tasks:
+    - Each task must be independently verifiable
+    - Include grounding references to spec requirements
