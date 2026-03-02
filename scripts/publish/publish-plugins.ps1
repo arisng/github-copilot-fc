@@ -9,7 +9,7 @@ param(
     [switch]$SkipWSL,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Bundle
+    [switch]$SkipBundle
 )
 
 function Merge-AgentInstructions {
@@ -294,12 +294,14 @@ function Build-PluginBundle {
 function Publish-Plugins {
     <#
     .SYNOPSIS
-        Discovers workspace plugins and installs them via copilot plugin install.
+        Discovers workspace plugins, bundles them, and installs via copilot plugin install.
 
     .DESCRIPTION
-        Scans the plugins/ directory for subdirectories containing plugin.json,
-        then runs 'copilot plugin install' for each discovered plugin. Supports
-        filtering by name, force reinstallation, and WSL cross-publishing.
+        Scans the plugins/ directory for subdirectories containing plugin.json.
+        By default, creates a self-contained .build/ bundle for each plugin
+        (resolving component paths and copying artifacts) before running
+        'copilot plugin install'. Use -SkipBundle to install directly from source.
+        Supports filtering by name, force reinstallation, and WSL cross-publishing.
 
     .PARAMETER Plugins
         Array of plugin names to install. Supports comma-separated values and
@@ -311,10 +313,10 @@ function Publish-Plugins {
     .PARAMETER SkipWSL
         Skip plugin installation in WSL (Windows-only mode).
 
-    .PARAMETER Bundle
-        Create a self-contained .build/ directory for each plugin before install.
-        Resolves component paths, copies artifacts, and rewrites plugin.json with
-        local paths. Installs from .build/ instead of the source directory.
+    .PARAMETER SkipBundle
+        Skip the default bundling step and install directly from the source directory.
+        Not recommended for distribution — relative paths in plugin.json may not
+        resolve correctly after 'copilot plugin install'.
 
     .EXAMPLE
         Publish-Plugins
@@ -333,11 +335,15 @@ function Publish-Plugins {
         Installs plugins on Windows only, skipping WSL.
 
     .EXAMPLE
-        Publish-Plugins -Bundle
-        Bundles each plugin into .build/ and installs from there.
+        Publish-Plugins -SkipBundle
+        Installs plugins directly from source directories without bundling.
     #>
     [CmdletBinding()]
     param()
+
+    if ($SkipBundle) {
+        Write-Warning "Installing from source directory (non-bundled). Relative paths in plugin.json may not resolve correctly after 'copilot plugin install'. Use bundled install (default) for distribution."
+    }
 
     Write-Host "Publishing plugins via copilot plugin install..." -ForegroundColor Cyan
 
@@ -389,8 +395,8 @@ function Publish-Plugins {
         $pluginName = $pluginDir.Name
         $pluginPath = $pluginDir.FullName
 
-        # Bundle mode: build self-contained directory first
-        if ($Bundle) {
+        # Default: build self-contained bundle; skip only if -SkipBundle
+        if (-not $SkipBundle) {
             $buildPath = Build-PluginBundle -PluginDir $pluginPath
             if (-not $buildPath) {
                 Write-Error "  Bundle failed for $pluginName — skipping install"
@@ -444,7 +450,7 @@ function Publish-Plugins {
 
                 foreach ($pluginDir in $pluginDirs) {
                     $pluginName = $pluginDir.Name
-                    $wslInstallDir = if ($Bundle) {
+                    $wslInstallDir = if (-not $SkipBundle) {
                         Join-Path $pluginDir.FullName ".build"
                     } else {
                         $pluginDir.FullName
