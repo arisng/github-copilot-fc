@@ -1,6 +1,6 @@
 # Agent Variant Directory Structure Proposal
 
-> **Status**: Design Proposal — implementation deferred to iteration 3.
+> **Status**: Design Proposal — partially implemented. CLI variant files and validation script deferred to iteration 5+.
 
 This document proposes the workspace directory structure for per-runtime agent variants, enabling the ralph-v2 agent suite to operate on both VS Code and copilot-cli. It covers the subdirectory naming convention, shared instructions extraction strategy, publish flow adjustments, authoring model, and extensibility for future runtimes.
 
@@ -82,7 +82,7 @@ Fields that are silently ignored on the non-target platform:
 | `argument-hint:`  | ✅ Supported |  ❌ Ignored  | User guidance in agent picker lost (cosmetic)                                        |
 | `user-invocable:` | ✅ Supported |  ✅ Supported | Supported on both platforms — controls agent picker visibility. Default: `true`.     |
 | `model:`          |  ❌ Ignored  | ⚠️ Ignored  | Silently ignored by CLI coding-agent — model selection is via `/model` command or `--model` flag; no functional effect on either platform |
-| `disable-model-invocation:` | ❌ Ignored | ✅ Supported | CLI-only: prevents automatic agent inference. Replaces retired `infer: false`. Ignored by VS Code. |
+| `infer:`              |  ❌ Ignored  | ✅ Supported | CLI-only: controls whether other agents can delegate to this agent via TaskTool (default: `true`). Ignored by VS Code. |
 | `mcp-servers:`    |  ❌ Ignored  | ✅ Supported | Bundled MCP server configuration not available in VS Code                            |
 | `name:`           |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
 | `description:`    |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
@@ -149,7 +149,7 @@ Each ralph-v2 agent's **platform-agnostic content** is extracted into a shared i
 | Signal protocol definitions                                   |              ✅              |             —             |
 | Contract (input/output schema)                                |              ✅              |             —             |
 | Frontmatter (`name:`, `description:`, `tools:`)               |              —              |             ✅             |
-| Platform-specific fields (`agents:`, `disable-model-invocation:`, `mcp-servers:`) |              —              |             ✅             |
+| Platform-specific fields (`agents:`, `infer:`, `mcp-servers:`) |              —              |             ✅             |
 | Tool-specific instructions ("use `execute/runInTerminal`")    |              —              | ✅ (remapped per platform) |
 
 ### Proposed Shared Instruction Files
@@ -278,11 +278,11 @@ When adding a third runtime variant:
 | Per-agent incompatibility analysis           | ✅ Documented | 6 agents analyzed across 3 categories                                 |
 | Publish flow adjustments design              |  ✅ Designed  | `-Platform vscode\|cli` parameter; source dirs: `agents/*/vscode/`, `agents/*/cli/` |
 | Authoring model                              |  ✅ Decided   | Manual with optional validation                                       |
-| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 3** — `agents/ralph-v2/cli/`                              |
-| **Extraction of 6 shared instruction files** |  ⏳ Deferred  | **Iteration 3**                                                       |
-| **Move VS Code agents to `vscode/` subdir**  |  ⏳ Deferred  | **Iteration 3** — `git mv` into `agents/ralph-v2/vscode/`            |
-| **Implementation of `-Platform` parameter**  |  ⏳ Deferred  | **Iteration 3**                                                       |
-| **Validation script implementation**         |  ⏳ Deferred  | **Iteration 3**                                                       |
+| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 5+** — `agents/ralph-v2/cli/`                             |
+| **Extraction of 6 shared instruction files** |  ✅ Done       | Completed (iteration 4) — `instructions/ralph-v2-*.instructions.md`    |
+| **Move VS Code agents to `vscode/` subdir**  |  ✅ Done       | Completed (iteration 4) — `git mv` into `agents/ralph-v2/vscode/`     |
+| **Implementation of `-Platform` parameter**  |  ✅ Done       | Completed (iteration 4)                                                    |
+| **Validation script implementation**         |  ⏳ Deferred  | **Iteration 5+**                                                           |
 
 ## Grounding
 

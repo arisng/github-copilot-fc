@@ -34,7 +34,7 @@ Both platforms read `.agent.md` files with YAML frontmatter, but support differe
 | `mcpServers`     | object  |   ✅   |    ❌    | CLI-only. Bundle MCP server definitions directly in the agent file.                                |
 | `agents`         | array   |   ❌   |    ✅    | VS Code-only. Declare subagent references for orchestration.                                       |
 | `argument-hint`  | string  |   ❌   |    ✅    | VS Code-only. Hint text shown in the agent picker.                                                 |
-| `user-invocable` | boolean |   ❌   |    ✅    | VS Code-only. Controls whether the agent appears in the user-facing picker.                        |
+| `user-invocable` | boolean |   ✅   |    ✅    | Controls whether the agent appears in the user-facing picker. Default: `true`.                     |
 
 **Why the divergence?** VS Code agents operate within the extension host where subagent references must be explicitly declared (the `agents:` array). CLI agents operate in a flat namespace where any agent with `infer: true` is automatically visible as a delegatable tool — no explicit wiring needed.
 
