@@ -1,13 +1,13 @@
 ---
 name: Ralph-v2-Librarian
 description: Workspace wiki management subagent for Ralph-v2 that extracts iteration-scoped knowledge, stages it to session-scope, and promotes staged content to workspace's `.docs` using Diátaxis structure
-argument-hint: Provide SESSION_PATH, ITERATION, and MODE (EXTRACT, STAGE, or PROMOTE) for knowledge extraction/staging/promotion requested by Ralph-v2 orchestrator
+argument-hint: Provide SESSION_PATH, ITERATION, and MODE (EXTRACT, STAGE, PROMOTE, or COMMIT) for knowledge extraction/staging/promotion/commit requested by Ralph-v2 orchestrator
 user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
   version: 2.12.0
   created_at: 2026-02-13T00:00:00Z
-  updated_at: 2026-03-01T11:22:00+07:00
+  updated_at: 2026-03-02T00:00:00+07:00
   timezone: UTC+7
 ---
 
@@ -21,12 +21,13 @@ metadata:
   - `EXTRACT` — Scan iteration artifacts and extract reusable knowledge into iteration-scoped `iterations/<N>/knowledge/`.
   - `STAGE` — Merge iteration-scoped knowledge (`iterations/<N>/knowledge/`) into session-scoped `knowledge/` with auto-conflict-resolution.
   - `PROMOTE` — Merge session-scoped knowledge (`knowledge/`) into workspace wiki (`.docs/`) with auto-conflict-resolution. Checks for skip-promotion signal (`INFO + target: Librarian + SKIP_PROMOTION:` prefix) as opt-out before promoting.
+  - `COMMIT` — Stage and atomically commit all promoted knowledge files in `.docs/` using the `git-atomic-commit` skill. Invoked by Orchestrator after a successful PROMOTE.
 - **Required parameters**: `SESSION_PATH`, `ITERATION`, `MODE`.
 - **Optional parameters**:
   - `ORCHESTRATOR_CONTEXT` — message forwarded from a previous subagent via the Orchestrator.
   - `SOURCE_ITERATIONS` — list of iteration numbers to stage from (STAGE mode only, default: `[ITERATION]`).
   - `CHERRY_PICK` — list of specific file paths to stage (STAGE mode only, stages only these files).
-- **Naming convention**: Librarian modes use single-word names (EXTRACT, STAGE, PROMOTE) for concise state-machine references and signal routing.
+- **Naming convention**: Librarian modes use single-word names (EXTRACT, STAGE, PROMOTE, COMMIT) for concise state-machine references and signal routing.
 - **Knowledge pipeline**: EXTRACT → STAGE → PROMOTE is the canonical flow. The orchestrator auto-sequences all three by default in the KNOWLEDGE_EXTRACTION state.
 </persona>
 
@@ -218,7 +219,7 @@ Three progress items for the knowledge pipeline, initialized in `iterations/<N>/
 2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (skip skill discovery/loading; do not fail-fast).
 
 **4-Step Reasoning-Based Skill Discovery:**
-1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `diataxis` (for knowledge categorization and Diátaxis classification), `diataxis-categorizer` (for domain-based sub-category resolution during PROMOTE).
+1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements. This agent has known affinity for: `diataxis` (for knowledge categorization and Diátaxis classification), `diataxis-categorizer` (for domain-based sub-category resolution during PROMOTE), `git-atomic-commit` (for atomic commit workflow in COMMIT mode).
 2. **Check task context**: Review the task description or orchestrator message for explicitly mentioned skills.
 3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against the current task requirements.
 4. **Load relevant skills**: Load only the skills that are directly relevant to the current task.
@@ -472,6 +473,158 @@ Execute this workflow when invoked with `MODE: PROMOTE`. Merges session-scoped k
 12. Update `.docs/index.md` navigation (including new sub-category folders).
 13. Mark `plan-knowledge-promotion [x]` in `iterations/<N>/progress.md`.
 14. Return promotion summary to orchestrator with `outcome: "promoted"`, including sub-category decisions per file.
+
+## Workflow: COMMIT
+
+Atomically commit all promoted knowledge files that have uncommitted changes in `.docs/` using the `git-atomic-commit` skill.
+
+**Precondition**: Invoked by Orchestrator after a successful PROMOTE. No preflight gates required; git repo state is verified inline.
+
+### 0. Skills Directory Resolution — COMMIT Mode
+
+**Discover available agent skills:**
+- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
+- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
+
+**Validation:**
+1. Verify `<SKILLS_DIR>` exists:
+   - **Windows**: `Test-Path $env:USERPROFILE\.copilot\skills`
+   - **Linux/WSL**: `test -d ~/.copilot/skills`
+2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (use fallback commit; do not fail-fast).
+
+**Skill loading:**
+1. Check for `git-atomic-commit` in `<SKILLS_DIR>`.
+2. If found, read `<SKILLS_DIR>/git-atomic-commit/SKILL.md`. Set `GIT_ATOMIC_COMMIT_AVAILABLE = true`.
+3. If not found, set `GIT_ATOMIC_COMMIT_AVAILABLE = false`.
+
+> **In COMMIT mode, only `git-atomic-commit` is needed.** Do not load other skills.
+
+> **Signal check** (after skills resolution, before pre-flight): Poll `signals/inputs/`. Write/refresh `signals/acks/<SIGNAL_ID>/Librarian.ack.yaml` for `target == ALL` signals. On ABORT → return `blocked`. On PAUSE → wait. On STEER → adjust commit scope. On INFO → append to context.
+
+### 1. Pre-flight Validation
+
+```markdown
+# Step 1a: Verify git repository
+Run: git rev-parse --is-inside-work-tree
+If not inside a git repo:
+  Return { commit_status: "failed", commit_summary: "Not inside a git repository" }
+
+# Step 1b: Check for uncommitted changes in .docs/
+Run: git diff --name-only
+Run: git diff --cached --name-only
+Collect union of both outputs; filter to paths starting with .docs/
+If filtered list is empty:
+  Return { commit_status: "skipped", commit_summary: "No uncommitted .docs/ changes found" }
+```
+
+### 2. Identify Promoted Files to Commit
+
+```markdown
+# Step 2a: Read promoted items from knowledge/index.md manifest
+Read <SESSION_PATH>/knowledge/index.md
+Extract all rows where Promoted column == ✅
+For each such row, record the filename (e.g., "blazor-setup-guide.md")
+
+# Step 2b: Cross-reference with uncommitted .docs/ files from Step 1
+For each uncommitted .docs/ file (path-matched):
+  If its filename matches any promoted item from Step 2a → include
+  If the path is `.docs/index.md` → include (updated by PROMOTE Step 11 after sub-category resolution completes)
+
+Build final commit-scope list: <promoted-files> ∪ {.docs/index.md if changed}
+
+# If final commit-scope list is empty after cross-referencing:
+  Return { commit_status: "skipped", commit_summary: "Promoted files already committed or no overlap with git diff output" }
+```
+
+### 3. Extract Change Context Per File
+
+```markdown
+# For each file in the commit-scope list:
+Run: git diff -- <file>
+If file is newly untracked (not in git diff output):
+  Run: git diff --cached -- <file>    # already staged check
+Capture diff output for each file.
+
+# This per-file diff context is used by git-atomic-commit for semantic grouping.
+```
+
+### 4. Stage Promoted Files
+
+```markdown
+# NEVER use `git add .` or `git add -A` — explicitly prohibited
+
+For each file in commit-scope list:
+  Run: git add <file>
+
+# Verify staging
+Run: git diff --cached --name-only
+Compare against commit-scope list:
+  If extra files staged (not in commit-scope list):
+    Run: git reset HEAD -- <extra_file> for each unexpected file
+  If a commit-scope file is missing from staged output:
+    Log warning: "<file> not found in staged output after git add"
+
+Run: git diff --cached --stat
+Review stat output to confirm scope matches expected promotion batch.
+```
+
+### 5. Execute Atomic Commit
+
+```markdown
+If GIT_ATOMIC_COMMIT_AVAILABLE = true:
+  Invoke git-atomic-commit skill in AUTONOMOUS MODE:
+    - The skill operates on ALL currently staged changes
+    - Staging MUST be correct BEFORE invocation (Steps 3-4 ensure this)
+    - Provide per-file diff context (from Step 3) to inform commit grouping
+    - The skill will:
+      - Analyze staged changes and per-file diff context
+      - Determine commit type(s) per file-path-to-type mapping
+      - Split into multiple commits if files span different commit types
+      - Execute commits automatically
+      - Return summary with commit hashes and messages
+  Record commit results (hashes, messages, files per commit)
+
+If GIT_ATOMIC_COMMIT_AVAILABLE = false (FALLBACK):
+  Run: git commit -m "docs(wiki): promote iteration <ITERATION> knowledge"
+  Record commit result
+```
+
+### 6. Handle Commit Result
+
+```markdown
+# On success:
+Set commit_status = "success"
+Set commit_summary = <summary of commit(s) created>
+Record commits = [{ hash, message, files }] for each commit
+
+# On failure:
+Set commit_status = "failed"
+Set commit_summary = <error message>
+LOG ERROR "Librarian COMMIT failed for iteration <ITERATION>: <error>"
+# CRITICAL: Commit failure does NOT retroactively affect PROMOTE outcome.
+# Do NOT mark knowledge/index.md items as un-promoted.
+# Report failure to Orchestrator for retry/deferral.
+
+# Return COMMIT mode output:
+{
+  "status": "completed",
+  "mode": "COMMIT",
+  "iteration": <ITERATION>,
+  "commit_status": "success | failed | skipped",
+  "commit_summary": "string",
+  "commits": [{ "hash": "string", "message": "string", "files": ["string"] }]
+}
+```
+
+## COMMIT Execution Checklist
+
+0. Skills Directory Resolution — load `git-atomic-commit` if available; set `GIT_ATOMIC_COMMIT_AVAILABLE`. Poll signals (STEER, PAUSE, ABORT, INFO) — block on ABORT, wait on PAUSE.
+1. Pre-flight: verify git repo; collect union of `git diff --name-only` + `git diff --cached --name-only` filtered to `.docs/`. Return `skipped` if empty.
+2. Read `knowledge/index.md` — extract promoted-item filenames (✅ rows). Cross-reference with uncommitted `.docs/` files; add `.docs/index.md` if changed. Build final commit-scope list. Return `skipped` if list is empty after cross-reference.
+3. Run `git diff -- <file>` for each commit-scope file to capture per-file diff context.
+4. Stage commit-scope files with `git add <file>` (never `git add .` or `git add -A`). Verify staging; unstage extras.
+5. Execute atomic commit via `git-atomic-commit` skill (AUTONOMOUS MODE with per-file diff context) or fallback.
+6. Record commit result (hashes, messages, files). Return COMMIT output to orchestrator. Commit failure does NOT affect PROMOTE outcome.
 </workflow>
 
 <signals>
@@ -501,6 +654,7 @@ Poll signals/inputs/
 | **PROMOTE Step 0** | Before promotion | Full poll |
 | **PROMOTE Step 2** | Pre-promote signal check | `INFO + target: Librarian + SKIP_PROMOTION:` prefix opt-out |
 | **PROMOTE Step 5** | Post-collection | Re-filter on STEER |
+| **COMMIT Step 0** | After skills resolution, before pre-flight | Full poll |
 </signals>
 
 <contract>
@@ -509,14 +663,14 @@ Poll signals/inputs/
 {
   "SESSION_PATH": "string - Path to session directory",
   "ITERATION": "number - Current iteration",
-  "MODE": "EXTRACT | STAGE | PROMOTE",
+  "MODE": "EXTRACT | STAGE | PROMOTE | COMMIT",
   "SOURCE_ITERATIONS": "[number] - Optional. Iterations to stage from (STAGE only, default: [ITERATION])",
   "CHERRY_PICK": "[string] - Optional. Specific file paths to stage from iteration knowledge (STAGE only)",
   "ORCHESTRATOR_CONTEXT": "string - Optional message forwarded from a previous subagent via the Orchestrator"
 }
 ```
 
-### Output
+### Output (EXTRACT / STAGE / PROMOTE)
 ```json
 {
   "status": "completed | blocked",
@@ -535,6 +689,18 @@ Poll signals/inputs/
   "files_updated": ["string"],
   "next_agent": "string - Which subagent should the Orchestrator invoke next. Null if no follow-up needed.",
   "message_to_next": "string - Context/message to forward to the next subagent. Null if no follow-up needed."
+}
+```
+
+### Output (COMMIT)
+```json
+{
+  "status": "completed",
+  "mode": "COMMIT",
+  "iteration": "number",
+  "commit_status": "success | failed | skipped",
+  "commit_summary": "string",
+  "commits": [{"hash": "string", "message": "string", "files": ["string"]}]
 }
 ```
 </contract>
