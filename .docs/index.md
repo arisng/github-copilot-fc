@@ -17,6 +17,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to Add Multi-Runtime Support to a Publish Script](how-to/copilot/how-to-add-multi-runtime-support-to-publish-scripts.md)
 - [How to Extract Shared Instructions from Agent Files](how-to/copilot/how-to-extract-shared-instructions-from-agents.md)
 - [How to Create CLI Agent Variants from VS Code Agents](how-to/copilot/how-to-create-cli-agent-variants.md)
+- [How to Create a Trimmed CLI-Embed Instruction Variant](how-to/copilot/create-trimmed-cli-embed-instruction-variant.md)
+- [How to Publish Plugins with -SkipBundle](how-to/copilot/publish-plugins-with-skipbundle.md)
 
 ### OpenSpec
 
@@ -49,6 +51,9 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Agent Variant Directory Convention](reference/copilot/agent-variant-directory-convention.md)
 - [Platform-Aware publish-agents.ps1 Design Reference](reference/copilot/platform-aware-publish-agents-design.md)
 - [Copilot CLI Custom Agent Frontmatter Schema Reference](reference/copilot/copilot-cli-agent-frontmatter-schema.md)
+- [Copilot CLI Agent 30K Character Limit](reference/copilot/cli-agent-30k-character-limit.md)
+- [EMBED Marker Specification](reference/copilot/embed-marker-specification.md)
+- [[Regex]::Replace() Script Block Pattern](reference/copilot/regex-replace-script-block-pattern.md)
 
 ### OpenSpec
 
@@ -92,6 +97,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Framework-First Approach to Multi-Runtime Infrastructure](explanation/copilot/framework-first-multi-runtime-planning.md)
 - [Shared Instruction Pattern: Why It Exists and Its Trade-offs](explanation/copilot/shared-instruction-pattern-trade-offs.md)
 - [The `infer` Key Retirement: Rationale and Migration](explanation/copilot/infer-key-retirement-and-migration.md)
+- [Build-Time Instruction Embedding Architecture](explanation/copilot/build-time-instruction-embedding-architecture.md)
 
 ### Ralph
 
