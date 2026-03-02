@@ -92,8 +92,8 @@ function Merge-AgentInstructions {
         # Trim leading whitespace left after stripping
         $instructionContent = $instructionContent.TrimStart("`r", "`n")
 
-        # Replace the EMBED marker line with instruction content
-        $body = $body -replace '(?m)^.*<!-- EMBED:\s*.+?\s*-->.*$', $instructionContent
+        # Replace the EMBED marker line with instruction content (script block avoids .NET backreference interpretation)
+        $body = [Regex]::Replace($body, '(?m)^.*<!-- EMBED:\s*.+?\s*-->.*$', { param($m) $instructionContent })
 
         # Reassemble
         if ($frontmatter) {
@@ -115,7 +115,8 @@ function Merge-AgentInstructions {
             @{ Name = 'Persona';          Pattern = '<persona>' },
             @{ Name = 'Rules';            Pattern = '<rules>' },
             @{ Name = 'Signal Protocol';  Pattern = 'Live Signals Protocol|Poll-Signals Routine' },
-            @{ Name = 'Contract';         Pattern = '<contract>' }
+            @{ Name = 'Contract';         Pattern = '<contract>' },
+            @{ Name = 'Workflow';         Pattern = 'Workflow|Modes of Operation' }
         )
 
         foreach ($marker in $requiredMarkers) {
