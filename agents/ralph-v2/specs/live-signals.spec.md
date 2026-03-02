@@ -1,7 +1,7 @@
 ---
 title: "Live Signals Protocol"
 status: deprecated
-superseded_by: openspec/specs/signals/spec.md
+superseded_by: openspec/specs/ralph-v2-orchestration/signals/spec.md
 deprecated_at: 2026-03-02T17:48:29+07:00
 version: "2.10.0"
 created_at: 2026-02-28T21:15:21+07:00

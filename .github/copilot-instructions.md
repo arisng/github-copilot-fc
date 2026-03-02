@@ -13,7 +13,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Custom Instruction files (`*.instructions.md`) define policy/workflows and should use `description` + `applyTo` frontmatter.
 - Agent Hook files (`*.hooks.json`) define lifecycle hooks; author in `hooks/`, publish to `.github/hooks/`.
 - Agent Skills are folder-based and must include `SKILL.md`; scripts local to a skill belong under that skill's own `scripts/` folder.
-- Behavioral specifications follow the OpenSpec SDD convention in `openspec/specs/<domain>/spec.md`. Specs are runtime-agnostic (shared across VS Code, CLI, and Cloud), unlike agent files which are runtime-specific.
+- Behavioral specifications follow the OpenSpec SDD convention in `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`. Specs are runtime-agnostic (shared across VS Code, CLI, and Cloud), unlike agent files which are runtime-specific.
 
 ## File and naming conventions
 - Custom Agents: `agents/<name>.agent.md`
@@ -21,7 +21,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Custom Instructions: `instructions/<name>.instructions.md`
 - Custom Prompts: `prompts/*.prompt.md`
 - Custom Toolsets: `toolsets/*.toolsets.jsonc`
-- OpenSpec Specs: `openspec/specs/<domain>/spec.md`
+- OpenSpec Specs: `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`
 - Use forward slashes in markdown links, even on Windows paths.
 
 ## Critical workflows
