@@ -12,6 +12,126 @@ param(
     [switch]$Bundle
 )
 
+function Merge-AgentInstructions {
+    <#
+    .SYNOPSIS
+        Resolves EMBED markers in agent files by inlining instruction content.
+
+    .DESCRIPTION
+        Scans agent markdown files for <!-- EMBED: filename --> markers and replaces
+        them with the content of the referenced instruction file. Instruction YAML
+        frontmatter and H1 headers are stripped before inlining. Agent YAML frontmatter
+        is preserved verbatim. Validates merged body length and required section markers.
+
+    .PARAMETER AgentDir
+        Path to the .build/agents/ directory containing agent markdown files.
+
+    .PARAMETER InstructionsDir
+        Path to the source instructions/ directory.
+
+    .PARAMETER MaxChars
+        Maximum allowed character count for the markdown body (after frontmatter).
+        Defaults to 30000 per copilot-cli limits.
+
+    .OUTPUTS
+        [hashtable] Summary with keys: Processed, Merged, Skipped, Errors.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentDir,
+        [Parameter(Mandatory)][string]$InstructionsDir,
+        [int]$MaxChars = 30000
+    )
+
+    $result = @{ Processed = 0; Merged = 0; Skipped = 0; Errors = 0 }
+
+    $agentFiles = Get-ChildItem -Path $AgentDir -Filter '*.agent.md' -Recurse -ErrorAction SilentlyContinue
+    if (-not $agentFiles) {
+        return $result
+    }
+
+    foreach ($agentFile in $agentFiles) {
+        $result.Processed++
+        $rawContent = Get-Content $agentFile.FullName -Raw
+
+        # Split into YAML frontmatter and markdown body
+        if ($rawContent -match '(?s)^(---\r?\n.*?\r?\n---)\r?\n(.*)$') {
+            $frontmatter = $Matches[1]
+            $body = $Matches[2]
+        }
+        else {
+            # No frontmatter — treat entire content as body
+            $frontmatter = $null
+            $body = $rawContent
+        }
+
+        # Check for EMBED marker in body
+        if ($body -notmatch '<!-- EMBED:\s*(.+?)\s*-->') {
+            $result.Skipped++
+            continue
+        }
+
+        $instructionFilename = $Matches[1]
+        $instructionPath = Join-Path $InstructionsDir $instructionFilename
+
+        if (-not (Test-Path $instructionPath)) {
+            Write-Error "  Instruction file not found: $instructionFilename (referenced by $($agentFile.Name))"
+            $result.Errors++
+            continue
+        }
+
+        $instructionContent = Get-Content $instructionPath -Raw
+
+        # Strip YAML frontmatter from instruction content
+        if ($instructionContent -match '(?s)^---\r?\n.*?\r?\n---\r?\n(.*)$') {
+            $instructionContent = $Matches[1]
+        }
+
+        # Strip the first H1 header line
+        $instructionContent = ([regex]'(?m)^# .+\r?\n').Replace($instructionContent, '', 1)
+        # Trim leading whitespace left after stripping
+        $instructionContent = $instructionContent.TrimStart("`r", "`n")
+
+        # Replace the EMBED marker line with instruction content
+        $body = $body -replace '(?m)^.*<!-- EMBED:\s*.+?\s*-->.*$', $instructionContent
+
+        # Reassemble
+        if ($frontmatter) {
+            $mergedContent = "$frontmatter`n`n$body"
+        }
+        else {
+            $mergedContent = $body
+        }
+
+        # Measure body char count (everything after frontmatter closing ---)
+        if ($body.Length -gt $MaxChars) {
+            Write-Error "  Agent body exceeds $MaxChars chars ($($body.Length)): $($agentFile.Name)"
+            $result.Errors++
+            continue
+        }
+
+        # Validate required section markers
+        $requiredMarkers = @(
+            @{ Name = 'Persona';          Pattern = '<persona>' },
+            @{ Name = 'Rules';            Pattern = '<rules>' },
+            @{ Name = 'Signal Protocol';  Pattern = 'Live Signals Protocol|Poll-Signals Routine' },
+            @{ Name = 'Contract';         Pattern = '<contract>' }
+        )
+
+        foreach ($marker in $requiredMarkers) {
+            if ($body -notmatch $marker.Pattern) {
+                Write-Warning "  Missing section marker '$($marker.Name)' in $($agentFile.Name)"
+            }
+        }
+
+        # Write back in-place
+        Set-Content -Path $agentFile.FullName -Value $mergedContent -NoNewline -Encoding UTF8
+        $result.Merged++
+    }
+
+    return $result
+}
+
 function Build-PluginBundle {
     <#
     .SYNOPSIS
@@ -128,6 +248,21 @@ function Build-PluginBundle {
 
     # Write cleaned manifest
     $cleanManifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $buildDir "plugin.json") -Encoding UTF8
+
+    # Merge agent instructions (embed instruction content into agent bodies)
+    if ($cleanManifest.Contains('agents')) {
+        $agentBuildDir = Join-Path $buildDir "agents"
+        $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
+        $instructionsDir = Join-Path $repoRoot "instructions"
+
+        if (Test-Path $agentBuildDir) {
+            $mergeResult = Merge-AgentInstructions -AgentDir $agentBuildDir -InstructionsDir $instructionsDir
+            if ($mergeResult.Errors -gt 0) {
+                Write-Warning "  Agent instruction merge had $($mergeResult.Errors) error(s)"
+            }
+            Write-Host "  Merged instructions: $($mergeResult.Merged) agent(s), $($mergeResult.Skipped) skipped, $($mergeResult.Errors) error(s)" -ForegroundColor DarkGray
+        }
+    }
 
     # Post-bundle validation: verify every component path in .build/plugin.json
     foreach ($field in $officialComponentFields) {
