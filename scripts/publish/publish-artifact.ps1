@@ -56,8 +56,15 @@ switch ($Type.ToLower()) {
             & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name
         }
     }
+    "plugin" {
+        if ($Force) {
+            & "$PSScriptRoot/publish-plugins.ps1" -Plugins $Name -Force
+        } else {
+            & "$PSScriptRoot/publish-plugins.ps1" -Plugins $Name
+        }
+    }
     default {
-        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset, hook"
+        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset, hook, plugin"
         exit 1
     }
 }
