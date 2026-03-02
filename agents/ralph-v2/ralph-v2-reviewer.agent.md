@@ -5,9 +5,9 @@ argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW
 user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
-  version: 2.11.0
+  version: 2.12.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-28T22:00:00+07:00
+  updated_at: 2026-03-02T11:23:30+07:00
   timezone: UTC+7
 ---
 

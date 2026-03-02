@@ -5,9 +5,9 @@ argument-hint: Specify the Ralph session path, MODE (brainstorm, research, feedb
 user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'microsoftdocs/mcp/*', 'github/get_commit', 'github/get_file_contents', 'github/get_latest_release', 'github/get_release_by_tag', 'github/get_tag', 'github/list_branches', 'github/list_commits', 'github/list_releases', 'github/list_tags', 'github/search_code', 'github/search_repositories', 'mcp_docker/fetch_content', 'mcp_docker/get-library-docs', 'mcp_docker/resolve-library-id', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'deepwiki/*', 'vscode/memory']
 metadata:
-  version: 2.11.0
+  version: 2.12.0
   created_at: 2026-02-07T00:00:00Z
-  updated_at: 2026-02-28T22:00:00+07:00
+  updated_at: 2026-03-02T11:23:30+07:00
   timezone: UTC+7
 ---
 
