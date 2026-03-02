@@ -212,7 +212,7 @@ Hooks share the **same JSON schema** across both platforms, making them the most
 | ---------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | Discovery path         | `.github/hooks/`                                                                                  | CWD (repo root) or via plugins          |
 | Installation           | Publish to `.github/hooks/`                                                                       | Place in repo root or package as plugin |
-| Lifecycle events       | `sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred` | Same events ✓                           |
+| Lifecycle events       | `sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `agentStop`, `subagentStop` | Same events ✓                           |
 | `preToolUse` responses | `deny` / `allow` / `ask`                                                                          | Same ✓                                  |
 | Plugin bundling        | Not applicable                                                                                    | Plugins can bundle hooks                |
 

@@ -134,7 +134,7 @@ Each artifact type is assessed against three levels of cross-runtime compatibili
 #### Hooks — Mostly Shareable ⚠️
 
 - **File Format:** Both runtimes parse `*.hooks.json` with identical JSON schema (`version`, `hooks`, lifecycle events, command entries with `bash`/`powershell` keys). ✅
-- **Semantic:** All 6 lifecycle events (`sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`) supported on both platforms. `preToolUse` `deny`/`allow`/`ask` responses work the same. ✅
+- **Semantic:** All 8 lifecycle events (`sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `agentStop`, `subagentStop`) supported on both platforms. `preToolUse` `deny`/`allow`/`ask` responses work the same. ✅
 - **Behavioral:** Same behavior **when hooks are in `.github/hooks/`** and CLI is invoked from repo root. Discovery difference: VS Code always uses workspace root; CLI uses CWD. If CLI runs from a subdirectory, hooks may not be found. ⚠️
 - **Verdict:** Shareable for standard repo-scoped usage. The CWD discovery caveat is minor and aligns with typical developer workflow (CLI from repo root).
 
