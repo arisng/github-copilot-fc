@@ -1,9 +1,11 @@
 ---
 title: Ralph v2 Stop Hook Metadata Finalization
-status: draft
+status: deprecated
+superseded_by: openspec/specs/session/spec.md
+deprecated_at: 2026-03-02T17:48:29+07:00
 version: "1.0"
 created_at: 2024-06-20
-updated_at: 2026-02-28
+updated_at: 2026-03-02T17:48:29+07:00
 ---
 
 # Ralph v2 Stop Hook Metadata Finalization Spec

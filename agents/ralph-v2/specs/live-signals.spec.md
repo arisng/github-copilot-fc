@@ -1,9 +1,11 @@
 ---
 title: "Live Signals Protocol"
-status: implemented
+status: deprecated
+superseded_by: openspec/specs/signals/spec.md
+deprecated_at: 2026-03-02T17:48:29+07:00
 version: "2.10.0"
 created_at: 2026-02-28T21:15:21+07:00
-updated_at: 2026-02-28T21:15:21+07:00
+updated_at: 2026-03-02T17:48:29+07:00
 ---
 
 # Live Signals Protocol

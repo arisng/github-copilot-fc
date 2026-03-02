@@ -1,9 +1,11 @@
 ---
 title: "Session Artifact Normalization"
-status: implemented
+status: deprecated
+superseded_by: openspec/specs/session/spec.md
+deprecated_at: 2026-03-02T17:48:29+07:00
 version: "2.2.0"
 created_at: 2026-02-15T00:00:00+07:00
-updated_at: 2026-02-28T21:21:07+07:00
+updated_at: 2026-03-02T17:48:29+07:00
 ---
 
 # Normalization Deep Dive
