@@ -18,12 +18,11 @@ plugins/
   <name>/
     plugin.json          # Plugin manifest (required)
     agents/              # Agent files (optional)
-    instructions/        # Instruction files (optional)
     skills/              # Skill directories (optional)
+    commands/            # Command tool definitions (optional)
     hooks/               # Hook configs (optional)
-    tools/               # Tool definitions (optional)
-    config/              # Configuration files (optional)
-    system.md            # System prompt (optional)
+    mcpServers/          # MCP server definitions (optional)
+    lspServers/          # LSP server definitions (optional)
 ```
 
 The directory name should match the `name` field in `plugin.json`. See [plugins/README.md](../../../plugins/README.md) for the workspace's plugin directory documentation.
@@ -62,8 +61,7 @@ For workspace plugins, use the flat `plugins/<name>/plugin.json` convention. The
 | `bugs` | string \| object | URL or `{ "url": "...", "email": "..." }` for bug reports. |
 | `repository` | string \| object | URL or `{ "type": "git", "url": "..." }` for the source repository. |
 | `keywords` | array | Array of strings for searchability (e.g., `["orchestration", "agents"]`). |
-| `strict` | boolean | If `true`, plugin components override user-level equivalents. Default: `false`. |
-| `system` | string | Relative path to a system prompt file (e.g., `"system.md"`). |
+| `strict` | boolean | If `true` (default), plugin validation rejects unknown fields in `plugin.json`. Set to `false` to allow forward-compatible metadata. Default: `true`. |
 
 ### Component Path Fields
 
@@ -71,13 +69,16 @@ Component paths are relative to the plugin directory and point to the resources 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `agents` | string | `"agents/"` | Path to directory containing `.agent.md` files. |
-| `tools` | string | `"tools/"` | Path to directory containing tool definitions. |
-| `instructions` | string | `"instructions/"` | Path to directory containing `.instructions.md` files. |
+| `agents` | string | `"agents/"` | Path to `.agent.md` files. |
+| `skills` | string | `"skills/"` | Path to skill directories. |
+| `commands` | string | `"commands/"` | Path to command tool definitions. |
 | `hooks` | string | `"hooks/"` | Path to hooks configuration file or directory. |
-| `config` | string | `"config/"` | Path to configuration files directory. |
+| `mcpServers` | string | `"mcpServers/"` | Path to MCP server definitions. |
+| `lspServers` | string | `"lspServers/"` | Path to LSP server definitions. |
 
 > **Note:** Component paths can point outside the plugin directory using relative paths (e.g., `"../../agents/ralph-v2/cli/"`) for workspace-internal plugins that reference existing artifacts. For distributed plugins, all components should be self-contained within the plugin directory.
+>
+> **Instruction delivery limitation:** `instructions` is NOT an official component path field. Plugins cannot deliver `.instructions.md` files through the plugin loading mechanism. For instruction delivery strategies, see [About CLI Plugins](../../explanation/copilot/about-cli-plugins.md).
 
 ### Example: Minimal Manifest
 
@@ -99,8 +100,7 @@ Component paths are relative to the plugin directory and point to the resources 
   "keywords": ["orchestration", "agents", "multi-agent"],
   "agents": "agents/",
   "skills": "skills/",
-  "hooks": "hooks/",
-  "instructions": "instructions/"
+  "hooks": "hooks/"
 }
 ```
 
@@ -110,70 +110,51 @@ See the workspace pilot plugin at [plugins/ralph-v2/plugin.json](../../../plugin
 
 ## CLI Commands
 
-All plugin commands use the `/plugins` prefix within a Copilot CLI session or `copilot plugin` from the shell.
+All plugin commands use `copilot plugin` from the shell.
 
-### Discovery & Information
-
-| Command | Description |
-|---------|-------------|
-| `/plugins list` | List all installed plugins and their status (enabled/disabled). |
-| `/plugins show <name>` | Show detailed information about a specific plugin (manifest fields, components, install source). |
-| `/plugins search <query>` | Search registered marketplaces for plugins matching the query. |
-
-### Installation & Removal
+### Installation & Management
 
 | Command | Description |
 |---------|-------------|
-| `/plugins install <spec>` | Install a plugin from a local path, GitHub URL, or marketplace. See [Install Spec Patterns](#install-spec-patterns). |
-| `/plugins uninstall <name>` | Remove an installed plugin and its components. |
-| `/plugins update <name>` | Update a plugin to the latest version from its original source. |
+| `copilot plugin install <spec>` | Install a plugin from a local path, GitHub URL, or marketplace. See [Install Spec Patterns](#install-spec-patterns). |
+| `copilot plugin uninstall <name>` | Remove an installed plugin and its components. |
+| `copilot plugin list` | List all installed plugins and their status (enabled/disabled). |
+| `copilot plugin update <name>` | Update a plugin to the latest version from its original source. |
+| `copilot plugin enable <name>` | Re-enable a previously disabled plugin. |
+| `copilot plugin disable <name>` | Temporarily disable a plugin without uninstalling it. Components are not loaded until re-enabled. |
 
-### Lifecycle Management
-
-| Command | Description |
-|---------|-------------|
-| `/plugins enable <name>` | Re-enable a previously disabled plugin. |
-| `/plugins disable <name>` | Temporarily disable a plugin without uninstalling it. Components are not loaded until re-enabled. |
-
-### Authoring & Publishing
+### Marketplace Subcommands
 
 | Command | Description |
 |---------|-------------|
-| `/plugins create <name>` | Scaffold a new plugin directory with a template `plugin.json`. |
-| `/plugins validate [path]` | Validate a `plugin.json` manifest for schema correctness. Reports errors and warnings. |
-| `/plugins publish [path]` | Publish a plugin to a marketplace (requires marketplace registration). |
+| `copilot plugin marketplace add <repo>` | Register a plugin marketplace repository. |
+| `copilot plugin marketplace remove <name>` | Unregister a marketplace. |
+| `copilot plugin marketplace list` | List registered marketplaces. |
+| `copilot plugin marketplace browse <name>` | Browse plugins available in a marketplace. |
 
-### Shell Equivalents
+> **Commands that do NOT exist:** `validate`, `create`, `publish`, `show`, `search` are not official `copilot plugin` subcommands. Do not reference them.
 
-Commands can also be run from the shell as `copilot plugin <command>`:
+### Shell Examples
 
 ```bash
 copilot plugin install ./plugins/ralph-v2
 copilot plugin list
-copilot plugin show ralph-v2
 copilot plugin uninstall ralph-v2
+copilot plugin marketplace list
 ```
 
 ---
 
 ## Install Spec Patterns
 
-The `/plugins install` command accepts multiple source formats:
+The `copilot plugin install` command accepts multiple source formats:
 
 | Pattern | Example | Description |
 |---------|---------|-------------|
+| Local path | `./plugins/ralph-v2` | Install from a local directory containing `plugin.json`. |
+| GitHub URL | `github.com/owner/repo:plugins/name` | Install directly from a GitHub repository path. |
 | `@owner/name` | `@copilot-fc/ralph-v2` | Install from a registered marketplace. |
 | `@owner/name@version` | `@copilot-fc/ralph-v2@1.0.0` | Install a specific version from marketplace. |
-| GitHub URL | `github.com/owner/repo:plugins/name` | Install directly from a GitHub repository path. |
-| Local path | `./plugins/ralph-v2` | Install from a local directory containing `plugin.json`. |
-| Marketplace name | `ralph-v2` | Shorthand — searches default marketplaces. |
-
-### Default Marketplaces
-
-Two marketplaces are registered by default:
-
-- `copilot-plugins` — Official GitHub Copilot plugin repository
-- `awesome-copilot` — Community-curated plugin collection
 
 Additional marketplaces can be registered via `copilot plugin marketplace add`.
 
@@ -181,9 +162,26 @@ Additional marketplaces can be registered via `copilot plugin marketplace add`.
 
 ---
 
+## Install Paths
+
+Plugin files are **copied** (cached) on install — not symlinked. To pick up local changes, reinstall with `copilot plugin install`.
+
+| Source | Install Path |
+|--------|--------------|
+| Direct install (reference page) | `~/.copilot/state/installed-plugins/<NAME>/` |
+| Direct install (how-to page) | `~/.copilot/installed-plugins/_direct/<NAME>/` |
+| Marketplace install | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
+| Marketplace cache | `~/.copilot/state/marketplace-cache/` |
+
+> **⚠️ Documented inconsistency:** The [CLI Plugin Reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) page uses `~/.copilot/state/installed-plugins/<NAME>/` for direct installs, while the [How-to: Finding and Installing Plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) page uses `~/.copilot/installed-plugins/_direct/<NAME>/`. Key differences: the `state/` prefix (reference has it, how-to doesn't) and the `_direct/` subdirectory (how-to has it, reference doesn't). Verify paths on your local filesystem.
+
+On Windows, `~` resolves to `%USERPROFILE%` (e.g., `C:\Users\<username>\.copilot\...`).
+
+---
+
 ## Loading Precedence
 
-When multiple sources define the same artifact (e.g., an agent with the same name), the CLI uses a first-found-wins model for agents and skills:
+When multiple sources define the same artifact (e.g., an agent with the same name), the CLI uses a **user > project > parent dirs > plugin > remote/org** precedence model:
 
 | Priority | Source | Example Path |
 |----------|--------|-------------|
@@ -194,6 +192,8 @@ When multiple sources define the same artifact (e.g., an agent with the same nam
 | 5 (lowest) | Remote/org agents | Organization or enterprise-configured agents |
 
 > **MCP exception:** MCP server definitions use **last-wins** precedence (opposite of agents/skills).
+>
+> **Instruction limitation:** The official loading order diagram shows agents, skills, and MCP servers loaded from plugins, but **NOT instructions**. Instructions have no plugin loading path.
 
 ### Implications for Publish Scripts
 
