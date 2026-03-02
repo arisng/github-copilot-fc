@@ -98,6 +98,19 @@ Plugins **supplement** the existing publish-script workflow — they do not repl
 
 Use publish scripts for local development iteration. Use plugins for packaging and sharing complete workflows.
 
+## Instruction Delivery
+
+The `instructions` field is **not** part of the `plugin.json` schema. The Copilot CLI has no plugin-based instruction loading path — the [loading order](https://docs.github.com/en/copilot/reference/cli-plugin-reference) resolves instructions from `AGENTS.md`, `~/.copilot/copilot-instructions.md`, `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and project `.github/copilot-instructions.md`, but never from installed plugins.
+
+**Implication:** If your plugin's agents rely on shared instruction files (e.g., `.instructions.md` files for orchestration logic), those instruction files must be delivered separately.
+
+**Workaround:** Use `scripts/publish/publish-instructions.ps1` alongside `scripts/publish/publish-plugins.ps1` to distribute instruction files to the standard CLI instruction paths.
+
+For workspace plugins like `ralph-v2`, this means the publish workflow is:
+
+1. `publish-plugins.ps1 -Bundle` — bundles and installs agent/skill/hook components
+2. `publish-instructions.ps1` — copies instruction files to `~/.copilot/` or the configured instruction directory
+
 ## Marketplace Publishing
 
 Marketplace publishing for plugins is **deferred** to a future iteration. Currently, plugins are installed from local directories only.

@@ -173,6 +173,22 @@ See [publish-plugins.ps1](../../../scripts/publish/publish-plugins.ps1) for all 
 
 ---
 
+## Instruction delivery
+
+Plugins cannot deliver instruction files — the `instructions` field does not exist in the `plugin.json` schema, and the CLI does not load instructions from installed plugin directories.
+
+If your plugin's agents depend on shared instruction files (e.g., `*.instructions.md` files for orchestration or coding standards), distribute those separately using `publish-instructions.ps1`:
+
+```powershell
+# Install the plugin
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin -Bundle
+
+# Separately deliver instruction files
+pwsh -NoProfile -File scripts/publish/publish-instructions.ps1
+```
+
+See [plugins/README.md](../../../plugins/README.md#instruction-delivery) for the full rationale and workaround details.
+
 ## Marketplace publishing
 
 Publishing to marketplaces requires marketplace registration. Marketplace infrastructure is **deferred** to a future iteration — plugins are currently distributed via local paths and direct GitHub URL installs.
