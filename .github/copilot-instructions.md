@@ -19,6 +19,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Custom Agents: `agents/<name>.agent.md`
 - Agent Hooks: `hooks/<name>.hooks.json`
 - Custom Instructions: `instructions/<name>.instructions.md`
+- Agent-specific private instructions: `agents/<name>/instructions/*.instructions.md` (tightly coupled to that agent workflow)
 - Custom Prompts: `prompts/*.prompt.md`
 - Custom Toolsets: `toolsets/*.toolsets.jsonc`
 - OpenSpec Specs: `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`
