@@ -1,6 +1,41 @@
+<#
+.SYNOPSIS
+    Publishes Copilot CLI plugins to Windows and/or WSL environments.
+
+.DESCRIPTION
+    Discovers plugin directories under plugins/, builds a self-contained bundle for each,
+    and installs via 'copilot plugin install'. Supports targeting Windows, WSL, or both.
+
+    NOTE: The -Platform parameter here uses 'windows'/'wsl'/'all' semantics (not 'vscode'/'cli').
+    This is because plugins install to different runtime environments (Windows native vs WSL
+    interop), not to different path targets. Contrast with publish-agents.ps1 which uses
+    'vscode'/'cli' to distinguish installation path stores.
+
+.PARAMETER Plugins
+    Array or comma-separated plugin names to install. Supports wildcard patterns.
+    If omitted, installs all discovered plugins.
+
+.PARAMETER Platform
+    Target environment for publishing. Valid values: 'windows', 'wsl', 'all'. Default: 'all'.
+    - windows: installs plugin on the Windows-native Copilot CLI only
+    - wsl: installs plugin inside WSL only
+    - all: installs on both Windows and WSL (default)
+    NOTE: -SkipWSL is deprecated; use -Platform windows instead.
+
+.PARAMETER Force
+    Uninstall each plugin before reinstalling.
+
+.PARAMETER SkipWSL
+    DEPRECATED. Use -Platform windows instead. Kept for backward compatibility.
+    When used, emits a deprecation warning and sets Platform = 'windows'.
+#>
 param(
     [Parameter(Mandatory = $false)]
     [string[]]$Plugins,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("windows", "wsl", "all")]
+    [string]$Platform = "all",
 
     [Parameter(Mandatory = $false)]
     [switch]$Force,
@@ -8,6 +43,12 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$SkipWSL
 )
+
+# Deprecation handling for -SkipWSL
+if ($SkipWSL) {
+    Write-Warning "-SkipWSL is deprecated; use -Platform windows instead"
+    $Platform = 'windows'
+}
 
 function Merge-AgentInstructions {
     <#
@@ -251,7 +292,7 @@ function Build-PluginBundle {
     if ($cleanManifest.Contains('agents')) {
         $agentBuildDir = Join-Path $buildDir "agents"
         $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
-        $instructionsDir = Join-Path $repoRoot "instructions"
+        $instructionsDir = Join-Path $repoRoot "agents/ralph-v2/instructions"
 
         if (Test-Path $agentBuildDir) {
             $mergeResult = Merge-AgentInstructions -AgentDir $agentBuildDir -InstructionsDir $instructionsDir
@@ -376,6 +417,7 @@ function Publish-Plugins {
     $errors = 0
 
     # --- Windows installation ---
+    if ($Platform -eq 'windows' -or $Platform -eq 'all') {
     foreach ($pluginDir in $pluginDirs) {
         $pluginName = $pluginDir.Name
         $pluginPath = $pluginDir.FullName
@@ -413,9 +455,10 @@ function Publish-Plugins {
             $errors++
         }
     }
+    } # end Windows installation
 
     # --- WSL installation ---
-    if (-not $SkipWSL) {
+    if ($Platform -eq 'wsl' -or $Platform -eq 'all') {
         $wslHelpersPath = Join-Path $PSScriptRoot "wsl-helpers.ps1"
         $wslAvailable = $false
 
@@ -464,7 +507,7 @@ function Publish-Plugins {
         elseif (-not $wslAvailable) {
             Write-Host "WSL not available, skipping WSL publishing" -ForegroundColor Yellow
         }
-    }
+    } # end WSL installation
 
     Write-Host ""
     Write-Host "Done: $installed installed, $errors error(s)" -ForegroundColor Cyan
