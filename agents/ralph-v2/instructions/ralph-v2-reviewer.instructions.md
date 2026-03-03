@@ -394,6 +394,13 @@ For each task in iterations/*/tasks/*.md:
 
 # Step 3: Read feedback history
 Read all iterations/*/feedbacks/*/feedbacks.md
+
+# Step 4: Scan knowledge artifacts
+If iterations/<N>/knowledge/ exists:
+  List all files recursively under iterations/<N>/knowledge/
+  Record for each file: relative path, Diátaxis category (inferred from sub-folder name), description (from file frontmatter title or filename)
+Else:
+  Record: knowledge directory does not exist for this iteration
 ```
 
 ### 2. Assess Goal Achievement
@@ -503,20 +510,32 @@ Results of the Cross-Agent Normalization Checklist:
 > Populated from COMMIT mode outputs. If COMMIT was not run, note "COMMIT not executed".
 
 ## Knowledge Artifacts
-Knowledge items staged or promoted during this iteration:
+Knowledge items found in `iterations/<N>/knowledge/` (scanned recursively in Step 1, Step 4):
 
-| Item | Category | Status | Staged By |
-|------|----------|--------|-----------|
-| [knowledge-item-title] | reference | ✅ Promoted | Librarian |
-| [knowledge-item-title] | how-to | ⏳ Pending approval | Librarian |
+> **Conditional rule**: If `iterations/<N>/knowledge/` contains files, list each file as a table row below. If the directory is empty or does not exist, write "No knowledge artifacts this iteration."
 
-> If no knowledge items were staged, write "No knowledge artifacts this iteration".
+| Path | Category | Description |
+|------|----------|-------------|
+| [relative path from iterations/<N>/knowledge/] | [Diátaxis category: tutorials \| how-to-guides \| reference \| explanation] | [description from file frontmatter or filename] |
 
 ## Feedback Loop Effectiveness
 - Feedback batches processed: [count]
 - Issues resolved: [count]
 - Issues remaining: [count]
 - Rework cycles: [count]
+
+## Critique Cycle N Addendum
+
+> **Insert rule**: When SESSION_REVIEW_CYCLE > 0, insert one `## Critique Cycle N Addendum` section per completed critique cycle, numbered from 1 upward, in order BEFORE `## Recommendations`. Omit this section entirely if SESSION_REVIEW_CYCLE == 0.
+
+### Changes Made This Cycle
+[Describe what was changed in this critique cycle based on reviewer feedback]
+
+### Issues Resolved
+- [Issue ID / description] — [how it was resolved]
+
+### Issues Remaining
+- [Issue ID / description] — [why still open or deferred to next iteration]
 
 ## Recommendations
 Actionable items for the next iteration or session closure:

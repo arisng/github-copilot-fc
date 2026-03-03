@@ -365,6 +365,12 @@ For each task in iterations/*/tasks/*.md:
 
 # Step 3: Read feedback history
 Read all iterations/*/feedbacks/*/feedbacks.md
+
+# Step 4: Scan knowledge artifacts
+If iterations/<N>/knowledge/ exists:
+  List all files recursively; record path, Diátaxis category (from sub-folder), description
+Else:
+  Record: knowledge directory absent for this iteration
 ```
 
 ### 2. Assess Goal Achievement
@@ -404,10 +410,11 @@ Create `iterations/<N>/review.md` with the following mandatory sections:
 5. **Issues Found** — Categorized: Critical, Major, Minor (use "None" if empty)
 6. **Cross-Agent Consistency** — Normalization checklist results table (checks a-g)
 7. **Commit Summary** — Table: Task ID | Commit Hash | Message | Files
-8. **Knowledge Artifacts** — Table: Item | Category | Status | Staged By
+8. **Knowledge Artifacts** — Scan `iterations/<N>/knowledge/` recursively (Step 1, Step 4). Table: Path | Category | Description. If directory empty or absent: write "No knowledge artifacts this iteration."
 9. **Feedback Loop Effectiveness** — Batches processed, issues resolved/remaining, rework cycles
-10. **Recommendations** — Actionable items for next iteration or session closure
-11. **Next Actions** — Decision: `continue` | `replan` | `complete` with rationale
+10. **Critique Cycle N Addendum** (one section per completed critique cycle, numbered from 1; omit if SESSION_REVIEW_CYCLE == 0) — Insert all addendum sections BEFORE `## Recommendations`. Format: changes made this cycle, issues resolved, issues remaining.
+11. **Recommendations** — Actionable items for next iteration or session closure
+12. **Next Actions** — Decision: `continue` | `replan` | `complete` with rationale
 
 **Action 2: Update Iteration Metadata**
 Do NOT set `completed_at` here. The Orchestrator defers `iterations/<N>/metadata.yaml` `completed_at` to the moment SESSION_REVIEW passes with `active_issue_count == 0` after applying the configured `issue_severity_threshold`.
