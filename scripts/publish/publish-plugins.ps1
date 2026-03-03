@@ -6,7 +6,7 @@
     Discovers plugin directories under plugins/, builds a self-contained bundle for each,
     and installs via 'copilot plugin install'. Supports targeting Windows, WSL, or both.
 
-    NOTE: The -Platform parameter here uses 'windows'/'wsl'/'all' semantics (not 'vscode'/'cli').
+    NOTE: The -Environment parameter here uses 'windows'/'wsl'/'all' semantics (not 'vscode'/'cli').
     This is because plugins install to different runtime environments (Windows native vs WSL
     interop), not to different path targets. Contrast with publish-agents.ps1 which uses
     'vscode'/'cli' to distinguish installation path stores.
@@ -15,19 +15,19 @@
     Array or comma-separated plugin names to install. Supports wildcard patterns.
     If omitted, installs all discovered plugins.
 
-.PARAMETER Platform
+.PARAMETER Environment
     Target environment for publishing. Valid values: 'windows', 'wsl', 'all'. Default: 'all'.
     - windows: installs plugin on the Windows-native Copilot CLI only
     - wsl: installs plugin inside WSL only
     - all: installs on both Windows and WSL (default)
-    NOTE: -SkipWSL is deprecated; use -Platform windows instead.
+    NOTE: -SkipWSL is deprecated; use -Environment windows instead.
 
 .PARAMETER Force
     Uninstall each plugin before reinstalling.
 
 .PARAMETER SkipWSL
-    DEPRECATED. Use -Platform windows instead. Kept for backward compatibility.
-    When used, emits a deprecation warning and sets Platform = 'windows'.
+    DEPRECATED. Use -Environment windows instead. Kept for backward compatibility.
+    When used, emits a deprecation warning and sets Environment = 'windows'.
 #>
 param(
     [Parameter(Mandatory = $false)]
@@ -35,7 +35,7 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("windows", "wsl", "all")]
-    [string]$Platform = "all",
+    [string]$Environment = "all",
 
     [Parameter(Mandatory = $false)]
     [switch]$Force,
@@ -46,8 +46,8 @@ param(
 
 # Deprecation handling for -SkipWSL
 if ($SkipWSL) {
-    Write-Warning "-SkipWSL is deprecated; use -Platform windows instead"
-    $Platform = 'windows'
+    Write-Warning "-SkipWSL is deprecated; use -Environment windows instead"
+    $Environment = 'windows'
 }
 
 function Merge-AgentInstructions {
@@ -417,7 +417,7 @@ function Publish-Plugins {
     $errors = 0
 
     # --- Windows installation ---
-    if ($Platform -eq 'windows' -or $Platform -eq 'all') {
+    if ($Environment -eq 'windows' -or $Environment -eq 'all') {
     foreach ($pluginDir in $pluginDirs) {
         $pluginName = $pluginDir.Name
         $pluginPath = $pluginDir.FullName
@@ -458,7 +458,7 @@ function Publish-Plugins {
     } # end Windows installation
 
     # --- WSL installation ---
-    if ($Platform -eq 'wsl' -or $Platform -eq 'all') {
+    if ($Environment -eq 'wsl' -or $Environment -eq 'all') {
         $wslHelpersPath = Join-Path $PSScriptRoot "wsl-helpers.ps1"
         $wslAvailable = $false
 
