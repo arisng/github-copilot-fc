@@ -65,7 +65,7 @@ updated_at: 2026-02-07T10:00:00Z
 Create Ralph-v2-Planner.agent.md
 
 ## Files
-- agents/v2/Ralph-v2-Planner.agent.md
+- agents/ralph-v2/cli/ralph-v2-planner.agent.md
 
 ## Objective
 Create a new Ralph-v2-Planner subagent that handles isolated task files
@@ -77,7 +77,7 @@ Create a new Ralph-v2-Planner subagent that handles isolated task files
 Minimum: 2 unique refs, including ≥ 1 Q-ID (the rest may be Q-IDs and/or Issue-IDs).
 
 ## Success Criteria
-- [ ] File exists at `agents/v2/Ralph-v2-Planner.agent.md`
+- [ ] File exists at `agents/ralph-v2/cli/ralph-v2-planner.agent.md`
 - [ ] Contains YAML frontmatter with name, description, tools
 - [ ] Defines workflow for creating isolated task files
 
