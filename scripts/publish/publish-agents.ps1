@@ -25,10 +25,10 @@
     - String array: -Agents 'git-committer','meta'
 
 .PARAMETER Platform
-    Target platform for publishing. Valid values: 'vscode', 'cli'.
+    Target platform for publishing. Valid values: 'vscode', 'cli', 'all'. Default: 'all'.
     - vscode: discovers agents/*/vscode/*.agent.md + agents/*.agent.md (root non-variant agents)
     - cli: discovers agents/*/cli/*.agent.md
-    - (omitted): publishes both platforms
+    - all: publishes both platforms (default behavior)
 
 .PARAMETER Force
     Overwrite existing agents without prompting for confirmation.
@@ -61,8 +61,8 @@ param(
     [string[]]$Agents,
 
     [Parameter(Mandatory = $false)]
-    [ValidateSet("vscode", "cli")]
-    [string]$Platform,
+    [ValidateSet("vscode", "cli", "all")]
+    [string]$Platform = "all",
 
     [Parameter(Mandatory = $false)]
     [switch]$Force,
@@ -82,7 +82,7 @@ function Get-AgentFiles {
         Root agents/ directory in the workspace.
 
     .PARAMETER Platform
-        'vscode', 'cli', or empty string for both.
+        'vscode', 'cli', or 'all' (default) for both.
 
     .OUTPUTS
         Array of objects with FullName (source path) and DestinationName (flat filename).
@@ -98,8 +98,8 @@ function Get-AgentFiles {
 
     $results = @()
 
-    $publishVSCode = (-not $Platform) -or ($Platform -eq 'vscode')
-    $publishCLI = (-not $Platform) -or ($Platform -eq 'cli')
+    $publishVSCode = ($Platform -eq 'vscode') -or ($Platform -eq 'all')
+    $publishCLI = ($Platform -eq 'cli') -or ($Platform -eq 'all')
 
     if ($publishVSCode) {
         # VS Code variant agents: agents/*/vscode/*.agent.md
@@ -149,10 +149,10 @@ function Get-AgentFiles {
 
 function Publish-AgentsToVSCode {
 
-    $publishVSCode = (-not $Platform) -or ($Platform -eq 'vscode')
-    $publishCLI = (-not $Platform) -or ($Platform -eq 'cli')
+    $publishVSCode = ($Platform -eq 'vscode') -or ($Platform -eq 'all')
+    $publishCLI = ($Platform -eq 'cli') -or ($Platform -eq 'all')
 
-    $platformLabel = if ($Platform) { $Platform } else { 'all platforms' }
+    $platformLabel = if ($Platform -ne 'all') { $Platform } else { 'all platforms' }
     Write-Host "Publishing agents ($platformLabel)..." -ForegroundColor Cyan
 
     $projectAgentsPath = Join-Path $PSScriptRoot "..\..\agents"
