@@ -149,7 +149,7 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 2. Implement Windows script: `hooks/scripts/ralph-v2-finalize-session-stop.ps1`.
 3. Implement Linux/WSL script: `hooks/scripts/ralph-v2-finalize-session-stop.sh`.
 4. Add lightweight deterministic fixture tests under `hooks/scripts/tests/`.
-5. Update `agents/ralph-v2/ralph-v2.agent.md` to maintain `.active-session` pointer:
+5. Update `agents/ralph-v2/cli/ralph-v2-orchestrator.agent.md` and `agents/ralph-v2/vscode/ralph-v2-orchestrator.agent.md` to maintain `.active-session` pointer:
 - Set on initialize/resume.
 - Clear on `COMPLETE` exit.
  - Set and clear `.hook-enabled` marker for Ralph-only hook applicability.

@@ -25,14 +25,14 @@ agents/
 └── ralph-v2/
     ├── README.md
     ├── vscode/
-    │   ├── ralph-v2.agent.md
+    │   ├── ralph-v2-orchestrator.agent.md
     │   ├── ralph-v2-executor.agent.md
     │   ├── ralph-v2-planner.agent.md
     │   ├── ralph-v2-questioner.agent.md
     │   ├── ralph-v2-reviewer.agent.md
     │   └── ralph-v2-librarian.agent.md
     └── cli/
-        ├── ralph-v2.agent.md
+        ├── ralph-v2-orchestrator.agent.md
         ├── ralph-v2-executor.agent.md
         ├── ralph-v2-planner.agent.md
         ├── ralph-v2-questioner.agent.md

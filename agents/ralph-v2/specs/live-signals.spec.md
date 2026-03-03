@@ -115,7 +115,7 @@ handling_metadata:
    - `target: ALL`: archive only when ack quorum is reached (or at session end with `delivery_status: partial`).
    - `INFO + target: Librarian + SKIP_PROMOTION:` in `KNOWLEDGE_EXTRACTION` (PROMOTE step): Librarian archives immediately on consume before transition.
 
-   <!-- Cross-ref: The orchestrator's Poll-Signals routine implements this peek-check-route flow. See ralph-v2.agent.md §State Machine. -->
+   <!-- Cross-ref: The orchestrator's Poll-Signals routine implements this peek-check-route flow. See ralph-v2-orchestrator.agent.md §State Machine. -->
 
 ### 3. Signal Types
 

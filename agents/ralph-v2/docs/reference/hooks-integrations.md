@@ -130,7 +130,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 
 ### State Transition Hooks
 
-> ⚠️ **Implementation Note:** Items 24-26 are NOT native GitHub Copilot Hooks. The Copilot Hooks API does not expose state machine transitions as lifecycle events. These guards would need to be implemented as **explicit checks embedded in the Orchestrator's state machine logic** (e.g., guard conditions evaluated before `setState()` calls in `ralph-v2.agent.md`). They are included here for completeness and to document the desired invariants, but they follow a different execution model than hooks 1-23 and 27-33.
+> ⚠️ **Implementation Note:** Items 24-26 are NOT native GitHub Copilot Hooks. The Copilot Hooks API does not expose state machine transitions as lifecycle events. These guards would need to be implemented as **explicit checks embedded in the Orchestrator's state machine logic** (e.g., guard conditions evaluated before `setState()` calls in `ralph-v2-orchestrator.agent.md`). They are included here for completeness and to document the desired invariants, but they follow a different execution model than hooks 1-23 and 27-33.
 
 24. 🔵 **State Transition Ledger** `P2`
 	- On state change, append previous and next state to `logs/state-transitions.jsonl`.
