@@ -6,7 +6,7 @@ tools:
   - bash
   - view
   - edit
-  - create
+  - search
 mcp-servers:
   microsoftdocs:
     type: http

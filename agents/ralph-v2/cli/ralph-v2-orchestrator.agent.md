@@ -6,7 +6,7 @@ tools:
   - bash
   - view
   - edit
-  - create
+  - search
   - task
 metadata:
   version: 2.13.0
