@@ -6,10 +6,7 @@ param(
     [switch]$Force,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SkipWSL,
-
-    [Parameter(Mandatory = $false)]
-    [switch]$SkipBundle
+    [switch]$SkipWSL
 )
 
 function Merge-AgentInstructions {
@@ -301,7 +298,7 @@ function Publish-Plugins {
         Scans the plugins/ directory for subdirectories containing plugin.json.
         By default, creates a self-contained .build/ bundle for each plugin
         (resolving component paths and copying artifacts) before running
-        'copilot plugin install'. Use -SkipBundle to install directly from source.
+        'copilot plugin install'.
         Supports filtering by name, force reinstallation, and WSL cross-publishing.
 
     .PARAMETER Plugins
@@ -313,11 +310,6 @@ function Publish-Plugins {
 
     .PARAMETER SkipWSL
         Skip plugin installation in WSL (Windows-only mode).
-
-    .PARAMETER SkipBundle
-        Skip the default bundling step and install directly from the source directory.
-        Not recommended for distribution — relative paths in plugin.json may not
-        resolve correctly after 'copilot plugin install'.
 
     .EXAMPLE
         Publish-Plugins
@@ -334,17 +326,9 @@ function Publish-Plugins {
     .EXAMPLE
         Publish-Plugins -SkipWSL
         Installs plugins on Windows only, skipping WSL.
-
-    .EXAMPLE
-        Publish-Plugins -SkipBundle
-        Installs plugins directly from source directories without bundling.
     #>
     [CmdletBinding()]
     param()
-
-    if ($SkipBundle) {
-        Write-Warning "Installing from source directory (non-bundled). Relative paths in plugin.json may not resolve correctly after 'copilot plugin install'. Use bundled install (default) for distribution."
-    }
 
     Write-Host "Publishing plugins via copilot plugin install..." -ForegroundColor Cyan
 
@@ -396,19 +380,13 @@ function Publish-Plugins {
         $pluginName = $pluginDir.Name
         $pluginPath = $pluginDir.FullName
 
-        # Default: build self-contained bundle; skip only if -SkipBundle
-        if (-not $SkipBundle) {
-            $buildPath = Build-PluginBundle -PluginDir $pluginPath
-            if (-not $buildPath) {
-                Write-Error "  Bundle failed for $pluginName — skipping install"
-                $errors++
-                continue
-            }
-            $installPath = $buildPath
+        $buildPath = Build-PluginBundle -PluginDir $pluginPath
+        if (-not $buildPath) {
+            Write-Error "  Bundle failed for $pluginName — skipping install"
+            $errors++
+            continue
         }
-        else {
-            $installPath = $pluginPath
-        }
+        $installPath = $buildPath
 
         try {
             if ($Force) {
@@ -451,11 +429,7 @@ function Publish-Plugins {
 
                 foreach ($pluginDir in $pluginDirs) {
                     $pluginName = $pluginDir.Name
-                    $wslInstallDir = if (-not $SkipBundle) {
-                        Join-Path $pluginDir.FullName ".build"
-                    } else {
-                        $pluginDir.FullName
-                    }
+                    $wslInstallDir = Join-Path $pluginDir.FullName ".build"
                     $wslPluginPath = Convert-ToWSLPath -Path $wslInstallDir
 
                     try {
