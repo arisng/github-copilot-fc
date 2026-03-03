@@ -1,7 +1,7 @@
 ---
 name: Ralph-v2-Reviewer
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
-infer: true
+user-invocable: true
 tools:
   - bash
   - view
