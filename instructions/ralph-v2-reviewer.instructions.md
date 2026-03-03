@@ -221,7 +221,7 @@ Record the inferred type in review notes and use it to pick runtime validation.
 ```markdown
 # For each criterion in iterations/<ITERATION>/tasks/<TASK_ID>.md:
 
-Criterion: "File exists at agents/v2/ralph-v2.agent.md"
+Criterion: "File exists at agents/v2/ralph-v2-orchestrator.agent.md"
   - Evidence Reviewed: Check file existence, content
   - Finding: File exists with correct structure
   - Verdict: ✅ Met
