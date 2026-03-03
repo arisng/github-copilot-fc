@@ -5,7 +5,6 @@
   "author": "github-copilot-fc",
   "strict": false,
   "agents": "../../agents/ralph-v2/cli/",
-  "hooks": "../../hooks/",
   "skills": [
     "../../skills/diataxis/",
     "../../skills/git-atomic-commit/",
