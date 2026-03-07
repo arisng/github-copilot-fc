@@ -2,19 +2,28 @@
 
 Plugins are self-contained bundles of GitHub Copilot CLI customization artifacts (agents, skills, commands, hooks, MCP servers, LSP servers) distributed as a single installable unit via the `copilot plugin` system.
 
+## References
+
+Plugin in Copilot CLI - https://docs.github.com/en/copilot/reference/cli-plugin-reference
+Plugin in Copilot VS Code - https://code.visualstudio.com/docs/copilot/customization/agent-plugins
+
 ## Directory Layout
 
 ```
 plugins/
-  <name>/
-    plugin.json          # Plugin manifest (required)
-    agents/              # Agent files (optional)
-    skills/              # Skill directories (optional)
-    commands/            # Command tool definitions (optional)
-    hooks/               # Hook configs (optional)
+  cli/                   # Plugins targeting GitHub Copilot CLI runtime
+    <name>/
+      plugin.json        # Plugin manifest (required)
+  vscode/                # Plugins targeting VS Code Copilot runtime
+    <name>/
+      plugin.json        # Plugin manifest (required)
 ```
 
-Each plugin lives in its own subdirectory under `plugins/`. The directory name should match the `name` field in `plugin.json`.
+Plugins are organized into runtime-specific subdirectories:
+- `cli/` — plugins for the GitHub Copilot CLI runtime (`target: github-copilot`)
+- `vscode/` — plugins for the VS Code Copilot runtime (`target: vscode`)
+
+Each plugin lives in its own subdirectory under the respective runtime folder. The directory name should match the `name` field in `plugin.json`.
 
 ## plugin.json Schema
 
@@ -31,7 +40,8 @@ Each plugin lives in its own subdirectory under `plugins/`. The directory name s
 | `bugs` | No | — | URL for issue reporting |
 | `repository` | No | — | URL to source repository |
 | `keywords` | No | — | Array of keyword strings for discovery |
-| `strict` | No | `true` | Schema validation strictness — when `true`, unrecognized fields cause validation errors; when `false`, they are silently ignored |
+
+> **Note:** `strict` is NOT a `plugin.json` field. It only appears in `marketplace.json` plugin entries (where it controls schema validation per-plugin). Do not add `strict` to `plugin.json` files.
 
 ### Component Path Fields
 
@@ -127,18 +137,11 @@ The `instructions` field is **not** part of the `plugin.json` schema, and the Co
 Copy (source → .build/) → Merge (resolve EMBED markers) → Validate (paths + char limits)
 ```
 
-### Trimmed instruction variants
+### Instruction file sizing
 
-Some agents have large instruction files that exceed the 30K body limit when combined with the agent body. For these, trimmed variants are created:
+All embedded instruction files are compressed to fit within the 30K body limit. The Reviewer (26K) and Librarian (27K) instruction files were compressed in a previous iteration — redundant checklists, verbose examples, and duplicate reference sections were removed while preserving persona, rules, core workflow, signal protocol, and contract.
 
-- `ralph-v2-reviewer.cli-embed.instructions.md` — trimmed Reviewer instructions
-- `ralph-v2-librarian.cli-embed.instructions.md` — trimmed Librarian instructions
-
-Trimming removes templates, checklists, verbose examples, and redundant reference material while preserving persona, rules, core workflow, signal protocol, and contract sections.
-
-### Orchestrator exclusion
-
-The Orchestrator agent is currently excluded from instruction embedding — its combined body + instructions exceed 46K characters, well over the 30K limit. This requires a follow-up iteration to address with more aggressive trimming or structural changes.
+The Orchestrator agent is excluded from embedding (body + instructions exceed 46K). Its instruction file is delivered separately and loaded at runtime.
 
 ## Instruction Delivery (Legacy)
 

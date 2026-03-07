@@ -1,0 +1,18 @@
+{
+  "name": "ralph-v2",
+  "description": "Ralph v2 multi-agent orchestration system for structured AI-driven software development — VS Code runtime",
+  "version": "2.0.0",
+  "runtime": "github-copilot-vscode",
+  "agents": [
+    "../../../agents/ralph-v2/vscode/ralph-v2-orchestrator-VSCode.agent.md",
+    "../../../agents/ralph-v2/vscode/ralph-v2-executor-VSCode.agent.md",
+    "../../../agents/ralph-v2/vscode/ralph-v2-planner-VSCode.agent.md",
+    "../../../agents/ralph-v2/vscode/ralph-v2-questioner-VSCode.agent.md",
+    "../../../agents/ralph-v2/vscode/ralph-v2-reviewer-VSCode.agent.md",
+    "../../../agents/ralph-v2/vscode/ralph-v2-librarian-VSCode.agent.md"
+  ],
+  "skills": [
+    "../../../skills/git-atomic-commit",
+    "../../../skills/diataxis"
+  ]
+}

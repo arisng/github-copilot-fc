@@ -1,0 +1,18 @@
+{
+  "name": "ralph-v2",
+  "description": "Ralph v2 multi-agent orchestration system for structured AI-driven software development — CLI runtime",
+  "version": "2.0.0",
+  "runtime": "github-copilot-cli",
+  "agents": [
+    "../../../agents/ralph-v2/cli/ralph-v2-orchestrator-CLI.agent.md",
+    "../../../agents/ralph-v2/cli/ralph-v2-executor-CLI.agent.md",
+    "../../../agents/ralph-v2/cli/ralph-v2-planner-CLI.agent.md",
+    "../../../agents/ralph-v2/cli/ralph-v2-questioner-CLI.agent.md",
+    "../../../agents/ralph-v2/cli/ralph-v2-reviewer-CLI.agent.md",
+    "../../../agents/ralph-v2/cli/ralph-v2-librarian-CLI.agent.md"
+  ],
+  "skills": [
+    "../../../skills/git-atomic-commit",
+    "../../../skills/diataxis"
+  ]
+}
