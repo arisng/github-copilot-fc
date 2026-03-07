@@ -108,11 +108,12 @@ Analyze human feedback and generate questions for replanning.
 
 ## Workflow
 
-### Step 0: Skills Directory
-- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills` — verify: `Test-Path $env:USERPROFILE\.copilot\skills`
-- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills` — verify: `test -d ~/.copilot/skills`
-- If missing: log warning, continue degraded (skip skill loading).
-- Discovery: (1) Check agent instructions for skill affinities. (2) Check orchestrator message for mentioned skills. (3) Scan `<SKILLS_DIR>` and match to task. (4) Load only directly relevant skills (1-3 max).
+### Step 0: Skill Discovery
+- Prefer Ralph-coupled skills bundled by the active Ralph-v2 plugin.
+- Global Copilot skills remain a valid fallback source: **Windows** `$env:USERPROFILE\.copilot\skills`; **Linux/WSL** `~/.copilot/skills`.
+- If neither bundled skills nor global skills are available: log warning, continue degraded (skip skill loading).
+- Discovery: (1) Check agent instructions for skill affinities. (2) Check orchestrator message for mentioned skills. (3) Prefer bundled Ralph-v2 skills by exact name. (4) Fall back to the global skills directory when needed. (5) Load only directly relevant skills (1-3 max).
+- Affinities: `ralph-signal-mailbox-protocol` (signal polling), `ralph-feedback-batch-protocol` (feedback-analysis context), `ralph-session-ops-reference` (timestamps).
 
 ### Step 0.5: Timestamps (UTC+7)
 - **SESSION_ID** (`<YYMMDD>-<hhmmss>`): Windows: `Get-Date -Format "yyMMdd-HHmmss"` / Linux: `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`

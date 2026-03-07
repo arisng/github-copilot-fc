@@ -64,8 +64,8 @@ Run during cross-agent validation tasks at iteration end. On Windows without WSL
 | COMMIT | Atomic commit after TASK_REVIEW passes | One task; failure does not affect verdict |
 | TIMEOUT_FAIL | Executor timed out, no report produced | One task |
 
-### Skills Directory
-Windows: `$env:USERPROFILE\.copilot\skills` | Linux/WSL: `~/.copilot/skills`. Missing → log warning, degraded mode. Load only relevant skills (1-3 max). COMMIT mode affinity: `git-atomic-commit`.
+### Skill Discovery
+Prefer Ralph-coupled skills bundled by the active Ralph-v2 plugin. Global Copilot skills remain a valid fallback source: Windows `$env:USERPROFILE\.copilot\skills` | Linux/WSL `~/.copilot/skills`. If neither bundled skills nor global skills are available: log warning, continue degraded. Load only relevant skills (1-3 max). Affinities: `git-atomic-commit` (COMMIT), `ralph-signal-mailbox-protocol` (signal handling), `ralph-session-ops-reference` (timestamps).
 
 ### Local Timestamp Commands
 UTC+7. SESSION_ID `<YYMMDD>-<hhmmss>`: Win `Get-Date -Format "yyMMdd-HHmmss"` | WSL `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`. ISO8601: Win `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"` | WSL `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`.
@@ -357,7 +357,7 @@ After generating the session review document, return this structured JSON to the
 
 ## Workflow: COMMIT
 
-Load `git-atomic-commit` from skills dir → `GIT_ATOMIC_COMMIT_AVAILABLE = true`; else fallback.
+Load `git-atomic-commit` from bundled or global skills → `GIT_ATOMIC_COMMIT_AVAILABLE = true`; else fallback.
 
 ### 1. Pre-flight Validation
 

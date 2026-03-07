@@ -46,43 +46,12 @@ You are a specialized planning agent v2. You create and manage session artifacts
 
 ## Task File Structure (`iterations/<N>/tasks/<task-id>.md`)
 
-```markdown
----
-id: task-1
-iteration: 1
-wave: 1
-type: Sequential  # Sequential | Parallelizable
-created_at: <ISO8601>
-updated_at: <ISO8601>
----
+Load `ralph-planning-artifact-templates` for the canonical task-file template.
 
-# Task: task-1
-
-## Title
-[Short title]
-
-## Files
-- path/to/file
-
-## Objective
-[What this task achieves]
-
-## Grounded In
-- Q-000
-- ISS-000
-
-Minimum: 2 unique refs, including >=1 Q-ID.
-
-## Success Criteria
-- [ ] [Measurable criterion]
-
-## Dependencies
-depends_on: []
-inherited_by: []
-
-## Notes
-[Additional context for executors]
-```
+Required fields:
+- YAML frontmatter with `id`, `iteration`, `wave`, `type`, `created_at`, `updated_at`
+- Sections: Title, Files, Objective, Grounded In, Success Criteria, Dependencies
+- Grounding minimum: 2 unique refs, including at least 1 Q-ID
 </artifacts>
 
 <rules>
@@ -110,38 +79,22 @@ inherited_by: []
 
 ## Artifact Schemas
 
-### Session Metadata (`metadata.yaml`)
-```yaml
-version: 1
-session_id: <YYMMDD>-<hhmmss>
-created_at: <ISO8601>
-updated_at: <ISO8601>
-status: in_progress
-iteration: 1
-```
-
-### Iteration Metadata (`iterations/<N>/metadata.yaml`)
-```yaml
-version: 1
-iteration: <N>
-started_at: <ISO8601>
-planning_complete: false
-planning_completed_at: null
-completed_at: null
-tasks_defined: 0
-```
+Load `ralph-planning-artifact-templates` for canonical session metadata, iteration metadata, `plan.md`, `progress.md`, and task templates.
 
 ## Workflow Steps
 
-### Step 0: Skills Directory
-- **Windows**: `$env:USERPROFILE\.copilot\skills` / **Linux/WSL**: `~/.copilot/skills`
-- Validate: `Test-Path $env:USERPROFILE\.copilot\skills` (Win) / `test -d ~/.copilot/skills` (Linux)
-- If missing: proceed in degraded mode (skip skill loading, do not fail-fast)
+### Step 0: Skill Discovery
+- Prefer Ralph-coupled skills bundled by the active Ralph-v2 plugin.
+- Global Copilot skills remain a valid fallback source: **Windows** `$env:USERPROFILE\.copilot\skills` / **Linux/WSL** `~/.copilot/skills`
+- If neither bundled skills nor global skills are available: proceed in degraded mode (skip skill loading, do not fail-fast)
 - Load 1-3 skills directly relevant to the task. Do not load speculatively.
+- Primary affinities:
+  - `ralph-planning-artifact-templates` for INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, and SPLIT_TASK
+  - `ralph-session-ops-reference` for timestamps and state repair
+  - `ralph-signal-mailbox-protocol` for live-signal handling
 
 ### Local Timestamp Commands
-- **SESSION_ID (`<YYMMDD>-<hhmmss>`)**: Win: `Get-Date -Format "yyMMdd-HHmmss"` / Linux: `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
-- **ISO8601**: Win: `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"` / Linux: `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
+Load `ralph-session-ops-reference` for the canonical SESSION_ID and ISO8601 timestamp commands.
 
 ### Step 1: Context Acquisition
 - Read orchestrator prompt for MODE and ITERATION
@@ -156,126 +109,18 @@ Before executing any mode, run the Poll-Signals Routine (see signals section).
 
 #### INITIALIZE Mode
 <init_mode>
-# Step 0: Create session instructions
-Create `.ralph-sessions/<SESSION_ID>.instructions.md`:
-```markdown
----
-applyTo: ".ralph-sessions/<SESSION_ID>/**"
----
+# Step 0: Load `ralph-planning-artifact-templates`.
 
-# Ralph Session <SESSION_ID> Custom Instructions
+# Step 1: Create the canonical INITIALIZE artifacts using that skill:
+- `.ralph-sessions/<SESSION_ID>.instructions.md` only when explicitly requested
+- `iterations/1/plan.md`
+- `iterations/1/metadata.yaml`
+- `iterations/1/progress.md`
+- session `metadata.yaml`
 
-## Concurrency
-- max_parallel_executors: 3
-- max_parallel_questioners: 3
+# Step 2: Self-validate the generated artifacts against the skill templates.
 
-## Planning
-- max_cycles: 5
-
-## Retries
-- max_subagent_retries: 3
-
-## Timeouts
-- task_wip_minutes: 120
-
-## Session Review
-- issue_severity_threshold: "any"
-- max_critique_cycles: null
-
-## Target Files
-[Session target file paths]
-```
-
-# Step 1: Create iterations/1/plan.md
-```markdown
-# Plan - Iteration 1
-
-## Goal
-[Concise goal from USER_REQUEST]
-
-## Success Criteria
-- [ ] SC-1: [Measurable criterion]
-
-## Target Files
-| File | Role | Changes Expected |
-|------|------|------------------|
-
-## Context
-[Background, constraints, current state]
-
-## Approach
-[Strategy and key decisions]
-
-## Waves
-| Wave | Tasks | Rationale |
-|------|-------|-----------|
-| _To be filled after task breakdown_ | | |
-
-## Grounding
-[To be filled after brainstorm/research]
-```
-
-# Step 1.5: Self-Validate plan.md
-Confirm all sections present: Goal, Success Criteria, Target Files, Context, Approach, Waves, Grounding. Add missing as placeholders.
-
-# Step 2: Create iterations/1/metadata.yaml
-```yaml
-version: 1
-iteration: 1
-started_at: <timestamp>
-planning_complete: false
-```
-
-# Step 3: Create iterations/1/progress.md
-```markdown
-# Progress
-
-## Legend
-- `[ ]` Not started
-- `[/]` In progress
-- `[P]` Pending review
-- `[x]` Completed
-- `[F]` Failed
-- `[C]` Cancelled
-
-## Planning Progress (Iteration 1)
-- [ ] plan-init
-- [ ] plan-brainstorm
-- [ ] plan-research
-- [ ] plan-breakdown
-
-## Implementation Progress (Iteration 1)
-[To be filled]
-
-## Iterations
-| Iteration | Status | Tasks | Feedbacks |
-|-----------|--------|-------|-----------|
-| 1 | Planning | 0/0 | N/A |
-```
-
-# Step 4: Create metadata.yaml
-```yaml
-version: 1
-session_id: <SESSION_ID>
-created_at: <timestamp>
-updated_at: <timestamp>
-iteration: 1
-orchestrator:
-  state: PLANNING
-  current_wave: null
-tasks:
-  total: 0
-  completed: 0
-  failed: 0
-  pending: 0
-session_review:
-  cycle: 0
-  issue_severity_threshold: "any"
-  max_critique_cycles: null
-```
-
-# Step 5: Mark plan-init complete
-Update `iterations/1/progress.md`: mark `[x] plan-init (completed: <timestamp>)`
+# Step 3: Mark `plan-init` complete in `iterations/1/progress.md` with completion timestamp.
 </init_mode>
 
 #### UPDATE Mode (Replanning)

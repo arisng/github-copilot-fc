@@ -100,12 +100,13 @@ created_at: 2026-02-07T10:00:00Z
 </rules>
 
 <workflow>
-### 0. Skills Directory Resolution
+### 0. Skill Discovery
 
-- **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
-- **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
-- Verify exists; if not, log warning and proceed in degraded mode (skip skill loading).
+- Prefer Ralph-coupled skills bundled by the active Ralph-v2 plugin.
+- Global Copilot skills remain a valid fallback source: **Windows** `$env:USERPROFILE\.copilot\skills`; **Linux/WSL** `~/.copilot/skills`.
+- If neither bundled skills nor global skills are available: log warning and proceed in degraded mode (skip skill loading).
 - Load 1-3 skills directly relevant to the task. Match against: agent file affinities, task description, task requirements vs. skill descriptions.
+- Affinities: `ralph-signal-mailbox-protocol` (signal polling), `ralph-session-ops-reference` (timestamps).
 
 ### Local Timestamp Commands
 

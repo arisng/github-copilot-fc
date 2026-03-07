@@ -30,27 +30,9 @@ applyTo: ".ralph-sessions/**"
 - **PROMOTE**: Write to `.docs/` and `knowledge/` (promotion frontmatter only).
 - Never write outside these three tiers. Prefer minimal, targeted edits traceable to session/task evidence.
 
-## Preflight Gates
+## Preflight Gates And Merge Algorithm
 
-Each gate: if auto-create validation fails → return `blocked`.
-
-| Gate | Mode | Creates If Missing | Index Fields |
-|------|------|--------------------|--------------|
-| 0 | EXTRACT | `iterations/<N>/knowledge/` + 4 Diátaxis subdirs | File, Category, Extracted At, Source Artifacts |
-| 1 | STAGE | `knowledge/` + 4 Diátaxis subdirs | File, Category, Staged, Staged At, Promoted, Promoted At, Origin Iteration |
-| 2 | PROMOTE | `.docs/` + 4 Diátaxis subdirs | Diátaxis category links (Tutorials, How-to, Reference, Explanation) |
-
-## Merge Algorithm (STAGE and PROMOTE)
-
-| Case | Condition | Action | Log |
-|------|-----------|--------|-----|
-| **New file** | No matching filename in target | Copy directly | `added: <filename>` |
-| **Same file, source newer** | Source timestamp > target | Overwrite target | `auto-resolved: newer source replaces older target` |
-| **Same file, target newer** | Target timestamp > source | Skip | `skipped: target version is newer` |
-| **Content overlap** | Different filenames, >50% H2/H3 overlap, same category | Append unique sections | `merged: appended N unique sections` |
-| **Contradictory content** | Same heading, different content | Newer version wins | `conflict-resolved: newer content wins` |
-
-**Content overlap detection**: Compare H2/H3 headings in the same Diátaxis category. >50% of source headings match any target → overlap. Same heading with different body → contradiction. High threshold: false negatives acceptable; false positives cause data loss.
+Load `ralph-knowledge-merge-and-promotion` for the canonical EXTRACT/STAGE/PROMOTE gates, extracted frontmatter template, and merge rules.
 
 ## Diátaxis Reference
 
@@ -94,104 +76,58 @@ Three items initialized in `iterations/<N>/progress.md`:
 </rules>
 
 <workflow>
-### Skills Directory Resolution
+### Skill Discovery Resolution
 
-Win: `$env:USERPROFILE\.copilot\skills` | Linux/WSL: `~/.copilot/skills`. Missing → log warning, degraded mode. Affinities: `diataxis` (categorization), `diataxis-categorizer` (PROMOTE sub-category), `git-atomic-commit` (COMMIT). Load only relevant skills (1–3 max); skip speculative loading.
+Prefer Ralph-coupled skills bundled by the active Ralph-v2 plugin. Global Copilot skills remain a valid fallback source: Win `$env:USERPROFILE\.copilot\skills` | Linux/WSL `~/.copilot/skills`. If neither bundled skills nor global skills are available: log warning, continue degraded mode. Affinities: `ralph-knowledge-merge-and-promotion` (EXTRACT/STAGE/PROMOTE), `ralph-signal-mailbox-protocol` (signals), `ralph-session-ops-reference` (timestamps), `diataxis` (categorization), `diataxis-categorizer` (PROMOTE sub-category), `git-atomic-commit` (COMMIT). Load only relevant skills (1–3 max); skip speculative loading.
 
 ### Local Timestamp Commands
 
-Local time UTC+7. SESSION_ID `<YYMMDD>-<hhmmss>`: Win `Get-Date -Format "yyMMdd-HHmmss"` | WSL `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`. ISO8601: Win `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"` | WSL `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`.
-
-## Extracted File Frontmatter Template
-
-Every file written during EXTRACT must include this frontmatter. Body content must be standalone — no session-relative paths, session IDs, or iteration numbers in prose.
-
-```yaml
----
-category: tutorials | how-to | reference | explanation
-source_session: <SESSION_ID>
-source_iteration: <N>
-source_artifacts:
-  - iterations/<N>/tasks/task-3.md
-extracted_at: <ISO8601>
-staged: false
-staged_at: null
-promoted: false
-promoted_at: null
----
-```
+Load `ralph-session-ops-reference` for canonical timestamp commands.
 
 ## EXTRACT Mode
 
-Gate 0 must pass.
+Load `ralph-knowledge-merge-and-promotion` and execute its EXTRACT checklist:
 
-1. **Check signals** — Poll `signals/inputs/` per Signal Protocol.
-2. **Initialize progress** — Append `## Knowledge Progress (Iteration <N>)` section to `iterations/<N>/progress.md` if missing (idempotent).
-3. **Run Gate 0** — Auto-create `iterations/<N>/knowledge/` + Diátaxis subdirs.
-4. **Collect evidence** from `iterations/<N>/tasks/`, `reports/`, `plan.md`, `review.md`.
-5. **Check signals** — Re-poll; adjust scope on STEER.
-6. **Filter** to reusable knowledge (stable guidance, contracts, workflows, decisions). Discard transient artifacts.
-7. **Classify** each item into exactly one Diátaxis category.
-8. **Write entries** to `iterations/<N>/knowledge/<category>/`. Body content must be standalone (no session paths or iteration numbers in prose; use descriptive context instead).
-9. **Add traceability frontmatter** per Extracted File Frontmatter Template.
-10. **Update** `iterations/<N>/knowledge/index.md` manifest.
-11. **Update progress**:
-    - > 0 items: `plan-knowledge-extraction [x]`
-    - 0 items: all three items `[C]`, note "Empty extraction — no items to stage or promote"
-12. **Return** extraction summary (files created, categories, count).
+1. Poll signals.
+2. Initialize `## Knowledge Progress` if missing.
+3. Run Gate 0.
+4. Collect evidence from tasks, reports, plan, and review artifacts.
+5. Re-poll on signal checkpoints.
+6. Filter to reusable knowledge only.
+7. Classify into exactly one Diátaxis category.
+8. Write iteration knowledge entries with the canonical extracted frontmatter.
+9. Update `iterations/<N>/knowledge/index.md` and mark `plan-knowledge-extraction`.
 
 ## STAGE Mode
 
-Gate 1 must pass.
+Load `ralph-knowledge-merge-and-promotion` and execute its STAGE checklist:
 
-1. **Check signals** — Poll `signals/inputs/` per Signal Protocol.
-2. **Run Gate 1** — Auto-create session `knowledge/` structure.
-3. **Resolve source iterations** — Use `SOURCE_ITERATIONS` if provided, else `[ITERATION]`.
-4. **Scan session knowledge** — Inventory `knowledge/` files with timestamps and promotion status. Skip `promoted: true` files.
-5. **For each iteration** in `SOURCE_ITERATIONS`:
-   a. Read `iterations/<N>/knowledge/<category>/` files.
-   b. If `CHERRY_PICK` provided → filter to specified paths only.
-   c. Apply Merge Algorithm per file per category.
-   d. Update source frontmatter: `staged: true`, `staged_at: <now>`.
-6. **Update `knowledge/index.md`** — `⏳` staged, `✅` promoted.
-7. **Update progress** — `plan-knowledge-staging [x]`.
-8. **Return** staging summary (staged, merged, skipped, conflicts per category).
+1. Poll signals.
+2. Run Gate 1.
+3. Resolve `SOURCE_ITERATIONS` and optional `CHERRY_PICK`.
+4. Inventory current session knowledge.
+5. Merge selected iteration knowledge into `knowledge/`.
+6. Mark source entries staged and update `knowledge/index.md`.
+7. Mark `plan-knowledge-staging [x]`.
 
 ## PROMOTE Mode
 
-Gate 2 must pass.
+Load `ralph-knowledge-merge-and-promotion` and execute its PROMOTE checklist:
 
-1. **Check signals** — Poll `signals/inputs/` per Signal Protocol.
-2. **Initialize progress section** in `iterations/<N>/progress.md` (idempotent; supports standalone invocation).
-3. **Skip-promotion check** — Poll for `INFO + target: Librarian + SKIP_PROMOTION:` signal:
-   - Found → move to `signals/processed/`, mark `plan-knowledge-promotion [C]`, return `outcome: "skipped"`.
-   - Not found → proceed.
-4. **Run Gate 2** — Auto-create `.docs/` structure.
-5. **Read staged content** — Select `knowledge/` files with `promoted: false`.
-   - 0 items → mark `[C]` "No staged items", return `outcome: "skipped"`, `outcome_reason: "no_staged_items"`.
-6. **Check signals** — Re-poll; re-filter on STEER.
-7. **Apply Merge Algorithm** per file per category against `.docs/`.
-8. **Content Transformation** — For each promoted file:
-   - `source_artifacts`: Replace session-relative paths with descriptive labels; preserve `source_session`/`source_iteration`.
-   - Strip `staged` and `staged_at` from frontmatter.
-   - Body: Replace `iterations/\d+/`, `\.ralph-sessions/`, `\d{6}-\d{6}` patterns; preserve `iterations/<N>/` template refs.
-   - Flag removed signal types (e.g., `APPROVE`) in promotion summary.
-9. **Sub-Category Resolution** (per `diataxis-categorizer` skill):
-   - (a) Domain: filename prefix → frontmatter `category` → H1 → body dominant (>2× runner-up). Cross-domain → fallback.
-   - (b) Reuse: `.docs/<category>/<domain>/` exists → place there.
-   - (c) Create: ≥3 files share domain → create sub-folder, move all peers.
-   - (d) Fallback: stay at `<category>/filename.md`.
-   - (e) Path: move `<category>/` → `<category>/<domain>/` for `place`/`create_and_place`.
-   - (f) Audit log: file, domain, action, reason in promotion summary.
-10. **Mark promoted** — `promoted: true`, `promoted_at: <ISO8601>` in `knowledge/` frontmatter.
-11. **Update `knowledge/index.md`** — `⏳` → `✅`, add `Promoted At`.
-12. **Update `.docs/index.md`** — Maintain navigation for new entries and sub-category folders.
-13. **Update progress** — `plan-knowledge-promotion [x]`.
-14. **Return** promotion summary (promoted paths, sub-category decisions, conflicts, transformations, outcome).
+1. Poll signals.
+2. Initialize knowledge progress if needed.
+3. Respect `INFO + target: Librarian + SKIP_PROMOTION:`.
+4. Run Gate 2.
+5. Load staged, unpromoted entries.
+6. Re-poll signals on checkpoints.
+7. Merge into `.docs/` using the canonical algorithm.
+8. Normalize frontmatter and content for promoted output.
+9. Apply `diataxis-categorizer` for sub-category placement.
+10. Mark promoted entries, update indexes, and mark `plan-knowledge-promotion [x]`.
 
 ## COMMIT Mode
 
-Load `git-atomic-commit` skill; set `GIT_ATOMIC_COMMIT_AVAILABLE`.
+Load `git-atomic-commit` from bundled or global skills; set `GIT_ATOMIC_COMMIT_AVAILABLE`.
 
 1. **Check signals** — Poll `signals/inputs/` per Signal Protocol.
 2. **Pre-flight**:
