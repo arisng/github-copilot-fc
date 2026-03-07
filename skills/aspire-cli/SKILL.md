@@ -1,23 +1,24 @@
 ---
 name: aspire-cli
-description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. MCP commands (aspire mcp init) are included when explicitly requested.
+description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. Also covers AI-native resource management via the Aspire MCP server: resource discovery, port discovery, console log reading, structured logs, traces, and execute resource commands. Includes combined Aspire + playwright-cli workflows for ad-hoc E2E testing and browser automation—given an Aspire AppHost project, the AI coding assistant can fully orchestrate Aspire resources and drive browser tests like a human.
 metadata:
-  version: 1.6.0
+  version: 2.0.0
   author: arisng
 ---
 
 # Aspire CLI
 
-Use this skill to pick the right Aspire CLI command, outline the workflow, and provide concise command guidance. Keep answers focused on non-MCP CLI features.
+Use this skill to pick the right Aspire CLI command, outline the workflow, provide MCP-based resource/log/port access for AI agents, and orchestrate combined Aspire + playwright-cli E2E testing.
 
 ## Quick workflow
 
-1. Identify the user goal (create, initialize, run, update, publish, deploy, execute step, run resource command, configure CLI, clear cache).
+1. Identify the user goal (create, initialize, run, update, publish, deploy, execute step, run resource command, configure CLI, clear cache, **or manage/test resources with AI**).
 2. Determine the working directory (solution root vs AppHost folder) and whether an AppHost already exists.
 3. Select the matching command from the CLI reference.
 4. Call out required context (AppHost location, channel selection, SDK requirements).
 5. Provide minimal example commands and flags.
 6. Mention any Aspire 13.1 CLI behavior changes that affect the request.
+7. **For AI testing goals**: use the [AI-native resource management](#ai-native-resource-management-mcp-first) workflow — MCP for resource/log/port discovery, playwright-cli for browser automation.
 
 ## Incremental adoption workflow (adding Aspire to existing apps or Aspirify an existing app)
 
@@ -64,6 +65,7 @@ Use this 5-step pattern when helping users adopt Aspire in existing applications
 - Configure CLI settings → `aspire config`
 - Clear cache → `aspire cache clear`
 - Initialize MCP for AI coding agents → `aspire mcp init` (configures VS Code, GitHub Copilot CLI, Claude Code, Open Code)
+- Start the MCP stdio server → `aspire mcp start` (usually auto-started by the IDE; exposes 12 tools for AI agents)
 
 ## Context checklist
 
@@ -109,90 +111,7 @@ Use this 5-step pattern when helping users adopt Aspire in existing applications
 
 ## HTTPS certificate handling
 
-### Automatic certificate trust (default behavior)
-
-`aspire run` **automatically** installs and verifies that Aspire's local hosting certificates are installed and trusted. This happens as part of the startup sequence:
-
-1. Creates/modifies `.aspire/settings.json`
-2. **Installs or verifies local hosting certificates** ← automatic
-3. Builds AppHost and resources
-4. Starts AppHost and dashboard
-
-No manual action is typically required.
-
-### Manual certificate management (when auto-trust fails)
-
-If you encounter certificate trust warnings or HTTPS errors:
-
-**Check certificate status:**
-```bash
-dotnet dev-certs https --check
-```
-
-**Trust the certificate manually:**
-```bash
-# Trust the ASP.NET Core HTTPS development certificate
-dotnet dev-certs https --trust
-```
-
-**Clean and re-trust (nuclear option):**
-```bash
-# Remove existing certificates
-dotnet dev-certs https --clean
-
-# Generate and trust new certificate
-dotnet dev-certs https --trust
-```
-
-**Verify after trusting:**
-```bash
-dotnet dev-certs https --check --verbose
-```
-
-### Platform-specific notes
-
-**Windows:**
-- Certificate is stored in Current User > Personal > Certificates
-- May require administrator elevation for first trust
-- Browser may still show warnings until restart
-
-**macOS:**
-- Certificate is added to Keychain Access > login > Certificates
-- May require password prompt for keychain access
-- Safari/Chrome may need restart to recognize
-
-**Linux:**
-- Certificate location varies by distribution
-- May require manual import to browser or system store
-- Firefox uses its own certificate store: Settings > Privacy & Security > View Certificates > Authorities > Import
-
-### Troubleshooting HTTPS issues
-
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| "Your connection is not private" | Certificate not trusted | Run `dotnet dev-certs https --trust` |
-| NET::ERR_CERT_AUTHORITY_INVALID | Certificate expired/invalid | Run `dotnet dev-certs https --clean` then `--trust` |
-| Dashboard loads over HTTP only | Certificate generation failed | Check `dotnet dev-certs https --check` |
-| Works in one browser but not another | Browser-specific cert store | Import certificate to problematic browser |
-| Works after `aspire run` restart | Initial trust delay | Normal; first run may need browser refresh |
-
-### CI/CD and container environments
-
-In automated environments where interactive trust is not possible:
-
-```bash
-# Skip HTTPS in tests (not recommended for production)
-ASPNETCORE_ENVIRONMENT=Development
-ASPNETCORE_Kestrel__Certificates__Default__Path=/path/to/cert.pfx
-ASPNETCORE_Kestrel__Certificates__Default__Password=password
-```
-
-Or use HTTP-only for internal testing:
-```csharp
-// In AppHost.cs - for testing only
-var api = builder.AddProject<Projects.Api>("api")
-    .WithHttpEndpoint(name: "http");  // No HTTPS
-```
+`aspire run` **automatically** trusts local hosting certificates on startup. No manual action is typically required. If you encounter HTTPS errors (browser warnings, `NET::ERR_CERT_AUTHORITY_INVALID`), see [HTTPS certificate management](references/https-cert-management.md) for manual trust commands (`dotnet dev-certs https --trust/--clean`), platform-specific notes, and CI/CD patterns.
 
 ## E2E testing facilitation
 
@@ -210,9 +129,9 @@ Use **`WebApplicationFactory<T>`** instead when you want to:
 
 ### Aspire testing characteristics
 
-- **Closed-box testing**: Tests run your application as separate processes—you don't have direct access to internal DI services or components from test code
-- **Influence via configuration**: You can influence behavior through environment variables or configuration settings, but internal state remains encapsulated
-- **Real dependencies**: Tests use actual resources (databases, caches) orchestrated by the AppHost
+- **Closed-box**: Tests run as separate processes — no direct access to DI services from test code.
+- **Influence via config**: Use env vars or config settings to affect behavior; internal state is encapsulated.
+- **Real dependencies**: Tests use actual resources (databases, caches) orchestrated by the AppHost.
 
 ### Testing builder configuration patterns
 
@@ -249,20 +168,18 @@ Combined configuration (dashboard enabled + stable ports):
 var builder = await DistributedApplicationTestingBuilder
     .CreateAsync<Projects.MyAppHost>(
         ["DcpPublisher:RandomizePorts=false"],
-        (appOptions, hostSettings) =>
-        {
-            appOptions.DisableDashboard = false;
-        });
+        (appOptions, _) => { appOptions.DisableDashboard = false; });
 ```
 
 ### CLI-based E2E testing workflows
 
-- Orchestrate dependencies before tests: run `aspire run` to start services, then wait for resources to be healthy in the dashboard.
-- Capture endpoints from `aspire run` output or dashboard and pass them to the test runner (keep test config in sync with Aspire-provided URLs).
+- Orchestrate dependencies before tests: run `aspire run` to start services, then call `list_resources` via MCP to get live endpoint URLs.
+- **Port discovery**: use `list_resources` MCP tool — it returns full endpoint URLs with ports; never hardcode ports (randomized by default).
 - Run setup steps as isolated pipeline steps (migrations, seeding, data reset): `aspire do <step>`.
-- Execute the test command inside a resource context to inherit connection strings and env vars: `aspire exec --resource <name> -- <command>`.
+- Execute tooling inside a resource context to inherit connection strings and env vars: `aspire exec --resource <name> -- <command>`.
 - Keep the AppHost folder as the working directory to ensure the right resource graph is used.
 - Stop the orchestration when tests finish to avoid orphaned resources.
+- **For AI-driven ad-hoc testing**: combine `aspire run` + MCP resource/log tools + playwright-cli for browser automation. See [playwright-cli E2E testing](#playwright-cli-e2e-testing-browser-automation) for the full workflow.
 
 ## Parallel worktrees and isolation
 
@@ -353,29 +270,7 @@ dotnet add MyProject reference MyProject.ServiceDefaults
 
 ### Polyglot orchestration
 
-Aspire supports C#, Python, and JavaScript in the same AppHost:
-
-```csharp
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-// .NET API
-var api = builder.AddProject<Projects.MyApi>("api")
-    .WithReference(cache);
-
-// Python worker
-var pythonWorker = builder.AddPythonApp("worker", "../python-worker", "worker.py")
-    .WithReference(cache);
-
-// Node.js service
-var nodeService = builder.AddNodeApp("service", "../node-service", "index.js")
-    .WithReference(cache);
-
-builder.Build().Run();
-```
-
-When referencing integrations, Aspire automatically injects environment variables (e.g., `CACHE_HOST`, `CACHE_PORT`) for each language.
+Aspire supports C#, Python, and JavaScript in the same AppHost via `AddPythonApp`, `AddNodeApp`, and `AddProject`. Aspire automatically injects environment variables (e.g., `CACHE_HOST`, `CACHE_PORT`) for each language when references are configured.
 
 ## Troubleshooting guidance
 
@@ -388,25 +283,30 @@ When referencing integrations, Aspire automatically injects environment variable
 
 - Prefer interactive-first `aspire new` and `aspire init` guidance unless automation is requested.
 - Require .NET SDK 10.0.100+ for Aspire 13.x CLI usage.
-- MCP commands (`aspire mcp init`) are now included when explicitly requested; the skill description has been updated to reflect this.
+- MCP commands (`aspire mcp init`, `aspire mcp start`) are fully supported and documented; always recommend `aspire mcp init` for AI coding agent setups.
 - When users mention Azure Redis, note the breaking change: `AddAzureRedisEnterprise` renamed to `AddAzureManagedRedis` in 13.1.
 - Channel selection (`--channel`) persists globally after `aspire update --self` in 13.1.
+- **Do not use `aspire exec` to read running logs** — use `list_console_logs` via MCP. `aspire exec` runs a new command in a resource context; it does not stream existing logs.
+- **Do not scrape the dashboard URL** for resource discovery — use `list_resources` via MCP which returns structured JSON with full endpoint URLs and ports.
+- For AI agent port discovery, always call `list_resources` after `aspire run`; ports are randomized by default.
 
 ## Aspire 13.1 new features
 
 ### MCP for AI coding agents
 
-Aspire 13.1 introduces `aspire mcp init` for configuring AI coding agents:
+Aspire 13.1 introduces first-class MCP support for AI coding agents via two commands:
 
 ```bash
+# Configure MCP for your IDE/AI tool (one-time per project)
 aspire mcp init
+
+# Start the MCP server (stdio transport — IDE auto-starts this)
+aspire mcp start
 ```
 
-This command:
-- Detects your development environment
-- Configures MCP servers for VS Code, GitHub Copilot CLI, Claude Code, or Open Code
-- Optionally creates an agent instructions file (AGENTS.md)
-- Optionally configures Playwright MCP server
+`aspire mcp init` detects your environment and writes config for VS Code, GitHub Copilot CLI, Claude Code, or Open Code. It optionally creates `AGENTS.md` and configures Playwright MCP.
+
+`aspire mcp start` exposes a **12-tool MCP server** via stdio that lets AI agents manage a running AppHost: discover resources, read console logs, query structured logs and traces, and execute resource commands. See the [AI-native resource management](#ai-native-resource-management-mcp-first) section and [MCP server reference](references/mcp-server-and-resource-access.md) for the full tool catalog.
 
 ### CLI enhancements
 
@@ -440,10 +340,157 @@ var api = builder.AddProject<Projects.Api>("api")
 
 The deployment pipeline now includes a `push` step: `aspire do push`.
 
+## AI-native resource management (MCP-first)
+
+Aspire 13.1 ships a built-in MCP server that lets AI coding agents interact with a running AppHost via structured tools — no dashboard scraping or terminal parsing required.
+
+### One-time MCP setup
+
+```bash
+# Run once per project to configure your AI tool (VS Code, Copilot CLI, Claude Code, Open Code)
+aspire mcp init
+```
+
+This writes the appropriate config file (`.vscode/mcp.json`, `~/.copilot/mcp-config.json`, or `.mcp.json`) pointing your IDE's MCP client to `aspire mcp start`. The IDE auto-starts the stdio server as needed.
+
+> `aspire mcp start` is started **separately from** `aspire run` — it acts as a stdio proxy to the dashboard's internal HTTP MCP endpoint.
+> Tools like `list_integrations` and `doctor` work without an AppHost. Resource tools (`list_resources`, `list_console_logs`, etc.) require an AppHost to be running.
+
+### AI resource management workflow
+
+> MCP tools below are called by the AI agent through its MCP client — they are **not** shell commands.
+
+```
+1. [shell]  aspire run               → starts AppHost; prints dashboard URL + log file path
+2. [MCP]    list_resources           → all resources: names, types, states, endpoint URLs+ports, health, env vars
+3. [MCP]    list_console_logs "api" → stdout/stderr log output for the named resource
+4. [MCP]    list_structured_logs     → OTLP JSON logs (per-resource or all)
+5. [MCP]    list_traces              → distributed traces: IDs, resources, duration, error status
+6. [MCP]    execute_resource_command "api" "restart" → restart/stop/start a resource
+```
+
+### MCP tool quick reference
+
+| Tool | Key parameters | What it returns |
+|---|---|---|
+| `list_resources` | — | All resources: names, types, states, **full endpoint URLs+ports**, health, env vars, commands |
+| `list_console_logs` | `resourceName` | stdout+stderr plaintext for a named resource |
+| `list_structured_logs` | `resourceName` (optional) | OTLP structured logs in JSON (single resource or all) |
+| `list_traces` | — | Distributed traces: IDs, resources, durations, errors |
+| `list_trace_structured_logs` | `traceId` | Logs scoped to a specific trace |
+| `execute_resource_command` | `resourceName`, `commandName` | Run start/stop/restart or custom command |
+| `list_apphosts` | — | All active AppHosts (multi-instance mode) |
+| `select_apphost` | apphost ID | Switch the active AppHost target |
+| `list_integrations` | — | Available Aspire NuGet integrations |
+| `get_integration_docs` | `integrationName` | Docs for a specific integration |
+| `doctor` | — | Environment/prerequisites check |
+| `refresh_tools` | — | Reload tools after AppHost change |
+
+See [MCP server and resource access](references/mcp-server-and-resource-access.md) for full architecture detail and JSON response shapes.
+
+### Port discovery
+
+Always call `list_resources` after `aspire run` — ports are randomized per session by default (unless `DcpPublisher:RandomizePorts=false`).
+
+```
+[MCP] list_resources
+# Returns resources array; each resource has an endpoints array with full URLs:
+# { "name": "api", "endpoints": [{ "name": "http", "url": "http://localhost:5234" }] }
+```
+
+**Multi-AppHost**: If multiple AppHosts are running (e.g., worktrees), call `list_apphosts` first to see what's available, then `select_apphost <id>` to target the right one before calling resource tools.
+
+### Resource console logs
+
+```
+list_console_logs "api"      → plaintext stdout/stderr for the "api" resource
+list_console_logs "postgres" → container logs for the "postgres" resource
+list_structured_logs "api"   → OTLP JSON logs (traceId, spanId, severity, message)
+```
+
+> **Important**: `aspire exec --resource <name> -- <command>` does NOT read running logs. Use `list_console_logs` or `list_structured_logs` via MCP instead.
+
+---
+
+## playwright-cli E2E testing (browser automation)
+
+Combine Aspire MCP + playwright-cli for full-stack ad-hoc E2E testing. AI agents can drive complete human-like browser workflows without any test harness setup.
+
+### Full-stack E2E workflow (AI agent pattern)
+
+MCP tool calls (`[MCP]`) and shell commands (`[shell]`) are shown together to illustrate the combined workflow. The AI coding assistant invokes MCP tools through its MCP client; shell commands run in the terminal.
+
+```bash
+# Step 1 — Start Aspire [shell]
+aspire run
+# Prints: Dashboard: https://localhost:17213/login?t=<token>
+# Ports are randomized — do NOT hardcode them; use list_resources
+
+# Step 2 — Discover endpoints [MCP]
+list_resources
+# Response: "web" endpoint → http://localhost:5173
+#           "api" endpoint → http://localhost:5234
+
+# Step 3 — Browser automation [shell]
+playwright-cli open http://localhost:5173
+playwright-cli snapshot                      # inspect page structure + element refs
+playwright-cli fill e3 "test@example.com"   # fill form field
+playwright-cli fill e4 "password123"
+playwright-cli click e5                      # submit
+playwright-cli snapshot                      # verify post-action state
+playwright-cli screenshot                    # capture evidence
+
+# Step 4 — Validate backend effects [MCP]
+list_console_logs "api"                      # stdout/stderr for the API resource
+list_structured_logs "api"                   # OTLP JSON logs
+list_traces                                  # trace the full request chain
+```
+
+### Session-based testing (maintain browser state)
+
+```bash
+playwright-cli --session=e2e open http://localhost:5173
+playwright-cli --session=e2e fill e1 "user@example.com"
+playwright-cli --session=e2e click e2
+# Session persists cookies/auth across commands
+playwright-cli session-stop e2e
+```
+
+### Essential playwright-cli commands for ad-hoc testing
+
+```bash
+playwright-cli snapshot                  # Get accessible element refs (e1, e5…)
+playwright-cli fill e3 "text"           # Fill input/textarea
+playwright-cli click e5                 # Click element
+playwright-cli screenshot               # Capture current page state
+playwright-cli screenshot e5            # Capture a specific element
+playwright-cli console                  # Browser JS console logs
+playwright-cli network                  # Network request log
+playwright-cli eval "document.title"   # Evaluate JavaScript
+playwright-cli video-start              # Start recording test session
+playwright-cli video-stop video.webm    # Stop and save recording
+```
+
+> Load the `playwright-cli` skill for the full command reference and multi-tab workflows.
+
+### Decision: Aspire MCP vs DistributedApplicationTestingBuilder
+
+| Goal | Recommended approach |
+|---|---|
+| Ad-hoc/exploratory testing, AI-driven | `aspire run` + MCP + playwright-cli |
+| Automated regression tests in CI | `DistributedApplicationTestingBuilder` + xUnit/NUnit |
+| UI-only interaction testing | playwright-cli (no Aspire required) |
+| Service integration (API + database) | `DistributedApplicationTestingBuilder` |
+| Full-stack coverage (UI + backend) | Both, combined (see [aspire-vs-playwright-testing.md](references/aspire-vs-playwright-testing.md)) |
+
+---
+
 ## Reference files
 
 - Use [CLI commands overview](references/cli-commands.md) for command selection, brief descriptions, and examples.
 - Use [Aspire 13.1 CLI changes](references/aspire-13.1-cli.md) for channel persistence, instance detection, and installation options.
+- Use [HTTPS certificate management](references/https-cert-management.md) for manual trust commands, platform notes, and CI/CD patterns when auto-trust fails.
 - Use [Debugging + E2E testing notes](references/debugging-e2e-testing.md) for research-backed guidance on diagnosing issues and orchestrating tests.
 - Use [Aspire Testing vs Playwright-CLI](references/aspire-vs-playwright-testing.md) for comparative analysis when choosing testing tools or combining them for full-stack testing.
+- Use [MCP server and resource access](references/mcp-server-and-resource-access.md) for the full 12-tool MCP catalog, two-layer architecture detail (stdio proxy + dashboard HTTP), JSON response shapes, port discovery, and console log access patterns. Load this when the user asks about resource discovery, reading logs, or using Aspire with AI agents.
 - Use [Aspire isolation for parallel worktrees](references/aspire-isolation.md) for comprehensive guidance on running multiple AppHost instances simultaneously: port allocation scripts, MCP proxy architecture, GitFolderResolver pattern, distributed testing, and complete troubleshooting workflows. Essential for git worktrees and multi-agent AI development.
