@@ -214,10 +214,10 @@ When the Knowledge Role is available, the Orchestration Role MUST invoke it in e
 ### Orchestration Role Boundaries
 
 #### ORCH-034: Write Restriction
-The Orchestration Role MUST NOT modify any artifact other than the Session State Store. All other artifact mutations MUST be delegated to the appropriate role as defined in the ownership model (per SES-012).
+The Orchestration Role MUST NOT modify any artifact other than the Session State Store. All other artifact mutations MUST be delegated to the appropriate role as defined in the ownership model (per SES-012). Routing decisions MAY read contract-level session artifacts needed for state-machine operation, but MUST NOT expand into workspace subject-matter inspection.
 
 #### ORCH-035: No Self-Execution
-The Orchestration Role MUST NOT perform work belonging to any other role. It MUST NOT analyze workspace content, implement tasks, review code, extract knowledge, or generate plans. Its sole function is state machine evaluation, role routing, and protocol enforcement.
+The Orchestration Role MUST NOT perform work belonging to any other role. It MUST NOT analyze workspace content, infer session subject matter from repository files, implement tasks, review code, extract knowledge, or generate plans. Its sole function is state machine evaluation, role routing, and protocol enforcement. Invocation choices MUST be derived only from contract-level inputs such as state, progress status, declared task records, prior role outputs, feedback metadata, and signal artifacts.
 
 ## Scenarios
 
@@ -478,8 +478,9 @@ AND upon breakdown completion transitions to BATCHING (T9)
 ### SC-ORCH-024: No Self-Execution Enforcement
 **Validates**: ORCH-035
 ```
-GIVEN the Orchestration Role receives a user request with workspace analysis requirements
-WHEN it evaluates the request
-THEN it does not read or analyze workspace files to understand the request
-AND it immediately invokes the appropriate role (Planning Role in INITIALIZING state) with the raw user input
+GIVEN the Orchestration Role receives a user request that includes session-specific subject matter
+WHEN it evaluates the next invocation
+THEN it derives that routing decision from contract-level inputs only
+AND it does not read or analyze workspace files to infer what the session is about
+AND it immediately invokes the appropriate role with the raw user input or buffered role context required by the state machine
 ```
