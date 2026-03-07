@@ -13,6 +13,12 @@
   ],
   "skills": [
     "../../../skills/git-atomic-commit",
-    "../../../skills/diataxis"
+    "../../../skills/diataxis",
+    "../../../skills/diataxis-categorizer",
+    "../../../skills/ralph-session-ops-reference",
+    "../../../skills/ralph-signal-mailbox-protocol",
+    "../../../skills/ralph-feedback-batch-protocol",
+    "../../../skills/ralph-planning-artifact-templates",
+    "../../../skills/ralph-knowledge-merge-and-promotion"
   ]
 }
