@@ -46,7 +46,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 ### Publishing
 - Publish scripts are source of truth for distribution: `scripts/publish/publish-*.ps1` and router `scripts/publish/publish-artifact.ps1`.
 - Artifact flow: workspace source → specialized publish helper → personal folder (`~/.copilot/`, `%APPDATA%/Code*/`) → optional WSL mirror (via `scripts/publish/wsl-helpers.ps1`).
-- Plugin publishing builds a self-contained `.build/` directory, embeds instructions via marker resolution, validates 30K body limit, then runs `copilot plugin install`.
+- Plugin publishing builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, embeds instructions via marker resolution, validates 30K body limit, then publishes by runtime: CLI bundles are copied directly into `_direct/<name>` with a documented discovery-risk caveat, while VS Code bundles are registered in `chat.plugins.paths`.
 - Hooks are authored in `hooks/` and published to `.github/hooks/` via `scripts/publish/publish-hooks.ps1`.
 
 ### Other workflows
