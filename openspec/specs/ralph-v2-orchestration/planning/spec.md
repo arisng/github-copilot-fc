@@ -18,7 +18,7 @@ The Planning Role operates in exactly nine modes. Each mode is invoked by the Or
 
 | # | Mode | Invoked From | Purpose |
 |---|---|---|---|
-| 1 | **INITIALIZE** | INITIALIZING (ORCH-004) | Create the initial session structure: Session State Store, Iteration Container, Iteration State Store, Progress Tracker, Iteration Plan, and Signal Channel |
+| 1 | **INITIALIZE** | INITIALIZING (ORCH-004) | Create the initial session structure: Session State Store, Iteration Container, Iteration State Store, session-specific instructions file, Progress Tracker, Iteration Plan, and Signal Channel |
 | 2 | **UPDATE** | REPLANNING (ORCH-013) | Integrate feedback and Discovery Record outputs into the Iteration Plan, appending replanning history |
 | 3 | **TASK_BREAKDOWN** | PLANNING (ORCH-005) | Decompose the Iteration Plan into isolated Task Definition Records using the multi-pass breakdown algorithm |
 | 4 | **REBREAKDOWN** | REPLANNING (ORCH-013) | Revise failed Task Definition Records based on feedback, reset their status, and create new records if required |
@@ -42,10 +42,11 @@ When invoked in INITIALIZE mode, the Planning Role MUST create the following art
 1. The Session State Store with the session identifier, creation timestamp, update timestamp, current status set to "in_progress", and iteration set to 1.
 2. The Iteration Container for iteration 1.
 3. The Iteration State Store for iteration 1 with the start timestamp and planning status set to incomplete.
-4. The initial Iteration Plan for iteration 1 with all mandatory sections (per PLAN-030).
-5. The Progress Tracker for iteration 1 with the planning-phase task entries.
-6. The Active Session Pointer (per SES-004).
-7. The Lifecycle Hook Gate (per SES-005), if applicable.
+4. The session-specific instructions file at `.ralph-sessions/<SESSION_ID>.instructions.md` for the new session.
+5. The initial Iteration Plan for iteration 1 with all mandatory sections (per PLAN-030).
+6. The Progress Tracker for iteration 1 with the planning-phase task entries.
+7. The Active Session Pointer (per SES-004).
+8. The Lifecycle Hook Gate (per SES-005), if applicable.
 
 #### PLAN-003: Planning-Phase Task Entries
 The INITIALIZE mode MUST register exactly four planning-phase tasks in the Progress Tracker: initialization, brainstorm, research, and task breakdown. All four MUST have initial status "not-started" (per SES-015). The initialization entry MUST be marked "completed" before the mode returns.
@@ -262,6 +263,7 @@ GIVEN no active session exists
 WHEN the Planning Role is invoked in INITIALIZE mode
 THEN it creates the Session State Store with status "in_progress" and iteration 1
 AND creates the Iteration Container for iteration 1 with Iteration State Store
+AND creates `.ralph-sessions/<SESSION_ID>.instructions.md` for the session
 AND creates the Iteration Plan with all mandatory sections (Goal, Success Criteria, Target Artifacts, Context, Approach, Waves placeholder, Grounding placeholder)
 AND creates the Progress Tracker with four planning-phase entries (initialization, brainstorm, research, breakdown)
 AND marks the initialization entry as "completed" before returning
