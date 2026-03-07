@@ -122,6 +122,8 @@ Analyze human feedback and generate questions for replanning.
 ### Step 1: Context Acquisition
 - Read orchestrator prompt for MODE, CYCLE, ITERATION, CATEGORY
 - Read `ORCHESTRATOR_CONTEXT` if provided
+- If `ORCHESTRATOR_CONTEXT` contains a Planner grounding delegation, treat the requested category, cycle, question artifact path, `progress_entry_updated`, and `planner_resume_mode` as authoritative for this invocation.
+- If legacy `resume_mode` appears in delegated context, normalize it immediately to `planner_resume_mode` and do not echo `resume_mode` in outputs.
 - Read `.ralph-sessions/<SESSION_ID>.instructions.md` if exists
 - Load `planning.max_cycles` (default 2)
 - Read `iterations/<ITERATION>/plan.md`
@@ -165,6 +167,8 @@ Poll signals/inputs/
 # Step 2: Generate 5-8 specific, answerable questions
 
 # Step 3: Write to iterations/<ITERATION>/questions/<category>.md using schema from <artifacts>
+
+# Step 4: For Planner grounding delegations, return `grounding_request_source: Planner`, the `question_artifact_path`, `progress_entry_updated: plan-brainstorm`, `cycle_complete: true`, `research_needed: true`, `grounding_ready: false`, and `planner_resume_mode: TASK_BREAKDOWN`.
 ```
 
 #### research Mode
@@ -188,6 +192,8 @@ Else → load iterations/<ITERATION>/questions/<category>.md
 # Step 3: Append ## Answers (Cycle <C>) section to file
 # Step 4: If answers reveal new gaps, add questions to next cycle section
 # Step 5: Append ## Cycle <C> Summary with confidence distribution and new questions emerged
+
+# Step 6: For Planner grounding delegations, return `grounding_request_source: Planner`, the `question_artifact_path`, `progress_entry_updated: plan-research`, `cycle_complete: true`, `research_needed`, `grounding_ready`, and `planner_resume_mode: TASK_BREAKDOWN`. Set `grounding_ready: true` only when the delegated questions no longer contain unanswered or research-needed blockers for Planner.
 ```
 
 #### feedback-analysis Mode
@@ -292,6 +298,13 @@ Poll signals/inputs/
   "files_updated": ["iterations/<N>/questions/<category>.md"],
   "critical_findings": ["string"],
   "progress_updated": "string - Task marked [x] in iterations/<N>/progress.md",
+  "grounding_request_source": "Planner | null",
+  "question_artifact_path": "string | null",
+  "progress_entry_updated": "plan-brainstorm | plan-research | plan-rebrainstorm | plan-reresearch | plan-critique-brainstorm | plan-critique-research | null",
+  "cycle_complete": "boolean | null",
+  "research_needed": "boolean | null",
+  "grounding_ready": "boolean | null",
+  "planner_resume_mode": "TASK_BREAKDOWN | null",
   "next_agent": "string | null",
   "message_to_next": "string | null"
 }

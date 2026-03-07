@@ -167,6 +167,14 @@ Confirm sections present: Goal, Success Criteria, Target Files, Context, Approac
 Poll `signals/inputs/`. If `target == ALL`: write/refresh `signals/acks/<SIGNAL_ID>/Planner.ack.yaml`; do not move source signal.
 If ABORT: return blocked. If PAUSE: wait. If STEER: adjust context. If INFO: log.
 
+# Step 0.5: Grounding handshake pre-check
+Read `iterations/<ITERATION>/questions/*.md` and decide whether TASK_BREAKDOWN has enough grounding to create task files.
+If grounding is insufficient:
+- Do NOT create or modify task files.
+- Leave `plan-breakdown` incomplete; the observable next step must live in `plan-brainstorm` or `plan-research` plus the delegated questions artifact.
+- Return a delegation payload with: `delegation_category`, `delegation_cycle`, `brainstorm_needed`, `research_needed`, `delegation_mode`, `grounding_request_source: Planner`, `question_artifact_path`, `progress_entry_updated`, `grounding_ready: false`, and `planner_resume_mode: TASK_BREAKDOWN`.
+- Set `next_action: delegate-grounding`, `next_agent: Ralph-v2-Questioner`, and `message_to_next` to the same fields so the Orchestrator can invoke a single Discovery Role step without inspecting workspace content.
+
 # Step 1: Multi-Pass Breakdown
 
 ## Pass 1: Task Identification
@@ -357,7 +365,15 @@ tasks_defined: [count]
   "artifacts_created": ["iterations/<N>/plan.md", "iterations/<N>/tasks/task-1.md"],
   "artifacts_updated": ["iterations/<N>/progress.md", "metadata.yaml"],
   "tasks_defined": "number",
-  "waves_planned": "number"
+  "waves_planned": "number",
+  "delegation_mode": "BRAINSTORM | RESEARCH | null",
+  "delegation_category": "technical | requirements | constraints | assumptions | risks | feedback-driven | critique | null",
+  "delegation_cycle": "number | null",
+  "grounding_request_source": "Planner | null",
+  "question_artifact_path": "string | null",
+  "progress_entry_updated": "string | null",
+  "grounding_ready": "boolean | null",
+  "planner_resume_mode": "TASK_BREAKDOWN | null"
 }
 ```
 </workflow>
@@ -414,6 +430,14 @@ If INFO: Append to context and continue
   "artifacts_updated": ["string"],
   "tasks_defined": "number",
   "waves_planned": "number",
+  "delegation_mode": "BRAINSTORM | RESEARCH | null",
+  "delegation_category": "technical | requirements | constraints | assumptions | risks | feedback-driven | critique | null",
+  "delegation_cycle": "number | null",
+  "grounding_request_source": "Planner | null",
+  "question_artifact_path": "string | null",
+  "progress_entry_updated": "string | null",
+  "grounding_ready": "boolean | null",
+  "planner_resume_mode": "TASK_BREAKDOWN | null",
   "next_action": "string",
   "next_agent": "string - Which subagent to invoke next. Null if none.",
   "message_to_next": "string - Context to forward to next subagent. Null if none."
