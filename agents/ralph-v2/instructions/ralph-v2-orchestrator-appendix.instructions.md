@@ -1,11 +1,9 @@
----
+﻿---
 description: Appendix for Ralph-v2 Orchestrator instructions — extended state machine and feedback protocol reference
 applyTo: ".ralph-sessions/**"
 ---
 
 # Ralph-v2 Orchestrator — Extended Reference Appendix
-
-> Extended state machine sections (States 8, 8.5, 9), live signal protocol, post-iteration feedback protocol, and schema validation rules — extracted from `ralph-v2-orchestrator.instructions.md` to keep the core file within the CLI 30K character limit.
 
 ### Schema Validation Rules
 
@@ -21,7 +19,7 @@ applyTo: ".ralph-sessions/**"
 - `tasks.total`, `tasks.completed`, `tasks.failed`, `tasks.pending`
 - `session_review.cycle` (int, default `0`) — incremented each time SESSION_CRITIQUE_REPLAN is entered; reset to `0` at new iteration start
 - `session_review.issue_severity_threshold` (string, default `"any"`) — loaded once from `<SESSION_ID>.instructions.md`; controls which issue severities trigger the self-critique loop (`"any"` | `"major"` | `"critical"`)
-- `session_review.max_critique_cycles` (int or null, default `null`) — loaded once from `<SESSION_ID>.instructions.md`; `null` = unlimited; set to a positive integer to cap loop cycles
+- `session_review.max_critique_cycles` (int or null, default `null`) — `null` = unlimited; positive integer caps loop cycles
 
 **Valid Planning Task Names:**
 
@@ -67,7 +65,7 @@ Apply to any subagent call:
 3. If timeout or error again, sleep 60 seconds, then re-spawn.
 4. If timeout or error again, sleep 60 seconds, then re-spawn.
 5. If still failing:
-    - If `TASK_ID` exists: invoke Ralph-v2-Planner (MODE: SPLIT_TASK) with that task. The Orchestrator then treats the newly broken-down tasks as replacements and invokes Executor for each. If these also time out, the policy reapplies to the new tasks.
+    - If `TASK_ID` exists: invoke Ralph-v2-Planner (MODE: SPLIT_TASK). Treat newly broken-down tasks as replacements; invoke Executor for each. Reapply policy on further timeouts.
     - If no `TASK_ID`: exit with error and ask user to reduce scope.
 
 **Concrete Sleep Commands**
@@ -75,10 +73,6 @@ Apply to any subagent call:
 - **Linux/WSL (bash):** `sleep 30` or `sleep 60`
 
 ### Local Timestamp Commands
-
-Use these commands for local timestamps across the workflow (SESSION_ID, metadata timestamps):
-
-**Note:** These commands return local time in your system's timezone (UTC+7), not UTC.
 
 - **SESSION_ID format `<YYMMDD>-<hhmmss>`**
   - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
@@ -91,7 +85,6 @@ Use these commands for local timestamps across the workflow (SESSION_ID, metadat
 ### 8. State: SESSION_REVIEW
 
 ```
-# Check Live Signals
 RUN Poll-Signals
     IF ABORT: EXIT
     IF PAUSE: WAIT
@@ -100,7 +93,6 @@ RUN Poll-Signals
         LOG "Steering signal received: <message>"
         PASS signal message to Reviewer context in next invocation
 
-# Read current critique cycle counter (persisted across loops)
 C = metadata.yaml.session_review.cycle (default 0)
 
 INVOKE Ralph-v2-Reviewer
@@ -116,8 +108,6 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# --- Self-Critique Loop Decision ---
-# Apply issue_severity_threshold to determine active issue count
 ISSUE_SEVERITY_THRESHOLD = session_review.issue_severity_threshold (loaded in Session Resolution; default "any")
 
 IF ISSUE_SEVERITY_THRESHOLD == "any":
@@ -128,7 +118,6 @@ ELSE IF ISSUE_SEVERITY_THRESHOLD == "critical":
     ACTIVE_ISSUE_COUNT = issues_found.critical_count
 
 IF ACTIVE_ISSUE_COUNT == 0:
-    # No active issues — finalize iteration timing and advance to KNOWLEDGE_EXTRACTION
     UPDATE iterations/<ITERATION>/metadata.yaml: completed_at: <timestamp>
     INVOKE Ralph-v2-Planner
         MODE: UPDATE_METADATA
@@ -138,11 +127,10 @@ IF ACTIVE_ISSUE_COUNT == 0:
         APPLY Timeout Recovery Policy
     UPDATE metadata.yaml:
         - state: KNOWLEDGE_EXTRACTION
-        - session_review.cycle: 0  # reset for any future iteration
+        - session_review.cycle: 0
     STATE = KNOWLEDGE_EXTRACTION
 
 ELSE:
-    # Active issues exist — check loop cap before re-entering critique
     MAX_CRITIQUE_CYCLES = session_review.max_critique_cycles (loaded in Session Resolution; null = unlimited)
 
     IF MAX_CRITIQUE_CYCLES is not null AND C >= MAX_CRITIQUE_CYCLES:
@@ -160,7 +148,6 @@ ELSE:
         STATE = KNOWLEDGE_EXTRACTION
 
     ELSE:
-        # Increment cycle and enter critique replanning
         NEW_CYCLE = C + 1
         UPDATE metadata.yaml:
             - state: SESSION_CRITIQUE_REPLAN
@@ -171,20 +158,13 @@ ELSE:
 ### 8.5. State: SESSION_CRITIQUE_REPLAN
 
 ```
-# Route critique planning tasks (mirrors PLANNING state pattern)
-# Critique planning tasks live in progress.md under:
-#   "## Critique Planning Progress (Iteration N, Cycle C)"
-
-# Check Live Signals
 RUN Poll-Signals
     IF ABORT: EXIT
     IF PAUSE: WAIT
     IF INFO: Inject message into review context for consideration
 
 READ iterations/<ITERATION>/progress.md
-C = metadata.yaml.session_review.cycle  # current cycle (already incremented in State 8)
-
-# Routing: find the first incomplete critique planning task for cycle C
+C = metadata.yaml.session_review.cycle
 
 IF plan-critique-triage (Cycle C) not present in progress.md OR not [x]:
     INVOKE Ralph-v2-Planner
@@ -197,8 +177,6 @@ IF plan-critique-triage (Cycle C) not present in progress.md OR not [x]:
 
     ON completion:
         CAPTURE message_to_next → BUFFER as PENDING_CONTEXT
-        # Planner appended "## Critique Planning Progress (Iteration N, Cycle C)"
-        # to progress.md with plan-critique-triage [x] and optional subtasks
 
     ON timeout or error:
         APPLY Timeout Recovery Policy
@@ -251,24 +229,18 @@ ELSE IF plan-critique-breakdown (Cycle C) not [x]:
 
 ELSE:
     # All critique planning tasks [x] — execute gap-filling tasks
-    # Gap-filling tasks were added to Implementation Progress (Iteration N) by CRITIQUE_BREAKDOWN
     UPDATE metadata.yaml with state: BATCHING
     STATE = BATCHING
-    # Flow: BATCHING → EXECUTING_BATCH → REVIEWING_BATCH → BATCHING (loop)
-    # → SESSION_REVIEW re-invoked with incremented cycle; loop continues until
-    #   ACTIVE_ISSUE_COUNT == 0 or max_critique_cycles cap is hit
 ```
 
 ### 9. State: KNOWLEDGE_EXTRACTION
 
 ```
-# Conditional activation
 IF 'Ralph-v2-Librarian' NOT in agents list:
     UPDATE metadata.yaml with state: COMPLETE
     STATE = COMPLETE
     SKIP to State 10 (COMPLETE)
 
-# --- Step A: EXTRACT (iteration artifacts → iteration knowledge/) ---
 INVOKE Ralph-v2-Librarian
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     MODE: EXTRACT
@@ -281,13 +253,11 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# Check extraction result
 IF Librarian returns 0 items extracted:
     UPDATE metadata.yaml with state: COMPLETE
     STATE = COMPLETE
     SKIP to State 10 (COMPLETE)
 
-# --- Step B: STAGE (iteration knowledge/ → session knowledge/) ---
 INVOKE Ralph-v2-Librarian
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     MODE: STAGE
@@ -300,7 +270,6 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# --- Step C: PROMOTE (session knowledge/ → workspace .docs/) ---
 INVOKE Ralph-v2-Librarian
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     MODE: PROMOTE
@@ -313,7 +282,6 @@ ON completion:
 ON timeout or error:
     APPLY Timeout Recovery Policy
 
-# PROMOTE returns outcome: "promoted" (auto-promoted) or "skipped" (skip-promotion INFO signal) or "blocked"
 IF outcome == "promoted" OR outcome == "skipped":
     UPDATE metadata.yaml with state: COMPLETE
     STATE = COMPLETE
@@ -331,58 +299,32 @@ ELSE IF outcome == "blocked":
 - **Processed**: `.ralph-sessions/<SESSION_ID>/signals/processed/`
 
 #### Poll-Signals Routine
-1. **Define** `RECOGNIZED_TYPES = [STEER, PAUSE, ABORT, INFO]`
-2. **Define** `ALL_RECIPIENTS = [Orchestrator, Executor, Planner, Questioner, Reviewer]`
-3. **Ensure** `signals/acks/` exists
-4. **List** files in `signals/inputs/` (sort by timestamp ascending)
-5. **Read** oldest file content (peek — do not move yet)
-6. **Check type** against `RECOGNIZED_TYPES`
-7. **If recognized**:
-    a. **Check target** field:
-         - If `target == ALL`:
-            - Apply signal locally
-            - Write/refresh ack file `signals/acks/<SIGNAL_ID>/Orchestrator.ack.yaml`
-            - Do NOT move the source signal yet
-            - If ack files exist for all `ALL_RECIPIENTS`, move to `signals/processed/` and append delivery metadata
-            - Continue to next signal
-         - If `target == Orchestrator` or `target` is absent → **consume** (proceed to step 7b)
-       - If `target` specifies a subagent (e.g., `Executor`, `Reviewer`) → **buffer** the signal:
-         - Move file to `signals/processed/`
-         - Store signal in `SIGNAL_CONTEXT[<target>]` for delivery at next targeted subagent invocation
-         - Do NOT act on it locally
-         - Continue to next signal
-     b. **Move** file to `signals/processed/` (Atomic concurrency handling)
-       - If move fails, skip (another agent took it)
-    c. **Act**:
-       - **STEER**: Adjust immediate context
-       - **PAUSE**: Suspend execution until new signal or user resume
-       - **ABORT**: Gracefully terminate
-       - **INFO**: Log to context
-8. **If unrecognized type**: Skip — leave signal in `inputs/` for targeted agent consumption.
-9. **Deliver buffered signals**: When invoking a subagent, attach any signals in `SIGNAL_CONTEXT[<subagent>]` to the invocation context. Clear the buffer after delivery.
+1. `RECOGNIZED_TYPES = [STEER, PAUSE, ABORT, INFO]`
+2. `ALL_RECIPIENTS = [Orchestrator, Executor, Planner, Questioner, Reviewer]`
+3. Ensure `signals/acks/` exists
+4. List files in `signals/inputs/` (sort by timestamp ascending)
+5. Read oldest file content (peek — do not move yet)
+6. Check type against `RECOGNIZED_TYPES`
+7. If recognized:
+    a. Check `target`:
+       - `target == ALL`: apply locally; write/refresh ack `signals/acks/<SIGNAL_ID>/Orchestrator.ack.yaml`; do NOT move yet; once ack quorum met for ALL_RECIPIENTS, move to `signals/processed/` + append delivery metadata; continue
+       - `target == Orchestrator` or absent → consume (proceed to 7b)
+       - `target` = subagent name → buffer: move to `signals/processed/`; store in `SIGNAL_CONTEXT[<target>]`; do NOT act locally; continue
+    b. Move to `signals/processed/` (if move fails, skip — another agent took it)
+    c. Act: **STEER** → adjust context; **PAUSE** → suspend until resume; **ABORT** → terminate; **INFO** → log
+8. If unrecognized: skip — leave in `inputs/` for targeted agent.
+9. Deliver buffered signals: attach `SIGNAL_CONTEXT[<subagent>]` at invocation; clear after delivery.
 
 #### Target Namespace Standard
-- Signal `target` values are **role names only**: `ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian`.
-- Do not encode version in `target` (for example, never `Ralph-v2-*`). Workflow version is inferred from the active runtime/session context.
+- `target` values: `ALL | Orchestrator | Executor | Planner | Questioner | Reviewer | Librarian`
+- Do not encode version in `target` (never `Ralph-v2-*`)
 
-#### Archive Checkpoints (Exactly When Orchestrator Moves To `signals/processed/`)
-```
-1. **Poll-Signals, targeted-to-Orchestrator path**:
-    - Condition: `type in [STEER, PAUSE, ABORT, INFO]` and `target in [Orchestrator, <absent>]`.
-    - Timing: immediately after peek/type/target validation in Poll-Signals step `7b`.
-2. **Poll-Signals, targeted-to-subagent routing path**:
-    - Condition: `type in [STEER, PAUSE, ABORT, INFO]` and `target` is one of `Executor|Planner|Questioner|Reviewer|Librarian`.
-    - Timing: immediately after buffering into `SIGNAL_CONTEXT[target]`.
-3. **Poll-Signals, broadcast finalization path (`target: ALL`)**:
-    - Condition: ack quorum satisfied for `ALL_RECIPIENTS`.
-    - Timing: during Poll-Signals step `7a` finalization check, after Orchestrator writes its own ack.
-4. **PROMOTE state-specific path**:
-    - Condition: `INFO` signal with `target: Librarian` and `SKIP_PROMOTION:` message prefix detected in `signals/inputs/`.
-    - Timing: immediately when consumed in Librarian PROMOTE pre-promote signal check.
-5. **Session-end hygiene path (`COMPLETE` transition)**:
-    - Condition: residual `target: ALL` signals still in `signals/inputs/`.
-    - Timing: right before final exit; archive as `delivery_status: delivered` (quorum met) or `delivery_status: partial` with `unacked_agents`.
-```
+#### Archive Checkpoints (When Orchestrator Moves to `signals/processed/`)
+1. **Orch-targeted**: `type in [STEER,PAUSE,ABORT,INFO]` AND `target in [Orchestrator,<absent>]` → step 7b
+2. **Subagent-routed**: same types AND `target in [Executor|Planner|Questioner|Reviewer|Librarian]` → after SIGNAL_CONTEXT buffer
+3. **ALL broadcast**: ack quorum met for ALL_RECIPIENTS → step 7a finalization
+4. **PROMOTE skip-signal**: `INFO`, `target: Librarian`, `SKIP_PROMOTION:` prefix → Librarian PROMOTE pre-check
+5. **Session-end hygiene**: residual `target: ALL` in `inputs/` at COMPLETE → archive as `delivery_status: delivered` (quorum met) or `partial` with `unacked_agents`
 
 #### `target: ALL` Invariant
 - First reader never archives a `target: ALL` signal.
@@ -393,47 +335,36 @@ ELSE IF outcome == "blocked":
 
 #### Human Initiates Iteration N+1
 
-1. **Create feedback directory:**
-   ```powershell
-   $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-   mkdir .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/
-   ```
+**Feedback directory**: `.ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/<yyyyMMdd-HHmmss>/`
 
-2. **Add artifacts:**
-   ```powershell
-   cp app.log .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/
-   cp screenshot.png .ralph-sessions/<SESSION_ID>/iterations/<N+1>/feedbacks/$timestamp/
-   ```
+Drop artifacts (logs, screenshots, etc.) into the directory, then create `feedbacks.md`:
+```markdown
+---
+iteration: <N+1>
+timestamp: <ISO8601>
+previous_iteration: <N>
+---
 
-3. **Create structured feedbacks.md:**
-   ```markdown
-   ---
-   iteration: <N+1>
-   timestamp: <ISO8601>
-   previous_iteration: <N>
-   ---
-   
-   # Feedback Batch: <timestamp>
-   
-   ## Critical Issues
-   - [ ] **ISS-001**: Description
-     - Evidence: app.log, lines 45-60
-     - Suggested Fix: ...
-   
-   ## Quality Issues
-   - [ ] **Q-001**: Description
-   
-   ## New Requirements
-   - Feature X
-   
-   ## Artifacts Index
-   | File | Description |
-   |------|-------------|
-   | app.log | Server logs |
-   ```
+# Feedback Batch: <timestamp>
 
-4. **Notify orchestrator:**
-   > "Continue session <SESSION_ID> with new feedback"
+## Critical Issues
+- [ ] **ISS-001**: Description
+  - Evidence: app.log, lines 45-60
+  - Suggested Fix: ...
+
+## Quality Issues
+- [ ] **Q-001**: Description
+
+## New Requirements
+- Feature X
+
+## Artifacts Index
+| File | Description |
+|------|-------------|
+| app.log | Server logs |
+```
+
+Notify Orchestrator: `"Continue session <SESSION_ID> with new feedback"`
 
 #### Orchestrator Processes Feedback
 
@@ -446,9 +377,7 @@ On detecting `iterations/<N+1>/feedbacks/*/feedbacks.md`:
    - `orchestrator.previous_state: <PREVIOUS_STATE>`
    - `iteration: <N+1>`
 4. Set `STATE = REPLANNING`
-5. Enter REPLANNING workflow (Step 4):
-   - Planner is invoked to triage feedback intent and create iteration N+1 artifacts
-   - Planner returns `replanning_route` to guide Orchestrator routing:
-     - `knowledge-promotion`: fast-path to Librarian (PROMOTE), then COMPLETE
-     - `full-replanning`: standard replanning pipeline (rebrainstorm → reresearch → update → rebreakdown)
+5. Enter REPLANNING workflow (Step 4); Planner returns `replanning_route`:
+   - `knowledge-promotion`: fast-path to Librarian (PROMOTE), then COMPLETE
+   - `full-replanning`: standard pipeline (rebrainstorm → reresearch → update → rebreakdown)
 

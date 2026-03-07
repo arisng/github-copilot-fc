@@ -49,13 +49,10 @@ created_at: 2026-02-07T10:00:00Z
 *(Created by Ralph-v2-Executor)*
 
 ### Rework Context
-[Only for attempt > 1]
-- Previous attempt: iterations/<N>/reports/task-1-report-r<N-1>.md
-- Feedback addressed: [from feedback files]
-- Changes in approach: [what's different this time]
+[Attempt > 1 only: previous report path, feedback addressed, changes in approach]
 
 ### Objective Recap
-[From iterations/<N>/tasks/task-1.md]
+[From task file]
 
 ### Success Criteria Status
 | Criterion | Status | Evidence |
@@ -67,8 +64,8 @@ created_at: 2026-02-07T10:00:00Z
 ### Summary of Changes
 [Files edited, logic implemented]
 
-### Feedback Context Applied (Iteration >= 2)
-[If applicable, how feedback influenced implementation]
+### Feedback Context Applied
+[Iteration >= 2 only: how feedback influenced implementation]
 
 ### Verification Results
 - Tests run: [list]
@@ -104,144 +101,61 @@ created_at: 2026-02-07T10:00:00Z
 
 <workflow>
 ### 0. Skills Directory Resolution
-**Discover available agent skills:**
+
 - **Windows**: `<SKILLS_DIR>` = `$env:USERPROFILE\.copilot\skills`
 - **Linux/WSL**: `<SKILLS_DIR>` = `~/.copilot/skills`
-
-**Validation:**
-1. After resolving `<SKILLS_DIR>`, verify it exists:
-   - **Windows**: `Test-Path $env:USERPROFILE\.copilot\skills`
-   - **Linux/WSL**: `test -d ~/.copilot/skills`
-2. If `<SKILLS_DIR>` does not exist, log a warning and proceed in **degraded mode** (skip skill discovery/loading; do not fail-fast).
-
-**4-Step Reasoning-Based Skill Discovery:**
-1. **Check agent instructions**: Review your own agent file for explicit skill affinities or requirements.
-2. **Check task context**: Review the task description or orchestrator message for explicitly mentioned skills.
-3. **Scan skills directory**: List available skills in `<SKILLS_DIR>` and match skill descriptions against the current task requirements.
-4. **Load relevant skills**: Load only the skills that are directly relevant to the current task.
-
-> **Guidance:** Load only skills directly relevant to the current task — typically 1-3 skills. Do not load skills speculatively.
+- Verify exists; if not, log warning and proceed in degraded mode (skip skill loading).
+- Load 1-3 skills directly relevant to the task. Match against: agent file affinities, task description, task requirements vs. skill descriptions.
 
 ### Local Timestamp Commands
 
-Use these commands for local timestamps in reports and progress updates:
+> Returns local time (UTC+7).
 
-**Note:** These commands return local time in your system's timezone (UTC+7), not UTC.
-
-- **SESSION_ID format `<YYMMDD>-<hhmmss>`**
-  - **Windows (PowerShell):** `Get-Date -Format "yyMMdd-HHmmss"`
-  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
-
-- **ISO8601 local timestamp (with offset)**
-  - **Windows (PowerShell):** `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
-  - **Linux/WSL (bash):** `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
+- **SESSION_ID `<YYMMDD>-<hhmmss>`**
+  - Windows: `Get-Date -Format "yyMMdd-HHmmss"`
+  - Linux/WSL: `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`
+- **ISO8601 with offset**
+  - Windows: `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"`
+  - Linux/WSL: `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"`
 
 ### 1. Read Context
 
-```markdown
-# Step 1: Read task definition
-Read iterations/<ITERATION>/tasks/<TASK_ID>.md
-Extract:
-  - Title
-  - Files
-  - Objective
-  - Success Criteria
-  - Dependencies (depends_on, inherited_by)
-
-# Step 2: Read inherited context
-If task has "depends_on":
-  For each dependency_id:
-    Read iterations/<ITERATION>/reports/<dependency_id>-report*.md
-    Extract patterns, interfaces, conventions
-
-# Step 3: Read feedback context (Iteration >= 2)
-If ITERATION > 1:
-  Read iterations/<ITERATION>/feedbacks/<timestamp>/feedbacks.md
-  Identify issues relevant to this task
-  Note suggested fixes
-
-# Step 4: Read previous attempts (Attempt > 1)
-If ATTEMPT_NUMBER > 1:
-  Read iterations/<ITERATION>/reports/<TASK_ID>-report-r<ATTEMPT_NUMBER-1>.md
-  Review PART 1: What was tried
-  Review PART 2: Why it failed
-  Apply lessons learned
-```
+1. Read `iterations/<ITERATION>/tasks/<TASK_ID>.md` → extract title, files, objective, success criteria, dependencies.
+2. If `depends_on` present: read dependency reports, extract patterns/interfaces/conventions.
+3. If `ITERATION > 1`: read `feedbacks/<timestamp>/feedbacks.md`, identify task-relevant issues and fixes.
+4. If `ATTEMPT_NUMBER > 1`: read previous report — PART 1 (what was tried), PART 2 (why it failed).
 
 ### 2. Mark WIP
 
 Update `iterations/<ITERATION>/progress.md`:
-```markdown
+```
 - [/] task-1 (Attempt <N>, Iteration <I>, started: <timestamp>)
 ```
 
 ### 3. Implement/Execute
 
-```markdown
-# Step 1: Implement based on task definition
-Focus on:
-  - Files specified in iterations/<ITERATION>/tasks/<TASK_ID>.md
-  - Achieving Objective
-  - Meeting all Success Criteria
-  - Applying inherited patterns
-  - Addressing feedback (if iteration >= 2)
-
-# Step 2: Track file modifications
-files_modified = []
-For each file edited:
-  Append file path to files_modified
-
-# Step 3: Apply feedback-driven changes (if applicable)
-If ITERATION > 1 and feedback exists:
-  - Map feedback issues to task requirements
-  - Implement fixes for critical issues
-  - Add tests for regression prevention
-
-# Step 4: Verification
-- Run tests
-- Validate against success criteria
-- Store ephemeral artifacts in iterations/<ITERATION>/tests/task-<id>/ (consolidate results in Task Report)
-- Compile-time validation only (build, lint, type checks, unit tests)
-```
+1. Implement per task file: achieve objective, meet all success criteria, apply inherited patterns, address feedback (iteration >= 2).
+2. Track `files_modified` as you go.
+3. Run compile-time validation: build, lint, type checks, unit tests.
+4. Store ephemeral artifacts in `iterations/<ITERATION>/tests/task-<id>/`; consolidate results in Task Report.
 
 ### 4. Verify
 
-```markdown
-# Validate each success criterion
-For each criterion in iterations/<ITERATION>/tasks/<TASK_ID>.md:
-  - Check evidence exists
-  - Run relevant tests
-  - Document result
-
-# Quality checks
-- Code standards followed
-- Tests pass
-- No regressions
-```
+For each success criterion: check evidence exists, run relevant tests, document result.
 
 ### 5. Finalize State
 
-```markdown
-# Update iterations/<ITERATION>/progress.md
-If all success criteria met:
-  - [P] task-1 (Attempt <N>, Iteration <I>, review-pending)
-Else:
-  - [/] task-1 (Attempt <N>, Iteration <I>, issues found)
-  [Document blockers in report]
+Update `iterations/<ITERATION>/progress.md`:
+```
+All criteria met:   - [P] task-1 (Attempt <N>, Iteration <I>, review-pending)
+Issues found:       - [/] task-1 (Attempt <N>, Iteration <I>, issues found)
 ```
 
 ### 6. Persist Report
 
-```markdown
-# Determine filename
-If ATTEMPT_NUMBER == 1:
-  filename = iterations/<ITERATION>/reports/<TASK_ID>-report.md
-Else:
-  filename = iterations/<ITERATION>/reports/<TASK_ID>-report-r<ATTEMPT_NUMBER>.md
-
-# Write report with PART 1 only
-[Use Report Structure template]
-```
+- Attempt 1: `iterations/<ITERATION>/reports/<TASK_ID>-report.md`
+- Attempt N>1: `iterations/<ITERATION>/reports/<TASK_ID>-report-r<N>.md`
+- Write PART 1 only using the Report Structure template.
 </workflow>
 
 <signals>
@@ -252,22 +166,19 @@ Else:
 - **Processed**: `.ralph-sessions/<SESSION_ID>/signals/processed/`
 
 ### Poll-Signals Routine (Universal only: STEER, PAUSE, ABORT, INFO)
-```markdown
+```
 Loop until no pending signals:
-  Poll signals/inputs/
-  - For each file (FIFO by timestamp):
-    - Peek: Read signal type and target
-    - If target != ALL and target != Executor → skip (leave for correct consumer)
-    - If target == ALL:
-      - Do NOT move source signal
-      - Write idempotent ack: signals/acks/<SIGNAL_ID>/Executor.ack.yaml
-    - Else:
-      - Atomic Move → signals/processed/
-    - Act based on type:
-      IF INFO: Log message for context awareness
-      If STEER: Update current context (+ ingest any SIGNAL_CONTEXT from Orchestrator)
-      If PAUSE: Wait
-      If ABORT: Return {status: "blocked", blockers: ["Aborted by signal"]}
+  Poll signals/inputs/ (FIFO by timestamp)
+  For each file:
+    - Peek: read signal type and target
+    - If target != ALL and target != Executor → skip
+    - If target == ALL: write ack to signals/acks/<SIGNAL_ID>/Executor.ack.yaml (do NOT move source)
+    - Else: Atomic Move → signals/processed/
+    - Act:
+        INFO  → Log for context
+        STEER → Update context (+ ingest SIGNAL_CONTEXT from Orchestrator)
+        PAUSE → Wait
+        ABORT → Return {status: "blocked", blockers: ["Aborted by signal"]}
 ```
 
 ### Checkpoint Locations
@@ -279,28 +190,21 @@ Loop until no pending signals:
 | **Step 3.5** (Mid-Execution) | During implementation | STEER decision tree (see below), INFO → append, PAUSE → wait, ABORT → cleanup + blocked |
 
 ### STEER Mid-Execution Decision Tree (Step 3.5)
-```markdown
-STEER signal received during implementation
-│
-├─ (a) Work Invalidated
-│     Signal contradicts already-implemented work
-│     → Restart Step 3 (Implement/Execute) with updated context
-│     → Note in report: "Restarted due to STEER: <summary>"
-│
-├─ (b) Additive / Non-conflicting
-│     Signal adds constraints or context without invalidating current work
-│     → Adjust in-place and continue from current position
-│     → Append STEER context to active constraints
-│
-└─ (c) Scope Change
-      Signal fundamentally changes the task's objective
-      → Return {status: "blocked", blockers: ["STEER scope change: <summary>"]}
-      → Escalate to Orchestrator for task redefinition
+```
+(a) Work Invalidated — signal contradicts already-implemented work
+    → Restart Step 3 with updated context
+    → Note in report: "Restarted due to STEER: <summary>"
 
-Decision Criteria: Compare STEER message against:
-  1. files_modified — does the signal invalidate those changes?
-  2. Success criteria — does the signal change what "done" means?
-  3. Task objective — does the signal redefine the task itself?
+(b) Additive / Non-conflicting — adds constraints without invalidating current work
+    → Adjust in-place, continue; append STEER context to active constraints
+
+(c) Scope Change — fundamentally changes task objective
+    → Return {status: "blocked", blockers: ["STEER scope change: <summary>"]}
+
+Decision criteria:
+  1. files_modified — does signal invalidate those changes?
+  2. Success criteria — does signal change what "done" means?
+  3. Task objective — does signal redefine the task?
 ```
 </signals>
 
