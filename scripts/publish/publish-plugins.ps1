@@ -6,7 +6,7 @@
     Discovers plugin directories under plugins/cli/ and plugins/vscode/, builds a self-contained
     bundle for each, and installs based on the plugin's target runtime:
 
-      - CLI plugins  (plugins/cli/):    installed via 'copilot plugin install'
+      - CLI plugins  (plugins/cli/):    copied directly into Copilot CLI's `_direct/<plugin-name>` install roots
       - VS Code plugins (plugins/vscode/): registered in VS Code's chat.plugins.paths setting
 
     Plugin directory structure:
@@ -17,10 +17,11 @@
           ralph-v2/    -- plugin.json here
 
         CLI install locations:
-            This publisher stages local installs through a `local/<plugin-name>` source path so
-            direct installs no longer land under `_direct/.build`. After install it also syncs a
-            human-friendly mirror to `~/.copilot/installed-plugins/local/<PLUGIN-NAME>` on both
-            Windows and WSL without moving the authoritative direct-install location.
+            This publisher copies the prepared runtime bundle from `plugins/cli/.build/<plugin-name>/`
+            directly into `~/.copilot/installed-plugins/_direct/<plugin-name>/` on Windows and WSL/Linux.
+            The destination is replaced exactly on each publish. The payload copy is verified, but
+            raw `_direct` copies are still treated as a best-effort publish path because local probes
+            have not proven that Copilot CLI discovers them the same way as `copilot plugin install`.
 
     VS Code install: adds .build/ path to 'chat.plugins.paths' in user settings.json for
       both VS Code Stable and VS Code Insiders (whichever are present).
@@ -48,8 +49,8 @@
     NOTE: -SkipWSL is deprecated; use -Environment windows instead.
 
 .PARAMETER Force
-    For CLI plugins: uninstall each plugin before reinstalling.
-    For VS Code plugins: overwrites any existing path entry (already idempotent).
+    Retained for backward compatibility. CLI publishing now performs exact replacement on every
+    publish, so no explicit uninstall step is required. VS Code registration remains idempotent.
 
 .PARAMETER SkipWSL
     DEPRECATED. Use -Environment windows instead. Kept for backward compatibility.
@@ -85,165 +86,257 @@ if ($SkipWSL) {
 . "$PSScriptRoot/build-plugins.ps1"
 . "$PSScriptRoot/wsl-helpers.ps1"
 
-function New-LocalPluginInstallSource {
+function Copy-DirectoryExact {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination
+    )
+
+    $parentDir = Split-Path $Destination -Parent
+    New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
+
+    if (Test-Path $Destination) {
+        Remove-Item $Destination -Recurse -Force
+    }
+
+    Copy-Item -Path $Source -Destination $Destination -Recurse -Force
+    return (Test-Path $Destination)
+}
+
+function Test-CopilotPluginDiscovery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginName,
+        [string]$InstalledPluginsRoot,
+        [switch]$UseWSL
+    )
+
+    $listOutput = $null
+
+    try {
+        if ($UseWSL) {
+            $listOutput = Invoke-WSLCommand -Command 'copilot plugin list' -InitializeNode -SuppressStderr
+        }
+        else {
+            $listOutput = & copilot plugin list 2>$null
+        }
+    }
+    catch {
+        $listOutput = $null
+    }
+
+    $commandSucceeded = $LASTEXITCODE -eq 0 -and $null -ne $listOutput
+    $detected = $false
+    if ($commandSucceeded) {
+        $escapedName = [regex]::Escape($PluginName)
+        $detected = ($listOutput | Out-String) -match "(?im)^.*$escapedName.*$"
+    }
+
+    return [PSCustomObject]@{
+        CommandSucceeded = $commandSucceeded
+        Detected = $detected
+        Output = ($listOutput | Out-String).Trim()
+        InstalledPluginsRoot = $InstalledPluginsRoot
+    }
+}
+
+function Install-CopilotPluginBundle {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$BuildPath,
-        [Parameter(Mandatory)][string]$PluginName
-    )
-
-    $pluginDir = Split-Path $BuildPath -Parent
-    $installRoot = Join-Path $pluginDir '.install\local'
-    $installPath = Join-Path $installRoot $PluginName
-
-    if (Test-Path $installPath) {
-        Remove-Item $installPath -Recurse -Force
-    }
-
-    New-Item -Path $installRoot -ItemType Directory -Force | Out-Null
-    New-Item -Path $installPath -ItemType Directory -Force | Out-Null
-    Copy-Item -Path (Join-Path $BuildPath '*') -Destination $installPath -Recurse -Force
-    return $installPath
-}
-
-function Sync-CopilotPluginInstallMirror {
-    [CmdletBinding()]
-    param(
         [Parameter(Mandatory)][string]$InstalledPluginsRoot,
         [Parameter(Mandatory)][string]$PluginName,
         [switch]$UseWSL
     )
 
-    if ($UseWSL) {
-        $command = @"
-mkdir -p '$InstalledPluginsRoot/local'
-sourcePath=''
-for candidate in '$InstalledPluginsRoot/_direct/$PluginName' '$InstalledPluginsRoot/_direct/.build'; do
-  if [ -e "$candidate" ]; then
-    sourcePath="$candidate"
-    break
-  fi
-done
-
-if [ -z "$sourcePath" ]; then
-  exit 0
-fi
-
-targetPath='$InstalledPluginsRoot/local/$PluginName'
-rm -rf "$targetPath"
-cp -R "$sourcePath" "$targetPath"
-"@
-        Invoke-WSLCommand -Command $command -InitializeNode -SuppressStderr | Out-Null
-        return
+    $destinationPath = if ($UseWSL) {
+        "$InstalledPluginsRoot/_direct/$PluginName"
+    }
+    else {
+        Join-Path (Join-Path $InstalledPluginsRoot '_direct') $PluginName
     }
 
-    $localRoot = Join-Path $InstalledPluginsRoot 'local'
-    $preferredPath = Join-Path $localRoot $PluginName
-    $candidates = @(
-        (Join-Path $InstalledPluginsRoot (Join-Path '_direct' $PluginName)),
-        (Join-Path $InstalledPluginsRoot '_direct\.build')
-    )
-
-    $sourcePath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if (-not $sourcePath) {
-        return
+    $copySucceeded = if ($UseWSL) {
+        Copy-ToWSL -Source $BuildPath -Destination $destinationPath -Recurse
+    }
+    else {
+        Copy-DirectoryExact -Source $BuildPath -Destination $destinationPath
     }
 
-    New-Item -Path $localRoot -ItemType Directory -Force | Out-Null
-    if (Test-Path $preferredPath) {
-        Remove-Item $preferredPath -Recurse -Force
+    $pluginJsonPath = if ($UseWSL) {
+        "$destinationPath/plugin.json"
+    }
+    else {
+        Join-Path $destinationPath 'plugin.json'
     }
 
-    Copy-Item -Path $sourcePath -Destination $preferredPath -Recurse -Force
+    $destinationVerified = if ($UseWSL) {
+        Test-WSLPathExists -Path $pluginJsonPath
+    }
+    else {
+        Test-Path $pluginJsonPath
+    }
+
+    $discovery = Test-CopilotPluginDiscovery -PluginName $PluginName -InstalledPluginsRoot $InstalledPluginsRoot -UseWSL:$UseWSL
+
+    return [PSCustomObject]@{
+        CopySucceeded = $copySucceeded
+        DestinationPath = $destinationPath
+        DestinationVerified = $destinationVerified
+        DiscoveryProbeSucceeded = $discovery.CommandSucceeded
+        DiscoveryDetected = $discovery.Detected
+        DiscoveryOutput = $discovery.Output
+    }
 }
 
-function Update-VSCodePluginSettings {
-    <#
-    .SYNOPSIS
-        Registers a plugin bundle path in VS Code's chat.plugins.paths setting.
-
-    .DESCRIPTION
-        Reads the VS Code user settings.json (for both Stable and Insiders installations),
-        adds or updates the specified plugin path under 'chat.plugins.paths', and writes
-        the result back. JSONC comments in settings.json are stripped during parsing;
-        the file is rewritten as plain JSON.
-
-        Supports: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
-
-    .PARAMETER PluginPath
-        Absolute path to the plugin's .build/ directory to register.
-
-    .PARAMETER PluginName
-        Display name for log messages.
-
-    .PARAMETER Enabled
-        Whether to enable the plugin. Defaults to $true.
-
-    .OUTPUTS
-        [int] Number of VS Code settings files updated (0 if no VS Code installations found).
-    #>
+function Write-CopilotDiscoveryRiskWarning {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][string]$PluginPath,
         [Parameter(Mandatory)][string]$PluginName,
-        [bool]$Enabled = $true
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][bool]$DiscoveryProbeSucceeded,
+        [Parameter(Mandatory)][bool]$DiscoveryDetected,
+        [switch]$UseWSL
     )
 
-    $settingsLocations = @(
-        @{ Label = 'VS Code Stable';   Path = "$env:APPDATA\Code\User\settings.json" },
-        @{ Label = 'VS Code Insiders'; Path = "$env:APPDATA\Code - Insiders\User\settings.json" }
-    )
-
-    $updated = 0
-
-    foreach ($loc in $settingsLocations) {
-        $settingsPath = $loc.Path
-        if (-not (Test-Path $settingsPath)) { continue }
-
-        $rawContent = Get-Content $settingsPath -Raw
-
-        # Strip JSONC comments for parsing:
-        #   - Full-line comments: lines whose non-whitespace content starts with //
-        #   - Block comments: /* ... */
-        #   - Trailing commas before } or ] (allowed in JSONC, not in JSON)
-        # NOTE: This strips comments from the in-memory parse copy only.
-        # The file is rewritten from the parsed+updated object (JSONC comments are not preserved).
-        $jsonText = [regex]::Replace($rawContent, '(?m)^\s*//[^\n]*', '')
-        $jsonText = [regex]::Replace($jsonText, '(?s)/\*.*?\*/', '')
-        $jsonText = [regex]::Replace($jsonText, ',(?=\s*[\}\]])', '')
-
-        try {
-            $settings = $jsonText | ConvertFrom-Json
-        }
-        catch {
-            Write-Warning "  Could not parse $($loc.Label) settings.json — skipping: $_"
-            continue
-        }
-
-        # Get or create chat.plugins.paths as a PSCustomObject (VS Code expects an object, not array)
-        $pathsProperty = $settings.PSObject.Properties['chat.plugins.paths']
-        if ($null -ne $pathsProperty -and $pathsProperty.Value -is [PSCustomObject]) {
-            $pathsObj = $pathsProperty.Value
+    $scopeLabel = if ($UseWSL) { 'WSL' } else { 'Windows' }
+    $probeLabel = if ($DiscoveryProbeSucceeded) {
+        if ($DiscoveryDetected) {
+            'copilot plugin list currently shows the plugin'
         }
         else {
-            $pathsObj = [PSCustomObject]@{}
+            'copilot plugin list did not show the plugin after the raw copy'
+        }
+    }
+    else {
+        'copilot plugin list could not be verified in this environment'
+    }
+
+    Write-Warning "$scopeLabel direct-copy publish verified files at '$DestinationPath', but Copilot CLI discovery remains unproven. Local probes have not established that raw _direct copies are equivalent to 'copilot plugin install'; $probeLabel for '$PluginName'."
+}
+
+function Resolve-VSCodePluginRegistrationPath {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$PluginPath,
+            [Parameter(Mandatory)][string]$PluginName
+        )
+
+        $resolvedPath = [System.IO.Path]::GetFullPath($PluginPath)
+
+        if ((Split-Path $resolvedPath -Leaf) -ieq '.build') {
+            $pluginDir = Split-Path $resolvedPath -Parent
+            $runtimeDir = Split-Path $pluginDir -Parent
+            if ((Split-Path $pluginDir -Leaf) -ieq $PluginName -and (Split-Path $runtimeDir -Leaf) -ieq 'vscode') {
+                return (Join-Path (Join-Path $runtimeDir '.build') $PluginName)
+            }
         }
 
-        # Add/update the plugin path entry. Use -InputObject (not pipeline) to safely handle
-        # property names that contain special characters like backslashes and colons.
-        Add-Member -InputObject $pathsObj -NotePropertyName $PluginPath -NotePropertyValue $Enabled -Force
-
-        # Assign back (handles the case where chat.plugins.paths was missing or wrong type)
-        Add-Member -InputObject $settings -NotePropertyName 'chat.plugins.paths' -NotePropertyValue $pathsObj -Force
-
-        # Write back as clean JSON (JSONC comments are not preserved after rewrite)
-        $newContent = $settings | ConvertTo-Json -Depth 20
-        Set-Content -Path $settingsPath -Value $newContent -Encoding UTF8
-
-        Write-Host "  Registered in $($loc.Label): $PluginName" -ForegroundColor Green
-        Write-Host "    Path: $PluginPath" -ForegroundColor DarkGray
-        $updated++
+        return $resolvedPath
     }
+
+    function Update-VSCodePluginSettings {
+        <#
+        .SYNOPSIS
+            Registers a plugin bundle path in VS Code's chat.plugins.paths setting.
+
+        .DESCRIPTION
+            Reads the VS Code user settings.json (for both Stable and Insiders installations),
+            adds or updates the specified plugin path under 'chat.plugins.paths', and writes
+            the result back. JSONC comments in settings.json are stripped during parsing;
+            the file is rewritten as plain JSON.
+
+            Supports: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
+
+        .PARAMETER PluginPath
+            Absolute path to the plugin's .build/ directory to register.
+
+        .PARAMETER PluginName
+            Display name for log messages.
+
+        .PARAMETER Enabled
+            Whether to enable the plugin. Defaults to $true.
+
+        .OUTPUTS
+            [int] Number of VS Code settings files updated (0 if no VS Code installations found).
+        #>
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$PluginPath,
+            [Parameter(Mandatory)][string]$PluginName,
+            [bool]$Enabled = $true
+        )
+
+        $settingsLocations = @(
+            @{ Label = 'VS Code Stable';   Path = "$env:APPDATA\Code\User\settings.json" },
+            @{ Label = 'VS Code Insiders'; Path = "$env:APPDATA\Code - Insiders\User\settings.json" }
+        )
+
+        $canonicalPluginPath = Resolve-VSCodePluginRegistrationPath -PluginPath $PluginPath -PluginName $PluginName
+        $updated = 0
+
+        foreach ($loc in $settingsLocations) {
+            $settingsPath = $loc.Path
+            if (-not (Test-Path $settingsPath)) { continue }
+
+            $rawContent = Get-Content $settingsPath -Raw
+
+            # Strip JSONC comments for parsing:
+            #   - Full-line comments: lines whose non-whitespace content starts with //
+            #   - Block comments: /* ... */
+            #   - Trailing commas before } or ] (allowed in JSONC, not in JSON)
+            # NOTE: This strips comments from the in-memory parse copy only.
+            # The file is rewritten from the parsed+updated object (JSONC comments are not preserved).
+            $jsonText = [regex]::Replace($rawContent, '(?m)^\s*//[^\n]*', '')
+            $jsonText = [regex]::Replace($jsonText, '(?s)/\*.*?\*/', '')
+            $jsonText = [regex]::Replace($jsonText, ',(?=\s*[\}\]])', '')
+
+            try {
+                $settings = $jsonText | ConvertFrom-Json
+            }
+            catch {
+                Write-Warning "  Could not parse $($loc.Label) settings.json — skipping: $_"
+                continue
+            }
+
+            # Get or create chat.plugins.paths as a PSCustomObject (VS Code expects an object, not array)
+            $pathsProperty = $settings.PSObject.Properties['chat.plugins.paths']
+            if ($null -ne $pathsProperty -and $pathsProperty.Value -is [PSCustomObject]) {
+                $pathsObj = $pathsProperty.Value
+            }
+            else {
+                $pathsObj = [PSCustomObject]@{}
+            }
+
+            $stalePathEntries = @()
+            foreach ($property in @($pathsObj.PSObject.Properties)) {
+                $normalizedEntryPath = Resolve-VSCodePluginRegistrationPath -PluginPath $property.Name -PluginName $PluginName
+                if ($normalizedEntryPath -ieq $canonicalPluginPath -and $property.Name -cne $canonicalPluginPath) {
+                    $stalePathEntries += $property.Name
+                }
+            }
+
+            foreach ($stalePath in $stalePathEntries) {
+                $pathsObj.PSObject.Properties.Remove($stalePath)
+            }
+
+            # Add/update the plugin path entry. Use -InputObject (not pipeline) to safely handle
+            # property names that contain special characters like backslashes and colons.
+            Add-Member -InputObject $pathsObj -NotePropertyName $canonicalPluginPath -NotePropertyValue $Enabled -Force
+
+            # Assign back (handles the case where chat.plugins.paths was missing or wrong type)
+            Add-Member -InputObject $settings -NotePropertyName 'chat.plugins.paths' -NotePropertyValue $pathsObj -Force
+
+            # Write back as clean JSON (JSONC comments are not preserved after rewrite)
+            $newContent = $settings | ConvertTo-Json -Depth 20
+            Set-Content -Path $settingsPath -Value $newContent -Encoding UTF8
+
+            Write-Host "  Registered in $($loc.Label): $PluginName" -ForegroundColor Green
+            Write-Host "    Path: $canonicalPluginPath" -ForegroundColor DarkGray
+            $updated++
+        }
 
     return $updated
 }
@@ -252,14 +345,17 @@ function Publish-Plugins {
     <#
     .SYNOPSIS
         Discovers workspace plugins, bundles them, and installs based on each plugin's runtime:
-          - CLI plugins:    installed via 'copilot plugin install' (respects -Environment)
+                    - CLI plugins:    copied directly into Copilot CLI `_direct/<plugin-name>` install roots (respects -Environment)
           - VS Code plugins: registered in VS Code's chat.plugins.paths user setting
 
     .DESCRIPTION
         Scans plugins/cli/ and plugins/vscode/ for plugin directories containing plugin.json,
         creates a self-contained .build/ bundle for each (resolving component paths and copying
         artifacts), then installs by runtime:
-          - cli:    runs 'copilot plugin install' on Windows and/or WSL per -Environment
+                    - cli:    copies the bundle into `~/.copilot/installed-plugins/_direct/<plugin-name>/`
+                                        on Windows and/or WSL per -Environment, verifies the destination payload,
+                                        and warns that Copilot CLI discovery parity with `copilot plugin install`
+                                        is still unproven
           - vscode: calls Update-VSCodePluginSettings to register the .build/ path in
                     chat.plugins.paths for all installed VS Code variants (Stable + Insiders)
 
@@ -271,8 +367,8 @@ function Publish-Plugins {
         Filter by runtime ('cli', 'vscode', 'all'). Defaults to outer-scope $Runtime.
 
     .PARAMETER Force
-        For CLI plugins: uninstall each plugin before reinstalling.
-        For VS Code plugins: overwrites any existing path entry (already idempotent).
+        Retained for backward compatibility. CLI publishing now replaces the target `_direct`
+        directory exactly on every publish, so no uninstall step is needed.
 
     .EXAMPLE
         Publish-Plugins
@@ -284,7 +380,7 @@ function Publish-Plugins {
 
     .EXAMPLE
         Publish-Plugins -Runtime cli -Environment windows -Force
-        Uninstalls and reinstalls all CLI plugins on Windows only.
+        Replaces all CLI plugin payloads under the Windows `_direct` install root.
     #>
     [CmdletBinding()]
     param()
@@ -409,61 +505,44 @@ function Publish-Plugins {
             continue
         }
 
-        # --- CLI: Windows install ---
-        $installPath = New-LocalPluginInstallSource -BuildPath $buildPath -PluginName $pluginName
-
+        # --- CLI: Windows direct-copy install ---
         if ($Environment -eq 'windows' -or $Environment -eq 'all') {
             try {
-                if ($Force) {
-                    Write-Host "  Uninstalling: $pluginName" -ForegroundColor DarkGray
-                    $uninstallOutput = & copilot plugin uninstall $pluginName 2>&1
-                    if ($LASTEXITCODE -ne 0) {
-                        Write-Host "  Uninstall note: $pluginName may not have been installed ($uninstallOutput)" -ForegroundColor DarkGray
-                    }
-                }
+                $windowsInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot (Join-Path $env:USERPROFILE '.copilot\installed-plugins') -PluginName $pluginName
 
-                Write-Host "  Installing: $pluginName" -ForegroundColor DarkGray
-                & copilot plugin install $installPath
-                if ($LASTEXITCODE -eq 0) {
-                    Sync-CopilotPluginInstallMirror -InstalledPluginsRoot (Join-Path $env:USERPROFILE '.copilot\installed-plugins') -PluginName $pluginName
-                    Write-Host "  Installed: $pluginName" -ForegroundColor Green
+                if ($windowsInstall.CopySucceeded -and $windowsInstall.DestinationVerified) {
+                    Write-Host "  Copied to: $($windowsInstall.DestinationPath)" -ForegroundColor Green
+                    Write-CopilotDiscoveryRiskWarning -PluginName $pluginName -DestinationPath $windowsInstall.DestinationPath -DiscoveryProbeSucceeded $windowsInstall.DiscoveryProbeSucceeded -DiscoveryDetected $windowsInstall.DiscoveryDetected
                     $installed++
                 }
                 else {
-                    Write-Error "  Failed to install: $pluginName (exit code $LASTEXITCODE)"
+                    Write-Error "  Failed to publish direct-copy payload for $pluginName to $($windowsInstall.DestinationPath)"
                     $errors++
                 }
             }
             catch {
-                Write-Error "  Failed to install $pluginName : $_"
+                Write-Error "  Failed to publish $pluginName to the Windows direct-install root: $_"
                 $errors++
             }
         }
 
-        # --- CLI: WSL install ---
+        # --- CLI: WSL direct-copy install ---
         if ($wslAvailable -and ($Environment -eq 'wsl' -or $Environment -eq 'all')) {
-            $wslPluginPath = Convert-ToWSLPath -Path $installPath
             try {
-                if ($Force) {
-                    Write-Host "  WSL uninstalling: $pluginName" -ForegroundColor DarkGray
-                    Invoke-WSLCommand -Command "copilot plugin uninstall '$pluginName'" -InitializeNode -SuppressStderr | Out-Null
-                }
+                $wslInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot "$wslHome/.copilot/installed-plugins" -PluginName $pluginName -UseWSL
 
-                Write-Host "  WSL installing: $pluginName" -ForegroundColor DarkGray
-                Invoke-WSLCommand -Command "copilot plugin install '$wslPluginPath'" -InitializeNode | Out-Null
-
-                if ($LASTEXITCODE -eq 0) {
-                    Sync-CopilotPluginInstallMirror -InstalledPluginsRoot "$wslHome/.copilot/installed-plugins" -PluginName $pluginName -UseWSL
-                    Write-Host "  WSL installed: $pluginName" -ForegroundColor Green
+                if ($wslInstall.CopySucceeded -and $wslInstall.DestinationVerified) {
+                    Write-Host "  WSL copied to: $($wslInstall.DestinationPath)" -ForegroundColor Green
+                    Write-CopilotDiscoveryRiskWarning -PluginName $pluginName -DestinationPath $wslInstall.DestinationPath -DiscoveryProbeSucceeded $wslInstall.DiscoveryProbeSucceeded -DiscoveryDetected $wslInstall.DiscoveryDetected -UseWSL
                     $installed++
                 }
                 else {
-                    Write-Error "  WSL failed to install: $pluginName (exit code $LASTEXITCODE)"
+                    Write-Error "  WSL failed to publish direct-copy payload for $pluginName to $($wslInstall.DestinationPath)"
                     $errors++
                 }
             }
             catch {
-                Write-Error "  WSL failed to install $pluginName : $_"
+                Write-Error "  WSL failed to publish $pluginName to the direct-install root: $_"
                 $errors++
             }
         }

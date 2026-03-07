@@ -280,3 +280,33 @@ function Remove-FromWSL {
         return $false
     }
 }
+
+function Test-WSLPathExists {
+    <#
+    .SYNOPSIS
+        Tests whether a file or directory exists in WSL.
+
+    .DESCRIPTION
+        Uses `test -e` inside WSL and returns `$true` when the target path exists.
+
+    .PARAMETER Path
+        The WSL path to probe.
+
+    .OUTPUTS
+        [bool] `$true` if the path exists, otherwise `$false`.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    try {
+        Invoke-WSLCommand -Command "test -e '$Path'" -SuppressStderr | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    }
+    catch {
+        return $false
+    }
+}
