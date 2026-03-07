@@ -2,7 +2,7 @@
 
 A feedback-driven, multi-agent system with isolated task files, structured iteration loops, live signal injection, and session-scope knowledge management. v1 agents are archived in `agents/archived/ralph*.agent.md` — do not reference them for new development.
 
-**Current version: v2.12.0**
+**Current version: v2.13.0**
 
 ## Table of Contents
 
@@ -25,28 +25,27 @@ agents/
 └── ralph-v2/
     ├── README.md
     ├── instructions/
-    │   ├── ralph-v2-orchestrator.instructions.md          # Orchestrator core (28K body; near 30K CLI limit)
-    │   ├── ralph-v2-orchestrator-appendix.instructions.md # Orchestrator overflow (VS Code only; see note below)
+    │   ├── ralph-v2-orchestrator.instructions.md          # Orchestrator core (control-plane logic stays inline)
     │   ├── ralph-v2-planner.instructions.md
     │   ├── ralph-v2-questioner.instructions.md
     │   ├── ralph-v2-executor.instructions.md
     │   ├── ralph-v2-reviewer.instructions.md              # Compressed to ~26K body (fits CLI 30K limit)
     │   └── ralph-v2-librarian.instructions.md             # Compressed to ~27K body (fits CLI 30K limit)
     ├── vscode/
-    │   ├── ralph-v2-orchestrator.agent.md
-    │   ├── ralph-v2-executor.agent.md
-    │   ├── ralph-v2-planner.agent.md
-    │   ├── ralph-v2-questioner.agent.md
-    │   ├── ralph-v2-reviewer.agent.md
-    │   └── ralph-v2-librarian.agent.md
+    │   ├── ralph-v2-orchestrator-VSCode.agent.md
+    │   ├── ralph-v2-executor-VSCode.agent.md
+    │   ├── ralph-v2-planner-VSCode.agent.md
+    │   ├── ralph-v2-questioner-VSCode.agent.md
+    │   ├── ralph-v2-reviewer-VSCode.agent.md
+    │   └── ralph-v2-librarian-VSCode.agent.md
     └── cli/
         ├── .plugin-managed                                # Marker: agents here are published via plugin only
-        ├── ralph-v2-orchestrator.agent.md
-        ├── ralph-v2-executor.agent.md
-        ├── ralph-v2-planner.agent.md
-        ├── ralph-v2-questioner.agent.md
-        ├── ralph-v2-reviewer.agent.md
-        └── ralph-v2-librarian.agent.md
+        ├── ralph-v2-orchestrator-CLI.agent.md
+        ├── ralph-v2-executor-CLI.agent.md
+        ├── ralph-v2-planner-CLI.agent.md
+        ├── ralph-v2-questioner-CLI.agent.md
+        ├── ralph-v2-reviewer-CLI.agent.md
+        └── ralph-v2-librarian-CLI.agent.md
 ```
 
 > **Note**: `specs/`, `docs/`, and shared files remain at the `ralph-v2/` root. (specs/ and docs/ are deprecated now)
@@ -68,28 +67,39 @@ agents/ralph-v2/
 
 ### Instruction Files
 
-All subagents load their behaviour from shared `instructions/` files. The GitHub Copilot CLI enforces a **30,000-character maximum on the Markdown body** (YAML frontmatter is excluded). All instruction files are now consolidated — there are no separate CLI-trimmed variants. Reviewer and Librarian instructions are compressed to fit within 30K.
+All subagents load their behaviour from shared `instructions/` files. The GitHub Copilot CLI enforces a **30,000-character maximum on the Markdown body** (YAML frontmatter is excluded). Ralph-v2 now follows a harness-engineering split: control-plane logic stays inline in the agent instructions, while bulky protocol and template references move into Ralph-specific skills that the agents load on demand.
 
 | File | Purpose | Body (approx) |
 |------|---------|---------------|
-| `ralph-v2-orchestrator.instructions.md` | Orchestrator core — state machine, subagent routing, signal protocol | ~28K |
-| `ralph-v2-orchestrator-appendix.instructions.md` | **Orchestrator overflow** — additional sections for VS Code only. Applied via `applyTo: ".ralph-sessions/**"`. Not embedded in the CLI plugin. | ~4K |
+| `ralph-v2-orchestrator.instructions.md` | Orchestrator core — state machine, subagent routing, critique loop, knowledge extraction routing | ~28K |
 | `ralph-v2-planner.instructions.md` | Planner modes: INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | ~28K |
 | `ralph-v2-questioner.instructions.md` | Questioner modes: brainstorm, research, feedback-analysis | ~16K |
 | `ralph-v2-executor.instructions.md` | Executor — task implementation, signal polling, report structure | ~12K |
 | `ralph-v2-reviewer.instructions.md` | Reviewer modes: TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL | ~26K |
 | `ralph-v2-librarian.instructions.md` | Librarian modes: EXTRACT, STAGE, PROMOTE, COMMIT | ~27K |
 
-> **Orchestrator-appendix**: The orchestrator uses an appendix file for VS Code overflow because its full content (~46K combined) far exceeds the 30K limit, making it ineligible for CLI plugin embedding. The appendix is VS Code-only.
-
 > **No CLI-trimmed variants**: Previously `ralph-v2-reviewer.cli-embed.instructions.md` and `ralph-v2-librarian.cli-embed.instructions.md` existed as trimmed CLI variants. These are now eliminated — all agents embed from the consolidated instruction files, which have been compressed to fit within the 30K CLI body limit.
+
+### Ralph-Coupled Skills
+
+These skills are bundled in the Ralph-v2 plugins and loaded on demand by the agents:
+
+| Skill | Primary Consumers | Purpose |
+|------|-------------------|---------|
+| `ralph-session-ops-reference` | Orchestrator, Planner, Reviewer, Executor | Schema validation, timeout recovery, timestamp commands |
+| `ralph-signal-mailbox-protocol` | All Ralph-v2 agents | Live signal mailbox protocol, ack quorum, routing |
+| `ralph-feedback-batch-protocol` | Orchestrator, Questioner | Post-iteration feedback batch handling |
+| `ralph-planning-artifact-templates` | Planner | Canonical plan/progress/metadata/task templates |
+| `ralph-knowledge-merge-and-promotion` | Librarian | Knowledge extraction, staging, merge, promotion rules |
+
+These Ralph-coupled skills intentionally remain in the root `skills/` factory instead of `agents/ralph-v2/skills`. The root location preserves the workspace-wide skill convention and publish tooling, while the Ralph-v2 plugin manifests define the actual ownership boundary by bundling only the skills that belong to the Ralph workflow.
 
 ### Plugin Distribution
 
 Ralph-v2 CLI agents are distributed **exclusively via the ralph-v2 CLI plugin**. Do not use `publish-agents.ps1` for CLI agents in this folder (the `.plugin-managed` marker enforces this).
 
 Plugin location: `plugins/cli/ralph-v2/plugin.json`
-Install location (after install): `~/.copilot/state/installed-plugins/ralph-v2`
+Install location (after install): expected direct install at `~/.copilot/installed-plugins/_direct/ralph-v2`, with a mirrored convenience copy at `~/.copilot/installed-plugins/local/ralph-v2`. Older direct installs that still materialize as `~/.copilot/installed-plugins/_direct/.build` are mirrored to the same `local/ralph-v2` target as a compatibility fallback.
 
 To publish:
 ```powershell
@@ -100,10 +110,12 @@ pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
 pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type plugin -Name ralph-v2
 ```
 
-For VS Code agents, use:
+For VS Code, prefer the plugin publisher so the Ralph-coupled skills are bundled together:
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform vscode
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime vscode -Plugins ralph-v2
 ```
+
+Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should only be used if the required skills have already been published separately.
 
 ### Agent Reference
 
@@ -281,9 +293,12 @@ All subagents discover and load skills at runtime via 4-step reasoning:
 
 | Agent | Primary Skill Affinities |
 |-------|--------------------------|
-| Reviewer | `git-atomic-commit` |
-| Librarian | `diataxis` |
-| Others | Task-specific (varies) |
+| Orchestrator | `ralph-session-ops-reference`, `ralph-signal-mailbox-protocol`, `ralph-feedback-batch-protocol` |
+| Planner | `ralph-planning-artifact-templates`, `ralph-session-ops-reference`, `ralph-signal-mailbox-protocol` |
+| Questioner | `ralph-signal-mailbox-protocol`, `ralph-feedback-batch-protocol`, `ralph-session-ops-reference` |
+| Executor | `ralph-signal-mailbox-protocol`, `ralph-session-ops-reference` |
+| Reviewer | `git-atomic-commit`, `ralph-signal-mailbox-protocol`, `ralph-session-ops-reference` |
+| Librarian | `ralph-knowledge-merge-and-promotion`, `diataxis`, `diataxis-categorizer`, `git-atomic-commit` |
 
 ### Operational Guardrails
 
