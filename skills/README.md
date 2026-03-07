@@ -1,6 +1,6 @@
 # Agent Skills Factory
 
-This repository serves as a factory for creating and publishing agent skills to personal skills folders for reuse across Copilot
+This repository serves as a factory for creating and publishing agent skills to personal skills folders for reuse across Copilot. Agent Skilss are standardized across coding agents (Claude, Codex, Copilot) so skills published from this factory are also applicable to Codex and Claude.
 
 **Note**: This workspace also provides automated publishing for **Agents**, **Instructions**, and **Prompts** via separate scripts. See the workspace's README.md for complete documentation.
 
