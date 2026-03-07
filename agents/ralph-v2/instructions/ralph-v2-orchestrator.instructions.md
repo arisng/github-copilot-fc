@@ -108,47 +108,47 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │ Return to BATCHING
        ▼
 ┌─────────────┐
-│ SESSION_    │ ─── Final verdict for iteration
-│   REVIEW    │
-└──────┬──────┘
-       │ Invoke Ralph-v2-Reviewer (MODE: SESSION_REVIEW)
-       │ → Generates iterations/<N>/review.md
-       │ → Returns issues_found counts
-       │
-       ├─── active_issue_count > 0 AND cycle < max_critique_cycles ──────────────┐
-       │                                                                          ▼
-       │                                                              ┌──────────────────────┐
-       │                                                              │ SESSION_CRITIQUE_     │
-       │                                                              │   REPLAN              │
-       │                                                              └──────────┬───────────┘
-       │                                                                         │ plan-critique-triage  → Ralph-v2-Planner (CRITIQUE_TRIAGE)
-       │                                                                         │ plan-critique-brainstorm (opt) → Questioner (brainstorm, SOURCE: critique)
-       │                                                                         │ plan-critique-research (opt)   → Questioner (research, critique-<C>)
-       │                                                                         │ plan-critique-breakdown → Ralph-v2-Planner (CRITIQUE_BREAKDOWN)
-       │                                                                         │ All critique tasks [x]
-       │                                                                         ▼
-       │                                                              ┌──────────────────────┐
-       │                                                              │      BATCHING         │
-       │                                                              └──────────┬───────────┘
-       │                                                                         │
-       │         ┌─────────────────────────────────────────────────────────────┘
-       │         │ (loop back to SESSION_REVIEW for next critique cycle)
-       │
-       ├─── active_issue_count == 0  OR  cycle >= max_critique_cycles
-       │
-       ▼
-┌─────────────┐
 │ KNOWLEDGE_  │ ─── Extract, stage, and promote knowledge (conditional)
 │ EXTRACTION  │     Auto-sequences: EXTRACT → STAGE → PROMOTE
 └──────┬──────┘
-       │ IF 'Ralph-v2-Librarian' NOT in agents list → skip to COMPLETE
+    │ IF 'Ralph-v2-Librarian' NOT in agents list → skip pipeline and continue to SESSION_REVIEW
        │ Invoke Ralph-v2-Librarian (MODE: EXTRACT)
-       │ IF 0 items extracted → skip to COMPLETE
+    │ IF 0 items extracted → skip remaining stages and continue to SESSION_REVIEW
        │ Invoke Ralph-v2-Librarian (MODE: STAGE)
        │ Invoke Ralph-v2-Librarian (MODE: PROMOTE)
        │ → PROMOTE auto-promotes by default, checks for skip-promotion INFO signal opt-out
-       │ outcome: "promoted" → COMPLETE
-       │ outcome: "skipped" (skip-promotion INFO signal) → COMPLETE (staged kept)
+    │ outcome: "promoted" → SESSION_REVIEW
+    │ outcome: "skipped" (skip-promotion INFO signal) → SESSION_REVIEW (staged kept)
+    ▼
+┌─────────────┐
+│ SESSION_    │ ─── Final verdict for iteration after knowledge pipeline
+│   REVIEW    │
+└──────┬──────┘
+    │ Invoke Ralph-v2-Reviewer (MODE: SESSION_REVIEW)
+    │ → Generates iterations/<N>/review.md
+    │ → Returns issues_found counts from the post-knowledge iteration state
+    │
+    ├─── active_issue_count > 0 AND cycle < max_critique_cycles ──────────────┐
+    │                                                                          ▼
+    │                                                              ┌──────────────────────┐
+    │                                                              │ SESSION_CRITIQUE_     │
+    │                                                              │   REPLAN              │
+    │                                                              └──────────┬───────────┘
+    │                                                                         │ plan-critique-triage  → Ralph-v2-Planner (CRITIQUE_TRIAGE)
+    │                                                                         │ plan-critique-brainstorm (opt) → Questioner (brainstorm, SOURCE: critique)
+    │                                                                         │ plan-critique-research (opt)   → Questioner (research, critique-<C>)
+    │                                                                         │ plan-critique-breakdown → Ralph-v2-Planner (CRITIQUE_BREAKDOWN)
+    │                                                                         │ All critique tasks [x]
+    │                                                                         ▼
+    │                                                              ┌──────────────────────┐
+    │                                                              │      BATCHING         │
+    │                                                              └──────────┬───────────┘
+    │                                                                         │
+    │         ┌─────────────────────────────────────────────────────────────┘
+    │         │ (loop back to KNOWLEDGE_EXTRACTION, then SESSION_REVIEW, for the next critique cycle)
+    │
+    ├─── active_issue_count == 0  OR  cycle >= max_critique_cycles
+    │
        ▼
 ┌─────────────┐
 │  COMPLETE   │ ─── All tasks [x] or [F]
@@ -331,8 +331,8 @@ READ iterations/<ITERATION>/progress.md
 IDENTIFY tasks with status [ ] or [F] under "Implementation Progress"
 
 IF no such tasks remain:
-    UPDATE metadata.yaml: state: SESSION_REVIEW
-    STATE = SESSION_REVIEW
+    UPDATE metadata.yaml: state: KNOWLEDGE_EXTRACTION
+    STATE = KNOWLEDGE_EXTRACTION
 ELSE:
     READ wave field from iterations/<ITERATION>/tasks/<task-id>.md for each pending task
     CURRENT_WAVE = lowest wave number with at least one task in [ ] or [F]
@@ -431,7 +431,29 @@ UPDATE metadata.yaml: state: BATCHING
 STATE = BATCHING
 ```
 
-### 8. State: SESSION_REVIEW
+### 8. State: KNOWLEDGE_EXTRACTION
+
+```
+IF 'Ralph-v2-Librarian' NOT in agents list:
+    UPDATE metadata.yaml with state: SESSION_REVIEW
+    STATE = SESSION_REVIEW
+
+INVOKE Ralph-v2-Librarian (MODE: EXTRACT)
+IF Librarian returns 0 items extracted:
+    UPDATE metadata.yaml with state: SESSION_REVIEW
+    STATE = SESSION_REVIEW
+
+INVOKE Ralph-v2-Librarian (MODE: STAGE)
+INVOKE Ralph-v2-Librarian (MODE: PROMOTE)
+
+IF outcome == "promoted" OR outcome == "skipped":
+    UPDATE metadata.yaml with state: SESSION_REVIEW
+    STATE = SESSION_REVIEW
+ELSE IF outcome == "blocked":
+    EXIT with error "Knowledge promotion blocked — manual intervention required"
+```
+
+### 8.5. State: SESSION_REVIEW
 
 ```
 RUN Poll-Signals
@@ -457,21 +479,21 @@ COMPUTE ACTIVE_ISSUE_COUNT using session_review.issue_severity_threshold:
 IF ACTIVE_ISSUE_COUNT == 0:
     UPDATE iterations/<ITERATION>/metadata.yaml: completed_at: <timestamp>
     INVOKE Ralph-v2-Planner (MODE: UPDATE_METADATA, STATUS: "completed")
-    UPDATE metadata.yaml: state: KNOWLEDGE_EXTRACTION, session_review.cycle: 0
-    STATE = KNOWLEDGE_EXTRACTION
+    UPDATE metadata.yaml: state: COMPLETE, session_review.cycle: 0
+    STATE = COMPLETE
 
 ELSE IF session_review.max_critique_cycles is not null AND C >= session_review.max_critique_cycles:
     UPDATE iterations/<ITERATION>/metadata.yaml: completed_at: <timestamp>
     INVOKE Ralph-v2-Planner (MODE: UPDATE_METADATA, STATUS: "awaiting_feedback")
-    UPDATE metadata.yaml: state: KNOWLEDGE_EXTRACTION, session_review.cycle: 0
-    STATE = KNOWLEDGE_EXTRACTION
+    UPDATE metadata.yaml: state: COMPLETE, session_review.cycle: 0
+    STATE = COMPLETE
 
 ELSE:
     UPDATE metadata.yaml: state: SESSION_CRITIQUE_REPLAN, session_review.cycle: C + 1
     STATE = SESSION_CRITIQUE_REPLAN
 ```
 
-### 8.5. State: SESSION_CRITIQUE_REPLAN
+### 8.75. State: SESSION_CRITIQUE_REPLAN
 
 ```
 RUN Poll-Signals
@@ -495,29 +517,7 @@ ELSE:
     STATE = BATCHING
 ```
 
-### 9. State: KNOWLEDGE_EXTRACTION
-
-```
-IF 'Ralph-v2-Librarian' NOT in agents list:
-    UPDATE metadata.yaml with state: COMPLETE
-    STATE = COMPLETE
-
-INVOKE Ralph-v2-Librarian (MODE: EXTRACT)
-IF Librarian returns 0 items extracted:
-    UPDATE metadata.yaml with state: COMPLETE
-    STATE = COMPLETE
-
-INVOKE Ralph-v2-Librarian (MODE: STAGE)
-INVOKE Ralph-v2-Librarian (MODE: PROMOTE)
-
-IF outcome == "promoted" OR outcome == "skipped":
-    UPDATE metadata.yaml with state: COMPLETE
-    STATE = COMPLETE
-ELSE IF outcome == "blocked":
-    EXIT with error "Knowledge promotion blocked — manual intervention required"
-```
-
-### 10. State: COMPLETE
+### 9. State: COMPLETE
 
 ```
 # Finalize remaining broadcast signals before exit
