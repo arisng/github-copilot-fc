@@ -3,9 +3,14 @@
     Publishes custom agents to VS Code, VS Code Insiders, and personal .copilot folders.
 
 .DESCRIPTION
-    Copies agent files from the project's agents/ folder to VS Code's and VS Code Insiders'
-    user prompts directories, and to personal .copilot/agents folder for global availability
-    across all workspaces, devices, and GitHub Copilot CLI.
+    Copies agent files from the project's agents/ folder to the personal .copilot/agents
+    folder for global availability across workspaces, devices, and GitHub Copilot CLI.
+    This path is discovered by both GitHub Copilot CLI and VS Code (which also reads agents
+    from ~/.copilot/agents/).
+
+    All agents — regardless of whether they target 'cli' or 'vscode' — are published to
+    ~/.copilot/agents/ only. The VS Code prompts directory (Code\User\prompts) is no longer
+    used; VS Code discovers custom agents from ~/.copilot/agents/ in user scope.
 
     Supports platform-aware publishing via the -Platform parameter:
     - vscode: publishes VS Code variant agents (agents/*/vscode/) and root-level agents to VS Code prompts dirs
@@ -103,9 +108,18 @@ function Get-AgentFiles {
 
     if ($publishVSCode) {
         # VS Code variant agents: agents/*/vscode/*.agent.md
+        # Skip directories marked as plugin-managed (.plugin-managed marker file present)
         $vscodeVariantDirs = Get-ChildItem -Path $ProjectAgentsPath -Directory | ForEach-Object {
             $vscodeDir = Join-Path $_.FullName 'vscode'
-            if (Test-Path $vscodeDir) { $vscodeDir }
+            if (Test-Path $vscodeDir) {
+                $markerFile = Join-Path $vscodeDir '.plugin-managed'
+                if (Test-Path $markerFile) {
+                    Write-Host "  SKIP (plugin-managed): $($_.Name)/vscode — use publish-plugins.ps1 instead" -ForegroundColor Yellow
+                }
+                else {
+                    $vscodeDir
+                }
+            }
         }
         foreach ($dir in $vscodeVariantDirs) {
             Get-ChildItem -Path $dir -Filter '*.agent.md' | ForEach-Object {
@@ -129,9 +143,18 @@ function Get-AgentFiles {
 
     if ($publishCLI) {
         # CLI variant agents: agents/*/cli/*.agent.md
+        # Skip directories marked as plugin-managed (.plugin-managed marker file present)
         $cliVariantDirs = Get-ChildItem -Path $ProjectAgentsPath -Directory | ForEach-Object {
             $cliDir = Join-Path $_.FullName 'cli'
-            if (Test-Path $cliDir) { $cliDir }
+            if (Test-Path $cliDir) {
+                $markerFile = Join-Path $cliDir '.plugin-managed'
+                if (Test-Path $markerFile) {
+                    Write-Host "  SKIP (plugin-managed): $($_.Name)/cli — use publish-plugins.ps1 instead" -ForegroundColor Yellow
+                }
+                else {
+                    $cliDir
+                }
+            }
         }
         foreach ($dir in $cliVariantDirs) {
             Get-ChildItem -Path $dir -Filter '*.agent.md' | ForEach-Object {
@@ -157,14 +180,9 @@ function Publish-AgentsToVSCode {
 
     $projectAgentsPath = Join-Path $PSScriptRoot "..\..\agents"
 
-    # VS Code destinations
-    $vscodePromptsPaths = @(
-        (Join-Path $env:APPDATA "Code\User\prompts"),
-        (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
-    )
-
-    # CLI destinations
-    $cliAgentsPaths = @(
+    # All agents (both vscode and cli platform) publish to ~/.copilot/agents/
+    # VS Code discovers custom agents from this location in user scope.
+    $copilotAgentsPaths = @(
         (Join-Path $env:USERPROFILE ".copilot\agents")
     )
 
@@ -187,20 +205,19 @@ function Publish-AgentsToVSCode {
         throw "Project agents directory not found: $projectAgentsPath"
     }
 
-    # Create destination directories
     if ($publishVSCode) {
-        foreach ($path in $vscodePromptsPaths) {
+        foreach ($path in $copilotAgentsPaths) {
             if (-not (Test-Path $path)) {
                 New-Item -ItemType Directory -Path $path -Force | Out-Null
-                Write-Host "Created VS Code prompts directory: $path" -ForegroundColor Green
+                Write-Host "Created .copilot/agents directory: $path" -ForegroundColor Green
             }
         }
     }
     if ($publishCLI) {
-        foreach ($path in $cliAgentsPaths) {
+        foreach ($path in $copilotAgentsPaths) {
             if (-not (Test-Path $path)) {
                 New-Item -ItemType Directory -Path $path -Force | Out-Null
-                Write-Host "Created CLI agents directory: $path" -ForegroundColor Green
+                Write-Host "Created .copilot/agents directory: $path" -ForegroundColor Green
             }
         }
     }
@@ -252,38 +269,24 @@ function Publish-AgentsToVSCode {
         $agentPlatform = $agentEntry.Platform
 
         # Determine destinations based on agent's platform
-        $targetPaths = @()
-        if ($agentPlatform -eq 'vscode') {
-            $targetPaths = $vscodePromptsPaths
-        }
-        elseif ($agentPlatform -eq 'cli') {
-            $targetPaths = $cliAgentsPaths
-        }
+        # Both vscode and cli platform agents go to ~/.copilot/agents/
+        $targetPaths = $copilotAgentsPaths
 
         foreach ($path in $targetPaths) {
             $destinationPath = Join-Path $path $destFileName
             $exists = Test-Path $destinationPath
 
             if ($exists -and -not $Force) {
-                $location = if ($path -like "*Insiders*") { "VS Code Insiders" }
-                            elseif ($path -like "*Code\User*") { "VS Code Stable" }
-                            elseif ($path -like "*.copilot*") { ".copilot/agents" }
-                            else { $path }
-
-                $overwrite = Read-Host "Agent '$($destFileName -replace '\.agent\.md$')' already exists in $location. Overwrite? (y/N)"
+                $overwrite = Read-Host "Agent '$($destFileName -replace '\.agent\.md$')' already exists in .copilot/agents. Overwrite? (y/N)"
                 if ($overwrite -notmatch "^[Yy]") {
-                    Write-Host "Skipping $($destFileName -replace '\.agent\.md$') for $location" -ForegroundColor Yellow
+                    Write-Host "Skipping $($destFileName -replace '\.agent\.md$') for .copilot/agents" -ForegroundColor Yellow
                     continue
                 }
             }
 
             try {
                 Copy-Item -Path $sourcePath -Destination $destinationPath -Force
-                $location = if ($path -like "*Insiders*") { "VS Code Insiders" }
-                            elseif ($path -like "*Code\User*") { "VS Code Stable" }
-                            elseif ($path -like "*.copilot*") { ".copilot/agents" }
-                            else { $path }
-                Write-Host "Published: $($destFileName -replace '\.agent\.md$') [$agentPlatform] to $location" -ForegroundColor Green
+                Write-Host "Published: $($destFileName -replace '\.agent\.md$') [$agentPlatform] to .copilot/agents" -ForegroundColor Green
                 $successCount++
             }
             catch {
@@ -294,41 +297,23 @@ function Publish-AgentsToVSCode {
 
         # Publish to WSL
         if ($wslAvailable) {
-            # Determine WSL target folders based on agent platform
-            $wslFolders = @()
-            if ($agentPlatform -eq 'vscode') {
-                # WSL VS Code prompts directories
-                $wslFolders = @(
-                    ".vscode-server/data/User/globalStorage/github.copilot/prompts",
-                    ".vscode-server/data/User/globalStorage/github.copilot-insiders/prompts"
-                )
-            }
-            elseif ($agentPlatform -eq 'cli') {
-                $wslFolders = @(".copilot/agents")
-            }
+            # WSL: both vscode and cli platform agents go to .copilot/agents
+            $wslFolders = @(".copilot/agents")
 
             foreach ($wslFolder in $wslFolders) {
                 $wslTargetPath = "$wslHome/$wslFolder/$destFileName"
-                $wslParentPath = "$wslHome/$wslFolder"
 
                 try {
-                    $existsInWsl = wsl bash -c "test -f '$wslTargetPath' && echo 'exists' || echo 'notfound'" 2>$null
+                    $existsInWsl = Invoke-WSLCommand -Command "test -f '$wslTargetPath' && echo 'exists' || echo 'notfound'" -SuppressStderr
 
                     if ($existsInWsl -eq 'exists' -and -not $Force) {
                         Write-Host "Skipping $($destFileName -replace '\.agent\.md$') for WSL/$wslFolder (already exists). Use -Force to overwrite." -ForegroundColor Yellow
                         continue
                     }
 
-                    wsl bash -c "mkdir -p '$wslParentPath'" 2>$null
+                    $copiedToWsl = Copy-ToWSL -Source $sourcePath -Destination $wslTargetPath
 
-                    if ($existsInWsl -eq 'exists') {
-                        wsl bash -c "rm -f '$wslTargetPath'" 2>$null
-                    }
-
-                    $windowsSourcePath = Convert-ToWSLPath -WindowsPath $sourcePath
-                    wsl bash -c "cp '$windowsSourcePath' '$wslTargetPath'"
-
-                    if ($LASTEXITCODE -eq 0) {
+                    if ($copiedToWsl) {
                         Write-Host "Copied: $($destFileName -replace '\.agent\.md$') [$agentPlatform] to WSL/$wslFolder" -ForegroundColor Green
                         $successCount++
                     }

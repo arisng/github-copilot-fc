@@ -13,6 +13,77 @@
     publish-agents.ps1 to prevent copy-paste drift.
 #>
 
+function Invoke-WSLCommand {
+    <#
+    .SYNOPSIS
+        Runs a command inside WSL Bash.
+
+    .DESCRIPTION
+        Executes the provided command using 'wsl bash -lc'. When
+        -InitializeNode is set, the command bootstraps nvm explicitly
+        before execution so tools like GitHub Copilot CLI resolve the
+        expected Node.js version without depending on interactive shell
+        startup files.
+
+    .PARAMETER Command
+        The Bash command text to execute.
+
+    .PARAMETER InitializeNode
+        Loads nvm from '$HOME/.nvm/nvm.sh' and activates the default
+        alias when available before running the command.
+
+    .PARAMETER SuppressStderr
+        Redirects stderr to $null when set.
+
+    .OUTPUTS
+        Returns any stdout emitted by the WSL command.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Command,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$InitializeNode,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$SuppressStderr
+    )
+
+    $bootstrapLines = @()
+    if ($InitializeNode) {
+        $bootstrapLines += 'export NVM_DIR="$HOME/.nvm"'
+        $bootstrapLines += 'if [ -s "$NVM_DIR/nvm.sh" ]; then'
+        $bootstrapLines += '  . "$NVM_DIR/nvm.sh"'
+        $bootstrapLines += '  nvmDefault="$(nvm version default 2>/dev/null)"'
+        $bootstrapLines += '  if [ -n "$nvmDefault" ] && [ "$nvmDefault" != "N/A" ]; then'
+        $bootstrapLines += '    nvm use --silent default >/dev/null 2>&1 || true'
+        $bootstrapLines += '  fi'
+        $bootstrapLines += 'fi'
+    }
+
+    $scriptPath = Join-Path ([System.IO.Path]::GetTempPath()) ("copilot-wsl-" + [System.Guid]::NewGuid().ToString('N') + ".sh")
+    $scriptLines = @('#!/usr/bin/env bash') + $bootstrapLines + $Command
+
+    try {
+        $scriptContent = ($scriptLines -join "`n") + "`n"
+        $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+        [System.IO.File]::WriteAllText($scriptPath, $scriptContent, $utf8NoBom)
+
+        $wslScriptPath = Convert-ToWSLPath -Path $scriptPath
+        if ($SuppressStderr) {
+            return & wsl bash $wslScriptPath 2>$null
+        }
+
+        return & wsl bash $wslScriptPath
+    }
+    finally {
+        if (Test-Path $scriptPath) {
+            Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Test-WSLAvailable {
     <#
     .SYNOPSIS
@@ -43,10 +114,10 @@ function Test-WSLAvailable {
     )
 
     try {
-        $home = wsl bash -c 'echo $HOME' 2>$null
-        if ($home -and $LASTEXITCODE -eq 0) {
+        $wslOutput = Invoke-WSLCommand -Command 'echo $HOME' -SuppressStderr
+        if ($wslOutput -and $LASTEXITCODE -eq 0) {
             if ($WslHome) {
-                $WslHome.Value = $home
+                $WslHome.Value = $wslOutput
             }
             return $true
         }
@@ -136,19 +207,19 @@ function Copy-ToWSL {
 
     try {
         # Create parent directory if needed
-        wsl bash -c "mkdir -p '$parentDir'" 2>$null
+        Invoke-WSLCommand -Command "mkdir -p '$parentDir'" -SuppressStderr | Out-Null
 
         # Check if target already exists
-        $exists = wsl bash -c "test $testFlag '$Destination' && echo 'exists' || echo 'notfound'" 2>$null
+        $exists = Invoke-WSLCommand -Command "test $testFlag '$Destination' && echo 'exists' || echo 'notfound'" -SuppressStderr
 
         # Remove existing target if present
         if ($exists -eq 'exists') {
             $rmFlag = if ($Recurse) { "-rf" } else { "-f" }
-            wsl bash -c "rm $rmFlag '$Destination'" 2>$null
+            Invoke-WSLCommand -Command "rm $rmFlag '$Destination'" -SuppressStderr | Out-Null
         }
 
         # Copy source to destination
-        wsl bash -c "cp $cpFlag '$wslSource' '$Destination'"
+        Invoke-WSLCommand -Command "cp $cpFlag '$wslSource' '$Destination'" | Out-Null
 
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "Copy to WSL failed for '$Destination' (cp exited with code $LASTEXITCODE)"
@@ -196,7 +267,7 @@ function Remove-FromWSL {
     $rmFlag = if ($Recurse) { "-rf" } else { "-f" }
 
     try {
-        wsl bash -c "rm $rmFlag '$Path'" 2>$null
+        Invoke-WSLCommand -Command "rm $rmFlag '$Path'" -SuppressStderr | Out-Null
 
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "Remove from WSL failed for '$Path' (rm exited with code $LASTEXITCODE)"

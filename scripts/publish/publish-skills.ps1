@@ -18,6 +18,8 @@ param(
     [switch]$SkipWSL
 )
 
+. "$PSScriptRoot/wsl-helpers.ps1"
+
 function Publish-SkillsToPersonal {
     <#
     .SYNOPSIS
@@ -70,25 +72,21 @@ function Publish-SkillsToPersonal {
 
     $projectSkillsPath = Join-Path $PSScriptRoot "..\..\skills"
     $personalSkillsPaths = @(
-        (Join-Path $env:USERPROFILE ".claude\skills"),
         (Join-Path $env:USERPROFILE ".codex\skills"),
         (Join-Path $env:USERPROFILE ".copilot\skills")
     )
 
     # WSL target paths (relative to WSL home directory)
-    $wslSkillFolders = @(".claude/skills", ".codex/skills", ".copilot/skills")
+    $wslSkillFolders = @(".codex/skills", ".copilot/skills")
     $wslAvailable = $false
     $wslHome = $null
 
     if (-not $SkipWSL) {
-        try {
-            $wslHome = wsl bash -c 'echo $HOME' 2>$null
-            if ($wslHome -and $LASTEXITCODE -eq 0) {
-                $wslAvailable = $true
-                Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
-            }
+        $wslAvailable = Test-WSLAvailable -WslHome ([ref]$wslHome)
+        if ($wslAvailable) {
+            Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
         }
-        catch {
+        else {
             Write-Host "WSL not available, skipping WSL publishing" -ForegroundColor Yellow
         }
     }
@@ -132,6 +130,13 @@ function Publish-SkillsToPersonal {
     foreach ($skillDir in $skillDirs) {
         $sourcePath = $skillDir.FullName
 
+        # Skip skill directories marked as plugin-managed
+        $markerFile = Join-Path $sourcePath '.plugin-managed'
+        if (Test-Path $markerFile) {
+            Write-Host "  SKIP (plugin-managed): $($skillDir.Name) — managed via plugin, use publish-plugins.ps1 instead" -ForegroundColor Yellow
+            continue
+        }
+
         # Publish to Windows personal folders
         foreach ($path in $personalSkillsPaths) {
             $destinationPath = Join-Path $path $skillDir.Name
@@ -164,26 +169,16 @@ function Publish-SkillsToPersonal {
 
                 try {
                     # Check if skill exists in WSL
-                    $existsInWsl = wsl bash -c "test -d '$wslTargetPath' && echo 'exists' || echo 'notfound'" 2>$null
+                    $existsInWsl = Invoke-WSLCommand -Command "test -d '$wslTargetPath' && echo 'exists' || echo 'notfound'" -SuppressStderr
 
                     if ($existsInWsl -eq 'exists' -and -not $Force) {
                         Write-Host "Skipping $($skillDir.Name) for WSL/$agent (already exists). Use -Force to overwrite." -ForegroundColor Yellow
                         continue
                     }
 
-                    # Create parent directory if needed
-                    wsl bash -c "mkdir -p '$wslParentPath'" 2>$null
+                    $copiedToWsl = Copy-ToWSL -Source $sourcePath -Destination $wslTargetPath -Recurse
 
-                    # Remove existing skill if present
-                    if ($existsInWsl -eq 'exists') {
-                        wsl bash -c "rm -rf '$wslTargetPath'" 2>$null
-                    }
-
-                    # Copy skill to WSL using wsl command with Windows path converted to WSL path
-                    $windowsSourcePath = [regex]::Replace(($sourcePath -replace '\\', '/'), '^([A-Za-z]):', { param($m) "/mnt/" + $m.Groups[1].Value.ToLower() })
-                    wsl bash -c "cp -r '$windowsSourcePath' '$wslTargetPath'"
-
-                    if ($LASTEXITCODE -eq 0) {
+                    if ($copiedToWsl) {
                         Write-Host "Copied: $($skillDir.Name) to WSL/$agent" -ForegroundColor Green
                     } else {
                         Write-Error "Failed to copy $($skillDir.Name) to WSL/$agent (cp exited with code $LASTEXITCODE)"

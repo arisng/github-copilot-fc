@@ -1,29 +1,52 @@
 <#
 .SYNOPSIS
-    Publishes Copilot CLI plugins to Windows and/or WSL environments.
+    Publishes Copilot plugins to CLI (Windows/WSL) and VS Code environments.
 
 .DESCRIPTION
-    Discovers plugin directories under plugins/, builds a self-contained bundle for each,
-    and installs via 'copilot plugin install'. Supports targeting Windows, WSL, or both.
+    Discovers plugin directories under plugins/cli/ and plugins/vscode/, builds a self-contained
+    bundle for each, and installs based on the plugin's target runtime:
 
-    NOTE: The -Environment parameter here uses 'windows'/'wsl'/'all' semantics (not 'vscode'/'cli').
-    This is because plugins install to different runtime environments (Windows native vs WSL
-    interop), not to different path targets. Contrast with publish-agents.ps1 which uses
-    'vscode'/'cli' to distinguish installation path stores.
+      - CLI plugins  (plugins/cli/):    installed via 'copilot plugin install'
+      - VS Code plugins (plugins/vscode/): registered in VS Code's chat.plugins.paths setting
+
+    Plugin directory structure:
+      plugins/
+        cli/           -- Plugins targeting GitHub Copilot CLI runtime
+          ralph-v2/    -- plugin.json here
+        vscode/        -- Plugins targeting VS Code Copilot runtime
+          ralph-v2/    -- plugin.json here
+
+    CLI install locations (per https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations):
+      Direct install: ~/.copilot/state/installed-plugins/<PLUGIN-NAME>
+
+    VS Code install: adds .build/ path to 'chat.plugins.paths' in user settings.json for
+      both VS Code Stable and VS Code Insiders (whichever are present).
+      See: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
+
+    NOTE: The -Environment parameter (windows/wsl/all) applies only to CLI plugins.
+    VS Code plugins are always registered in settings.json regardless of -Environment.
 
 .PARAMETER Plugins
     Array or comma-separated plugin names to install. Supports wildcard patterns.
     If omitted, installs all discovered plugins.
 
+.PARAMETER Runtime
+    Target runtime to publish. Valid values: 'cli', 'vscode', 'all'. Default: 'all'.
+    - cli:    only publish CLI plugins (plugins/cli/)
+    - vscode: only publish VS Code plugins (plugins/vscode/)
+    - all:    publish plugins from both runtimes (default)
+
 .PARAMETER Environment
-    Target environment for publishing. Valid values: 'windows', 'wsl', 'all'. Default: 'all'.
-    - windows: installs plugin on the Windows-native Copilot CLI only
-    - wsl: installs plugin inside WSL only
-    - all: installs on both Windows and WSL (default)
+    For CLI plugins only: target OS environment. Valid values: 'windows', 'wsl', 'all'. Default: 'all'.
+    - windows: installs CLI plugin on Windows-native Copilot CLI only
+    - wsl:     installs CLI plugin inside WSL only
+    - all:     installs on both Windows and WSL
+    Has no effect on VS Code plugins.
     NOTE: -SkipWSL is deprecated; use -Environment windows instead.
 
 .PARAMETER Force
-    Uninstall each plugin before reinstalling.
+    For CLI plugins: uninstall each plugin before reinstalling.
+    For VS Code plugins: overwrites any existing path entry (already idempotent).
 
 .PARAMETER SkipWSL
     DEPRECATED. Use -Environment windows instead. Kept for backward compatibility.
@@ -32,6 +55,10 @@
 param(
     [Parameter(Mandatory = $false)]
     [string[]]$Plugins,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("cli", "vscode", "all")]
+    [string]$Runtime = "all",
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("windows", "wsl", "all")]
@@ -50,328 +77,143 @@ if ($SkipWSL) {
     $Environment = 'windows'
 }
 
-function Merge-AgentInstructions {
+# Build functions (Merge-AgentInstructions, Build-PluginBundle, Invoke-PluginBuild)
+# are defined in build-plugins.ps1. Dot-source to load without triggering standalone run.
+. "$PSScriptRoot/build-plugins.ps1"
+
+function Update-VSCodePluginSettings {
     <#
     .SYNOPSIS
-        Resolves EMBED markers in agent files by inlining instruction content.
+        Registers a plugin bundle path in VS Code's chat.plugins.paths setting.
 
     .DESCRIPTION
-        Scans agent markdown files for <!-- EMBED: filename --> markers and replaces
-        them with the content of the referenced instruction file. Instruction YAML
-        frontmatter and H1 headers are stripped before inlining. Agent YAML frontmatter
-        is preserved verbatim. Validates merged body length and required section markers.
+        Reads the VS Code user settings.json (for both Stable and Insiders installations),
+        adds or updates the specified plugin path under 'chat.plugins.paths', and writes
+        the result back. JSONC comments in settings.json are stripped during parsing;
+        the file is rewritten as plain JSON.
 
-    .PARAMETER AgentDir
-        Path to the .build/agents/ directory containing agent markdown files.
+        Supports: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
 
-    .PARAMETER InstructionsDir
-        Path to the source instructions/ directory.
+    .PARAMETER PluginPath
+        Absolute path to the plugin's .build/ directory to register.
 
-    .PARAMETER MaxChars
-        Maximum allowed character count for the markdown body (after frontmatter).
-        Defaults to 30000 per copilot-cli limits.
+    .PARAMETER PluginName
+        Display name for log messages.
+
+    .PARAMETER Enabled
+        Whether to enable the plugin. Defaults to $true.
 
     .OUTPUTS
-        [hashtable] Summary with keys: Processed, Merged, Skipped, Errors.
+        [int] Number of VS Code settings files updated (0 if no VS Code installations found).
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][string]$AgentDir,
-        [Parameter(Mandatory)][string]$InstructionsDir,
-        [int]$MaxChars = 30000
+        [Parameter(Mandatory)][string]$PluginPath,
+        [Parameter(Mandatory)][string]$PluginName,
+        [bool]$Enabled = $true
     )
 
-    $result = @{ Processed = 0; Merged = 0; Skipped = 0; Errors = 0 }
-
-    $agentFiles = Get-ChildItem -Path $AgentDir -Filter '*.agent.md' -Recurse -ErrorAction SilentlyContinue
-    if (-not $agentFiles) {
-        return $result
-    }
-
-    foreach ($agentFile in $agentFiles) {
-        $result.Processed++
-        $rawContent = Get-Content $agentFile.FullName -Raw
-
-        # Split into YAML frontmatter and markdown body
-        if ($rawContent -match '(?s)^(---\r?\n.*?\r?\n---)\r?\n(.*)$') {
-            $frontmatter = $Matches[1]
-            $body = $Matches[2]
-        }
-        else {
-            # No frontmatter — treat entire content as body
-            $frontmatter = $null
-            $body = $rawContent
-        }
-
-        # Check for EMBED marker in body
-        if ($body -notmatch '<!-- EMBED:\s*(.+?)\s*-->') {
-            $result.Skipped++
-            continue
-        }
-
-        $instructionFilename = $Matches[1]
-        $instructionPath = Join-Path $InstructionsDir $instructionFilename
-
-        if (-not (Test-Path $instructionPath)) {
-            Write-Error "  Instruction file not found: $instructionFilename (referenced by $($agentFile.Name))"
-            $result.Errors++
-            continue
-        }
-
-        $instructionContent = Get-Content $instructionPath -Raw
-
-        # Strip YAML frontmatter from instruction content
-        if ($instructionContent -match '(?s)^---\r?\n.*?\r?\n---\r?\n(.*)$') {
-            $instructionContent = $Matches[1]
-        }
-
-        # Strip the first H1 header line
-        $instructionContent = ([regex]'(?m)^# .+\r?\n').Replace($instructionContent, '', 1)
-        # Trim leading whitespace left after stripping
-        $instructionContent = $instructionContent.TrimStart("`r", "`n")
-
-        # Replace the EMBED marker line with instruction content (script block avoids .NET backreference interpretation)
-        $body = [Regex]::Replace($body, '(?m)^.*<!-- EMBED:\s*.+?\s*-->.*$', { param($m) $instructionContent })
-
-        # Reassemble
-        if ($frontmatter) {
-            $mergedContent = "$frontmatter`n`n$body"
-        }
-        else {
-            $mergedContent = $body
-        }
-
-        # Measure body char count (everything after frontmatter closing ---)
-        if ($body.Length -gt $MaxChars) {
-            Write-Error "  Agent body exceeds $MaxChars chars ($($body.Length)): $($agentFile.Name)"
-            $result.Errors++
-            continue
-        }
-
-        # Validate required section markers
-        $requiredMarkers = @(
-            @{ Name = 'Persona';          Pattern = '<persona>' },
-            @{ Name = 'Rules';            Pattern = '<rules>' },
-            @{ Name = 'Signal Protocol';  Pattern = 'Live Signals Protocol|Poll-Signals Routine' },
-            @{ Name = 'Contract';         Pattern = '<contract>' },
-            @{ Name = 'Workflow';         Pattern = 'Workflow|Modes of Operation' }
-        )
-
-        foreach ($marker in $requiredMarkers) {
-            if ($body -notmatch $marker.Pattern) {
-                Write-Warning "  Missing section marker '$($marker.Name)' in $($agentFile.Name)"
-            }
-        }
-
-        # Write back in-place
-        Set-Content -Path $agentFile.FullName -Value $mergedContent -NoNewline -Encoding UTF8
-        $result.Merged++
-    }
-
-    return $result
-}
-
-function Build-PluginBundle {
-    <#
-    .SYNOPSIS
-        Creates a self-contained build directory for a plugin.
-
-    .DESCRIPTION
-        Parses plugin.json, resolves all component path fields, copies referenced
-        artifacts into a .build/ directory, and rewrites plugin.json with local paths.
-        Only official schema fields are retained in the output manifest.
-
-    .PARAMETER PluginDir
-        Full path to the plugin source directory containing plugin.json.
-
-    .OUTPUTS
-        [string] Path to the .build/ directory on success, $null on failure.
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$PluginDir
+    $settingsLocations = @(
+        @{ Label = 'VS Code Stable';   Path = "$env:APPDATA\Code\User\settings.json" },
+        @{ Label = 'VS Code Insiders'; Path = "$env:APPDATA\Code - Insiders\User\settings.json" }
     )
 
-    $officialComponentFields = @('agents', 'skills', 'commands', 'hooks', 'mcpServers', 'lspServers')
-    $officialMetadataFields = @('name', 'description', 'version', 'author', 'license', 'homepage', 'bugs', 'repository', 'keywords', 'strict')
+    $updated = 0
 
-    $manifestPath = Join-Path $PluginDir "plugin.json"
-    if (-not (Test-Path $manifestPath)) {
-        Write-Error "plugin.json not found in: $PluginDir"
-        return $null
-    }
+    foreach ($loc in $settingsLocations) {
+        $settingsPath = $loc.Path
+        if (-not (Test-Path $settingsPath)) { continue }
 
-    # Parse source manifest
-    try {
-        $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-    }
-    catch {
-        Write-Error "Failed to parse plugin.json in $PluginDir`: $_"
-        return $null
-    }
+        $rawContent = Get-Content $settingsPath -Raw
 
-    $pluginName = $manifest.name
-    $buildDir = Join-Path $PluginDir ".build"
+        # Strip JSONC comments for parsing:
+        #   - Full-line comments: lines whose non-whitespace content starts with //
+        #   - Block comments: /* ... */
+        #   - Trailing commas before } or ] (allowed in JSONC, not in JSON)
+        # NOTE: This strips comments from the in-memory parse copy only.
+        # The file is rewritten from the parsed+updated object (JSONC comments are not preserved).
+        $jsonText = [regex]::Replace($rawContent, '(?m)^\s*//[^\n]*', '')
+        $jsonText = [regex]::Replace($jsonText, '(?s)/\*.*?\*/', '')
+        $jsonText = [regex]::Replace($jsonText, ',(?=\s*[\}\]])', '')
 
-    # Clean and create .build/ directory
-    if (Test-Path $buildDir) {
-        Remove-Item $buildDir -Recurse -Force
-    }
-    New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
-
-    Write-Host "  Bundling: $pluginName -> .build/" -ForegroundColor DarkGray
-
-    # Build a clean manifest with only official fields
-    $cleanManifest = [ordered]@{}
-
-    # Copy metadata fields
-    foreach ($field in $officialMetadataFields) {
-        $value = $manifest.PSObject.Properties[$field]
-        if ($null -ne $value) {
-            $cleanManifest[$field] = $value.Value
+        try {
+            $settings = $jsonText | ConvertFrom-Json
         }
-    }
+        catch {
+            Write-Warning "  Could not parse $($loc.Label) settings.json — skipping: $_"
+            continue
+        }
 
-    # Process component fields: resolve, copy, and rewrite paths
-    $validationErrors = @()
-
-    foreach ($field in $officialComponentFields) {
-        $value = $manifest.PSObject.Properties[$field]
-        if ($null -eq $value) { continue }
-
-        $componentBuildDir = Join-Path $buildDir $field
-
-        if ($value.Value -is [System.Array] -or $value.Value -is [System.Collections.IEnumerable] -and $value.Value -isnot [string]) {
-            # Array of paths (e.g., skills)
-            New-Item -Path $componentBuildDir -ItemType Directory -Force | Out-Null
-            $localPaths = @()
-
-            foreach ($relativePath in $value.Value) {
-                $sourcePath = Join-Path $PluginDir $relativePath
-                try {
-                    $resolvedSource = (Resolve-Path $sourcePath -ErrorAction Stop).Path
-                }
-                catch {
-                    Write-Error "  Cannot resolve component path: $relativePath"
-                    $validationErrors += "$field`: $relativePath (unresolvable)"
-                    continue
-                }
-
-                $itemName = Split-Path $resolvedSource -Leaf
-                $targetPath = Join-Path $componentBuildDir $itemName
-
-                Copy-Item -Path $resolvedSource -Destination $targetPath -Recurse -Force
-                $localPaths += "$field/$itemName/"
-            }
-
-            $cleanManifest[$field] = $localPaths
+        # Get or create chat.plugins.paths as a PSCustomObject (VS Code expects an object, not array)
+        $pathsProperty = $settings.PSObject.Properties['chat.plugins.paths']
+        if ($null -ne $pathsProperty -and $pathsProperty.Value -is [PSCustomObject]) {
+            $pathsObj = $pathsProperty.Value
         }
         else {
-            # Single path (e.g., agents, hooks)
-            $relativePath = $value.Value
-            $sourcePath = Join-Path $PluginDir $relativePath
-            try {
-                $resolvedSource = (Resolve-Path $sourcePath -ErrorAction Stop).Path
-            }
-            catch {
-                Write-Error "  Cannot resolve component path: $relativePath"
-                $validationErrors += "$field`: $relativePath (unresolvable)"
-                continue
-            }
-
-            Copy-Item -Path $resolvedSource -Destination $componentBuildDir -Recurse -Force
-            $cleanManifest[$field] = "$field/"
+            $pathsObj = [PSCustomObject]@{}
         }
+
+        # Add/update the plugin path entry. Use -InputObject (not pipeline) to safely handle
+        # property names that contain special characters like backslashes and colons.
+        Add-Member -InputObject $pathsObj -NotePropertyName $PluginPath -NotePropertyValue $Enabled -Force
+
+        # Assign back (handles the case where chat.plugins.paths was missing or wrong type)
+        Add-Member -InputObject $settings -NotePropertyName 'chat.plugins.paths' -NotePropertyValue $pathsObj -Force
+
+        # Write back as clean JSON (JSONC comments are not preserved after rewrite)
+        $newContent = $settings | ConvertTo-Json -Depth 20
+        Set-Content -Path $settingsPath -Value $newContent -Encoding UTF8
+
+        Write-Host "  Registered in $($loc.Label): $PluginName" -ForegroundColor Green
+        Write-Host "    Path: $PluginPath" -ForegroundColor DarkGray
+        $updated++
     }
 
-    # Write cleaned manifest
-    $cleanManifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $buildDir "plugin.json") -Encoding UTF8
-
-    # Merge agent instructions (embed instruction content into agent bodies)
-    if ($cleanManifest.Contains('agents')) {
-        $agentBuildDir = Join-Path $buildDir "agents"
-        $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
-        $instructionsDir = Join-Path $repoRoot "agents/ralph-v2/instructions"
-
-        if (Test-Path $agentBuildDir) {
-            $mergeResult = Merge-AgentInstructions -AgentDir $agentBuildDir -InstructionsDir $instructionsDir
-            if ($mergeResult.Errors -gt 0) {
-                Write-Warning "  Agent instruction merge had $($mergeResult.Errors) error(s)"
-            }
-            Write-Host "  Merged instructions: $($mergeResult.Merged) agent(s), $($mergeResult.Skipped) skipped, $($mergeResult.Errors) error(s)" -ForegroundColor DarkGray
-        }
-    }
-
-    # Post-bundle validation: verify every component path in .build/plugin.json
-    foreach ($field in $officialComponentFields) {
-        if (-not $cleanManifest.Contains($field)) { continue }
-
-        $fieldValue = $cleanManifest[$field]
-        $paths = if ($fieldValue -is [System.Array]) { $fieldValue } else { @($fieldValue) }
-
-        foreach ($p in $paths) {
-            $checkPath = Join-Path $buildDir $p
-            if (-not (Test-Path $checkPath)) {
-                $validationErrors += "$field`: $p (missing in .build/)"
-            }
-        }
-    }
-
-    if ($validationErrors.Count -gt 0) {
-        Write-Error "  Bundle validation failed for $pluginName`:"
-        foreach ($err in $validationErrors) {
-            Write-Error "    - $err"
-        }
-        return $null
-    }
-
-    Write-Host "  Bundle validated: $pluginName" -ForegroundColor Green
-    return $buildDir
+    return $updated
 }
 
 function Publish-Plugins {
     <#
     .SYNOPSIS
-        Discovers workspace plugins, bundles them, and installs via copilot plugin install.
+        Discovers workspace plugins, bundles them, and installs based on each plugin's runtime:
+          - CLI plugins:    installed via 'copilot plugin install' (respects -Environment)
+          - VS Code plugins: registered in VS Code's chat.plugins.paths user setting
 
     .DESCRIPTION
-        Scans the plugins/ directory for subdirectories containing plugin.json.
-        By default, creates a self-contained .build/ bundle for each plugin
-        (resolving component paths and copying artifacts) before running
-        'copilot plugin install'.
-        Supports filtering by name, force reinstallation, and WSL cross-publishing.
+        Scans plugins/cli/ and plugins/vscode/ for plugin directories containing plugin.json,
+        creates a self-contained .build/ bundle for each (resolving component paths and copying
+        artifacts), then installs by runtime:
+          - cli:    runs 'copilot plugin install' on Windows and/or WSL per -Environment
+          - vscode: calls Update-VSCodePluginSettings to register the .build/ path in
+                    chat.plugins.paths for all installed VS Code variants (Stable + Insiders)
 
     .PARAMETER Plugins
         Array of plugin names to install. Supports comma-separated values and
         wildcard patterns. If omitted, installs all discovered plugins.
 
-    .PARAMETER Force
-        Uninstall each plugin before reinstalling.
+    .PARAMETER Runtime
+        Filter by runtime ('cli', 'vscode', 'all'). Defaults to outer-scope $Runtime.
 
-    .PARAMETER SkipWSL
-        Skip plugin installation in WSL (Windows-only mode).
+    .PARAMETER Force
+        For CLI plugins: uninstall each plugin before reinstalling.
+        For VS Code plugins: overwrites any existing path entry (already idempotent).
 
     .EXAMPLE
         Publish-Plugins
-        Discovers and installs all plugins from the workspace.
+        Discovers and installs all plugins (CLI + VS Code) from the workspace.
 
     .EXAMPLE
-        Publish-Plugins -Plugins ralph-v2
-        Installs only the 'ralph-v2' plugin.
+        Publish-Plugins -Plugins ralph-v2 -Runtime vscode
+        Registers only the 'ralph-v2' VS Code plugin in settings.json.
 
     .EXAMPLE
-        Publish-Plugins -Force
-        Uninstalls and reinstalls all plugins.
-
-    .EXAMPLE
-        Publish-Plugins -SkipWSL
-        Installs plugins on Windows only, skipping WSL.
+        Publish-Plugins -Runtime cli -Environment windows -Force
+        Uninstalls and reinstalls all CLI plugins on Windows only.
     #>
     [CmdletBinding()]
     param()
 
-    Write-Host "Publishing plugins via copilot plugin install..." -ForegroundColor Cyan
+    Write-Host "Publishing plugins..." -ForegroundColor Cyan
 
     $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
     $pluginsPath = Join-Path $repoRoot "plugins"
@@ -381,133 +223,167 @@ function Publish-Plugins {
         throw "Plugins directory not found: $pluginsPath"
     }
 
-    # Discover plugins: directories containing plugin.json
-    $pluginDirs = Get-ChildItem -Path $pluginsPath -Directory | Where-Object {
-        Test-Path (Join-Path $_.FullName "plugin.json")
+    # Discover plugins from runtime-specific subdirs: plugins/cli/ and plugins/vscode/
+    # Each entry tracks the plugin directory and its target runtime.
+    $pluginEntries = @()
+    $runtimeDirs = Get-ChildItem -Path $pluginsPath -Directory | Where-Object { $_.Name -in @('cli', 'vscode') }
+    foreach ($runtimeDir in $runtimeDirs) {
+        $runtimeName = $runtimeDir.Name
+        Get-ChildItem -Path $runtimeDir.FullName -Directory | Where-Object {
+            Test-Path (Join-Path $_.FullName "plugin.json")
+        } | ForEach-Object {
+            $pluginEntries += [PSCustomObject]@{ Dir = $_; Runtime = $runtimeName }
+        }
     }
 
-    if ($pluginDirs.Count -eq 0) {
+    if ($pluginEntries.Count -eq 0) {
         Write-Host "No plugins found in: $pluginsPath" -ForegroundColor Yellow
         return
     }
 
-    # Apply name filter if specified
+    # Apply -Runtime filter
+    if ($Runtime -ne 'all') {
+        $pluginEntries = $pluginEntries | Where-Object { $_.Runtime -eq $Runtime }
+        if ($pluginEntries.Count -eq 0) {
+            Write-Host "No plugins found for runtime: $Runtime" -ForegroundColor Yellow
+            return
+        }
+    }
+
+    # Apply -Plugins name filter if specified
     if ($Plugins) {
         $pluginList = @()
         foreach ($item in $Plugins) {
             $pluginList += @($item -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
         }
-        $pluginDirs = $pluginDirs | Where-Object {
-            $dir = $_
-            $pluginList | Where-Object { $dir.Name -like $_ } | Select-Object -First 1
+        $pluginEntries = $pluginEntries | Where-Object {
+            $entry = $_
+            $pluginList | Where-Object { $entry.Dir.Name -like $_ } | Select-Object -First 1
         }
-        if ($pluginDirs.Count -eq 0) {
+        if ($pluginEntries.Count -eq 0) {
             Write-Host "Warning: No plugins found matching: $($pluginList -join ', ')" -ForegroundColor Yellow
             Write-Host "Available plugins:" -ForegroundColor Cyan
-            Get-ChildItem -Path $pluginsPath -Directory | Where-Object {
-                Test-Path (Join-Path $_.FullName "plugin.json")
-            } | ForEach-Object { Write-Host "  - $($_.Name)" }
+            $runtimeDirs | ForEach-Object {
+                $rt = $_.Name
+                Get-ChildItem -Path $_.FullName -Directory | Where-Object {
+                    Test-Path (Join-Path $_.FullName "plugin.json")
+                } | ForEach-Object { Write-Host "  - $($_.Name) ($rt)" }
+            }
             return
         }
     }
 
-    Write-Host "Discovered $($pluginDirs.Count) plugin(s)" -ForegroundColor Cyan
+    Write-Host "Discovered $($pluginEntries.Count) plugin(s)" -ForegroundColor Cyan
+
+    # Pre-check WSL availability once (only needed for CLI plugins)
+    $wslAvailable = $false
+    $wslHome = $null
+    $needsWsl = ($pluginEntries | Where-Object { $_.Runtime -eq 'cli' }).Count -gt 0 -and
+                ($Environment -eq 'wsl' -or $Environment -eq 'all')
+    if ($needsWsl) {
+        $wslHelpersPath = Join-Path $PSScriptRoot "wsl-helpers.ps1"
+        if (Test-Path $wslHelpersPath) {
+            . $wslHelpersPath
+            if (Test-WSLAvailable -WslHome ([ref]$wslHome)) {
+                $wslAvailable = $true
+                Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
+            }
+            else {
+                $msg = if ($Environment -eq 'wsl') { "WSL not available" } else { "WSL not available, skipping WSL installs" }
+                Write-Host $msg -ForegroundColor Yellow
+            }
+        }
+        else {
+            Write-Host "WSL helpers not found, skipping WSL publishing" -ForegroundColor Yellow
+        }
+    }
 
     $installed = 0
     $errors = 0
 
-    # --- Windows installation ---
-    if ($Environment -eq 'windows' -or $Environment -eq 'all') {
-    foreach ($pluginDir in $pluginDirs) {
+    foreach ($entry in $pluginEntries) {
+        $pluginDir = $entry.Dir
+        $pluginRuntime = $entry.Runtime
         $pluginName = $pluginDir.Name
-        $pluginPath = $pluginDir.FullName
 
-        $buildPath = Build-PluginBundle -PluginDir $pluginPath
+        Write-Host ""
+        Write-Host "[$pluginRuntime] $pluginName" -ForegroundColor Cyan
+
+        # Build self-contained bundle
+        $buildPath = Build-PluginBundle -PluginDir $pluginDir.FullName
         if (-not $buildPath) {
-            Write-Error "  Bundle failed for $pluginName — skipping install"
+            Write-Error "  Bundle failed for $pluginName — skipping"
             $errors++
             continue
         }
-        $installPath = $buildPath
 
-        try {
-            if ($Force) {
-                Write-Host "  Uninstalling: $pluginName" -ForegroundColor DarkGray
-                $uninstallOutput = & copilot plugin uninstall $pluginName 2>&1
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Host "  Uninstall note: $pluginName may not have been installed ($uninstallOutput)" -ForegroundColor DarkGray
-                }
-            }
-
-            Write-Host "  Installing: $pluginName" -ForegroundColor DarkGray
-            & copilot plugin install $installPath
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "  Installed: $pluginName" -ForegroundColor Green
+        # --- VS Code: register in settings.json ---
+        if ($pluginRuntime -eq 'vscode') {
+            $registered = Update-VSCodePluginSettings -PluginPath $buildPath -PluginName $pluginName
+            if ($registered -gt 0) {
                 $installed++
             }
             else {
-                Write-Error "  Failed to install: $pluginName (exit code $LASTEXITCODE)"
+                Write-Warning "  No VS Code installations found — $pluginName not registered"
+            }
+            continue
+        }
+
+        # --- CLI: Windows install ---
+        if ($Environment -eq 'windows' -or $Environment -eq 'all') {
+            try {
+                if ($Force) {
+                    Write-Host "  Uninstalling: $pluginName" -ForegroundColor DarkGray
+                    $uninstallOutput = & copilot plugin uninstall $pluginName 2>&1
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Host "  Uninstall note: $pluginName may not have been installed ($uninstallOutput)" -ForegroundColor DarkGray
+                    }
+                }
+
+                Write-Host "  Installing: $pluginName" -ForegroundColor DarkGray
+                & copilot plugin install $buildPath
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "  Installed: $pluginName" -ForegroundColor Green
+                    $installed++
+                }
+                else {
+                    Write-Error "  Failed to install: $pluginName (exit code $LASTEXITCODE)"
+                    $errors++
+                }
+            }
+            catch {
+                Write-Error "  Failed to install $pluginName : $_"
                 $errors++
             }
         }
-        catch {
-            Write-Error "  Failed to install $pluginName : $_"
-            $errors++
-        }
-    }
-    } # end Windows installation
 
-    # --- WSL installation ---
-    if ($Environment -eq 'wsl' -or $Environment -eq 'all') {
-        $wslHelpersPath = Join-Path $PSScriptRoot "wsl-helpers.ps1"
-        $wslAvailable = $false
+        # --- CLI: WSL install ---
+        if ($wslAvailable -and ($Environment -eq 'wsl' -or $Environment -eq 'all')) {
+            $wslPluginPath = Convert-ToWSLPath -Path $buildPath
+            try {
+                if ($Force) {
+                    Write-Host "  WSL uninstalling: $pluginName" -ForegroundColor DarkGray
+                    Invoke-WSLCommand -Command "copilot plugin uninstall '$pluginName'" -InitializeNode -SuppressStderr | Out-Null
+                }
 
-        if (Test-Path $wslHelpersPath) {
-            . $wslHelpersPath
+                Write-Host "  WSL installing: $pluginName" -ForegroundColor DarkGray
+                Invoke-WSLCommand -Command "copilot plugin install '$wslPluginPath'" -InitializeNode | Out-Null
 
-            $wslHome = $null
-            if (Test-WSLAvailable -WslHome ([ref]$wslHome)) {
-                $wslAvailable = $true
-                Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
-
-                foreach ($pluginDir in $pluginDirs) {
-                    $pluginName = $pluginDir.Name
-                    $wslInstallDir = Join-Path $pluginDir.FullName ".build"
-                    $wslPluginPath = Convert-ToWSLPath -Path $wslInstallDir
-
-                    try {
-                        if ($Force) {
-                            Write-Host "  WSL uninstalling: $pluginName" -ForegroundColor DarkGray
-                            wsl bash -c "copilot plugin uninstall '$pluginName'" 2>$null
-                        }
-
-                        Write-Host "  WSL installing: $pluginName" -ForegroundColor DarkGray
-                        wsl bash -c "copilot plugin install '$wslPluginPath'"
-
-                        if ($LASTEXITCODE -eq 0) {
-                            Write-Host "  WSL installed: $pluginName" -ForegroundColor Green
-                            $installed++
-                        }
-                        else {
-                            Write-Error "  WSL failed to install: $pluginName (exit code $LASTEXITCODE)"
-                            $errors++
-                        }
-                    }
-                    catch {
-                        Write-Error "  WSL failed to install $pluginName : $_"
-                        $errors++
-                    }
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "  WSL installed: $pluginName" -ForegroundColor Green
+                    $installed++
+                }
+                else {
+                    Write-Error "  WSL failed to install: $pluginName (exit code $LASTEXITCODE)"
+                    $errors++
                 }
             }
+            catch {
+                Write-Error "  WSL failed to install $pluginName : $_"
+                $errors++
+            }
         }
-
-        if (-not $wslAvailable -and -not (Test-Path $wslHelpersPath)) {
-            Write-Host "WSL helpers not found, skipping WSL publishing" -ForegroundColor Yellow
-        }
-        elseif (-not $wslAvailable) {
-            Write-Host "WSL not available, skipping WSL publishing" -ForegroundColor Yellow
-        }
-    } # end WSL installation
+    }
 
     Write-Host ""
     Write-Host "Done: $installed installed, $errors error(s)" -ForegroundColor Cyan
