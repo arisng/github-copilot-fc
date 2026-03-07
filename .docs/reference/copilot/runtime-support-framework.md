@@ -16,14 +16,14 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 ### Primary Matrix
 
-| Artifact Type    | VS Code (Win) | copilot-cli (Win) | copilot-cli (WSL) | Future Placeholder |
-| :--------------- | :-----------: | :---------------: | :---------------: | :----------------: |
-| **Agents**       |  ✅ Automated  |    ✅ Automated    |    ✅ Automated    |         —          |
-| **Instructions** |  ✅ Automated  |     ⚠️ Manual      |     ⚠️ Manual      |         —          |
-| **Skills**       |  ✅ Automated  |    ✅ Automated    |    ✅ Automated    |         —          |
-| **Hooks**        |  ✅ Automated  |   ✅ Automated¹    |     ⚠️ Manual²     |         —          |
-| **Prompts**      |  ✅ Automated  |       ❌ N/A       |       ❌ N/A       |         —          |
-| **Toolsets**     |  ✅ Automated  |       ❌ N/A       |       ❌ N/A       |         —          |
+| Artifact Type    | VS Code (Win) | copilot-cli (Win) | copilot-cli (Linux/WSL) | Future Placeholder |
+| :--------------- | :-----------: | :---------------: | :---------------------: | :----------------: |
+| **Agents**       |  ✅ Automated  |    ✅ Automated    |       ✅ Automated       |         —          |
+| **Instructions** |  ✅ Automated  |     ⚠️ Manual      |        ⚠️ Manual         |         —          |
+| **Skills**       |  ✅ Automated  |    ✅ Automated    |       ✅ Automated       |         —          |
+| **Hooks**        |  ✅ Automated  |   ✅ Automated¹    |        ⚠️ Manual²        |         —          |
+| **Prompts**      |  ✅ Automated  |       ❌ N/A       |          ❌ N/A          |         —          |
+| **Toolsets**     |  ✅ Automated  |       ❌ N/A       |          ❌ N/A          |         —          |
 
 ¹ Hooks are published to `.github/hooks/` (repo-scoped), which copilot-cli discovers when invoked from the repo root. No separate `~/.copilot/` path needed.
 ² WSL copilot-cli discovers hooks from CWD. If the repo is cloned inside WSL, `.github/hooks/` works via the same repo-scoped mechanism. No dedicated WSL publish target exists yet for user-level hook paths.

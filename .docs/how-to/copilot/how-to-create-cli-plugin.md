@@ -95,7 +95,7 @@ For workspace plugins that reference existing artifacts, use relative paths in `
 }
 ```
 
-This is the approach used by the workspace's pilot plugin at [plugins/ralph-v2/plugin.json](../../../plugins/ralph-v2/plugin.json). For team distribution, run `publish-plugins.ps1` to create a self-contained bundle — bundling is the default behavior. Use `-SkipBundle` only for development/debugging.
+This is the approach used by the workspace's pilot plugin at [plugins/cli/ralph-v2/plugin.json](../../../plugins/cli/ralph-v2/plugin.json). For team distribution, run `publish-plugins.ps1` to create a self-contained bundle — bundling is the default behavior. Use `-SkipBundle` only for development/debugging.
 
 ## Step 4: Install locally
 
@@ -117,11 +117,11 @@ The plugin's agents, skills, and other components are now available in your Copi
 
 ## Working Example: ralph-v2 Pilot Plugin
 
-The workspace includes a pilot plugin at `plugins/ralph-v2/` that demonstrates the relative-path pattern for bundling existing workspace artifacts:
+The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that demonstrates the relative-path pattern for bundling existing workspace artifacts:
 
-1. **Directory**: `plugins/ralph-v2/`
-2. **Manifest**: `plugins/ralph-v2/plugin.json` — references CLI agents, hooks, and selected skills via relative paths
-3. **Install**: `copilot plugin install ./plugins/ralph-v2`
+1. **Directory**: `plugins/cli/ralph-v2/`
+2. **Manifest**: `plugins/cli/ralph-v2/plugin.json` — references CLI agents, hooks, and selected skills via relative paths
+3. **Install**: `copilot plugin install ./plugins/cli/ralph-v2`
 4. **Publish script**: `scripts/publish/publish-plugins.ps1 -Plugins ralph-v2`
 
 See [plugins/README.md](../../../plugins/README.md) for the full directory documentation.

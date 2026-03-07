@@ -1,12 +1,22 @@
 # Copilot CLI vs VS Code: Customization Model Differences
 
 > **Last verified**: GA v0.0.420 (February 2026)
-> **Related**: [Support Matrix](../../reference/copilot/copilot-cli-customization-matrix.md) · [Ralph-v2 Tool Compatibility](copilot-cli-ralph-v2-tool-compatibility.md) · [Publish How-To](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md)
+> 
+> **Related**:
+> - [Support Matrix](../../reference/copilot/copilot-cli-customization-matrix.md)
+> - [Ralph-v2 Tool Compatibility](copilot-cli-ralph-v2-tool-compatibility.md)
+> - [Publish How-To](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md)
 
 This document explains *why* GitHub Copilot CLI and VS Code use different customization models, and what those differences mean architecturally. It is not a step-by-step guide — see the linked how-to and reference docs for that.
 
 ---
 
+## References (Official Documentation)
+
+Periodically verify against the official documentation to ensure accuracy, as the CLI is rapidly evolving and may have discrepancies or silent changes:
+[Overview of customizing GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/quickstart-for-customizing)
+[Customize AI in VS Code](https://code.visualstudio.com/docs/copilot/customization/overview)
+  
 ## Overview: Why Two Models Exist
 
 GitHub Copilot ships as two distinct products with fundamentally different execution models:
@@ -21,34 +31,36 @@ These different runtime environments drive every architectural difference descri
 
 ## Agent Frontmatter Schema Comparison
 
-Both platforms read `.agent.md` files with YAML frontmatter, but support different property sets. Unrecognized properties are **silently ignored** on both platforms — agents degrade gracefully rather than failing.
+Both runtimes read `.agent.md` files with YAML frontmatter, but support different property sets. Unrecognized properties are **silently ignored** on both runtimes — agents degrade gracefully rather than failing.
 
-| Property         | Type    |  CLI  | VS Code | Purpose                                                                                            |
-| ---------------- | ------- | :---: | :-----: | -------------------------------------------------------------------------------------------------- |
-| `name`           | string  |   ✅   |    ✅    | Agent display name. CLI derives from filename if omitted.                                          |
-| `description`    | string  |   ✅   |    ✅    | Agent description. Required in VS Code.                                                            |
-| `instructions`   | string  |   ✅   |    ✅    | Markdown body after frontmatter.                                                                   |
-| `tools`          | array   |   ✅   |    ✅    | Tool whitelist/blacklist. CLI supports glob patterns and `-` prefix for deny.                      |
-| `model`          | string  |   ✅   |    ❌    | CLI-only. Override the default LLM model per agent.                                                |
-| `infer`          | boolean |   ✅   |    ❌    | CLI-only. Controls whether other agents can delegate to this agent via TaskTool (default: `true`). |
-| `mcpServers`     | object  |   ✅   |    ❌    | CLI-only. Bundle MCP server definitions directly in the agent file.                                |
-| `agents`         | array   |   ❌   |    ✅    | VS Code-only. Declare subagent references for orchestration.                                       |
-| `argument-hint`  | string  |   ❌   |    ✅    | VS Code-only. Hint text shown in the agent picker.                                                 |
-| `user-invocable` | boolean |   ✅   |    ✅    | Controls whether the agent appears in the user-facing picker. Default: `true`.                     |
+| Property                   | Type    |    CLI    | VS Code | Purpose                                                                                                         |
+| -------------------------- | ------- | :-------: | :-----: | --------------------------------------------------------------------------------------------------------------- |
+| `name`                     | string  |     ✅     |    ✅    | Agent display name. CLI derives from filename if omitted.                                                       |
+| `description`              | string  |     ✅     |    ✅    | Agent description. Required in VS Code.                                                                         |
+| `instructions`             | string  |     ✅     |    ✅    | Markdown body after frontmatter.                                                                                |
+| `tools`                    | array   |     ✅     |    ✅    | Tool whitelist/blacklist. CLI supports glob patterns and `-` prefix for deny.                                   |
+| `model`                    | string  |     ✅     |    ✅    | VS Code supports per-agent model selection. Current GitHub Copilot coding-agent docs note that this field is ignored there. |
+| `disable-model-invocation` | boolean |     ✅     |    ✅    | Supported across environments. When `true`, prevents this agent from being invoked automatically as a subagent. |
+| `infer`                    | boolean | ⚠️ Retired |    ❌    | Retired. Use `disable-model-invocation` and `user-invocable` instead.                                           |
+| `target`                   | string  |     ✅     |    ✅    | Target environment or context for the custom agent: `vscode` or `github-copilot`. If unset, defaults to both. |
+| `mcp-servers`              | object  |     ✅     |    ❌    | CLI-only. Bundle MCP server definitions directly in the agent file.                                             |
+| `agents`                   | array   |     ❌     |    ✅    | VS Code-only. Declare subagent references for orchestration.                                                    |
+| `argument-hint`            | string  |     ❌     |    ✅    | VS Code-only. Hint text shown in the agent picker.                                                              |
+| `user-invocable`           | boolean |     ✅     |    ✅    | Controls whether the agent appears in the user-facing picker. Default: `true`.                                  |
 
-**Why the divergence?** VS Code agents operate within the extension host where subagent references must be explicitly declared (the `agents:` array). CLI agents operate in a flat namespace where any agent with `infer: true` is automatically visible as a delegatable tool — no explicit wiring needed.
+**Why the divergence?** VS Code agents operate within the extension host where subagent references must be explicitly declared (the `agents:` array). Copilot CLI and GitHub Copilot coding agent rely on model-driven delegation controls such as `disable-model-invocation` and runtime-managed custom-agent/task tooling rather than explicit `agents:` wiring.
 
 ### Practical Impact
 
 An agent file written for VS Code that uses `agents:` and `argument-hint:` will still load in CLI. The unsupported keys are silently dropped. However, the subagent orchestration behavior will differ — see [Subagent Orchestration](#subagent-orchestration) below.
 
-> **Runtime variant model (iteration 2):** Because agents are not behaviorally shareable across runtimes (tool namespaces, frontmatter fields, and body-level instructions all diverge), the workspace adopts a **per-runtime variant approach**. Platform-agnostic content (persona, rules, workflows, artifact templates, signal protocols) is extracted into shared `.instructions.md` files. Each runtime then gets a thin variant agent (~50 lines) containing only platform-specific frontmatter (`agents:` + VS Code tools, or `infer:` + `mcpServers:` + CLI tools) and tool-specific instructions. This keeps a single source of truth for agent behavior while allowing each platform to use its native capabilities. See [agent-variant-proposal.md](../../reference/copilot/agent-variant-proposal.md) for the full directory structure and extraction strategy.
+> **Runtime variant model (iteration 2):** Because agents are not behaviorally shareable across runtimes (tool namespaces, frontmatter fields, and body-level instructions all diverge), the workspace adopts a **per-runtime variant approach**. Runtime-agnostic content (persona, rules, workflows, artifact templates, signal protocols) is extracted into shared `.instructions.md` files. Each runtime then gets a thin variant agent (~50 lines) containing only runtime-specific frontmatter (`agents:` + VS Code tools, or `disable-model-invocation:` + `mcpServers:` + GitHub Copilot tools) and tool-specific instructions. This keeps a single source of truth for agent behavior while allowing each runtime to use its native capabilities. See [agent-variant-proposal.md](../../reference/copilot/agent-variant-proposal.md) for the full directory structure and extraction strategy.
 
 ---
 
 ## Tool Namespace Differences
 
-The built-in tools available to agents use completely different names across platforms. This is because VS Code tools are backed by editor APIs (diagnostics, terminals, extension host), while CLI tools are backed by direct filesystem and shell operations.
+The built-in tools available to agents use completely different names across runtimes. This is because VS Code tools are backed by editor APIs (diagnostics, terminals, extension host), while CLI tools are backed by direct filesystem and shell operations.
 
 | VS Code Tool            | CLI Tool          | Category            | Notes                                                                                                |
 | ----------------------- | ----------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -67,7 +79,7 @@ The built-in tools available to agents use completely different names across pla
 
 ### Impact on Agent Files
 
-Agent `tools:` frontmatter must reference the correct namespace for the target platform:
+Agent `tools:` frontmatter must reference the correct namespace for the target runtime:
 
 ```yaml
 # VS Code agent
@@ -84,7 +96,7 @@ tools:
   - create
 ```
 
-A cross-platform agent should either omit the `tools:` key (allowing all tools) or maintain platform-aware tool lists.
+A cross-runtime agent should either omit the `tools:` key (allowing all tools) or maintain runtime-aware tool lists.
 
 ---
 
@@ -133,15 +145,15 @@ export COPILOT_CUSTOM_INSTRUCTIONS_DIRS="/path/to/dir1:/path/to/dir2"
 
 **Key differences:**
 
-| Aspect                 | VS Code                                                     | CLI                                                    |
-| ---------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
-| User-level location    | Editor prompts directory (per-install)                      | `$HOME/.copilot/copilot-instructions.md` (single file) |
-| User-level granularity | Multiple files with individual `applyTo`                    | One file (all instructions concatenated)               |
-| Env override           | Not applicable                                              | `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`                     |
-| Repo-level location    | `.github/copilot-instructions.md` + `.github/instructions/` | Same ✓ plus `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`     |
-| `applyTo` support      | Yes (user + repo level)                                     | Yes (repo-level `.github/instructions/` only)          |
+| Aspect                 | VS Code                                                     | CLI                                                                                        |
+| ---------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| User-level location    | Editor prompts directory (per-install)                      | `$HOME/.copilot/copilot-instructions.md` (single file)                                     |
+| User-level granularity | Multiple files with individual `applyTo`                    | One file (all instructions concatenated)                                                   |
+| Env override           | Not applicable                                              | `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`                                                         |
+| Repo-level location    | `.github/copilot-instructions.md` + `.github/instructions/` | Same ✓ plus `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`                                          |
+| `applyTo` support      | Yes (user + repo level)                                     | Yes (repo-level `.github/instructions/` only)                                              |
 | `excludeAgent`         | Not applicable                                              | Values: `"code-review"`, `"coding-agent"` — scopes instructions to exclude specific agents |
-| Disable all            | Not applicable                                              | `--no-custom-instructions` flag                        |
+| Disable all            | Not applicable                                              | `--no-custom-instructions` flag                                                            |
 
 **Why the difference?** VS Code has a rich file-watching model — it monitors the prompts directory and dynamically evaluates `applyTo` against editor context. CLI runs as a one-shot or session process without persistent file watching. A single instructions file is simpler to load at session start.
 
@@ -170,31 +182,31 @@ agents:
 
 The runtime resolves these names to `.agent.md` files and makes them available as invocable tools within the parent agent's context. The parent can call `@executor` directly.
 
-### CLI: Inferred Delegation via TaskTool
+### CLI: Delegation via TaskTool and Model Invocation Controls
 
-In CLI, there is no `agents:` key. Instead, all agents with `infer: true` (the default) are automatically visible as delegatable targets through the `task` tool (TaskTool):
+In CLI, there is no `agents:` key. Delegation is controlled by the agent runtime and the agent's invocation settings rather than explicit parent wiring. A delegatable CLI agent now uses `disable-model-invocation: false` implicitly unless you turn it off:
 
 ```yaml
 ---
 name: executor
 description: Implements specific tasks
-infer: true    # default — makes this agent available for delegation
+disable-model-invocation: false
 ---
 ```
 
 The active agent can delegate by invoking `task("executor", "implement task-1")`. The CLI runtime handles context isolation — only the active agent's full instructions are loaded; other agents appear as brief tool descriptions.
 
-**Why the difference?** VS Code agents live in a controlled environment where the extension host manages the agent registry. Explicit `agents:` declarations create a wiring contract. CLI agents live in a flat filesystem namespace where any agent file in `~/.copilot/agents/` or `.github/agents/` is discoverable. The `infer` model eliminates the need for manual wiring — the runtime builds the delegation graph dynamically.
+**Why the difference?** VS Code agents live in a controlled environment where the extension host manages the agent registry. Explicit `agents:` declarations create a wiring contract. CLI agents live in a flat filesystem namespace where any agent file in `~/.copilot/agents/` or `.github/agents/` is discoverable. Delegation eligibility is runtime-managed, with `disable-model-invocation` controlling whether an agent can be invoked automatically.
 
 ### Practical Impact
 
-A VS Code agent using `agents: [executor, reviewer]` will load in CLI, but the `agents` key is silently ignored. For delegation to work, the referenced agents must exist as separate `.agent.md` files with `infer: true` (default). The orchestration *works*, but through a fundamentally different mechanism.
+A VS Code agent using `agents: [executor, reviewer]` will load in CLI, but the `agents` key is silently ignored. For delegation to work, the referenced agents must exist as separate `.agent.md` files that remain eligible for automatic invocation. The orchestration *works*, but through a fundamentally different mechanism.
 
 ---
 
 ## Hook Model
 
-Hooks share the **same JSON schema** across both platforms, making them the most compatible customization type.
+Hooks share the **same JSON schema** across both runtimes, making them the most compatible customization type.
 
 ```json
 {
@@ -208,21 +220,21 @@ Hooks share the **same JSON schema** across both platforms, making them the most
 
 ### Loading Path Differences
 
-| Aspect                 | VS Code                                                                                           | CLI                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Discovery path         | `.github/hooks/`                                                                                  | CWD (repo root) or via plugins          |
-| Installation           | Publish to `.github/hooks/`                                                                       | Place in repo root or package as plugin |
+| Aspect                 | VS Code                                                                                                                        | CLI                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| Discovery path         | `.github/hooks/`                                                                                                               | CWD (repo root) or via plugins          |
+| Installation           | Publish to `.github/hooks/`                                                                                                    | Place in repo root or package as plugin |
 | Lifecycle events       | `sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `agentStop`, `subagentStop` | Same events ✓                           |
-| `preToolUse` responses | `deny` / `allow` / `ask`                                                                          | Same ✓                                  |
-| Plugin bundling        | Not applicable                                                                                    | Plugins can bundle hooks                |
+| `preToolUse` responses | `deny` / `allow` / `ask`                                                                                                       | Same ✓                                  |
+| Plugin bundling        | Not applicable                                                                                                                 | Plugins can bundle hooks                |
 
-**Why similar?** Hooks were designed after both platforms existed and benefited from a unified specification. The JSON schema is platform-agnostic by design — hooks execute shell commands, which are inherently portable.
+**Why similar?** Hooks were designed after both runtimes existed and benefited from a unified specification. The JSON schema is runtime-agnostic by design — hooks execute shell commands, which are inherently portable.
 
 ---
 
 ## Tool Restriction
 
-Both platforms support restricting which tools an agent can use, but through different mechanisms.
+Both runtimes support restricting which tools an agent can use, but through different mechanisms.
 
 ### VS Code: Toolset Files
 
@@ -309,7 +321,7 @@ Alternatively, agents can use `bash` with `curl` for simple HTTP requests.
 
 ## Shared Concepts
 
-Despite the differences, several customization concepts work identically across both platforms:
+Despite the differences, several customization concepts work identically across both runtimes:
 
 | Concept                    | CLI Path                                    | VS Code Path                           | Notes                                |
 | -------------------------- | ------------------------------------------- | -------------------------------------- | ------------------------------------ |
@@ -318,10 +330,10 @@ Despite the differences, several customization concepts work identically across 
 | **Repo instruction files** | `.github/instructions/**/*.instructions.md` | Same ✓                                 | With `applyTo` support               |
 | **Skills directory**       | `~/.copilot/skills/`                        | Same ✓                                 | Folder-based, `SKILL.md` required    |
 | **MCP config**             | `~/.copilot/mcp-config.json`                | `.vscode/mcp.json` or VS Code settings | Different file but same MCP protocol |
-| **Hook JSON schema**       | `{ "version": 1, "hooks": {...} }`          | Same ✓                                 | Portable across platforms            |
+| **Hook JSON schema**       | `{ "version": 1, "hooks": {...} }`          | Same ✓                                 | Portable across runtimes             |
 | **Graceful degradation**   | Unrecognized frontmatter silently ignored   | Same ✓                                 | Agents don't fail on unknown keys    |
 
-These shared concepts form the foundation for cross-platform agent authoring. An agent that sticks to this common subset will work on both platforms without modification.
+These shared concepts form the foundation for cross-runtime agent authoring. An agent that sticks to this common subset will work on both runtimes without modification.
 
 ---
 

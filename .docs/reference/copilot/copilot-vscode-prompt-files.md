@@ -1,4 +1,4 @@
-# GitHub Copilot Prompt Files (.prompt.md) Reference
+# GitHub Copilot VS Code Prompt Files (.prompt.md) Reference
 
 **Documentation Date:** January 22, 2026  
 **Source:** Official VS Code Documentation (v1.108+)

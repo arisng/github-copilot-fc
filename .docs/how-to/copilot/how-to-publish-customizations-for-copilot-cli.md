@@ -1,10 +1,10 @@
-# How to Publish Workspace Customizations for Copilot CLI
+# How to Publish Copilot Customizations for Copilot CLI
 
-This guide shows you how to publish each workspace artifact type to GitHub Copilot CLI (`copilot` command) so your agents, skills, instructions, and hooks are available outside VS Code.
+This guide shows you how to publish each workspace artifact type (Copilot Customization Primitives) to GitHub Copilot CLI (`copilot` command) so your agents, skills, instructions, and hooks are available outside VS Code.
 
 ## When to use this guide
 
-Use this if you have workspace customizations (agents, instructions, skills, hooks, toolsets, prompts) and want them available when using the `copilot` CLI tool in your terminal.
+Use this if you have Copilot customizations (agents, instructions, skills, hooks, toolsets, prompts) and want them available when using the `copilot` CLI tool in your terminal.
 
 ## Before you start
 
@@ -17,9 +17,9 @@ Use this if you have workspace customizations (agents, instructions, skills, hoo
 
 Throughout this guide, paths are shown for both platforms:
 
-| Placeholder | Windows | Linux/WSL |
-|-------------|---------|-----------|
-| `~/.copilot/` | `$env:USERPROFILE\.copilot\` | `$HOME/.copilot/` |
+| Placeholder     | Windows                        | Linux/WSL             |
+| --------------- | ------------------------------ | --------------------- |
+| `~/.copilot/`   | `$env:USERPROFILE\.copilot\`   | `$HOME/.copilot/`     |
 | VS Code prompts | `%APPDATA%\Code\User\prompts\` | N/A (VS Code manages) |
 
 > **Tip:** The `--config-dir` flag overrides the entire `~/.copilot/` tree. If you use `copilot --config-dir /path/to/custom`, all discovery paths shift to that directory.
@@ -67,7 +67,7 @@ The `publish-agents.ps1` script already targets `~/.copilot/agents/`, making age
 
 Agent `.agent.md` files work in both VS Code and CLI, but the schema differs. Unrecognized fields are silently ignored.
 
-- **CLI-only fields**: `model`, `infer`, `mcpServers`
+- **CLI-only fields**: `model`, `infer`, `mcp-server`
 - **VS Code-only fields**: `agents:`, `argument-hint:`, `user-invocable:`
 
 See the [schema comparison](../../explanation/copilot/copilot-cli-vs-vscode-customization.md#agent-frontmatter-schema-comparison) for the full property table.
@@ -284,14 +284,14 @@ Hooks use the same JSON schema in both VS Code and Copilot CLI. The CLI discover
 
 ### Supported lifecycle events
 
-| Event | Description |
-|-------|-------------|
-| `sessionStart` | Fires when a session begins |
-| `sessionEnd` | Fires when a session ends |
-| `userPromptSubmitted` | Fires when user submits a message |
-| `preToolUse` | Fires before tool execution (can `deny`/`allow`/`ask`) |
-| `postToolUse` | Fires after tool execution |
-| `errorOccurred` | Fires when an error occurs |
+| Event                 | Description                                            |
+| --------------------- | ------------------------------------------------------ |
+| `sessionStart`        | Fires when a session begins                            |
+| `sessionEnd`          | Fires when a session ends                              |
+| `userPromptSubmitted` | Fires when user submits a message                      |
+| `preToolUse`          | Fires before tool execution (can `deny`/`allow`/`ask`) |
+| `postToolUse`         | Fires after tool execution                             |
+| `errorOccurred`       | Fires when an error occurs                             |
 
 ---
 
@@ -299,12 +299,12 @@ Hooks use the same JSON schema in both VS Code and Copilot CLI. The CLI discover
 
 **`.toolsets.jsonc` has no Copilot CLI equivalent.** The CLI uses different mechanisms for tool restriction:
 
-| VS Code (`.toolsets.jsonc`) | CLI Equivalent |
-|-----------------------------|----------------|
-| Tool allowlist | `--allow-tool <pattern>` flag |
-| Tool denylist | `--deny-tool <pattern>` flag |
-| Per-agent tools | Agent `tools:` frontmatter key |
-| Dynamic restriction | `preToolUse` hooks with `deny`/`allow`/`ask` |
+| VS Code (`.toolsets.jsonc`) | CLI Equivalent                               |
+| --------------------------- | -------------------------------------------- |
+| Tool allowlist              | `--allow-tool <pattern>` flag                |
+| Tool denylist               | `--deny-tool <pattern>` flag                 |
+| Per-agent tools             | Agent `tools:` frontmatter key               |
+| Dynamic restriction         | `preToolUse` hooks with `deny`/`allow`/`ask` |
 
 ### Example: Restricting tools via CLI flags
 
@@ -496,14 +496,14 @@ Publish-InstructionsToCopilotCliDirs -ProjectInstructionsPath $projectInstructio
 
 ## Summary: publish script status
 
-| Script | CLI Support | Status |
-|--------|-------------|--------|
-| `publish-agents.ps1` | Already targets `~/.copilot/agents/` | ✅ No changes needed |
-| `publish-skills.ps1` | Already targets `~/.copilot/skills/` | ✅ No changes needed |
-| `publish-instructions.ps1` | VS Code only | ⚠️ Needs update (see implementation plan above) |
-| `publish-hooks.ps1` | Publishes to `.github/hooks/` (works in CLI) | ✅ No changes needed |
-| `publish-prompts.ps1` | VS Code only, no CLI equivalent | ℹ️ No changes possible |
-| `publish-toolsets.ps1` | VS Code only, CLI uses flags | ℹ️ No changes possible |
+| Script                     | CLI Support                                  | Status                                         |
+| -------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| `publish-agents.ps1`       | Already targets `~/.copilot/agents/`         | ✅ No changes needed                            |
+| `publish-skills.ps1`       | Already targets `~/.copilot/skills/`         | ✅ No changes needed                            |
+| `publish-instructions.ps1` | VS Code only                                 | ⚠️ Needs update (see implementation plan above) |
+| `publish-hooks.ps1`        | Publishes to `.github/hooks/` (works in CLI) | ✅ No changes needed                            |
+| `publish-prompts.ps1`      | VS Code only, no CLI equivalent              | ℹ️ No changes possible                          |
+| `publish-toolsets.ps1`     | VS Code only, CLI uses flags                 | ℹ️ No changes possible                          |
 
 ---
 

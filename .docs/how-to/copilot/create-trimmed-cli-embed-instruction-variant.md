@@ -12,7 +12,11 @@ extracted_at: "2026-03-02T23:42:49+07:00"
 staged_at: "2026-03-02T23:47:15+07:00"
 promoted: true
 promoted_at: "2026-03-02T23:50:57+07:00"
+deprecated: true
+deprecated_reason: "CLI-embed variants were eliminated. Full instruction files are now compressed to fit within 30K. See agents/ralph-v2/README.md."
 ---
+
+> **DEPRECATED** — This how-to is no longer applicable. The `.cli-embed.instructions.md` trimmed-variant pattern was eliminated. Full instruction files (reviewer: 26K, librarian: 27K) are now compressed to fit within the 30K CLI body limit. Embed markers in CLI agent files point directly to the full instruction files. See [agents/ralph-v2/README.md](../../../agents/ralph-v2/README.md) for current state.
 
 # How to Create a Trimmed CLI-Embed Instruction Variant
 

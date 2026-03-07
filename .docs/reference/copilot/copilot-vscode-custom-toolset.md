@@ -1,4 +1,4 @@
-# Custom Toolsets Reference
+# Custom Toolsets Reference for GitHub Copilot VS Code
 
 Custom toolsets provide a way to group related tools for easier management and reference in GitHub Copilot chat prompts in VS Code.
 

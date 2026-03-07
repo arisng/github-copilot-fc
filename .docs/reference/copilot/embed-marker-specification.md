@@ -32,12 +32,12 @@ promoted_at: "2026-03-02T23:50:57+07:00"
 <!-- EMBED: ralph-v2-executor.instructions.md -->
 ```
 
-For agents requiring trimmed variants:
+For agents with large instruction files that point directly to the compressed full-file:
 
 ```markdown
 # Ralph-v2 Reviewer (CLI)
 
-<!-- EMBED: ralph-v2-reviewer.cli-embed.instructions.md -->
+<!-- EMBED: ralph-v2-reviewer.instructions.md -->
 ```
 
 ## Processing Pipeline

@@ -18,16 +18,16 @@ Only the `agents/` directory needs restructuring — all other artifact director
 
 Three naming conventions were evaluated:
 
-| Convention                                                        | Pros                                                                                     | Cons                                                                                                                                                      |    Verdict    |
-| :---------------------------------------------------------------- | :--------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------: |
-| **Suffix** (`ralph-v2.vscode.agent.md` / `ralph-v2.cli.agent.md`) | All agents visible in one listing                                                        | Both platforms use `*.agent.md` glob for discovery — **duplicate agent registration risk**. copilot-cli may interpret `ralph-v2.vscode` as the agent name |    ❌ Risky    |
-| **Subdirectory** (`agents/ralph-v2/vscode/`, `agents/ralph-v2/cli/`) | Clean separation; encapsulation under agent group; symmetric structure; publish scripts copy from correct subdirectory; no cross-contamination | Requires publish script to select source directory; file moves required for existing VS Code agents                                                        | ✅ Recommended |
-| **Conditional sections** (single file with platform markers)      | Single source of truth                                                                   | Neither runtime supports conditional logic in `.agent.md` — no `#ifdef` equivalent in Markdown                                                            | ❌ Not viable  |
+| Convention                                                           | Pros                                                                                                                                           | Cons                                                                                                                                                      |    Verdict    |
+| :------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------: |
+| **Suffix** (`ralph-v2.vscode.agent.md` / `ralph-v2.cli.agent.md`)    | All agents visible in one listing                                                                                                              | Both platforms use `*.agent.md` glob for discovery — **duplicate agent registration risk**. copilot-cli may interpret `ralph-v2.vscode` as the agent name |    ❌ Risky    |
+| **Subdirectory** (`agents/ralph-v2/vscode/`, `agents/ralph-v2/cli/`) | Clean separation; encapsulation under agent group; symmetric structure; publish scripts copy from correct subdirectory; no cross-contamination | Requires publish script to select source directory; file moves required for existing VS Code agents                                                       | ✅ Recommended |
+| **Conditional sections** (single file with runtime markers)          | Single source of truth                                                                                                                         | Neither runtime supports conditional logic in `.agent.md` — no `#ifdef` equivalent in Markdown                                                            | ❌ Not viable  |
 
 The nested subdirectory convention is the safest approach because:
 - `publish-agents.ps1` already uses `Get-ChildItem -Recurse` for agent discovery, so subdirectory agents are found.
 - For CLI publishing to `~/.copilot/agents/`, the script copies files to a flat destination — subdirectory source → flat destination is a standard pattern.
-- No risk of the wrong platform picking up the other platform's variants.
+- No risk of the wrong runtime picking up the other runtime's variants.
 - Both variants and shared content are encapsulated under one agent group directory.
 
 ### Proposed Layout
@@ -61,7 +61,7 @@ agents/
 - VS Code agents are **moved** from `agents/ralph-v2/` into `agents/ralph-v2/vscode/` via `git mv` — this creates a symmetric structure where both variants are nested under the agent group.
 - CLI variants are created as new files in `agents/ralph-v2/cli/`.
 - Shared content (`README.md`, `docs/`, `specs/`) remains at the `agents/ralph-v2/` parent level, accessible to both variants.
-- Non-ralph agents (`generic-research`, `planner`, `mermaid`, etc.) remain at `agents/` root — they are not part of the ralph-v2 multi-agent system and do not currently need CLI variants.
+- Non-ralph agents (`generic-research`, `planner`, `mermaid`, etc.) remain at `agents/` root — they will refined to a runtime-specific nested structure in future iterations as needed.
 
 **Three advantages of the nested convention** (Q-FDB-004):
 1. **Encapsulation**: All content for an agent group lives under one parent directory — variants, shared docs, and specs are co-located.
@@ -74,23 +74,23 @@ Per Q-FDB-008, three categories prevent a single `.agent.md` file from serving b
 
 ### 1. Frontmatter Schema Differences
 
-Fields that are silently ignored on the non-target platform:
+Fields that are silently ignored on the non-target runtime:
 
-| Field             |   VS Code   | copilot-cli | Effect When Ignored                                                                  |
-| :---------------- | :---------: | :---------: | :----------------------------------------------------------------------------------- |
-| `agents:`         | ✅ Required  |  ❌ Ignored  | Subagent orchestration lost — CLI cannot delegate to child agents via this mechanism |
-| `argument-hint:`  | ✅ Supported |  ❌ Ignored  | User guidance in agent picker lost (cosmetic)                                        |
-| `user-invocable:` | ✅ Supported |  ✅ Supported | Supported on both platforms — controls agent picker visibility. Default: `true`.     |
-| `model:`          |  ❌ Ignored  | ⚠️ Ignored  | Silently ignored by CLI coding-agent — model selection is via `/model` command or `--model` flag; no functional effect on either platform |
-| `infer:`              |  ❌ Ignored  | ✅ Supported | CLI-only: controls whether other agents can delegate to this agent via TaskTool (default: `true`). Ignored by VS Code. |
-| `mcp-servers:`    |  ❌ Ignored  | ✅ Supported | Bundled MCP server configuration not available in VS Code                            |
-| `name:`           |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
-| `description:`    |  ✅ Shared   |  ✅ Shared   | —                                                                                    |
-| `tools:`          |  ✅ Shared   |  ✅ Shared   | Works on both, but tool names differ (see category 2)                                |
+| Field             |   VS Code   | copilot-cli | Effect When Ignored                                                                                                                       |
+| :---------------- | :---------: | :---------: | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents:`         | ✅ Required  |  ❌ Ignored  | Subagent orchestration lost — CLI cannot delegate to child agents via this mechanism                                                      |
+| `argument-hint:`  | ✅ Supported |  ❌ Ignored  | User guidance in agent picker lost (cosmetic)                                                                                             |
+| `user-invocable:` | ✅ Supported | ✅ Supported | Supported on both platforms — controls agent picker visibility. Default: `true`.                                                          |
+| `model:`          |  ❌ Ignored  |  ⚠️ Ignored  | Silently ignored by CLI coding-agent — model selection is via `/model` command or `--model` flag; no functional effect on either platform |
+| `infer:`          |  ❌ Ignored  | ⚠️ Retired  | Retired as of March 2026 official docs. Use `disable-model-invocation` instead. Ignored by VS Code.                                       |
+| `mcp-servers:`    |  ❌ Ignored  | ✅ Supported | Bundled MCP server configuration not available in VS Code                                                                                 |
+| `name:`           |  ✅ Shared   |  ✅ Shared   | —                                                                                                                                         |
+| `description:`    |  ✅ Shared   |  ✅ Shared   | —                                                                                                                                         |
+| `tools:`          |  ✅ Shared   |  ✅ Shared   | Works on both, but tool names differ (see category 2)                                                                                     |
 
 ### 2. Tools Namespace Differences
 
-The `tools:` array uses different namespace references per platform. Unknown tools are **silently ignored** — no errors, but **no functionality** either.
+The `tools:` array uses different namespace references per runtime. Unknown tools are **silently ignored** — no errors, but **no functionality** either.
 
 | VS Code Tool                                        | CLI Equivalent                    | Notes                              |
 | :-------------------------------------------------- | :-------------------------------- | :--------------------------------- |
@@ -138,19 +138,19 @@ The 6 ralph-v2 agents and their specific incompatibility categories:
 
 ### What Moves to `.instructions.md`
 
-Each ralph-v2 agent's **platform-agnostic content** is extracted into a shared instruction file:
+Each ralph-v2 agent's **runtime-agnostic content** is extracted into a shared instruction file:
 
-| Content Type                                                  | Moves to Shared Instruction |  Stays in Agent Variant   |
-| :------------------------------------------------------------ | :-------------------------: | :-----------------------: |
-| Persona definition (role, responsibilities)                   |              ✅              |             —             |
-| Rules and constraints                                         |              ✅              |             —             |
-| Workflow steps (abstract logic)                               |              ✅              |             —             |
-| Artifact tables (file structures, report templates)           |              ✅              |             —             |
-| Signal protocol definitions                                   |              ✅              |             —             |
-| Contract (input/output schema)                                |              ✅              |             —             |
-| Frontmatter (`name:`, `description:`, `tools:`)               |              —              |             ✅             |
-| Platform-specific fields (`agents:`, `infer:`, `mcp-servers:`) |              —              |             ✅             |
-| Tool-specific instructions ("use `execute/runInTerminal`")    |              —              | ✅ (remapped per platform) |
+| Content Type                                                   | Moves to Shared Instruction |  Stays in Agent Variant   |
+| :------------------------------------------------------------- | :-------------------------: | :-----------------------: |
+| Persona definition (role, responsibilities)                    |              ✅              |             —             |
+| Rules and constraints                                          |              ✅              |             —             |
+| Workflow steps (abstract logic)                                |              ✅              |             —             |
+| Artifact tables (file structures, report templates)            |              ✅              |             —             |
+| Signal protocol definitions                                    |              ✅              |             —             |
+| Contract (input/output schema)                                 |              ✅              |             —             |
+| Frontmatter (`name:`, `description:`, `tools:`)                |              —              |             ✅             |
+| Runtime-specific fields (`agents:`, `disable-model-invocation:`, `mcp-servers:`) |              —              |             ✅             |
+| Tool-specific instructions ("use `execute/runInTerminal`")     |              —              | ✅ (remapped per runtime) |
 
 ### Proposed Shared Instruction Files
 
@@ -177,17 +177,17 @@ Each ralph-v2 agent's **platform-agnostic content** is extracted into a shared i
 
 **Net effect**: 3,279 lines (6 files) → 2,970 + 235 + 275 = 3,480 lines (18 files). The ~6% increase in total line count is offset by:
 - **Single source of truth** for agent behavior — update once, both variants get it
-- **~50-line variant files** that contain only platform-specific wiring
+- **~50-line variant files** that contain only runtime-specific wiring
 - **Dramatically reduced risk of behavioral drift** between platforms
 
-### Caveat: Platform-Neutral Language
+### Caveat: Runtime-Neutral Language
 
-The shared instruction body **must avoid platform-specific tool name references**. Instead of:
+The shared instruction body **must avoid runtime-specific tool name references**. Instead of:
 - ~~"use `execute/runInTerminal` to run commands"~~ → "run commands in the terminal"
 - ~~"use `read/readFile` to read files"~~ → "read the file"
 - ~~"use `@Ralph-v2-Executor` to delegate"~~ → "delegate to the Executor subagent"
 
-This abstraction makes instructions work regardless of the platform's tool naming convention.
+This abstraction makes instructions work regardless of the runtime's tool naming convention.
 
 ## Publish Flow Adjustments
 
@@ -205,11 +205,11 @@ publish-agents.ps1 -Platform cli        # Copies from agents/*/cli/ to CLI paths
 publish-agents.ps1                      # Default: publishes both
 ```
 
-| Parameter          | Source Directory                                           | Destinations                                                              |
-| :----------------- | :--------------------------------------------------------- | :------------------------------------------------------------------------ |
-| `-Platform vscode` | `agents/*/vscode/`, `agents/` (root-level agents)          | `%APPDATA%/Code/User/prompts/`, `%APPDATA%/Code - Insiders/User/prompts/` |
-| `-Platform cli`    | `agents/*/cli/`                                            | `%USERPROFILE%/.copilot/agents/`, WSL `~/.copilot/agents/`                |
-| (default)          | All of the above                                           | All of the above                                                          |
+| Parameter          | Source Directory                                  | Destinations                                                              |
+| :----------------- | :------------------------------------------------ | :------------------------------------------------------------------------ |
+| `-Platform vscode` | `agents/*/vscode/`, `agents/` (root-level agents) | `%APPDATA%/Code/User/prompts/`, `%APPDATA%/Code - Insiders/User/prompts/` |
+| `-Platform cli`    | `agents/*/cli/`                                   | `%USERPROFILE%/.copilot/agents/`, WSL `~/.copilot/agents/`                |
+| (default)          | All of the above                                  | All of the above                                                          |
 
 **Non-ralph agents** at the `agents/` root (e.g., `generic-research.agent.md`, `planner.agent.md`) are published to **VS Code only** by default, since they do not have CLI variants. Future work may add CLI variants for individual non-ralph agents as needed.
 
@@ -231,7 +231,7 @@ Agent variants are **authored manually**, not auto-generated from a single sourc
 1. **Variant differences are non-trivial**: Beyond frontmatter, CLI variants may have different MCP server bundles, model overrides, and tool-specific instructions that don't map mechanically from VS Code equivalents.
 2. **Low maintenance burden**: With shared instructions extracted, each variant is ~50 lines. For 6 agents, that's ~300 lines of variant-specific content — manageable for manual maintenance.
 3. **No build-step complexity**: Auto-generation adds a generator tool to maintain, potential merge conflicts when the generator schema changes, and a build step that must run before publishing.
-4. **Flexibility preserved**: Manual authoring allows each variant to evolve independently (e.g., CLI Orchestrator may adopt `infer:true` for TaskTool delegation while VS Code uses `agents:` for subagent invocation — these are fundamentally different patterns).
+4. **Flexibility preserved**: Manual authoring allows each variant to evolve independently (e.g., a CLI Orchestrator can remain auto-delegatable while a VS Code variant uses `agents:` for explicit subagent invocation — these are fundamentally different patterns).
 
 ### Optional Validation Script
 
@@ -240,8 +240,8 @@ A `scripts/publish/validate-agent-variants.ps1` script can detect variant drift 
 | Check                        | Description                                                                                                      |
 | :--------------------------- | :--------------------------------------------------------------------------------------------------------------- |
 | Shared instruction reference | Both VS Code and CLI variants for the same agent reference the same shared `.instructions.md` file               |
-| Cross-platform field usage   | VS Code variant doesn't depend on CLI-only fields (`infer:`, `mcpServers:`) for functionality                    |
-| Tool namespace compliance    | CLI variant doesn't include VS Code-only tool namespaces (`execute/*`, `read/*`, `edit/*`) in its `tools:` array  |
+| Cross-runtime field usage    | VS Code variant doesn't depend on CLI-only fields (`disable-model-invocation:`, `mcpServers:`) for functionality |
+| Tool namespace compliance    | CLI variant doesn't include VS Code-only tool namespaces (`execute/*`, `read/*`, `edit/*`) in its `tools:` array |
 | Completeness                 | Every agent in `agents/ralph-v2/vscode/` has a corresponding variant in `agents/ralph-v2/cli/` (and vice versa)  |
 
 This validation is **advisory** — it warns about drift but does not block publishing. Implementation of this script is deferred along with the variant files themselves.
@@ -254,7 +254,7 @@ This proposal targets exactly two runtimes: **VS Code** and **copilot-cli**. The
 
 - Adding a future runtime (e.g., "Copilot Cloud") means creating `agents/ralph-v2/cloud/` — no restructuring of existing `agents/ralph-v2/vscode/` or `agents/ralph-v2/cli/` directories required.
 - The `-Platform` parameter in `publish-agents.ps1` accepts new values without breaking existing behavior.
-- Shared instructions remain the single source of truth regardless of how many platform variants exist.
+- Shared instructions remain the single source of truth regardless of how many runtime variants exist.
 - New runtimes are **nested under the agent group**, not at the `agents/` root — keeping the encapsulation pattern consistent.
 
 No empty `agents/ralph-v2/cloud/` directory is created preemptively. The YAGNI principle applies: solve today's known problems, not tomorrow's hypothetical ones.
@@ -264,25 +264,27 @@ No empty `agents/ralph-v2/cloud/` directory is created preemptively. The YAGNI p
 When adding a third runtime variant:
 
 1. Create `agents/<agent-group>/<runtime>/` directory with variant agent files
-2. Extract any new platform-specific fields into the variant frontmatter
+2. Extract any new runtime-specific fields into the variant frontmatter
 3. Add the runtime to the `-Platform` parameter in `publish-agents.ps1`
 4. Add a column to the runtime-support framework matrix
 5. Update the validation script to include the new variant
 
 ## Scope and Deferral
 
-| Item                                         |    Status    | Notes                                                                 |
-| :------------------------------------------- | :----------: | :-------------------------------------------------------------------- |
+| Item                                         |    Status    | Notes                                                                                                                                   |
+| :------------------------------------------- | :----------: | :-------------------------------------------------------------------------------------------------------------------------------------- |
 | Directory structure convention               |  ✅ Decided   | Nested subdirectory (`agents/ralph-v2/vscode/`, `agents/ralph-v2/cli/`). VS Code agents **moved** via `git mv` for symmetric structure. |
-| Shared instructions extraction strategy      |  ✅ Decided   | Platform-agnostic content → `instructions/ralph-v2-*.instructions.md` |
-| Per-agent incompatibility analysis           | ✅ Documented | 6 agents analyzed across 3 categories                                 |
-| Publish flow adjustments design              |  ✅ Designed  | `-Platform vscode\|cli` parameter; source dirs: `agents/*/vscode/`, `agents/*/cli/` |
-| Authoring model                              |  ✅ Decided   | Manual with optional validation                                       |
-| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 5+** — `agents/ralph-v2/cli/`                             |
-| **Extraction of 6 shared instruction files** |  ✅ Done       | Completed (iteration 4) — `instructions/ralph-v2-*.instructions.md`    |
-| **Move VS Code agents to `vscode/` subdir**  |  ✅ Done       | Completed (iteration 4) — `git mv` into `agents/ralph-v2/vscode/`     |
-| **Implementation of `-Platform` parameter**  |  ✅ Done       | Completed (iteration 4)                                                    |
-| **Validation script implementation**         |  ⏳ Deferred  | **Iteration 5+**                                                           |
+| Shared instructions extraction strategy      |  ✅ Decided   | Runtime-agnostic content → `instructions/ralph-v2-*.instructions.md`                                                                    |
+
+> **Note**: `infer` is retained here only for historical analysis. For current authoring, use `disable-model-invocation`; `disable-model-invocation: true` is equivalent to the old `infer: false`.
+| Per-agent incompatibility analysis           | ✅ Documented | 6 agents analyzed across 3 categories                                                                                                   |
+| Publish flow adjustments design              |  ✅ Designed  | `-Platform vscode\|cli` parameter; source dirs: `agents/*/vscode/`, `agents/*/cli/`                                                     |
+| Authoring model                              |  ✅ Decided   | Manual with optional validation                                                                                                         |
+| **Creation of 6 CLI agent variant files**    |  ⏳ Deferred  | **Iteration 5+** — `agents/ralph-v2/cli/`                                                                                               |
+| **Extraction of 6 shared instruction files** |    ✅ Done    | Completed (iteration 4) — `instructions/ralph-v2-*.instructions.md`                                                                     |
+| **Move VS Code agents to `vscode/` subdir**  |    ✅ Done    | Completed (iteration 4) — `git mv` into `agents/ralph-v2/vscode/`                                                                       |
+| **Implementation of `-Platform` parameter**  |    ✅ Done    | Completed (iteration 4)                                                                                                                 |
+| **Validation script implementation**         |  ⏳ Deferred  | **Iteration 5+**                                                                                                                        |
 
 ## Grounding
 

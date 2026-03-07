@@ -2,12 +2,25 @@
 
 Curated List of URLs for iterative check-in for refreshing knowledge in this workspace.
 
-## GitHub Copilot
+## GitHub Copilot in GitHub Docs
 
 https://docs.github.com/en/copilot
-https://github.com/github/copilot-plugins
+https://docs.github.com/en/copilot/how-tos/copilot-cli
+https://docs.github.com/en/copilot/reference/custom-agents-configuration
+https://docs.github.com/en/copilot/reference/customization-cheat-sheet
+https://docs.github.com/en/copilot/reference/cli-plugin-reference
 
-## Multi-agent workflows
+## GitHub Copilot in VS Code Docs
+
+https://code.visualstudio.com/docs/copilot/overview
+https://code.visualstudio.com/docs/copilot/customization/agent-plugins
+
+## GitHub Copilot Community Repos
+
+https://github.com/github/copilot-plugins
+https://github.com/github/awesome-copilot
+
+## Multi-agent workflows Community Repos
 
 https://github.com/bradygaster/squad
 https://github.com/msitarzewski/agency-agents

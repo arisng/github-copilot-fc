@@ -54,7 +54,7 @@ Source Agent File     Instructions Dir        Bundle Output
 
 5. **Body-only 30K limit** — Only Markdown content below YAML frontmatter counts against the 30,000-character limit. This provides ~200–500 chars of extra headroom versus a full-file measurement.
 
-6. **Trimmed variants for over-budget agents** — Agents exceeding 30K combined chars use `.cli-embed.instructions.md` trimmed variants that remove templates, checklists, and verbose examples while preserving persona, rules, workflow, signals, and contract.
+6. **Instruction file sizing** — Agents that previously exceeded 30K combined chars used `.cli-embed.instructions.md` trimmed variants. These have been eliminated: the full Reviewer (26K) and Librarian (27K) instruction files are now compressed to fit within the 30K limit. All CLI agents embed directly from the consolidated instruction files.
 
 7. **Orchestrator excluded** — At 46.4K combined chars, the Orchestrator exceeds the 30K limit by 16K+ and cannot be trimmed to fit without losing core functionality. It retains the runtime instruction reference as a follow-up item.
 

@@ -2,16 +2,16 @@
 
 > **Related**: [CLI Plugin Reference](../../reference/copilot/cli-plugin-reference.md) · [How to Create a CLI Plugin](../../how-to/copilot/how-to-create-cli-plugin.md) · [Customization Matrix](../../reference/copilot/copilot-cli-customization-matrix.md)
 
-This document explains what Copilot CLI plugins are, why they exist, and how they fit into the broader customization ecosystem. For step-by-step authoring instructions, see the linked how-to guide. For schema and command details, see the reference doc.
+This document explains what Copilot CLI plugins are, why they exist, and how they fit into the broader GitHub Copilot customization ecosystem. For step-by-step authoring instructions, see the linked how-to guide. For schema and command details, see the reference doc.
 
 ---
 
 ## What Are Plugins?
 
-A plugin is a **self-contained bundle** of GitHub Copilot customization artifacts — agents, skills, hooks, commands, MCP servers, and LSP servers — distributed as a single installable unit. Instead of manually copying individual `.agent.md` files, `SKILL.md` directories, and hook configs to their respective discovery paths, a plugin packages them together under one `plugin.json` manifest and installs them with a single command.
+A plugin is a **self-contained bundle** of GitHub Copilot customization artifacts (primitives) — agents, skills, hooks, commands, MCP servers, and LSP servers — distributed as a single installable unit. Instead of manually copying individual `.agent.md` files, `SKILL.md` directories, and hook configs to their respective discovery paths, a plugin packages them together under one `plugin.json` manifest and installs them with a single command.
 
 ```bash
-copilot plugin install ./plugins/ralph-v2
+copilot plugin install ./plugins/cli/ralph-v2
 ```
 
 This installs all the components declared in the plugin manifest in one step.
@@ -46,14 +46,14 @@ Plugins solve this by:
 
 Both approaches are valid. The right choice depends on your workflow:
 
-| Factor | Plugins | Manual Configuration (Publish Scripts) |
-|--------|---------|---------------------------------------|
-| **Setup speed** | One command installs everything | Multiple publish scripts per artifact type |
-| **Best for** | Distribution to other machines/teams | Local development iteration |
-| **Update workflow** | `copilot plugin update <name>` | Re-run publish scripts |
-| **Granularity** | All-or-nothing per plugin | Individual artifact control |
-| **Temporary removal** | `copilot plugin disable <name>` | Delete files from discovery paths |
-| **Audience** | Team members, new machine setup | Solo developer, active authoring |
+| Factor                | Plugins                              | Manual Configuration (Publish Scripts)     |
+| --------------------- | ------------------------------------ | ------------------------------------------ |
+| **Setup speed**       | One command installs everything      | Multiple publish scripts per artifact type |
+| **Best for**          | Distribution to other machines/teams | Local development iteration                |
+| **Update workflow**   | `copilot plugin update <name>`       | Re-run publish scripts                     |
+| **Granularity**       | All-or-nothing per plugin            | Individual artifact control                |
+| **Temporary removal** | `copilot plugin disable <name>`      | Delete files from discovery paths          |
+| **Audience**          | Team members, new machine setup      | Solo developer, active authoring           |
 
 ### When to Use Plugins
 
@@ -80,12 +80,12 @@ Plugins and publish scripts can coexist, but be aware of **precedence conflicts*
 
 Plugin files are **copied** (cached) on install — not symlinked. To pick up local changes after editing a plugin, you must reinstall it with `copilot plugin install`.
 
-| Source | Install Path |
-|--------|-------------|
-| Direct install (reference page) | `~/.copilot/state/installed-plugins/<NAME>/` |
-| Direct install (how-to page) | `~/.copilot/installed-plugins/_direct/<NAME>/` |
-| Marketplace install | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
-| Marketplace cache | `~/.copilot/state/marketplace-cache/` |
+| Source                          | Install Path                                               |
+| ------------------------------- | ---------------------------------------------------------- |
+| Direct install (reference page) | `~/.copilot/state/installed-plugins/<NAME>/`               |
+| Direct install (how-to page)    | `~/.copilot/installed-plugins/_direct/<NAME>/`             |
+| Marketplace install             | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
+| Marketplace cache               | `~/.copilot/state/marketplace-cache/`                      |
 
 > **⚠️ Documented inconsistency:** Two official GitHub docs disagree on direct install paths. The [CLI Plugin Reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) uses `~/.copilot/state/installed-plugins/<NAME>/`, while the [How-to: Finding and Installing Plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) uses `~/.copilot/installed-plugins/_direct/<NAME>/`. Key differences: the `state/` prefix (reference has it, how-to doesn't) and the `_direct/` subdirectory (how-to has it, reference doesn't). Verify the actual path on your local filesystem after installing a plugin.
 
@@ -143,7 +143,7 @@ Marketplace features include:
 
 ### Current Status
 
-Marketplace publishing is **deferred** to a future iteration of this workspace. The pilot plugin (`plugins/ralph-v2/`) is distributed via local path and direct GitHub URL installs. Marketplace infrastructure (creating `marketplace.json`, hosting, versioning strategy) will be addressed when the plugin system matures.
+Marketplace publishing is **deferred** to a future iteration of this workspace. The pilot plugin (`plugins/cli/ralph-v2/`) is distributed via local path and direct GitHub URL installs. Marketplace infrastructure (creating `marketplace.json`, hosting, versioning strategy) will be addressed when the plugin system matures.
 
 For current installation methods, see the [How to Create a CLI Plugin](../../how-to/copilot/how-to-create-cli-plugin.md) guide.
 
@@ -151,7 +151,7 @@ For current installation methods, see the [How to Create a CLI Plugin](../../how
 
 ## Workspace Plugin Pilot
 
-The workspace includes a pilot plugin at `plugins/ralph-v2/` that bundles the ralph-v2 multi-agent orchestration system for Copilot CLI. This pilot demonstrates:
+The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that bundles the ralph-v2 multi-agent orchestration system for Copilot CLI. This pilot demonstrates:
 
 - `plugin.json` manifest with relative paths to existing workspace artifacts
 - Integration with `publish-plugins.ps1` for automated installation

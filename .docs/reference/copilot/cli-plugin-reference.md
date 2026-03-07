@@ -7,6 +7,11 @@ This reference documents the `plugin.json` manifest schema, CLI commands, instal
 
 ---
 
+## References (Official Documentation)
+
+Periodically verify against the official documentation to ensure accuracy, as the CLI is rapidly evolving and may have discrepancies or silent changes:
+([GitHub Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference))
+
 ## Directory Conventions
 
 ### Workspace Layout
@@ -104,7 +109,7 @@ Component paths are relative to the plugin directory and point to the resources 
 }
 ```
 
-See the workspace pilot plugin at [plugins/ralph-v2/plugin.json](../../../plugins/ralph-v2/plugin.json) for a real-world example.
+See the workspace pilot plugin at [plugins/cli/ralph-v2/plugin.json](../../../plugins/cli/ralph-v2/plugin.json) for a real-world example.
 
 ---
 
@@ -137,7 +142,7 @@ All plugin commands use `copilot plugin` from the shell.
 ### Shell Examples
 
 ```bash
-copilot plugin install ./plugins/ralph-v2
+copilot plugin install ./plugins/cli/ralph-v2
 copilot plugin list
 copilot plugin uninstall ralph-v2
 copilot plugin marketplace list
@@ -151,7 +156,7 @@ The `copilot plugin install` command accepts multiple source formats:
 
 | Pattern | Example | Description |
 |---------|---------|-------------|
-| Local path | `./plugins/ralph-v2` | Install from a local directory containing `plugin.json`. |
+| Local path | `./plugins/cli/ralph-v2` | Install from a local directory containing `plugin.json`. |
 | GitHub URL | `github.com/owner/repo:plugins/name` | Install directly from a GitHub repository path. |
 | `@owner/name` | `@copilot-fc/ralph-v2` | Install from a registered marketplace. |
 | `@owner/name@version` | `@copilot-fc/ralph-v2@1.0.0` | Install a specific version from marketplace. |
