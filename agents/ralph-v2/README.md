@@ -99,7 +99,11 @@ These Ralph-coupled skills intentionally remain in the root `skills/` factory in
 Ralph-v2 CLI agents are distributed **exclusively via the ralph-v2 CLI plugin**. Do not use `publish-agents.ps1` for CLI agents in this folder (the `.plugin-managed` marker enforces this).
 
 Plugin location: `plugins/cli/ralph-v2/plugin.json`
-Install location (after install): expected direct install at `~/.copilot/installed-plugins/_direct/ralph-v2`, with a mirrored convenience copy at `~/.copilot/installed-plugins/local/ralph-v2`. Older direct installs that still materialize as `~/.copilot/installed-plugins/_direct/.build` are mirrored to the same `local/ralph-v2` target as a compatibility fallback.
+Runtime-scoped bundle root: `plugins/cli/.build/`
+CLI publish unit: `plugins/cli/.build/ralph-v2/`
+CLI install location (workspace publish flow): `~/.copilot/installed-plugins/_direct/ralph-v2`
+
+The workspace publisher now copies the prepared CLI bundle directly into `_direct/ralph-v2` with exact replacement semantics and no `.install/` staging. That payload copy is verified, but Copilot CLI discovery of raw `_direct` copies is still treated as a best-effort path because local probes have not yet proven parity with `copilot plugin install`.
 
 To publish:
 ```powershell
@@ -114,6 +118,8 @@ For VS Code, prefer the plugin publisher so the Ralph-coupled skills are bundled
 ```powershell
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime vscode -Plugins ralph-v2
 ```
+
+VS Code publish builds `plugins/vscode/.build/ralph-v2/` and registers that runtime-scoped bundle path in `chat.plugins.paths`.
 
 Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should only be used if the required skills have already been published separately.
 
