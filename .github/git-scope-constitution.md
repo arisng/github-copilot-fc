@@ -18,6 +18,7 @@ This repository is a **customization factory** for GitHub Copilot customizations
 | `skills/`             | Skill Libraries       | `SKILL.md` + supporting scripts    |
 | `scripts/`            | Automation            | `.ps1`, `.py` scripts              |
 | `toolsets/`           | Tool Configurations   | `.toolsets.jsonc` files            |
+| `plugins/`            | Copilot CLI Plugins   | `plugin.json` + local components   |
 | `copilot-sdk/`        | SDK Documentation     | `.md` docs                         |
 | `prompt-engineering/` | PE Research           | `.md`, `.json` docs                |
 | `.github/`            | Repository Governance | Constitution, inventory, workflows |
@@ -40,6 +41,7 @@ Changes to GitHub Copilot customization artifact files — the most-used commit 
 - `instruction`: Copilot instruction files (`instructions/**/*.instructions.md`)
 - `mcp`: MCP server configuration for Copilot CLI (`.github/mcp*.json`, `mcp-config.json`)
 - `memory`: Copilot memory files (`.copilot/memories/`)
+- `plugin`: Copilot CLI plugin definition and assets (`plugins/**/plugin.json`)
 - `prompt`: Copilot prompt template files (`prompts/**/*.prompt.md`)
 - `skill`: Copilot skill files (`skills/**/SKILL.md` and all supporting skill scripts)
 - `toolset`: Copilot toolset configuration files (`toolsets/**/*.toolsets.jsonc`)
@@ -81,6 +83,7 @@ Documentation-only changes (non-code, non-artifact).
 - `issue`: Issue documents (`_docs/issues/`, `.docs/issues/`)
 - `readme`: Root or directory-level README files
 - `reference`: Reference materials, API docs, or specification files
+- `plugin`: Documentation for Copilot CLI plugins (e.g., README.md in `plugins/`)
 - `research`: Research notes and analysis documents
 - `script`: Documentation for scripts or automation
 - `workspace`: Workspace-level documentation
@@ -109,6 +112,7 @@ New features or capabilities added to the workspace.
 - `agent`: New agent capability or entirely new agent file
 - `copilot-sdk`: GitHub Copilot SDK features (`copilot-sdk/`)
 - `instruction`: New instruction capability
+- `plugin`: New Copilot CLI plugin
 - `prompt`: New prompt template
 - `script`: New automation script
 - `skill`: New skill or major skill capability
@@ -121,6 +125,7 @@ Artifact or code restructuring without behavior change.
 - `agent`: Reorganizing or restructuring agent files
 - `instruction`: Restructuring instruction files
 - `prompt`: Restructuring prompt files
+- `plugin`: Restructuring plugin files or directory structure
 - `skill`: Restructuring skill files (single skill or cross-skill reorganization)
 - `toolset`: Restructuring toolset files
 - `script`: Restructuring script files
@@ -162,7 +167,7 @@ These two commit types often apply to the same files. Use this guide to choose:
 
 ## Scope Selection Guidelines
 
-1. **Match the artifact directory first**: File in `skills/` → `skill`, file in `agents/` → `custom-agent` or `agent`, file in `prompts/` → `prompt`, file in `toolsets/` → `toolset`.
+1. **Match the artifact directory first**: File in `skills/` → `skill`, file in `plugins/` → `plugin`, file in `agents/` → `custom-agent` or `agent`, file in `prompts/` → `prompt`, file in `toolsets/` → `toolset`.
 
 2. **Choose commit type by intent**:
    - `copilot` → GitHub Copilot customization artifact lifecycle (most common type)

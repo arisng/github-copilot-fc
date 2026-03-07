@@ -46,6 +46,7 @@
 - instruction
 - mcp
 - memory
+- plugin
 - prompt
 - skill
 - toolset
