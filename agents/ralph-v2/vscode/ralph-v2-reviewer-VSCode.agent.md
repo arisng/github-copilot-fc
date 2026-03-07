@@ -1,6 +1,7 @@
 ---
-name: Ralph-v2-Reviewer
+name: Ralph-v2-Reviewer-VSCode
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
+target: vscode
 argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), TASK_ID, REPORT_PATH, and ITERATION for review
 user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
@@ -13,9 +14,7 @@ metadata:
 
 # Ralph-v2 Reviewer (VS Code)
 
-> **Shared instructions**: The platform-agnostic quality assurance workflow, review modes (TASK_REVIEW, SESSION_REVIEW, TIMEOUT_FAIL, COMMIT), commit workflow, signals, and contract for this agent are defined in [instructions/ralph-v2-reviewer.instructions.md](../../../instructions/ralph-v2-reviewer.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
->
-> **You MUST read the shared instruction file before executing any review mode.**
+<!-- EMBED: ralph-v2-reviewer.instructions.md -->
 
 ## VS Code Platform Notes
 

@@ -1,6 +1,7 @@
 ---
-name: Ralph-v2-Executor
+name: Ralph-v2-Executor-CLI
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
+target: github-copilot
 user-invocable: true
 tools:
   - bash

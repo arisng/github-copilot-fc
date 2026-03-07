@@ -1,7 +1,8 @@
 ---
-name: Ralph-v2-Planner
+name: Ralph-v2-Planner-CLI
 description: Planning agent v2 with isolated task files, iteration-scoped artifacts, and REPLANNING mode for feedback-driven iteration support
-user-invocable: true
+target: github-copilot
+user-invocable: false
 tools:
   - bash
   - view

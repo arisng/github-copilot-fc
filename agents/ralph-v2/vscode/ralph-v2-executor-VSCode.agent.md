@@ -1,6 +1,7 @@
 ---
-name: Ralph-v2-Executor
+name: Ralph-v2-Executor-VSCode
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
+target: vscode
 argument-hint: Specify the Ralph session path, TASK_ID, ATTEMPT_NUMBER, and ITERATION for task execution
 user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/testFailure, execute/runInTerminal, execute/runTests, read/terminalSelection, read/terminalLastCommand, read/problems, read/readFile, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', 'deepwiki/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/get-library-docs, mcp_docker/resolve-library-id, mcp_docker/search, mcp_docker/sequentialthinking, 'microsoftdocs/mcp/*']
@@ -13,9 +14,7 @@ metadata:
 
 # Ralph-v2 Executor (VS Code)
 
-> **Shared instructions**: The platform-agnostic task execution workflow, rules, artifacts, signals, and contract for this agent are defined in [instructions/ralph-v2-executor.instructions.md](../../../instructions/ralph-v2-executor.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
->
-> **You MUST read the shared instruction file before executing any task.**
+<!-- EMBED: ralph-v2-executor.instructions.md -->
 
 ## VS Code Platform Notes
 

@@ -1,6 +1,7 @@
 ---
-name: Ralph-v2-Librarian
+name: Ralph-v2-Librarian-CLI
 description: Workspace wiki management subagent for Ralph-v2 that extracts iteration-scoped knowledge, stages it to session-scope, and promotes staged content to workspace's .docs using Diátaxis structure
+target: github-copilot
 user-invocable: true
 tools:
   - bash
@@ -16,4 +17,4 @@ metadata:
 
 # Ralph-v2 Librarian (CLI)
 
-<!-- EMBED: ralph-v2-librarian.cli-embed.instructions.md -->
+<!-- EMBED: ralph-v2-librarian.instructions.md -->

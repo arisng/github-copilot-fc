@@ -1,6 +1,7 @@
 ---
-name: Ralph-v2-Planner
+name: Ralph-v2-Planner-VSCode
 description: Planning agent v2 with isolated task files, iteration-scoped artifacts, and REPLANNING mode for feedback-driven iteration support
+target: vscode
 argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), and ITERATION for planning
 user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'vscode/memory']
@@ -13,9 +14,7 @@ metadata:
 
 # Ralph-v2 Planner (VS Code)
 
-> **Shared instructions**: The platform-agnostic planning workflow, modes (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), templates, artifacts, signals, and contract for this agent are defined in [instructions/ralph-v2-planner.instructions.md](../../../instructions/ralph-v2-planner.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
->
-> **You MUST read the shared instruction file before executing any planning mode.**
+<!-- EMBED: ralph-v2-planner.instructions.md -->
 
 ## VS Code Platform Notes
 

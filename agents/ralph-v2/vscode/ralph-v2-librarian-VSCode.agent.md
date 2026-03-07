@@ -1,6 +1,7 @@
 ---
-name: Ralph-v2-Librarian
+name: Ralph-v2-Librarian-VSCode
 description: Workspace wiki management subagent for Ralph-v2 that extracts iteration-scoped knowledge, stages it to session-scope, and promotes staged content to workspace's `.docs` using Diátaxis structure
+target: vscode
 argument-hint: Provide SESSION_PATH, ITERATION, and MODE (EXTRACT, STAGE, PROMOTE, or COMMIT) for knowledge extraction/staging/promotion/commit requested by Ralph-v2 orchestrator
 user-invocable: false
 tools: [vscode/memory, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
@@ -13,9 +14,7 @@ metadata:
 
 # Ralph-v2 Librarian (VS Code)
 
-> **Shared instructions**: The platform-agnostic knowledge management workflow, modes (EXTRACT, STAGE, PROMOTE, COMMIT), merge algorithm, Diataxis classification, signals, and contract for this agent are defined in [instructions/ralph-v2-librarian.instructions.md](../../../instructions/ralph-v2-librarian.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
->
-> **You MUST read the shared instruction file before executing any knowledge management mode.**
+<!-- EMBED: ralph-v2-librarian.instructions.md -->
 
 ## VS Code Platform Notes
 

@@ -1,7 +1,8 @@
 ---
-name: Ralph-v2-Questioner
+name: Ralph-v2-Questioner-CLI
 description: Q&A discovery agent v2 with feedback-analysis mode for replanning and structured question files per category
-user-invocable: true
+target: github-copilot
+user-invocable: false
 tools:
   - bash
   - view

@@ -1,0 +1,18 @@
+# Plugin-Managed Marker
+
+Agents in this directory are managed and distributed via the ralph-v2 VS Code plugin.
+
+**Do NOT publish these agents directly via publish-agents.ps1.**
+
+To publish ralph-v2 VS Code agents, use the plugin publisher:
+```
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+```
+Or using the workspace command dispatcher:
+```
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 publish-plugins
+```
+
+The plugin bundles all agents, skills, and tools together as a coherent multi-agent system:
+  - Plugin source: plugins/vscode/ralph-v2/plugin.json
+  - Install location: VS Code settings — chat.plugins.paths

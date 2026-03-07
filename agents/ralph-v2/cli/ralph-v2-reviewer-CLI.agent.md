@@ -1,7 +1,8 @@
 ---
-name: Ralph-v2-Reviewer
+name: Ralph-v2-Reviewer-CLI
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, and structured review reports
-user-invocable: true
+target: github-copilot
+user-invocable: false
 tools:
   - bash
   - view
@@ -16,4 +17,4 @@ metadata:
 
 # Ralph-v2 Reviewer (CLI)
 
-<!-- EMBED: ralph-v2-reviewer.cli-embed.instructions.md -->
+<!-- EMBED: ralph-v2-reviewer.instructions.md -->

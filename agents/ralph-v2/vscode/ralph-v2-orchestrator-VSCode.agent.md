@@ -1,10 +1,11 @@
 ---
-name: Ralph-v2-Orchestrator
+name: Ralph-v2-Orchestrator-VSCode
 description: Orchestration agent v2 with structured feedback loops, isolated task files, and REPLANNING state for iteration support
+target: vscode
 argument-hint: Outline the task or question to be handled by Ralph-v2 orchestrator
 user-invocable: true
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'mcp_docker/sequentialthinking', 'vscode/memory']
-agents: ['Ralph-v2-Planner', 'Ralph-v2-Questioner', 'Ralph-v2-Executor', 'Ralph-v2-Reviewer', 'Ralph-v2-Librarian']
+agents: ['Ralph-v2-Planner-VSCode', 'Ralph-v2-Questioner-VSCode', 'Ralph-v2-Executor-VSCode', 'Ralph-v2-Reviewer-VSCode', 'Ralph-v2-Librarian-VSCode']
 metadata:
   version: 2.13.0
   created_at: 2026-02-07T00:00:00Z
@@ -14,9 +15,7 @@ metadata:
 
 # Ralph-v2 Orchestrator (VS Code)
 
-> **Shared instructions**: The platform-agnostic orchestration workflow, state machine, feedback loop protocols, signals, and contract for this agent are defined in [instructions/ralph-v2-orchestrator.instructions.md](../../../instructions/ralph-v2-orchestrator.instructions.md). That instruction file is loaded automatically when working on Ralph session files (via `applyTo: ".ralph-sessions/**"`).
->
-> **You MUST read the shared instruction file before executing any orchestration logic.**
+<!-- EMBED: ralph-v2-orchestrator.instructions.md -->
 
 ## VS Code Platform Notes
 
