@@ -254,9 +254,15 @@ function Build-PluginBundle {
 
                 $itemName = Split-Path $resolvedSource -Leaf
                 $targetPath = Join-Path $componentBuildDir $itemName
+                $isDirectory = Test-Path $resolvedSource -PathType Container
 
                 Copy-Item -Path $resolvedSource -Destination $targetPath -Recurse -Force
-                $localPaths += "$field/$itemName/"
+                if ($isDirectory) {
+                    $localPaths += "$field/$itemName/"
+                }
+                else {
+                    $localPaths += "$field/$itemName"
+                }
             }
 
             $cleanManifest[$field] = $localPaths

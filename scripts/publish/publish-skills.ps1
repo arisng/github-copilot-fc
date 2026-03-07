@@ -2,6 +2,10 @@ param(
     [Parameter(Mandatory = $false)]
     [string[]]$Skills,
 
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('copilot', 'codex', 'claude')]
+    [string[]]$Targets = @('copilot'),
+
     # force mode is now the default.  use -NoForce to opt out when you really
     # want to preserve an existing copy instead of overwriting it.
     [Parameter(Mandatory = $false)]
@@ -33,6 +37,10 @@ function Publish-SkillsToPersonal {
     .PARAMETER Skills
         Array of skill names to publish. If empty, publishes all skills.
 
+    .PARAMETER Targets
+        Personal skill targets to publish to. Defaults to `copilot` only.
+        Valid values: `copilot`, `codex`, `claude`.
+
     .PARAMETER Force
         Overwrite existing skills.  This flag is **on by default**; the script
         will behave as if -Force was passed unless you also specify -NoForce.
@@ -52,7 +60,12 @@ function Publish-SkillsToPersonal {
     .EXAMPLE
         Publish-SkillsToPersonal -Skills diataxis,beads
 
-        Publishes only the 'diataxis' and 'beads' skills.
+        Publishes only the 'diataxis' and 'beads' skills to Copilot.
+
+    .EXAMPLE
+        Publish-SkillsToPersonal -Targets copilot,codex,claude
+
+        Publishes skills to all supported personal targets on Windows and WSL.
 
     .EXAMPLE
         Publish-SkillsToPersonal -Force
@@ -68,16 +81,43 @@ function Publish-SkillsToPersonal {
     # interpret the combination of Force/NoForce switches
     if ($NoForce) { $Force = $false }
 
+    $targetList = @()
+    foreach ($target in $Targets) {
+        $targetList += @($target -split ',') | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ -ne '' }
+    }
+    $targetList = $targetList | Select-Object -Unique
+
+    if ($targetList.Count -eq 0) {
+        throw 'At least one publish target must be specified.'
+    }
+
     Write-Host "Publishing skills to personal folders" -ForegroundColor Cyan
 
     $projectSkillsPath = Join-Path $PSScriptRoot "..\..\skills"
-    $personalSkillsPaths = @(
-        (Join-Path $env:USERPROFILE ".codex\skills"),
-        (Join-Path $env:USERPROFILE ".copilot\skills")
-    )
+    $windowsTargetMap = [ordered]@{
+        copilot = (Join-Path $env:USERPROFILE '.copilot\skills')
+        codex   = (Join-Path $env:USERPROFILE '.codex\skills')
+        claude  = (Join-Path $env:USERPROFILE '.claude\skills')
+    }
+    $wslTargetMap = [ordered]@{
+        copilot = '.copilot/skills'
+        codex   = '.codex/skills'
+        claude  = '.claude/skills'
+    }
 
-    # WSL target paths (relative to WSL home directory)
-    $wslSkillFolders = @(".codex/skills", ".copilot/skills")
+    $personalSkillTargets = @()
+    foreach ($target in $targetList) {
+        if (-not $windowsTargetMap.Contains($target)) {
+            throw "Unsupported publish target: $target"
+        }
+
+        $personalSkillTargets += [PSCustomObject]@{
+            Name       = $target
+            WindowsPath = $windowsTargetMap[$target]
+            WslPath    = $wslTargetMap[$target]
+        }
+    }
+
     $wslAvailable = $false
     $wslHome = $null
 
@@ -97,10 +137,10 @@ function Publish-SkillsToPersonal {
     }
 
     # Create personal skills directories if they don't exist
-    foreach ($path in $personalSkillsPaths) {
-        if (-not (Test-Path $path)) {
-            New-Item -ItemType Directory -Path $path -Force | Out-Null
-            Write-Host "Created personal skills directory: $path" -ForegroundColor Green
+    foreach ($target in $personalSkillTargets) {
+        if (-not (Test-Path $target.WindowsPath)) {
+            New-Item -ItemType Directory -Path $target.WindowsPath -Force | Out-Null
+            Write-Host "Created personal skills directory: $($target.WindowsPath)" -ForegroundColor Green
         }
     }
 
@@ -138,9 +178,9 @@ function Publish-SkillsToPersonal {
         }
 
         # Publish to Windows personal folders
-        foreach ($path in $personalSkillsPaths) {
-            $destinationPath = Join-Path $path $skillDir.Name
-            $folder = Split-Path (Split-Path $path -Parent) -Leaf
+        foreach ($target in $personalSkillTargets) {
+            $destinationPath = Join-Path $target.WindowsPath $skillDir.Name
+            $folder = $target.Name
 
             # Check if skill already exists
             $exists = Test-Path $destinationPath
@@ -162,10 +202,9 @@ function Publish-SkillsToPersonal {
 
         # Publish to WSL
         if ($wslAvailable) {
-            foreach ($wslFolder in $wslSkillFolders) {
-                $wslTargetPath = "$wslHome/$wslFolder/$($skillDir.Name)"
-                $wslParentPath = "$wslHome/$wslFolder"
-                $agent = Split-Path $wslFolder -Parent  # .claude, .codex, or .copilot
+            foreach ($target in $personalSkillTargets) {
+                $wslTargetPath = "$wslHome/$($target.WslPath)/$($skillDir.Name)"
+                $agent = $target.Name
 
                 try {
                     # Check if skill exists in WSL

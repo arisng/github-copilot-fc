@@ -16,8 +16,11 @@
         vscode/        -- Plugins targeting VS Code Copilot runtime
           ralph-v2/    -- plugin.json here
 
-    CLI install locations (per https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations):
-      Direct install: ~/.copilot/state/installed-plugins/<PLUGIN-NAME>
+        CLI install locations:
+            This publisher stages local installs through a `local/<plugin-name>` source path so
+            direct installs no longer land under `_direct/.build`. After install it also syncs a
+            human-friendly mirror to `~/.copilot/installed-plugins/local/<PLUGIN-NAME>` on both
+            Windows and WSL without moving the authoritative direct-install location.
 
     VS Code install: adds .build/ path to 'chat.plugins.paths' in user settings.json for
       both VS Code Stable and VS Code Insiders (whichever are present).
@@ -80,6 +83,79 @@ if ($SkipWSL) {
 # Build functions (Merge-AgentInstructions, Build-PluginBundle, Invoke-PluginBuild)
 # are defined in build-plugins.ps1. Dot-source to load without triggering standalone run.
 . "$PSScriptRoot/build-plugins.ps1"
+. "$PSScriptRoot/wsl-helpers.ps1"
+
+function New-LocalPluginInstallSource {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$BuildPath,
+        [Parameter(Mandatory)][string]$PluginName
+    )
+
+    $pluginDir = Split-Path $BuildPath -Parent
+    $installRoot = Join-Path $pluginDir '.install\local'
+    $installPath = Join-Path $installRoot $PluginName
+
+    if (Test-Path $installPath) {
+        Remove-Item $installPath -Recurse -Force
+    }
+
+    New-Item -Path $installRoot -ItemType Directory -Force | Out-Null
+    New-Item -Path $installPath -ItemType Directory -Force | Out-Null
+    Copy-Item -Path (Join-Path $BuildPath '*') -Destination $installPath -Recurse -Force
+    return $installPath
+}
+
+function Sync-CopilotPluginInstallMirror {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$InstalledPluginsRoot,
+        [Parameter(Mandatory)][string]$PluginName,
+        [switch]$UseWSL
+    )
+
+    if ($UseWSL) {
+        $command = @"
+mkdir -p '$InstalledPluginsRoot/local'
+sourcePath=''
+for candidate in '$InstalledPluginsRoot/_direct/$PluginName' '$InstalledPluginsRoot/_direct/.build'; do
+  if [ -e "$candidate" ]; then
+    sourcePath="$candidate"
+    break
+  fi
+done
+
+if [ -z "$sourcePath" ]; then
+  exit 0
+fi
+
+targetPath='$InstalledPluginsRoot/local/$PluginName'
+rm -rf "$targetPath"
+cp -R "$sourcePath" "$targetPath"
+"@
+        Invoke-WSLCommand -Command $command -InitializeNode -SuppressStderr | Out-Null
+        return
+    }
+
+    $localRoot = Join-Path $InstalledPluginsRoot 'local'
+    $preferredPath = Join-Path $localRoot $PluginName
+    $candidates = @(
+        (Join-Path $InstalledPluginsRoot (Join-Path '_direct' $PluginName)),
+        (Join-Path $InstalledPluginsRoot '_direct\.build')
+    )
+
+    $sourcePath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $sourcePath) {
+        return
+    }
+
+    New-Item -Path $localRoot -ItemType Directory -Force | Out-Null
+    if (Test-Path $preferredPath) {
+        Remove-Item $preferredPath -Recurse -Force
+    }
+
+    Copy-Item -Path $sourcePath -Destination $preferredPath -Recurse -Force
+}
 
 function Update-VSCodePluginSettings {
     <#
@@ -330,6 +406,8 @@ function Publish-Plugins {
         }
 
         # --- CLI: Windows install ---
+        $installPath = New-LocalPluginInstallSource -BuildPath $buildPath -PluginName $pluginName
+
         if ($Environment -eq 'windows' -or $Environment -eq 'all') {
             try {
                 if ($Force) {
@@ -341,8 +419,9 @@ function Publish-Plugins {
                 }
 
                 Write-Host "  Installing: $pluginName" -ForegroundColor DarkGray
-                & copilot plugin install $buildPath
+                & copilot plugin install $installPath
                 if ($LASTEXITCODE -eq 0) {
+                    Sync-CopilotPluginInstallMirror -InstalledPluginsRoot (Join-Path $env:USERPROFILE '.copilot\installed-plugins') -PluginName $pluginName
                     Write-Host "  Installed: $pluginName" -ForegroundColor Green
                     $installed++
                 }
@@ -359,7 +438,7 @@ function Publish-Plugins {
 
         # --- CLI: WSL install ---
         if ($wslAvailable -and ($Environment -eq 'wsl' -or $Environment -eq 'all')) {
-            $wslPluginPath = Convert-ToWSLPath -Path $buildPath
+            $wslPluginPath = Convert-ToWSLPath -Path $installPath
             try {
                 if ($Force) {
                     Write-Host "  WSL uninstalling: $pluginName" -ForegroundColor DarkGray
@@ -370,6 +449,7 @@ function Publish-Plugins {
                 Invoke-WSLCommand -Command "copilot plugin install '$wslPluginPath'" -InitializeNode | Out-Null
 
                 if ($LASTEXITCODE -eq 0) {
+                    Sync-CopilotPluginInstallMirror -InstalledPluginsRoot "$wslHome/.copilot/installed-plugins" -PluginName $pluginName -UseWSL
                     Write-Host "  WSL installed: $pluginName" -ForegroundColor Green
                     $installed++
                 }
