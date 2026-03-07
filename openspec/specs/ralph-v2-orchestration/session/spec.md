@@ -3,7 +3,7 @@ domain: session
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-02T15:30:44+07:00
+updated_at: 2026-03-07T22:41:52+07:00
 ---
 
 # Session Specification
@@ -157,6 +157,12 @@ At the session level, non-authoritative aggregate views (rollups, summaries, com
 
 #### SES-025: Boundary Rule
 If an artifact can be regenerated from normalized sources, it MUST be labeled non-authoritative. Non-authoritative artifacts MUST carry a visible indicator that they are regenerable and not canonical.
+
+#### SES-026: PLANNING Delegation Observability
+During PLANNING, Planner-to-Questioner grounding delegation MUST be observable through iteration artifacts alone. The Progress Tracker MUST show the active discovery step through `plan-brainstorm` or `plan-research`, `plan-breakdown` MUST remain incomplete until grounding is ready, and the corresponding Discovery Record under `iterations/<N>/questions/` MUST identify the category and cycle that unblock Planner.
+
+#### SES-027: Orchestration Read Boundary for Planning Delegation
+When routing the PLANNING loop, the Orchestration Role MUST rely on the Progress Tracker and Discovery Record artifacts to determine whether discovery should continue or Planner should resume. It MUST NOT inspect unrelated workspace content to infer grounding status.
 
 ## Scenarios
 
@@ -331,4 +337,15 @@ WHEN the Planning Role completes task breakdown with 5 Task Definition Records
 THEN the Iteration State Store records planning as complete
 AND the Iteration State Store records 5 as the number of defined tasks
 AND the planning completion timestamp is recorded
+```
+
+### SC-SES-017: PLANNING Delegation Is Observable From Session Artifacts
+**Validates**: SES-026, SES-027
+```
+GIVEN the Planning Role delegated Technical grounding during PLANNING
+AND `iterations/<N>/questions/technical.md` exists for the delegated cycle
+WHEN the Orchestration Role evaluates whether to continue discovery or resume Planner
+THEN it reads the Progress Tracker and the delegated Discovery Record only
+AND it does NOT inspect unrelated workspace files to infer grounding status
+AND the delegated cycle remains observable because `plan-breakdown` is still incomplete until grounding is ready
 ```

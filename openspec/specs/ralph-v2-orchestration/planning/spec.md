@@ -3,7 +3,7 @@ domain: planning
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-02T16:10:48+07:00
+updated_at: 2026-03-07T22:41:52+07:00
 ---
 
 # Planning Specification
@@ -253,6 +253,14 @@ The Planning Role has mutation authority over the following artifacts (per SES-0
 
 #### PLAN-041: Progress Tracker Update Discipline
 When the Planning Role updates the Progress Tracker, it MUST follow the update discipline defined in SES-018: update at the start of work (marking in-progress) and at the end of work (marking the final status). The Planning Role's Progress Tracker updates are limited to planning-phase entries and task definition entries — it MUST NOT modify execution-phase or review-phase status markers owned by other roles.
+
+### PLANNING Delegation Handshake
+
+#### PLAN-042: Grounding Delegation Before Breakdown
+When the system is in PLANNING and the Planning Role determines that available Discovery Records are insufficient for TASK_BREAKDOWN, the Planning Role MUST delegate grounding work instead of creating Task Definition Records. The Planning Role MUST identify exactly one next Discovery Role invocation, select the target category, select the next cycle number, leave `plan-breakdown` incomplete, and preserve routing observability through the Progress Tracker and Discovery Record artifacts.
+
+#### PLAN-043: Grounding Delegation Return Contract
+When delegating grounding work during PLANNING, the Planning Role MUST return a structured response containing: the iteration number, the target category, the next cycle number, `brainstorm_needed`, `research_needed`, `next_discovery_mode`, `grounding_gap_summary`, `question_artifact_path`, `progress_entry_updated`, `grounding_request_source` set to `Planner`, `grounding_ready` set to `false`, and `planner_resume_mode` set to `TASK_BREAKDOWN`. If both brainstorm and research are needed, `next_discovery_mode` MUST identify the immediate next Discovery Role invocation and the subsequent Discovery Role completion payload MUST clarify whether additional research remains before Planner resumes.
 
 ## Scenarios
 
@@ -543,4 +551,16 @@ WHEN the Discovery Role attempts to modify the Iteration Plan
 THEN the modification is rejected — only the Planning Role has mutation authority
 AND WHEN the Planning Role is invoked in UPDATE mode
 THEN the Iteration Plan modification succeeds
+```
+
+### SC-PLAN-028: PLANNING — Delegate Grounding Before Breakdown
+**Validates**: PLAN-042, PLAN-043
+```
+GIVEN the system is in PLANNING
+AND the Planning Role finds that existing Discovery Records do not provide enough technical grounding for TASK_BREAKDOWN
+WHEN the Planning Role evaluates whether to begin breakdown
+THEN it does NOT create or modify any Task Definition Records
+AND it leaves `plan-breakdown` incomplete
+AND it returns a delegation response containing the iteration number, target category, next cycle number, `brainstorm_needed`, `research_needed`, `next_discovery_mode`, `question_artifact_path`, `progress_entry_updated`, `grounding_request_source` set to `Planner`, `grounding_ready` set to `false`, and `planner_resume_mode` set to `TASK_BREAKDOWN`
+AND the returned `question_artifact_path` points to the Discovery Record the Orchestration Role can monitor before resuming Planner
 ```

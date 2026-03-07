@@ -3,7 +3,7 @@ domain: discovery
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-02T17:02:12+07:00
+updated_at: 2026-03-07T22:41:52+07:00
 ---
 
 # Discovery Specification
@@ -212,6 +212,12 @@ When the Discovery Role updates the Progress Tracker, it MUST follow the update 
 #### DISC-036: Invocation Response Structure
 Every Discovery Role invocation MUST return a structured response containing: the completion status, the mode that was executed, the iteration number, the cycle number, the category, the count of questions generated, the count of questions answered (zero for non-RESEARCH modes), the list of Discovery Records updated, critical findings (if any), the Progress Tracker entry updated, an optional next-role suggestion for the Messenger Protocol (per ORCH-016), and an optional forwarded message for the next role.
 
+#### DISC-037: Planner Grounding Delegation Continuity
+When the Discovery Role is invoked during PLANNING in response to a Planning Role grounding delegation, it MUST treat the planner-provided target category, cycle number, and question artifact path as the authoritative continuation context. BRAINSTORM MUST create or append that Discovery Record; RESEARCH MUST load that same Discovery Record; both modes MUST preserve the requested category and cycle in their artifacts and return payloads.
+
+#### DISC-038: Planner Grounding Completion Payload
+When BRAINSTORM or RESEARCH completes for a Planning Role grounding delegation, the Discovery Role MUST return a structured completion payload containing: `grounding_request_source` set to `Planner`, `question_artifact_path`, `progress_entry_updated`, `cycle_complete`, `research_needed`, `grounding_ready`, and `planner_resume_mode` set to `TASK_BREAKDOWN`. `grounding_ready` MUST be `true` only when the delegated Discovery Record has no remaining unanswered or research-needed items that block Planner from resuming task breakdown.
+
 ## Scenarios
 
 ### SC-DISC-001: BRAINSTORM — Standard Category Question Generation
@@ -412,4 +418,17 @@ GIVEN the Discovery Role has completed BRAINSTORM mode for category Assumptions,
 AND it generated 6 questions with 0 answered
 WHEN the invocation returns its structured response
 THEN the response contains: completion status, mode (BRAINSTORM), iteration number (1), cycle number (1), category (Assumptions), questions generated count (6), questions answered count (0), list of Discovery Records updated, critical findings (if any), Progress Tracker entry updated, optional next-role suggestion, and optional forwarded message
+```
+
+### SC-DISC-019: PLANNING — Return Planner Grounding Completion Markers
+**Validates**: DISC-037, DISC-038
+```
+GIVEN the Discovery Role is invoked during PLANNING from a Planner grounding delegation for category Technical and cycle 1
+WHEN BRAINSTORM completes and writes the delegated Discovery Record
+THEN the response preserves the requested category and cycle
+AND includes `grounding_request_source` = `Planner`
+AND includes the `question_artifact_path` for the delegated Discovery Record
+AND includes the `progress_entry_updated` marker for the completed discovery step
+AND sets `grounding_ready` to `false` until the delegated research work is complete
+AND sets `planner_resume_mode` to `TASK_BREAKDOWN`
 ```
