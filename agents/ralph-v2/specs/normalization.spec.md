@@ -3,6 +3,7 @@ title: "Session Artifact Normalization"
 status: deprecated
 superseded_by: openspec/specs/ralph-v2-orchestration/session/spec.md
 deprecated_at: 2026-03-02T17:48:29+07:00
+deprecated: true
 version: "2.2.0"
 created_at: 2026-02-15T00:00:00+07:00
 updated_at: 2026-03-02T17:48:29+07:00

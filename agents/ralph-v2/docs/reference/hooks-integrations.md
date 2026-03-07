@@ -1,3 +1,7 @@
+---
+deprecated: true
+---
+
 # Hooks Integrations for Deterministic Ralph v2 Workflows
 
 This appendix details proposed GitHub Copilot Hooks integrations to increase determinism, enforce guardrails, and improve auditability.

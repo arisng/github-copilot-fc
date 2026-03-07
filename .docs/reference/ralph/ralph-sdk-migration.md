@@ -1,6 +1,6 @@
 # Ralph SDK Migration Guide
 
-This guide documents how to migrate the Ralph agent system from VS Code (`runSubagent`) to the GitHub Copilot SDK for custom C# applications.
+This guide documents how to migrate the Ralph multi-agent system from VS Code (`runSubagent`) to the GitHub Copilot SDK for custom C# applications.
 
 ---
 

@@ -25,15 +25,13 @@ agents/
 └── ralph-v2/
     ├── README.md
     ├── instructions/
-    │   ├── ralph-v2-orchestrator.instructions.md          # Orchestrator core (27,967-char body; near 30K CLI limit)
+    │   ├── ralph-v2-orchestrator.instructions.md          # Orchestrator core (28K body; near 30K CLI limit)
     │   ├── ralph-v2-orchestrator-appendix.instructions.md # Orchestrator overflow (VS Code only; see note below)
     │   ├── ralph-v2-planner.instructions.md
     │   ├── ralph-v2-questioner.instructions.md
     │   ├── ralph-v2-executor.instructions.md
-    │   ├── ralph-v2-reviewer.instructions.md
-    │   ├── ralph-v2-reviewer.cli-embed.instructions.md    # Trimmed variant for CLI plugin (≤30K body)
-    │   ├── ralph-v2-librarian.instructions.md
-    │   └── ralph-v2-librarian.cli-embed.instructions.md   # Trimmed variant for CLI plugin (≤30K body)
+    │   ├── ralph-v2-reviewer.instructions.md              # Compressed to ~26K body (fits CLI 30K limit)
+    │   └── ralph-v2-librarian.instructions.md             # Compressed to ~27K body (fits CLI 30K limit)
     ├── vscode/
     │   ├── ralph-v2-orchestrator.agent.md
     │   ├── ralph-v2-executor.agent.md
@@ -42,6 +40,7 @@ agents/
     │   ├── ralph-v2-reviewer.agent.md
     │   └── ralph-v2-librarian.agent.md
     └── cli/
+        ├── .plugin-managed                                # Marker: agents here are published via plugin only
         ├── ralph-v2-orchestrator.agent.md
         ├── ralph-v2-executor.agent.md
         ├── ralph-v2-planner.agent.md
@@ -50,7 +49,7 @@ agents/
         └── ralph-v2-librarian.agent.md
 ```
 
-> **Note**: `specs/`, `docs/`, and shared files remain at the `ralph-v2/` root.
+> **Note**: `specs/`, `docs/`, and shared files remain at the `ralph-v2/` root. (specs/ and docs/ are deprecated now)
 
 ```
 agents/ralph-v2/
@@ -69,19 +68,42 @@ agents/ralph-v2/
 
 ### Instruction Files
 
-All subagents load their behaviour from shared `instructions/` files. The GitHub Copilot CLI enforces a **30,000-character maximum on the Markdown body** (YAML frontmatter is excluded). Files that exceed this limit need a trimmed `.cli-embed.instructions.md` variant for the CLI plugin, or — for the Orchestrator, which is excluded from the CLI plugin entirely — an overflow appendix file.
+All subagents load their behaviour from shared `instructions/` files. The GitHub Copilot CLI enforces a **30,000-character maximum on the Markdown body** (YAML frontmatter is excluded). All instruction files are now consolidated — there are no separate CLI-trimmed variants. Reviewer and Librarian instructions are compressed to fit within 30K.
 
-| File | Purpose | CLI variant? |
-|------|---------|-------------|
-| `ralph-v2-orchestrator.instructions.md` | Orchestrator core — state machine, subagent routing, signal protocol. Body ≈ 27,967 chars (near the 30K limit; appendix holds overflow). | Not needed (Orchestrator excluded from CLI plugin at 46.4K total) |
-| `ralph-v2-orchestrator-appendix.instructions.md` | **Orchestrator overflow** — additional sections offloaded from the core file to stay under the 30K CLI body limit. Applied alongside the core file in VS Code via `applyTo: ".ralph-sessions/**"`. Not embedded in the CLI plugin. | No (VS Code-only) |
-| `ralph-v2-planner.instructions.md` | Planner modes: INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | No |
-| `ralph-v2-questioner.instructions.md` | Questioner modes: brainstorm, research, feedback-analysis | No |
-| `ralph-v2-executor.instructions.md` | Executor — task implementation, signal polling, report structure | No |
-| `ralph-v2-reviewer.instructions.md` | Reviewer modes: TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL | `ralph-v2-reviewer.cli-embed.instructions.md` |
-| `ralph-v2-librarian.instructions.md` | Librarian modes: EXTRACT, STAGE, PROMOTE | `ralph-v2-librarian.cli-embed.instructions.md` |
+| File | Purpose | Body (approx) |
+|------|---------|---------------|
+| `ralph-v2-orchestrator.instructions.md` | Orchestrator core — state machine, subagent routing, signal protocol | ~28K |
+| `ralph-v2-orchestrator-appendix.instructions.md` | **Orchestrator overflow** — additional sections for VS Code only. Applied via `applyTo: ".ralph-sessions/**"`. Not embedded in the CLI plugin. | ~4K |
+| `ralph-v2-planner.instructions.md` | Planner modes: INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | ~28K |
+| `ralph-v2-questioner.instructions.md` | Questioner modes: brainstorm, research, feedback-analysis | ~16K |
+| `ralph-v2-executor.instructions.md` | Executor — task implementation, signal polling, report structure | ~12K |
+| `ralph-v2-reviewer.instructions.md` | Reviewer modes: TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL | ~26K |
+| `ralph-v2-librarian.instructions.md` | Librarian modes: EXTRACT, STAGE, PROMOTE, COMMIT | ~27K |
 
-> **Why the orchestrator-appendix exists:** The core orchestrator instruction file grew to ~27,967 body characters — close to the 30K CLI agent body limit. To prevent future edits from silently truncating, overflow sections were extracted into `ralph-v2-orchestrator-appendix.instructions.md`. Because the Orchestrator is excluded from the CLI plugin (its full file is 46.4K), no trimmed CLI variant is needed; both files are active in VS Code only.
+> **Orchestrator-appendix**: The orchestrator uses an appendix file for VS Code overflow because its full content (~46K combined) far exceeds the 30K limit, making it ineligible for CLI plugin embedding. The appendix is VS Code-only.
+
+> **No CLI-trimmed variants**: Previously `ralph-v2-reviewer.cli-embed.instructions.md` and `ralph-v2-librarian.cli-embed.instructions.md` existed as trimmed CLI variants. These are now eliminated — all agents embed from the consolidated instruction files, which have been compressed to fit within the 30K CLI body limit.
+
+### Plugin Distribution
+
+Ralph-v2 CLI agents are distributed **exclusively via the ralph-v2 CLI plugin**. Do not use `publish-agents.ps1` for CLI agents in this folder (the `.plugin-managed` marker enforces this).
+
+Plugin location: `plugins/cli/ralph-v2/plugin.json`
+Install location (after install): `~/.copilot/state/installed-plugins/ralph-v2`
+
+To publish:
+```powershell
+# Publish via plugin (required for CLI agents)
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+
+# Or using the artifact publisher:
+pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type plugin -Name ralph-v2
+```
+
+For VS Code agents, use:
+```powershell
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform vscode
+```
 
 ### Agent Reference
 

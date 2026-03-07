@@ -1,3 +1,7 @@
+---
+status: deprecated
+---
+
 # Ralph v1 Orchestrator State Machine
 
 This document models the Ralph orchestrator as a finite state machine, designed for straightforward implementation in C# or any statically-typed language.

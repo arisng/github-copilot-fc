@@ -3,6 +3,7 @@ title: Ralph v2 Stop Hook Metadata Finalization
 status: deprecated
 superseded_by: openspec/specs/ralph-v2-orchestration/session/spec.md
 deprecated_at: 2026-03-02T17:48:29+07:00
+deprecated: true
 version: "1.0"
 created_at: 2024-06-20
 updated_at: 2026-03-02T17:48:29+07:00

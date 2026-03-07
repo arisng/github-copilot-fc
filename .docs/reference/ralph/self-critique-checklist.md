@@ -153,17 +153,17 @@ Get-ChildItem -Path ".docs" -Directory |
 
 The self-critique process ran 3 passes:
 
-| Pass | Issues Found | Severity Breakdown | Resolved |
-|------|-------------|-------------------|----------|
-| Pass 1 | 4 | 1 Critical, 3 Major | 4/4 |
-| Pass 2 | 1 | 1 Major (missed by Pass 1) | 1/1 |
-| Pass 3 | 0 | — | — (Clean Pass) |
+| Pass   | Issues Found | Severity Breakdown         | Resolved       |
+| ------ | ------------ | -------------------------- | -------------- |
+| Pass 1 | 4            | 1 Critical, 3 Major        | 4/4            |
+| Pass 2 | 1            | 1 Major (missed by Pass 1) | 1/1            |
+| Pass 3 | 0            | —                          | — (Clean Pass) |
 
 ### Issues Found and Root Causes
 
-| ID | Severity | Dimension | Issue | Root Cause |
-|----|----------|-----------|-------|------------|
-| ISS-C-001 | Critical | (a) Version | 6 agent files at v2.10.0, README at v2.11.0 | README version bumped in task-6, agent frontmatter not updated |
-| ISS-M-001 | Major | (d) Cross-ref | critique.md line 249 linked to deleted normalization.md | File migrated in task-3, link not updated |
-| ISS-M-002 | Major | (i) Stale | stop-hook spec lines 24, 154 referenced deleted appendixes/ | Directory deleted in task-5, spec not updated |
-| ISS-M-003 | Major | (d) Cross-ref | critique.md line 274 used workspace-root-relative path | Incorrect relative path pattern (not caught in Pass 1) |
+| ID        | Severity | Dimension     | Issue                                                       | Root Cause                                                     |
+| --------- | -------- | ------------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
+| ISS-C-001 | Critical | (a) Version   | 6 agent files at v2.10.0, README at v2.11.0                 | README version bumped in task-6, agent frontmatter not updated |
+| ISS-M-001 | Major    | (d) Cross-ref | critique.md line 249 linked to deleted normalization.md     | File migrated in task-3, link not updated                      |
+| ISS-M-002 | Major    | (i) Stale     | stop-hook spec lines 24, 154 referenced deleted appendixes/ | Directory deleted in task-5, spec not updated                  |
+| ISS-M-003 | Major    | (d) Cross-ref | critique.md line 274 used workspace-root-relative path      | Incorrect relative path pattern (not caught in Pass 1)         |
