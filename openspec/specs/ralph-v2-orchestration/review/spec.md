@@ -162,6 +162,7 @@ The Review Role MUST read the following artifacts before producing the Iteration
 4. The Progress Tracker for the current iteration.
 5. All Feedback Collection artifacts across iterations (for feedback loop effectiveness assessment).
 6. The Iteration State Store for the current iteration.
+7. The current iteration's knowledge artifacts and any staging or promotion evidence tied to the iteration, if present.
 
 #### REV-025: Goal Achievement Assessment
 The Review Role MUST evaluate each success criterion listed in the Iteration Plan and classify it as one of: Achieved (fully satisfied with evidence), Partial (partially satisfied with documented gaps), or Not Achieved (not satisfied with impact assessment). The assessment MUST include the count of goals achieved out of the total.
@@ -187,13 +188,13 @@ The Review Role MUST produce the Iteration Review Report (per SES-012 ownership)
 6. **Issues Found** — categorized by severity (Critical, Major, Minor) with unique identities.
 7. **Cross-Agent Consistency** — results of the Cross-Agent Normalization Checklist (per REV-038).
 8. **Persistence Summary** — table of persisted changes per task with identifiers and labels.
-9. **Knowledge Artifacts** — knowledge items staged or promoted during the iteration.
+9. **Knowledge Artifacts** — knowledge items extracted, staged, or promoted during the iteration, including skipped or empty-pipeline evidence when applicable.
 10. **Feedback Loop Effectiveness** — counts of feedback batches processed, issues resolved, issues remaining, and rework cycles.
 11. **Recommendations** — actionable items for the next iteration or session closure.
-12. **Next Actions** — decision (continue, replan, or complete) with rationale.
+12. **Next Actions** — recommended next step (continue, replan, or complete) with rationale. This section is advisory only; the Orchestration Role retains routing authority.
 
 #### REV-028: Session Review Output
-Upon completing the Iteration Review Report, the Review Role MUST return to the Orchestration Role: the assessment (Complete or Needs Rework), the issue counts by severity (critical, major, minor, total), and the path to the review document. The Orchestration Role uses these counts with the configured severity threshold (per ORCH-024) to determine whether to enter the critique self-loop (per ORCH-009). The Review Role MUST NOT encode routing decisions inside the Iteration Review Report.
+Upon completing the Iteration Review Report, the Review Role MUST return to the Orchestration Role: the assessment (Complete or Needs Rework), the issue counts by severity (critical, major, minor, total), and the path to the review document. The report MUST reflect the post-knowledge iteration state. The Orchestration Role uses these counts with the configured severity threshold (per ORCH-024) to determine whether to enter the critique self-loop (per ORCH-009). The Review Role MUST NOT encode routing decisions inside the Iteration Review Report.
 
 #### REV-029: Assessment Derivation
 The assessment value MUST be derived as follows:
@@ -320,10 +321,10 @@ The Review Role in TASK_REVIEW mode MUST accept input consisting of: Session Ref
 Upon completing TASK_REVIEW, the Review Role MUST return: status (completed), mode (TASK_REVIEW), verdict (PASS, FAIL, or PASS_WITH_NOTES), Task Identifier, Iteration, criteria results (total, met, not-met counts), feedback resolution (issues checked, resolved, not resolved — present only when iteration is greater than 1), path to the updated Task Report, rework guidance (present only when verdict is FAIL), and an optional next-role suggestion with a forwarded message (per ORCH-016).
 
 #### REV-051: SESSION_REVIEW Input Contract
-The Review Role in SESSION_REVIEW mode MUST accept input consisting of: Session Reference, mode identifier, Iteration, optional critique cycle counter, and optional Orchestrator Context.
+The Review Role in SESSION_REVIEW mode MUST accept input consisting of: Session Reference, mode identifier, Iteration, optional critique cycle counter, and optional Orchestrator Context. The invocation occurs after the KNOWLEDGE_EXTRACTION state has either completed or been skipped.
 
 #### REV-052: SESSION_REVIEW Output Contract
-Upon completing SESSION_REVIEW, the Review Role MUST return: status (completed), mode (SESSION_REVIEW), critique cycle counter echo, assessment (Complete or Needs Rework), issue counts by severity (critical, major, minor, total), and path to the Iteration Review Report.
+Upon completing SESSION_REVIEW, the Review Role MUST return: status (completed), mode (SESSION_REVIEW), critique cycle counter echo, assessment (Complete or Needs Rework), issue counts by severity (critical, major, minor, total), and path to the Iteration Review Report. The output MUST summarize a post-knowledge assessment and MUST NOT include routing directives.
 
 #### REV-053: COMMIT Input Contract
 The Review Role in COMMIT mode MUST accept input consisting of: Session Reference, mode identifier, Task Identifier, path to the Task Report, Iteration, and optional Orchestrator Context.
@@ -441,7 +442,7 @@ AND validation artifacts are saved in the task-scoped verification area within t
 GIVEN all tasks in the iteration have PASS or PASS_WITH_NOTES verdicts
 AND all Iteration Plan goals are assessed as Achieved
 WHEN the Review Role executes SESSION_REVIEW
-THEN it reads all Task Reports, Task Definition Records, and the Iteration Plan
+THEN it reads all Task Reports, Task Definition Records, the Iteration Plan, and available knowledge-pipeline artifacts for the iteration
 AND produces the Iteration Review Report with all mandatory sections
 AND the Issues Found section contains zero entries across all severity levels
 AND the assessment is "Complete"

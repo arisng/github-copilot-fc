@@ -128,7 +128,7 @@ All three preflight gates MUST be idempotent. Running a gate when the target str
 ### EXTRACT Stage
 
 #### KNOW-019: Evidence Collection Scope
-In EXTRACT mode, the Knowledge Role MUST scan the following iteration artifacts within the current Iteration Container: Task Definition Records, Task Reports, the Iteration Plan, and the Iteration Review Report (if present). The role MUST NOT read or write artifacts outside the current Iteration Container and the Knowledge Extraction Area.
+In EXTRACT mode, the Knowledge Role MUST scan the following iteration artifacts within the current Iteration Container: Task Definition Records, Task Reports, the Iteration Plan, the Progress Tracker, and the Iteration State Store. The EXTRACT stage MUST NOT depend on an Iteration Review Report because SESSION_REVIEW occurs after the knowledge pipeline in the default iteration flow. The role MUST NOT read or write artifacts outside the current Iteration Container and the Knowledge Extraction Area.
 
 #### KNOW-020: Reusability Filter
 The Knowledge Role MUST filter collected evidence to retain only reusable knowledge: stable guidance, contracts, workflows, architectural decisions, and conventions. Transient or iteration-specific artifacts (debug logs, temporary test outputs, status-tracking artifacts) MUST be discarded.
@@ -286,10 +286,10 @@ When the Source Iterations parameter specifies multiple iterations, the Knowledg
 ### Pipeline Orchestration Integration
 
 #### KNOW-057: KNOWLEDGE_EXTRACTION State Routing
-The Orchestration Role MUST invoke the Knowledge Role in the KNOWLEDGE_EXTRACTION state (per ORCH-011). The default invocation sequence MUST be EXTRACT → STAGE → PROMOTE. The Orchestration Role MUST auto-sequence all three stages unless the pipeline is interrupted by a signal or cancellation cascade.
+The Orchestration Role MUST invoke the Knowledge Role in the KNOWLEDGE_EXTRACTION state before SESSION_REVIEW (per ORCH-011). The default invocation sequence MUST be EXTRACT → STAGE → PROMOTE. The Orchestration Role MUST auto-sequence all three stages unless the pipeline is interrupted by a signal or cancellation cascade.
 
 #### KNOW-058: Pipeline Completion Guard
-The transition from KNOWLEDGE_EXTRACTION to the terminal state (per ORCH-011) MUST occur when:
+The transition from KNOWLEDGE_EXTRACTION to SESSION_REVIEW (per ORCH-011) MUST occur when:
 - The Knowledge Role is unavailable (conditional skip), OR
 - The EXTRACT stage returns zero items (cancellation cascade per KNOW-023), OR
 - All three stages (EXTRACT, STAGE, PROMOTE) have completed.
@@ -732,7 +732,7 @@ AND the merge algorithm is applied at each step
 GIVEN the Orchestration Role is in the KNOWLEDGE_EXTRACTION state
 AND the Knowledge Role's EXTRACT stage returns zero items
 WHEN the Orchestration Role evaluates the pipeline completion guard
-THEN the Orchestration Role transitions to the terminal state (per ORCH-011)
+THEN the Orchestration Role transitions to SESSION_REVIEW (per ORCH-011)
 AND does not invoke STAGE or PROMOTE
 ```
 
@@ -742,7 +742,7 @@ AND does not invoke STAGE or PROMOTE
 GIVEN the Orchestration Role is in the KNOWLEDGE_EXTRACTION state
 AND the Knowledge Role completes EXTRACT with 3 items, STAGE with 3 items staged, and PROMOTE with 3 items promoted
 WHEN the Orchestration Role evaluates the pipeline completion guard
-THEN the Orchestration Role transitions to the terminal state
+THEN the Orchestration Role transitions to SESSION_REVIEW
 ```
 
 ### SC-KNOW-046: Replanning Fast-Path Promotion
