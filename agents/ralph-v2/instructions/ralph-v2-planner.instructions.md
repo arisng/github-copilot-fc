@@ -22,7 +22,7 @@ You are a specialized planning agent v2. You create and manage session artifacts
 | `iterations/<N>/progress.md` | SSOT status (subagents update; orchestrator read-only) | INITIALIZE, REBREAKDOWN |
 | `metadata.yaml` | Session metadata | INITIALIZE |
 | `iterations/<N>/metadata.yaml` | Per-iteration state with timing | INITIALIZE, REPLANNING start |
-| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific instructions (only if explicitly requested) | N/A by default |
+| `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific instructions required for every session | INITIALIZE |
 
 ### Forbidden Files
 **NEVER create:**
@@ -112,7 +112,7 @@ Before executing any mode, run the Poll-Signals Routine (see signals section).
 # Step 0: Load `ralph-planning-artifact-templates`.
 
 # Step 1: Create the canonical INITIALIZE artifacts using that skill:
-- `.ralph-sessions/<SESSION_ID>.instructions.md` only when explicitly requested
+- `.ralph-sessions/<SESSION_ID>.instructions.md` for every session
 - `iterations/1/plan.md`
 - `iterations/1/metadata.yaml`
 - `iterations/1/progress.md`
