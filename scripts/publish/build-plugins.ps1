@@ -3,9 +3,10 @@
     Builds self-contained plugin bundles from workspace source directories.
 
 .DESCRIPTION
-    Discovers plugins under plugins/cli/ and plugins/vscode/, creates a .build/ directory
-    for each, resolves component path fields, copies artifacts, embeds agent instruction
-    EMBED markers, and validates the bundle.
+    Discovers plugins under plugins/cli/ and plugins/vscode/, creates runtime-scoped
+    bundle directories under plugins/<runtime>/.build/<plugin-name>/, resolves component
+    path fields, copies artifacts, embeds agent instruction EMBED markers, and validates
+    the bundle.
 
     Can be dot-sourced by publish-plugins.ps1 (or other scripts) to reuse the build
     functions without running the standalone build flow.
@@ -153,6 +154,88 @@ function Merge-AgentInstructions {
     return $result
 }
 
+function Get-PluginBundleLayout {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$PluginDir
+    )
+
+    $pluginItem = Get-Item -Path $PluginDir -ErrorAction Stop
+    $runtimeDir = Split-Path $pluginItem.FullName -Parent
+    $runtimeName = Split-Path $runtimeDir -Leaf
+    $buildRoot = Join-Path $runtimeDir '.build'
+    $buildDir = Join-Path $buildRoot $pluginItem.Name
+
+    return [PSCustomObject]@{
+        PluginName  = $pluginItem.Name
+        RuntimeDir  = $runtimeDir
+        RuntimeName = $runtimeName
+        BuildRoot   = $buildRoot
+        BuildDir    = $buildDir
+    }
+}
+
+function Initialize-PluginBundleOutput {
+    <#
+    .SYNOPSIS
+        Prepares runtime-scoped bundle targets for a selected set of plugins.
+
+    .DESCRIPTION
+        Cleanup is orchestrated at the runtime level so full runtime builds can reset the
+        entire plugins/<runtime>/.build/ tree, while filtered builds only reset the bundle
+        directories for the selected plugins.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.IO.DirectoryInfo[]]$SelectedPluginDirs,
+
+        [Parameter(Mandatory)]
+        [System.IO.DirectoryInfo[]]$AllPluginDirs
+    )
+
+    if ($SelectedPluginDirs.Count -eq 0) {
+        return
+    }
+
+    $allLayouts = @{}
+    foreach ($pluginDir in $AllPluginDirs) {
+        $layout = Get-PluginBundleLayout -PluginDir $pluginDir.FullName
+        if (-not $allLayouts.ContainsKey($layout.RuntimeName)) {
+            $allLayouts[$layout.RuntimeName] = @()
+        }
+
+        $allLayouts[$layout.RuntimeName] += $layout
+    }
+
+    $selectedLayouts = $SelectedPluginDirs | ForEach-Object {
+        Get-PluginBundleLayout -PluginDir $_.FullName
+    }
+
+    foreach ($runtimeGroup in ($selectedLayouts | Group-Object RuntimeName)) {
+        $runtimeName = $runtimeGroup.Name
+        $runtimeLayouts = @($runtimeGroup.Group)
+        $allRuntimeLayouts = @($allLayouts[$runtimeName])
+        $buildRoot = $runtimeLayouts[0].BuildRoot
+        $cleanRuntimeRoot = $runtimeLayouts.Count -eq $allRuntimeLayouts.Count
+
+        if ($cleanRuntimeRoot -and (Test-Path $buildRoot)) {
+            Remove-Item $buildRoot -Recurse -Force
+        }
+
+        New-Item -Path $buildRoot -ItemType Directory -Force | Out-Null
+
+        if (-not $cleanRuntimeRoot) {
+            foreach ($layout in $runtimeLayouts) {
+                if (Test-Path $layout.BuildDir) {
+                    Remove-Item $layout.BuildDir -Recurse -Force
+                }
+            }
+        }
+    }
+}
+
 function Build-PluginBundle {
     <#
     .SYNOPSIS
@@ -160,9 +243,9 @@ function Build-PluginBundle {
 
     .DESCRIPTION
         Parses plugin.json, resolves all component path fields, copies referenced
-        artifacts into a .build/ directory, and rewrites plugin.json with local paths.
-        Only official schema fields plus the "runtime" convention field are retained
-        in the output manifest.
+        artifacts into a runtime-scoped bundle directory, and rewrites plugin.json with
+        local paths. Only official schema fields plus the "runtime" convention field are
+        retained in the output manifest.
 
         Convention: validates that the source plugin.json declares a "runtime" field
         matching the directory convention (cli -> "github-copilot-cli", vscode ->
@@ -172,7 +255,7 @@ function Build-PluginBundle {
         Full path to the plugin source directory containing plugin.json.
 
     .OUTPUTS
-        [string] Path to the .build/ directory on success, $null on failure.
+        [string] Path to the runtime-scoped bundle directory on success, $null on failure.
     #>
     [CmdletBinding()]
     param(
@@ -206,15 +289,13 @@ function Build-PluginBundle {
         Write-Warning "  plugin.json for '$pluginName' is missing the 'runtime' field. Convention requires explicitly declaring the target Copilot runtime (e.g., 'github-copilot-cli' or 'github-copilot-vscode')."
     }
 
-    $buildDir = Join-Path $PluginDir ".build"
+    $bundleLayout = Get-PluginBundleLayout -PluginDir $PluginDir
+    $buildDir = $bundleLayout.BuildDir
 
-    # Clean and create .build/ directory
-    if (Test-Path $buildDir) {
-        Remove-Item $buildDir -Recurse -Force
-    }
+    # Bundle cleanup is orchestrated by Initialize-PluginBundleOutput.
     New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
 
-    Write-Host "  Bundling: $pluginName -> .build/" -ForegroundColor DarkGray
+    Write-Host "  Bundling: $pluginName -> plugins/$($bundleLayout.RuntimeName)/.build/$pluginName/" -ForegroundColor DarkGray
 
     # Build a clean manifest with only official + convention fields
     $cleanManifest = [ordered]@{}
@@ -295,8 +376,7 @@ function Build-PluginBundle {
         $instructionsDir = Join-Path $repoRoot "agents/ralph-v2/instructions"
 
         # VS Code has no CLI-style 30K body limit; allow large merged bodies
-        $pluginRuntime = Split-Path (Split-Path $PluginDir -Parent) -Leaf  # "cli" or "vscode"
-        $maxChars = if ($pluginRuntime -eq 'cli') { 30000 } else { [int]::MaxValue }
+        $maxChars = if ($bundleLayout.RuntimeName -eq 'cli') { 30000 } else { [int]::MaxValue }
 
         if (Test-Path $agentBuildDir) {
             $mergeResult = Merge-AgentInstructions -AgentDir $agentBuildDir -InstructionsDir $instructionsDir -MaxChars $maxChars
@@ -307,7 +387,7 @@ function Build-PluginBundle {
         }
     }
 
-    # Post-bundle validation: verify every component path in .build/plugin.json
+    # Post-bundle validation: verify every component path in the bundle manifest
     foreach ($field in $officialComponentFields) {
         if (-not $cleanManifest.Contains($field)) { continue }
 
@@ -317,7 +397,7 @@ function Build-PluginBundle {
         foreach ($p in $paths) {
             $checkPath = Join-Path $buildDir $p
             if (-not (Test-Path $checkPath)) {
-                $validationErrors += "$field`: $p (missing in .build/)"
+                $validationErrors += "$field`: $p (missing in bundle)"
             }
         }
     }
@@ -367,6 +447,8 @@ function Invoke-PluginBuild {
         }
     }
 
+    $allPluginDirs = @($pluginDirs)
+
     if ($Plugins) {
         $pluginList = @()
         foreach ($item in $Plugins) {
@@ -384,6 +466,8 @@ function Invoke-PluginBuild {
     }
 
     Write-Host "Building $($pluginDirs.Count) plugin(s)..." -ForegroundColor Cyan
+
+    Initialize-PluginBundleOutput -SelectedPluginDirs $pluginDirs -AllPluginDirs $allPluginDirs
 
     $built = 0
     $errors = 0

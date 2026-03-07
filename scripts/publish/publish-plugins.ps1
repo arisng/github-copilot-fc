@@ -312,6 +312,8 @@ function Publish-Plugins {
         }
     }
 
+    $allPluginEntries = @($pluginEntries)
+
     if ($pluginEntries.Count -eq 0) {
         Write-Host "No plugins found in: $pluginsPath" -ForegroundColor Yellow
         return
@@ -350,6 +352,8 @@ function Publish-Plugins {
     }
 
     Write-Host "Discovered $($pluginEntries.Count) plugin(s)" -ForegroundColor Cyan
+
+    Initialize-PluginBundleOutput -SelectedPluginDirs ($pluginEntries | ForEach-Object { $_.Dir }) -AllPluginDirs ($allPluginEntries | ForEach-Object { $_.Dir })
 
     # Pre-check WSL availability once (only needed for CLI plugins)
     $wslAvailable = $false
