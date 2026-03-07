@@ -63,8 +63,10 @@ All component paths are relative to the plugin directory. These are the **only**
 Install a plugin from a local directory:
 
 ```bash
-copilot plugin install ./plugins/<name>
+copilot plugin install ./plugins/cli/<name>
 ```
+
+For VS Code runtime plugins, register the runtime-specific plugin directory through the publish script or VS Code settings using `plugins/vscode/<name>`.
 
 The CLI **copies** (caches) the plugin contents — it does not create a symlink. To pick up local changes after editing, you must run `copilot plugin install` again.
 
@@ -105,7 +107,7 @@ Plugins **supplement** the existing publish-script workflow — they do not repl
 
 - **Publish scripts** (`scripts/publish/publish-*.ps1`) remain the source of truth for distributing individual artifacts (agents, skills, instructions, hooks) to their standard platform-specific locations.
 - **Plugins** bundle multiple artifacts into a single installable unit for distribution to other users or machines.
-- **Bundling is default**: `publish-plugins.ps1` produces a self-contained `.build/` directory automatically. Use `-SkipBundle` only for development/debugging — it emits a warning because relative paths may not resolve correctly after `copilot plugin install`.
+- **Bundling is built into the publish flow**: `publish-plugins.ps1` installs from a self-contained generated bundle path rather than the raw source tree so relative component paths resolve deterministically.
 
 Use publish scripts for local development iteration. Use plugins for packaging and sharing complete workflows.
 
@@ -139,20 +141,18 @@ Copy (source → .build/) → Merge (resolve EMBED markers) → Validate (paths 
 
 ### Instruction file sizing
 
-All embedded instruction files are compressed to fit within the 30K body limit. The Reviewer (26K) and Librarian (27K) instruction files were compressed in a previous iteration — redundant checklists, verbose examples, and duplicate reference sections were removed while preserving persona, rules, core workflow, signal protocol, and contract.
-
-The Orchestrator agent is excluded from embedding (body + instructions exceed 46K). Its instruction file is delivered separately and loaded at runtime.
+All embedded instruction files are compressed to fit within the 30K body limit where the runtime requires it. Deep reference material that should not live in the agent body is better moved into plugin-bundled skills and loaded on demand.
 
 ## Instruction Delivery (Legacy)
 
-For agents that are **not** embedded, instruction files must still be delivered separately using `publish-instructions.ps1`:
+Only workflows that intentionally choose not to embed instruction content still need separate instruction publishing via `publish-instructions.ps1`:
 
 ```powershell
 # Deliver instruction files to standard CLI paths
 pwsh -NoProfile -File scripts/publish/publish-instructions.ps1
 ```
 
-The CLI resolves instructions from `AGENTS.md`, `~/.copilot/copilot-instructions.md`, `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and project `.github/copilot-instructions.md` — but never from installed plugin directories.
+The CLI resolves always-on instructions from `AGENTS.md`, `~/.copilot/copilot-instructions.md`, `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and project `.github/copilot-instructions.md` — but embedded agent bodies are already self-contained once bundled into the plugin.
 
 ## Marketplace Publishing
 

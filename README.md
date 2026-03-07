@@ -4,6 +4,7 @@ Copilot FC is a workspace-first factory for authoring and publishing Copilot cus
 
 Use this repository to create, validate, and distribute:
 
+- Plugins (`plugins/<plugin-name>/`)
 - Custom Agents (`agents/*.agent.md`)
 - Agent Hooks (`hooks/*.hooks.json`)
 - Custom Instructions (`instructions/*.instructions.md`)
@@ -22,6 +23,7 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 
 ## Repository Layout
 
+- `plugins/`: plugin definitions and assets for local development; publish to personal plugin folders.
 - `agents/`: active agent definitions plus `agents/ralph-v2/` system docs.
 - `hooks/`: agent hook configurations (lifecycle hooks); publish to `.github/hooks/`.
 - `instructions/`: reusable instruction files; `instructions/archived/` for superseded items.
@@ -31,15 +33,15 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 - `toolsets/`: chat toolset definitions and index.
 - `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
 - `scripts/`: automation entry points:
-	- `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
-	- `scripts/issues/`: issue metadata extraction and indexing.
-	- `scripts/workspace/`: workspace command router.
-	- `scripts/changelog/`: weekly changelog generation.
+ 	- `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
+ 	- `scripts/issues/`: issue metadata extraction and indexing.
+ 	- `scripts/workspace/`: workspace command router.
+ 	- `scripts/changelog/`: weekly changelog generation.
 - `.docs/`: workspace documentation index and Diataxis-style content.
 - `.issues/`: issue documents used as planning/change inputs.
 - `.ralph-sessions/`: Ralph session artifacts and iteration state.
-	- Session folders use `<YYMMDD>-<hhmmss>` format.
-	- Session-level instruction files may exist as `.ralph-sessions/<session-id>.instructions.md`.
+ 	- Session folders use `<YYMMDD>-<hhmmss>` format.
+ 	- Session-level instruction files may exist as `.ralph-sessions/<session-id>.instructions.md`.
 
 Archived locations that should not be used as authoring templates:
 
@@ -49,7 +51,7 @@ Archived locations that should not be used as authoring templates:
 
 ## Quickstart
 
-1. Edit or add artifacts in `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, or `toolsets/`.
+1. Edit or add artifacts in `plugins/`, `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, or `toolsets/`.
 2. Validate changes locally in the workspace.
 3. Publish with scripts under `scripts/publish/`.
 
@@ -90,6 +92,7 @@ Current command map is implemented directly in `scripts/workspace/run-command.ps
 
 Publish scripts are the canonical distribution path:
 
+- `scripts/publish/publish-plugins.ps1`
 - `scripts/publish/publish-agents.ps1`
 - `scripts/publish/publish-hooks.ps1`
 - `scripts/publish/publish-instructions.ps1`
@@ -101,14 +104,14 @@ Publish scripts are the canonical distribution path:
 Publish destination behavior:
 
 - Agents, instructions, prompts, and toolsets are copied to VS Code user prompts paths:
-	- `%APPDATA%/Code/User/prompts`
-	- `%APPDATA%/Code - Insiders/User/prompts`
+ 	- `%APPDATA%/Code/User/prompts`
+ 	- `%APPDATA%/Code - Insiders/User/prompts`
 - Hooks are copied to workspace `.github/hooks/` for VS Code agent hook discovery.
 - Skills are copied to personal skill folders:
-	- `%USERPROFILE%/.claude/skills`
-	- `%USERPROFILE%/.codex/skills`
-	- `%USERPROFILE%/.copilot/skills`
-	- Optional WSL equivalents (unless `-SkipWSL`)
+ 	- `%USERPROFILE%/.claude/skills`
+ 	- `%USERPROFILE%/.codex/skills`
+ 	- `%USERPROFILE%/.copilot/skills`
+ 	- Optional WSL equivalents (unless `-SkipWSL`)
 
 Wildcard patterns are supported by helpers for name selection. Quote patterns to avoid shell expansion.
 
@@ -188,11 +191,11 @@ Behavioral specifications for the Ralph v2 multi-agent system live under `opensp
 ## Troubleshooting
 
 - PowerShell execution policy blocks scripts:
-	- Run PowerShell with proper policy or trusted shell context.
+ 	- Run PowerShell with proper policy or trusted shell context.
 - Publish output not reflected:
-	- Re-run publish script and verify personal target folders.
+ 	- Re-run publish script and verify personal target folders.
 - Issue index not generated:
-	- Ensure `.docs/issues` or `_docs/issues` exists and contains markdown issue files.
+ 	- Ensure `.docs/issues` or `_docs/issues` exists and contains markdown issue files.
 - Python tooling scripts fail:
-	- Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
-	- Install Python 3 and invoke those utilities as `python3`.
+ 	- Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
+ 	- Install Python 3 and invoke those utilities as `python3`.

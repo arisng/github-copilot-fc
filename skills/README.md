@@ -4,9 +4,16 @@ This repository serves as a factory for creating and publishing agent skills to 
 
 **Note**: This workspace also provides automated publishing for **Agents**, **Instructions**, and **Prompts** via separate scripts. See the workspace's README.md for complete documentation.
 
+## References (Official Documentation)
+
+Periodically check official documentation for updates on skill capabilities and best practices:
+
+- [About agent skills](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
+- [Use Agent Skills in VS Code](https://code.visualstudio.com/docs/copilot/customization/agent-skills)
+
 ## Overview
 
-The skills factory provides automated tools to publish skills from the project workspace (`skills/`) to your personal skills directories (`~/.claude/skills/`, `~/.codex/skills/`, `~/.copilot/skills/`) for global availability.
+The skills factory provides automated tools to publish skills from the project workspace (`skills/`) to your personal skills directories for global availability. The default target is Copilot (`~/.copilot/skills/`); Codex and Claude can be enabled explicitly.
 
 ### Why `skills/` instead of personal skill folders?
 
@@ -16,7 +23,7 @@ When skill discovery is enabled, tools scan both personal and workspace location
 
 ## Publishing
 
-Publishing copies skills from `skills/` to personal skill folders for Copilot, Codex, and Claude.
+Publishing copies skills from `skills/` to personal skill folders. By default it publishes to Copilot only. Use `-Targets` to include Codex and Claude.
 
 ## Usage
 
@@ -35,6 +42,9 @@ Publishing copies skills from `skills/` to personal skill folders for Copilot, C
 
 # Publish specific skills
 .\scripts\publish\publish-skills.ps1 -Skills "git-atomic-commit", "md-issue-writer"
+
+# Publish to Copilot, Codex, and Claude
+.\scripts\publish\publish-skills.ps1 -Targets copilot,codex,claude
 
 # Force overwrite
 .\scripts\publish\publish-skills.ps1 -Force
@@ -56,14 +66,13 @@ powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 ## Directory Structure
 
 ```
-.claude/
-└── skills/                    # Project skills (factory)
-    ├── git-committer/         # Individual skill
-    │   └── SKILL.md          # Required skill definition
-    ├── md-issue-writer/
-    │   ├── SKILL.md
-    │   └── references/
-    └── ...
+skills/
+├── git-committer/            # Individual skill
+│   └── SKILL.md              # Required skill definition
+├── md-issue-writer/
+│   ├── SKILL.md
+│   └── references/
+└── ...
 
 ~/.claude/
 └── skills/                    # Personal skills (published)
@@ -118,9 +127,14 @@ powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 # Force republish all skills
 .\scripts\publish\publish-skills.ps1 -Force
 
-# Clean personal skills and republish
-Remove-Item "$env:USERPROFILE\.claude\skills\*" -Recurse -Force
+# Clean default Copilot target and republish
+Remove-Item "$env:USERPROFILE\.copilot\skills\*" -Recurse -Force
 .\scripts\publish\publish-skills.ps1
+
+# Clean all supported targets and republish everywhere
+Remove-Item "$env:USERPROFILE\.claude\skills\*" -Recurse -Force
+Remove-Item "$env:USERPROFILE\.codex\skills\*" -Recurse -Force
+.\scripts\publish\publish-skills.ps1 -Targets copilot,codex,claude
 ```
 
 ## Integration with VS Code

@@ -2,6 +2,15 @@
 
 Agent hooks are VS Code Copilot lifecycle hooks that execute custom shell commands at key points during agent sessions. Use hooks to automate workflows, enforce security policies, validate operations, and integrate with external tools.
 
+## References (Official Documentation)
+
+Periodically check official documentation for updates on hook capabilities and best practices:
+
+- [About hooks](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks)
+- [Using hooks with GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks)
+- [Hooks configuration](https://docs.github.com/en/copilot/reference/hooks-configuration)
+- [Agent hooks in Visual Studio Code (Preview)](https://code.visualstudio.com/docs/copilot/customization/hooks)
+
 ## Hook File Format
 
 Each hook is a JSON file containing a `hooks` object with arrays of hook commands keyed by event type.
@@ -12,6 +21,7 @@ Each hook is a JSON file containing a `hooks` object with arrays of hook command
 
 ```json
 {
+  "version": 1,
   "hooks": {
     "PostToolUse": [
       {
@@ -26,29 +36,29 @@ Each hook is a JSON file containing a `hooks` object with arrays of hook command
 
 ## Hook Lifecycle Events
 
-| Event | When it fires |
-| --- | --- |
-| `SessionStart` | User submits the first prompt of a new session |
-| `UserPromptSubmit` | User submits a prompt |
-| `PreToolUse` | Before agent invokes any tool |
-| `PostToolUse` | After tool completes successfully |
-| `PreCompact` | Before conversation context is compacted |
-| `SubagentStart` | Subagent is spawned |
-| `SubagentStop` | Subagent completes |
-| `Stop` | Agent session ends |
+| Event              | When it fires                                  |
+| ------------------ | ---------------------------------------------- |
+| `SessionStart`     | User submits the first prompt of a new session |
+| `UserPromptSubmit` | User submits a prompt                          |
+| `PreToolUse`       | Before agent invokes any tool                  |
+| `PostToolUse`      | After tool completes successfully              |
+| `PreCompact`       | Before conversation context is compacted       |
+| `SubagentStart`    | Subagent is spawned                            |
+| `SubagentStop`     | Subagent completes                             |
+| `Stop`             | Agent session ends                             |
 
 ## Hook Command Properties
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `type` | string | Must be `"command"` |
-| `command` | string | Default command to run (cross-platform) |
-| `windows` | string | Windows-specific command override |
-| `linux` | string | Linux-specific command override |
-| `osx` | string | macOS-specific command override |
-| `cwd` | string | Working directory (relative to repo root) |
-| `env` | object | Additional environment variables |
-| `timeout` | number | Timeout in seconds (default: 30) |
+| Property  | Type   | Description                               |
+| --------- | ------ | ----------------------------------------- |
+| `type`    | string | Must be `"command"`                       |
+| `command` | string | Default command to run (cross-platform)   |
+| `windows` | string | Windows-specific command override         |
+| `linux`   | string | Linux-specific command override           |
+| `osx`     | string | macOS-specific command override           |
+| `cwd`     | string | Working directory (relative to repo root) |
+| `env`     | object | Additional environment variables          |
+| `timeout` | number | Timeout in seconds (default: 30)          |
 
 ## Hook I/O
 
@@ -60,12 +70,12 @@ Each hook is a JSON file containing a `hooks` object with arrays of hook command
 
 VS Code searches for hook configuration files in these locations (workspace hooks take precedence):
 
-| Location                        | Scope              |
-| ------------------------------- | ------------------ |
-| `.github/hooks/*.json`          | Workspace (shared) |
-| `.claude/settings.local.json`   | Workspace (local)  |
-| `.claude/settings.json`         | Workspace          |
-| `~/.claude/settings.json`       | User (global)      |
+| Location                      | Scope              |
+| ----------------------------- | ------------------ |
+| `.github/hooks/*.json`        | Workspace (shared) |
+| `.claude/settings.local.json` | Workspace (local)  |
+| `.claude/settings.json`       | Workspace          |
+| `~/.claude/settings.json`     | User (global)      |
 
 ## Publishing
 
@@ -97,7 +107,3 @@ pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type hook -Name "sec
 - Use `chat.tools.edits.autoApprove` to prevent the agent from editing hook scripts without approval.
 - Check `stop_hook_active` in `Stop`/`SubagentStop` hooks to prevent infinite loops.
 
-## References
-
-- [VS Code Agent Hooks documentation](https://code.visualstudio.com/docs/copilot/customization/hooks)
-- Publish script: `scripts/publish/publish-hooks.ps1`
