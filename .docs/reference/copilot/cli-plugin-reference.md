@@ -16,21 +16,21 @@ Periodically verify against the official documentation to ensure accuracy, as th
 
 ### Workspace Layout
 
-Plugins are authored in the workspace under `plugins/` at the repository root:
+Plugins are authored in the workspace under runtime-scoped roots at the repository root:
 
 ```
 plugins/
-  <name>/
-    plugin.json          # Plugin manifest (required)
-    agents/              # Agent files (optional)
-    skills/              # Skill directories (optional)
-    commands/            # Command tool definitions (optional)
-    hooks/               # Hook configs (optional)
-    mcpServers/          # MCP server definitions (optional)
-    lspServers/          # LSP server definitions (optional)
+  cli/
+    .build/              # Runtime-scoped bundle output
+    <name>/
+      plugin.json        # CLI plugin manifest (required)
+  vscode/
+    .build/              # Runtime-scoped bundle output
+    <name>/
+      plugin.json        # VS Code plugin manifest (required)
 ```
 
-The directory name should match the `name` field in `plugin.json`. See [plugins/README.md](../../../plugins/README.md) for the workspace's plugin directory documentation.
+The directory name should match the `name` field in `plugin.json`. Build and publish scripts emit per-plugin bundles under `plugins/<runtime>/.build/<name>/`; that child directory is the publish unit.
 
 ### File Locations
 
@@ -38,11 +38,12 @@ The directory name should match the `name` field in `plugin.json`. See [plugins/
 
 | Location | Use Case |
 |----------|----------|
-| `plugins/<name>/plugin.json` | Workspace-authored plugins (this workspace's convention) |
+| `plugins/cli/<name>/plugin.json` | Workspace-authored CLI plugins |
+| `plugins/vscode/<name>/plugin.json` | Workspace-authored VS Code plugins |
 | `.github/plugin/plugin.json` | Repository-level plugin for marketplace listing |
 | `.claude-plugin/plugin.json` | Alternative convention (Claude-origin) |
 
-For workspace plugins, use the flat `plugins/<name>/plugin.json` convention. The `.github/plugin/` convention is for repositories that ARE plugin marketplaces.
+For workspace plugins, use the runtime-scoped `plugins/<runtime>/<name>/plugin.json` convention. The `.github/plugin/` convention is for repositories that ARE plugin marketplaces.
 
 ---
 
@@ -157,7 +158,7 @@ The `copilot plugin install` command accepts multiple source formats:
 | Pattern | Example | Description |
 |---------|---------|-------------|
 | Local path | `./plugins/cli/ralph-v2` | Install from a local directory containing `plugin.json`. |
-| GitHub URL | `github.com/owner/repo:plugins/name` | Install directly from a GitHub repository path. |
+| GitHub URL | `github.com/owner/repo:plugins/cli/name` | Install directly from a GitHub repository path. |
 | `@owner/name` | `@copilot-fc/ralph-v2` | Install from a registered marketplace. |
 | `@owner/name@version` | `@copilot-fc/ralph-v2@1.0.0` | Install a specific version from marketplace. |
 
@@ -181,6 +182,8 @@ Plugin files are **copied** (cached) on install — not symlinked. To pick up lo
 > **⚠️ Documented inconsistency:** The [CLI Plugin Reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) page uses `~/.copilot/state/installed-plugins/<NAME>/` for direct installs, while the [How-to: Finding and Installing Plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) page uses `~/.copilot/installed-plugins/_direct/<NAME>/`. Key differences: the `state/` prefix (reference has it, how-to doesn't) and the `_direct/` subdirectory (how-to has it, reference doesn't). Verify paths on your local filesystem.
 
 On Windows, `~` resolves to `%USERPROFILE%` (e.g., `C:\Users\<username>\.copilot\...`).
+
+> **Workspace publish caveat:** `scripts/publish/publish-plugins.ps1` uses the `_direct/<NAME>` path for CLI publishing, copies the prepared bundle from `plugins/cli/.build/<NAME>/`, and verifies that `plugin.json` exists at the destination. Local probes still have not proven that raw `_direct` copies are always discovered the same way as `copilot plugin install`.
 
 ---
 
@@ -210,20 +213,23 @@ See [publish-plugins.ps1](../../../scripts/publish/publish-plugins.ps1) for the 
 
 ## Publish Script Reference
 
-The workspace provides `scripts/publish/publish-plugins.ps1` for automating plugin installation:
+The workspace provides `scripts/publish/publish-plugins.ps1` for runtime-scoped bundle publishing:
 
 ```powershell
-# Install all workspace plugins
+# Publish all workspace plugins
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
 
-# Install a specific plugin
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins ralph-v2
+# Publish a specific CLI plugin
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins ralph-v2
 
-# Force reinstall (uninstall + reinstall)
+# Force remains accepted for compatibility
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Force
 
-# Skip WSL installation
+# Register a VS Code plugin bundle path
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime vscode -Plugins ralph-v2
+
+# Skip WSL installation for CLI publish
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -SkipWSL
 ```
 
-The script discovers plugins in `plugins/`, filters by name if specified, and delegates to `copilot plugin install` for each discovered plugin. See [How to Publish Customizations for Copilot CLI](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md) for the broader publish workflow.
+The script discovers plugins in `plugins/cli/` and `plugins/vscode/`, builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, then publishes by runtime: CLI bundles are copied directly into `_direct/<name>` and VS Code bundles are registered in `chat.plugins.paths`. See [How to Publish Customizations for Copilot CLI](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md) for the broader publish workflow.

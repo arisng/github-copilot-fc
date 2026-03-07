@@ -16,6 +16,8 @@ copilot plugin install ./plugins/cli/ralph-v2
 
 This installs all the components declared in the plugin manifest in one step.
 
+In this workspace, plugin authoring and plugin publishing are separate concerns: source manifests live under `plugins/<runtime>/<name>/`, while the publish scripts first materialize a runtime-scoped bundle under `plugins/<runtime>/.build/<name>/` and publish from that bundle.
+
 ---
 
 ## Why Plugins Exist
@@ -66,7 +68,7 @@ Both approaches are valid. The right choice depends on your workflow:
 
 - **Active development**: Publish scripts provide faster iteration when editing individual agents or skills
 - **Selective customization**: You only need some artifacts from a workflow, not the full bundle
-- **VS Code primary**: Plugins are a CLI concept — VS Code uses its own discovery paths
+- **VS Code primary**: VS Code plugins in this workspace are registration-based through `chat.plugins.paths`, not installed through the CLI `_direct` flow
 
 ### Coexistence Warning
 
@@ -91,6 +93,21 @@ Plugin files are **copied** (cached) on install — not symlinked. To pick up lo
 
 On Windows, `~` resolves to `%USERPROFILE%` (e.g., `C:\Users\<username>\.copilot\...`).
 
+This workspace currently uses the how-to page's `_direct/<NAME>` path for CLI publish automation. The publisher verifies that the copied bundle landed in the target directory, but local probes still have not proven that a raw `_direct` copy is always discovered the same way as `copilot plugin install`.
+
+---
+
+## Workspace Publish Model
+
+The repository's publish flow is runtime-scoped:
+
+- Source manifests live under `plugins/cli/<name>/plugin.json` and `plugins/vscode/<name>/plugin.json`.
+- Bundles are built under `plugins/cli/.build/<name>/` or `plugins/vscode/.build/<name>/`.
+- CLI publish copies the prepared bundle directly into `~/.copilot/installed-plugins/_direct/<name>/` with exact replacement semantics and no `.install/` staging.
+- VS Code publish registers `plugins/vscode/.build/<name>/` in `chat.plugins.paths`.
+
+The runtime-scoped `.build/` root is only a container. The actual publishable unit is the per-plugin bundle directory beneath it.
+
 ---
 
 ## Loading Precedence
@@ -111,15 +128,15 @@ This means a user-level agent with the same name as a plugin agent will shadow t
 
 ### Scenario 1: Solo Developer, Multiple Machines
 
-1. Author plugins in the workspace (`plugins/<name>/plugin.json`)
+1. Author CLI plugins in the workspace (`plugins/cli/<name>/plugin.json`)
 2. Push to GitHub
-3. On a new machine: `copilot plugin install github.com/owner/repo:plugins/<name>`
+3. On a new machine: `copilot plugin install github.com/owner/repo:plugins/cli/<name>`
 
 ### Scenario 2: Team Sharing via Repository
 
 1. Create a plugin with self-contained components (not relative paths)
 2. Commit to a shared repository
-3. Team members install: `copilot plugin install github.com/team/plugins-repo:plugins/<name>`
+3. Team members install: `copilot plugin install github.com/team/plugins-repo:plugins/cli/<name>`
 4. Updates: `copilot plugin update <name>`
 
 ### Scenario 3: Organization-Wide Distribution
@@ -154,7 +171,7 @@ For current installation methods, see the [How to Create a CLI Plugin](../../how
 The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that bundles the ralph-v2 multi-agent orchestration system for Copilot CLI. This pilot demonstrates:
 
 - `plugin.json` manifest with relative paths to existing workspace artifacts
-- Integration with `publish-plugins.ps1` for automated installation
+- Integration with `publish-plugins.ps1` for automated runtime-scoped bundling and publish
 - Coexistence with existing per-artifact publish scripts
 
 See [plugins/README.md](../../../plugins/README.md) for directory layout documentation.

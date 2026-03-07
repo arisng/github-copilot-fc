@@ -22,10 +22,10 @@ For individual artifact authoring (agents, skills, instructions, hooks), use the
 
 ## Step 1: Create the plugin directory
 
-Create a new directory under `plugins/` named after your plugin:
+Create a new CLI plugin directory under `plugins/cli/` named after your plugin:
 
 ```powershell
-mkdir plugins/my-plugin
+mkdir plugins/cli/my-plugin
 ```
 
 The directory name should be lowercase, hyphenated (kebab-case), and match the `name` field you'll set in `plugin.json`.
@@ -65,7 +65,7 @@ Place your customization files in the directories declared by the component path
 ### Self-contained layout (for distribution)
 
 ```
-plugins/my-plugin/
+plugins/cli/my-plugin/
   plugin.json
   agents/
     my-agent.agent.md
@@ -102,7 +102,7 @@ This is the approach used by the workspace's pilot plugin at [plugins/cli/ralph-
 Install the plugin from the local directory:
 
 ```bash
-copilot plugin install ./plugins/my-plugin
+copilot plugin install ./plugins/cli/my-plugin
 ```
 
 Verify the installation:
@@ -113,6 +113,14 @@ copilot plugin list
 
 The plugin's agents, skills, and other components are now available in your Copilot CLI sessions.
 
+If you want to use the workspace publish automation instead of the official CLI install flow, run:
+
+```powershell
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
+```
+
+That workflow builds `plugins/cli/.build/my-plugin/` and copies it directly into `~/.copilot/installed-plugins/_direct/my-plugin/` with exact replacement semantics. It does **not** create a `.install/` staging directory. The payload copy is verified, but raw `_direct` copy discovery is still a documented best-effort path until parity with `copilot plugin install` is proven.
+
 ---
 
 ## Working Example: ralph-v2 Pilot Plugin
@@ -122,7 +130,7 @@ The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that demonstrat
 1. **Directory**: `plugins/cli/ralph-v2/`
 2. **Manifest**: `plugins/cli/ralph-v2/plugin.json` — references CLI agents, hooks, and selected skills via relative paths
 3. **Install**: `copilot plugin install ./plugins/cli/ralph-v2`
-4. **Publish script**: `scripts/publish/publish-plugins.ps1 -Plugins ralph-v2`
+4. **Publish script**: `scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins ralph-v2` builds `plugins/cli/.build/ralph-v2/` and copies that bundle into `_direct/ralph-v2`
 
 See [plugins/README.md](../../../plugins/README.md) for the full directory documentation.
 
@@ -133,7 +141,7 @@ See [plugins/README.md](../../../plugins/README.md) for the full directory docum
 ### Install a plugin from a GitHub repository
 
 ```bash
-copilot plugin install github.com/owner/repo:plugins/plugin-name
+copilot plugin install github.com/owner/repo:plugins/cli/plugin-name
 ```
 
 ### Install a specific version from a marketplace
@@ -146,7 +154,7 @@ copilot plugin install @owner/plugin-name@1.0.0
 
 ```bash
 copilot plugin uninstall my-plugin
-copilot plugin install ./plugins/my-plugin
+copilot plugin install ./plugins/cli/my-plugin
 ```
 
 Or use the publish script with `-Force`:
@@ -182,8 +190,8 @@ Plugins cannot deliver instruction files via `plugin.json` — the `instructions
 The recommended solution is **instruction embedding**: agent source files include `<!-- EMBED: filename -->` markers that are resolved at bundle time by `Merge-AgentInstructions`. This inlines instruction content directly into the agent body, producing self-contained agent files that carry their full workflow, rules, and signal protocol.
 
 ```powershell
-# Install the plugin (bundling + embedding is default)
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin
+# Publish the CLI plugin (bundling + embedding is default)
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
 ```
 
 For agents that are not embedded (e.g., due to size constraints), deliver instruction files separately:
