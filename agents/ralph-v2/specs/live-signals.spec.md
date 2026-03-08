@@ -238,6 +238,7 @@ The Reviewer's **COMMIT mode** (atomic commit of reviewed task changes) is invok
 - **Signal polling during COMMIT**: COMMIT is a short-lived operation (git staging + commit). The Reviewer does not poll `signals/inputs/` during COMMIT Steps 1–6. Instead, the Orchestrator polls signals at the boundary between the TASK_REVIEW invocation and the COMMIT invocation.
 - **ABORT during COMMIT**: If an ABORT signal arrives while the Orchestrator is blocked waiting for COMMIT to return, the COMMIT operation completes or fails independently. On return, the Orchestrator detects the ABORT signal at its next checkpoint and executes the ABORT cleanup checklist (§3.4). Importantly, **commit failure does NOT revert the `[x]` review verdict** — the review and commit outcomes are independent.
 - **STEER during COMMIT**: STEER signals are not consumed during COMMIT. They are picked up by the Orchestrator at the next state boundary after COMMIT returns. Re-evaluation of commit scope mid-commit is not supported — COMMIT operates on the files identified in the task report.
+- **Durable commit provenance**: COMMIT publishes durable git history. Final commit messages must describe stable repository changes, not `.ralph-sessions/`, `iterations/<N>/...`, staging/report/test paths, session IDs, or other transient orchestration provenance.
 - **Retry logic**: The Orchestrator retries COMMIT once on failure. If both attempts fail, changes remain in the working directory. The `[x]` verdict is preserved regardless of commit outcome.
 
 ### 4. Agent Integration — Hybrid Polling Model
@@ -345,7 +346,7 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 | `EXECUTING_BATCH`    | Pre-Loop            | `6. State: EXECUTING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**STEER**: Logs message and passes to Executor context.<br>**INFO**: Append to context. |
 | `REVIEWING_BATCH`    | Pre-Loop            | `7. State: REVIEWING_BATCH`    | **ABORT**: Exit.<br>**PAUSE**: Wait.<br>**INFO**: Inject into review context.<br>**STEER**: Log message, pass to Reviewer context. |
 | `REVIEWING_BATCH`    | Between Review & COMMIT | `7. State: REVIEWING_BATCH` | COMMIT is a sub-step within REVIEWING_BATCH (not a new state). After `[x]` verdict, Orchestrator invokes COMMIT mode for the same task. Signal polling occurs between review invocation and COMMIT invocation — ABORT/PAUSE checked before each invocation. |
-| `KNOWLEDGE_EXTRACTION` | EXTRACT→STAGE→PROMOTE | `9. State: KNOWLEDGE_EXTRACTION` | Auto-sequences 3 Librarian invocations: EXTRACT (iteration→iteration knowledge), STAGE (iteration→session merge), PROMOTE (session→`.docs/` merge). **Skip-promotion INFO**: Librarian polls before PROMOTE — skips promotion, preserves session-scope `knowledge/`.<br>**ABORT**: Exit with cleanup (§3.4). |
+| `KNOWLEDGE_EXTRACTION` | EXTRACT→STAGE→PROMOTE | `9. State: KNOWLEDGE_EXTRACTION` | Auto-sequences 3 Librarian invocations: EXTRACT (iteration→iteration knowledge), STAGE (iteration→session merge with rewritten durable provenance), PROMOTE (session→`.docs/` merge with stable repo-facing provenance). **Skip-promotion INFO**: Librarian polls before PROMOTE — skips promotion, preserves session-scope `knowledge/`.<br>**ABORT**: Exit with cleanup (§3.4). |
 
 > **Target-Aware Routing**: At every checkpoint above, the Orchestrator applies peek-check-route logic (see [§2.2 Concurrency Strategy](#22-concurrency-strategy)). Signals targeting a specific subagent are buffered for delivery at the next invocation.
 
@@ -362,7 +363,8 @@ Subagents have a **dual role** in signal handling, formalized as the Hybrid Poll
 | Mode             | Step           | Code Block                    | Behavior                                                                                                                                                  |
 | ---------------- | -------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | All modes        | **Mode Start** | Before mode-specific workflow | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust mode context before proceeding.<br>**INFO**: Append to context.                        |
-| `TASK_BREAKDOWN` | **Step 0**     | `Step 0: Check Live Signals`  | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust plan context and constraints before generating task files.<br>**INFO**: Log and continue. |
+| `TASK_BREAKDOWN` | **Step 0**     | `Step 0: Check Live Signals`  | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust plan context and constraints before validating the task inventory and emitting `task_creation_queue`.<br>**INFO**: Log and continue. |
+| `TASK_CREATE`    | **Step 0**     | `TASK_CREATE Step 0`          | **ABORT**: Return blocked.<br>**PAUSE**: Wait.<br>**STEER**: Adjust single-task creation context before materializing the requested task file.<br>**INFO**: Log and continue. |
 
 ### 4. Ralph-v2-Questioner
 
