@@ -272,6 +272,32 @@ function Resolve-VSCodePluginRegistrationPath {
         return $resolvedPath
     }
 
+    function Get-VSCodePluginRegistrationIdentity {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$PluginPath
+        )
+
+        $resolvedPath = [System.IO.Path]::GetFullPath($PluginPath)
+        $bundleRoot = Split-Path $resolvedPath -Parent
+        $bundleFolderName = Split-Path $bundleRoot -Leaf
+        $runtimeRoot = Split-Path $bundleRoot -Parent
+
+        if (($bundleFolderName -ieq '.build' -or $bundleFolderName -ieq '.build-beta') -and (Split-Path $runtimeRoot -Leaf) -ieq 'vscode') {
+            return [PSCustomObject]@{
+                ResolvedPath = $resolvedPath
+                RuntimeRoot = [System.IO.Path]::GetFullPath($runtimeRoot)
+                SourcePluginName = Split-Path $resolvedPath -Leaf
+            }
+        }
+
+        return [PSCustomObject]@{
+            ResolvedPath = $resolvedPath
+            RuntimeRoot = $null
+            SourcePluginName = $null
+        }
+    }
+
     function Update-VSCodePluginSettings {
         <#
         .SYNOPSIS
@@ -310,6 +336,7 @@ function Resolve-VSCodePluginRegistrationPath {
         )
 
         $canonicalPluginPath = Resolve-VSCodePluginRegistrationPath -PluginPath $PluginPath -PluginName $PluginName
+    $canonicalRegistration = Get-VSCodePluginRegistrationIdentity -PluginPath $canonicalPluginPath
         $updated = 0
 
         foreach ($loc in $settingsLocations) {
@@ -348,7 +375,14 @@ function Resolve-VSCodePluginRegistrationPath {
             $stalePathEntries = @()
             foreach ($property in @($pathsObj.PSObject.Properties)) {
                 $normalizedEntryPath = Resolve-VSCodePluginRegistrationPath -PluginPath $property.Name -PluginName $PluginName
-                if ($normalizedEntryPath -ieq $canonicalPluginPath -and $property.Name -cne $canonicalPluginPath) {
+                $entryRegistration = Get-VSCodePluginRegistrationIdentity -PluginPath $property.Name
+                $isSamePluginRegistration =
+                    $null -ne $canonicalRegistration.RuntimeRoot -and
+                    $null -ne $entryRegistration.RuntimeRoot -and
+                    $entryRegistration.RuntimeRoot -ieq $canonicalRegistration.RuntimeRoot -and
+                    $entryRegistration.SourcePluginName -ieq $canonicalRegistration.SourcePluginName
+
+                if (($normalizedEntryPath -ieq $canonicalPluginPath -or $isSamePluginRegistration) -and $property.Name -cne $canonicalPluginPath) {
                     $stalePathEntries += $property.Name
                 }
             }
