@@ -72,6 +72,8 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Ralph
 
+- [Orchestrator Router Contract Boundary](reference/ralph/orchestrator-router-contract-boundary.md)
+- [Planner Questioner Grounding Handshake](reference/ralph/planner-questioner-grounding-handshake.md)
 - [Diataxis Subcategory Heuristic](reference/ralph/diataxis-subcategory-heuristic.md)
 - [Harness Engineering Checklist](reference/ralph/harness-engineering-checklist.md)
 - [Ralph Session Artifact Templates](reference/ralph/ralph-artifact-templates.md)
@@ -79,6 +81,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph Subagent Contracts](reference/ralph/ralph-subagent-contracts.md)
 - [Rename Blast Radius](reference/ralph/rename-blast-radius.md)
 - [Self Critique Checklist](reference/ralph/self-critique-checklist.md)
+- [Session Instructions Required During Initialize](reference/ralph/session-instructions-required-during-initialize.md)
 - [Specs Frontmatter Convention](reference/ralph/specs-frontmatter-convention.md)
 - [Targeted Info Signal Convention](reference/ralph/targeted-info-signal-convention.md)
 - [V2.10.0 Contract Changes](reference/ralph/v2.10.0-contract-changes.md)
@@ -116,6 +119,8 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Ralph
 
+- [Why Knowledge Extraction Runs Before Session Review](explanation/ralph/knowledge-extraction-before-session-review.md)
+- [Why Ralph Uses Alias First Iterating Terminology](explanation/ralph/alias-first-iterating-terminology.md)
 - [Curate Rename Rationale](explanation/ralph/curate-rename-rationale.md)
 - [Ralph V1 State Machine](explanation/ralph/ralph-v1-state-machine.md)
 - [Self Critique Extension Rationale](explanation/ralph/self-critique-extension-rationale.md)
