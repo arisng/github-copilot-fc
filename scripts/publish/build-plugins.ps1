@@ -188,6 +188,121 @@ function Get-BundledComponentItemName {
     return $ItemName
 }
 
+function Get-AgentFrontmatterName {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath
+    )
+
+    if (-not (Test-Path $AgentPath -PathType Leaf)) {
+        return $null
+    }
+
+    $content = Get-Content -Path $AgentPath -Raw
+    $lines = $content -split "`r?`n"
+    if ($lines.Count -lt 3 -or $lines[0] -ne '---') {
+        return $null
+    }
+
+    $frontmatterEnd = -1
+    for ($index = 1; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -eq '---') {
+            $frontmatterEnd = $index
+            break
+        }
+    }
+
+    if ($frontmatterEnd -lt 0) {
+        return $null
+    }
+
+    for ($index = 1; $index -lt $frontmatterEnd; $index++) {
+        if ($lines[$index] -match '^(name:\s*)(["'']?)(.+?)\2\s*$') {
+            return $Matches[3].Trim()
+        }
+    }
+
+    return $null
+}
+
+function Update-AgentFrontmatterNameForChannel {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath,
+        [ValidateSet("stable", "beta")][string]$Channel = "beta"
+    )
+
+    if ($Channel -ne 'beta' -or -not (Test-Path $AgentPath -PathType Leaf)) {
+        return $false
+    }
+
+    $content = Get-Content -Path $AgentPath -Raw
+    $lines = $content -split "`r?`n"
+    if ($lines.Count -lt 3 -or $lines[0] -ne '---') {
+        return $false
+    }
+
+    $frontmatterEnd = -1
+    for ($index = 1; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -eq '---') {
+            $frontmatterEnd = $index
+            break
+        }
+    }
+
+    if ($frontmatterEnd -lt 0) {
+        return $false
+    }
+
+    for ($index = 1; $index -lt $frontmatterEnd; $index++) {
+        if ($lines[$index] -match '^(name:\s*)(["'']?)(.+?)\2\s*$') {
+            $prefix = $Matches[1]
+            $quote = $Matches[2]
+            $nameValue = $Matches[3].Trim()
+
+            if ($nameValue -match '-beta$') {
+                return $false
+            }
+
+            $lines[$index] = "$prefix$quote$nameValue-beta$quote"
+            $updatedContent = [string]::Join("`n", $lines)
+            Set-Content -Path $AgentPath -Value $updatedContent -NoNewline -Encoding UTF8
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Update-BundledAgentFrontmatterNames {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$TargetPath,
+        [ValidateSet("stable", "beta")][string]$Channel = "beta"
+    )
+
+    if ($Channel -ne 'beta' -or -not (Test-Path $TargetPath)) {
+        return 0
+    }
+
+    $agentItems = @()
+    if (Test-Path $TargetPath -PathType Container) {
+        $agentItems = @(Get-ChildItem -Path $TargetPath -Filter '*.agent.md' -File -Recurse -ErrorAction SilentlyContinue)
+    }
+    elseif ((Get-Item -Path $TargetPath).Name -match '\.agent\.md$') {
+        $agentItems = @((Get-Item -Path $TargetPath))
+    }
+
+    $updatedCount = 0
+    foreach ($agentItem in $agentItems) {
+        if (Update-AgentFrontmatterNameForChannel -AgentPath $agentItem.FullName -Channel $Channel) {
+            $updatedCount++
+        }
+    }
+
+    return $updatedCount
+}
+
 function Test-AgentChannelContract {
     [CmdletBinding()]
     param(
@@ -215,6 +330,7 @@ function Test-AgentChannelContract {
 
     foreach ($agentFile in $agentFiles) {
         $isBetaAgentName = $agentFile.Name -match '-beta\.agent\.md$'
+        $agentFrontmatterName = Get-AgentFrontmatterName -AgentPath $agentFile.FullName
 
         if ($Channel -eq 'beta' -and -not $isBetaAgentName) {
             $errors += "agents`: agents/$($agentFile.Name) (beta bundle file must end with -beta.agent.md)"
@@ -222,6 +338,19 @@ function Test-AgentChannelContract {
 
         if ($Channel -eq 'stable' -and $isBetaAgentName) {
             $errors += "agents`: agents/$($agentFile.Name) (stable bundle file must not end with -beta.agent.md)"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($agentFrontmatterName)) {
+            $errors += "agents`: agents/$($agentFile.Name) (missing YAML frontmatter name field)"
+            continue
+        }
+
+        if ($Channel -eq 'beta' -and ($agentFrontmatterName -notmatch '-beta$' -or $agentFrontmatterName -match '-beta-beta$')) {
+            $errors += "agents`: agents/$($agentFile.Name) (beta bundle frontmatter name must end with -beta exactly once; found '$agentFrontmatterName')"
+        }
+
+        if ($Channel -eq 'stable' -and $agentFrontmatterName -match '-beta$') {
+            $errors += "agents`: agents/$($agentFile.Name) (stable bundle frontmatter name must not end with -beta; found '$agentFrontmatterName')"
         }
     }
 
@@ -448,6 +577,9 @@ function Build-PluginBundle {
                 $targetPath = Join-Path $componentBuildDir $bundledItemName
 
                 Copy-Item -Path $resolvedSource -Destination $targetPath -Recurse -Force
+                if ($field -eq 'agents') {
+                    [void](Update-BundledAgentFrontmatterNames -TargetPath $targetPath -Channel $Channel)
+                }
                 if ($isDirectory) {
                     $localPaths += "$field/$bundledItemName/"
                 }
@@ -472,6 +604,9 @@ function Build-PluginBundle {
             }
 
             Copy-Item -Path $resolvedSource -Destination $componentBuildDir -Recurse -Force
+            if ($field -eq 'agents') {
+                [void](Update-BundledAgentFrontmatterNames -TargetPath $componentBuildDir -Channel $Channel)
+            }
             $cleanManifest[$field] = "$field/"
         }
     }
