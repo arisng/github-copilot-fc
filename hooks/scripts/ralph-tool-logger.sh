@@ -1,9 +1,32 @@
 #!/usr/bin/env bash
 # Logs tool usage and subagent lifecycle events for Ralph-v2 sessions.
-# Receives hook event JSON via stdin, appends JSONL to session log.
+# Receives hook event JSON via stdin, appends JSONL to iteration log when possible.
+# Falls back to the session log if iteration metadata cannot be resolved.
 #
 # Env: RALPH_LOG_PAYLOAD=true to include tool input in log entries.
 set -euo pipefail
+
+resolve_log_dir() {
+    local session_root="$1"
+    local session_id="$2"
+    local session_path="${session_root}/${session_id}"
+    local fallback_dir="${session_path}/logs"
+    local metadata_path="${session_path}/metadata.yaml"
+    local iteration
+
+    if [ ! -f "$metadata_path" ]; then
+        printf '%s\n' "$fallback_dir"
+        return
+    fi
+
+    iteration=$(sed -nE 's/^iteration:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$metadata_path" | head -n 1 || true)
+    if [ -z "$iteration" ]; then
+        printf '%s\n' "$fallback_dir"
+        return
+    fi
+
+    printf '%s\n' "${session_path}/iterations/${iteration}/logs"
+}
 
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
@@ -25,7 +48,7 @@ if [ -z "$SESSION_ID" ]; then
     exit 0
 fi
 
-LOG_DIR="${SESSION_ROOT}/${SESSION_ID}/logs"
+LOG_DIR=$(resolve_log_dir "$SESSION_ROOT" "$SESSION_ID")
 LOG_FILE="${LOG_DIR}/tool-usage.jsonl"
 ACTIVE_AGENT_FILE="${HOOK_STATE_DIR}/active-agent.txt"
 

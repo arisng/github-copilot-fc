@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Receives hook event JSON via stdin, resolves the active Ralph session,
-    and appends a JSONL entry to .ralph-sessions/<SESSION_ID>/logs/tool-usage.jsonl.
+    and appends a JSONL entry to the active iteration log when metadata is readable.
+    Falls back to the session-level log path when iteration metadata cannot be resolved.
 
     Tracks active subagent via .ralph-sessions/.hook-state/active-agent.txt
     using SubagentStart/SubagentStop events.
@@ -14,6 +15,39 @@
 #>
 
 $ErrorActionPreference = 'Stop'
+
+function Get-LogDirectory {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SessionRoot,
+
+        [Parameter(Mandatory)]
+        [string]$SessionId
+    )
+
+    $sessionPath = Join-Path $SessionRoot $SessionId
+    $fallbackDir = Join-Path $sessionPath 'logs'
+    $metadataPath = Join-Path $sessionPath 'metadata.yaml'
+
+    if (-not (Test-Path $metadataPath)) {
+        return $fallbackDir
+    }
+
+    try {
+        $metadataContent = Get-Content $metadataPath -Raw
+    }
+    catch {
+        return $fallbackDir
+    }
+
+    $iterationMatch = [regex]::Match($metadataContent, '(?m)^iteration:\s*(\d+)\s*$')
+    if (-not $iterationMatch.Success) {
+        return $fallbackDir
+    }
+
+    $iteration = $iterationMatch.Groups[1].Value
+    return Join-Path $sessionPath (Join-Path (Join-Path 'iterations' $iteration) 'logs')
+}
 
 try {
     $inputJson = [Console]::In.ReadToEnd()
@@ -34,7 +68,7 @@ try {
         exit 0
     }
 
-    $logDir = Join-Path $sessionRoot "$sessionId\logs"
+    $logDir = Get-LogDirectory -SessionRoot $sessionRoot -SessionId $sessionId
     $logFile = Join-Path $logDir 'tool-usage.jsonl'
     $hookStateDir = Join-Path $sessionRoot '.hook-state'
     $activeAgentFile = Join-Path $hookStateDir 'active-agent.txt'
