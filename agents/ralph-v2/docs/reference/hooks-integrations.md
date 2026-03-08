@@ -80,7 +80,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 	- Allow edits only inside `.ralph-sessions/<SESSION_ID>/` and `agents/ralph-v2/` unless explicitly approved.
 
 8. 🔴 **SSOT File Write Guard** `P0`
-	- Block edits to `progress.md` and `metadata.yaml` unless schema validation passes.
+  - Block edits to `iterations/<N>/progress.md`, `iterations/<N>/metadata.yaml`, and `.ralph-sessions/<SESSION_ID>/metadata.yaml` unless schema validation passes.
 
 9. 🔴 **Single-Mode Subagent Guard** `P0`
 	- Reject any subagent call that includes more than one MODE or multiple TASK_IDs.
@@ -95,7 +95,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 	- Reject file edits that resolve outside the workspace root after path normalization.
 
 13. 🔴 **Task File Existence Check** `P0`
-	- Before executor or reviewer runs, verify `tasks/<task-id>.md` exists.
+  - Before executor or reviewer runs, verify `iterations/<N>/tasks/<task-id>.md` exists, or explicitly label `tasks/<task-id>.md` as a legacy fallback path pattern.
 
 14. 🔴 **Progress Status Mutation Guard** `P0`
 	- Block any status writes other than `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]`.
@@ -130,7 +130,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 	- If retries exceed configured max, force a replanning or task-splitting path.
 
 23. 🟡 **Failure Snapshot** `P1`
-	- On failure, snapshot `progress.md`, `metadata.yaml`, and active task file to `logs/failures/`.
+  - On failure, snapshot `iterations/<N>/progress.md`, the relevant `metadata.yaml` artifact (`iterations/<N>/metadata.yaml` or `.ralph-sessions/<SESSION_ID>/metadata.yaml`), and the active task file to `logs/failures/`.
 
 ### State Transition Hooks
 
@@ -167,7 +167,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 	- If a human edits SSOT files, require a short checklist entry in `logs/manual-edits.md`.
 
 32. 🔵 **Policy Version Stamp** `P2`
-	- Record hook policy version in `metadata.yaml` on session start and on updates.
+  - Record hook policy version in `.ralph-sessions/<SESSION_ID>/metadata.yaml` on session start and, if used, mirror it into `iterations/<N>/metadata.yaml` during iteration updates.
 
 33. 🔵 **Session ID Sanitization Audit** `P2`
 	- Log rejected session ids with reason and source command.
@@ -300,7 +300,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Path resolves outside workspace root after 
 ```
 
 ```
-INPUT:  file_path = ".ralph-sessions/260215-173319/progress.md", tool_name = "replace_string_in_file"
+INPUT:  file_path = ".ralph-sessions/260215-173319/iterations/1/progress.md", tool_name = "replace_string_in_file"
 RULE:   Matches .ralph-sessions/<session_id>/**
 OUTPUT: { verdict: "PASS", matched_rule: ".ralph-sessions/<session_id>/**" }
 ```
@@ -317,7 +317,7 @@ OUTPUT: { verdict: "PASS", matched_rule: ".ralph-sessions/<session_id>.instructi
 
 **Lifecycle:** Pre-Tool Use
 
-**Purpose:** Protect SSOT (Single Source of Truth) files from writes that would corrupt session state. `progress.md` and `metadata.yaml` are the two most critical artifacts — invalid writes cause state machine routing failures, incorrect task status, and unrecoverable sessions.
+**Purpose:** Protect SSOT (Single Source of Truth) files from writes that would corrupt session state. `iterations/<N>/progress.md`, `iterations/<N>/metadata.yaml`, and `.ralph-sessions/<SESSION_ID>/metadata.yaml` are the critical artifacts in scope here — invalid writes cause state machine routing failures, incorrect task status, and unrecoverable sessions.
 
 **Input Schema:**
 ```jsonc
@@ -350,11 +350,11 @@ OUTPUT: { verdict: "PASS", matched_rule: ".ralph-sessions/<session_id>.instructi
    - `**/progress.md` → `"progress"`
    - `**/metadata.yaml` → `"metadata"`
    - All others → `"other"` (PASS, not in scope)
-2. For `progress.md`:
+2. For iteration-scoped progress artifacts such as `iterations/<N>/progress.md`:
    - Each task line MUST match pattern `- \[([ /PxFC])\] task-\d+` → BLOCK if malformed.
    - Status values MUST be one of: `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]` → BLOCK if invalid status.
    - Task IDs referenced MUST NOT be duplicated → WARN if duplicates found.
-3. For `metadata.yaml`:
+3. For metadata artifacts such as `iterations/<N>/metadata.yaml` or `.ralph-sessions/<SESSION_ID>/metadata.yaml`:
    - `orchestrator.state` MUST be a valid state name → BLOCK if unknown state.
    - `iteration` MUST be a positive integer → BLOCK if invalid.
    - Timing fields MUST be ISO8601 → WARN if malformed.
@@ -465,13 +465,13 @@ OUTPUT: { verdict: "BLOCK", reason: "Task file not found: iterations/1/tasks/tas
 
 **Lifecycle:** Pre-Tool Use
 
-**Purpose:** Ensure that status values written to `progress.md` are valid. Invalid status characters break the Orchestrator's task routing logic (which pattern-matches on `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]`) and cause tasks to be silently skipped or re-executed.
+**Purpose:** Ensure that status values written to iteration progress artifacts such as `iterations/<N>/progress.md` are valid. Invalid status characters break the Orchestrator's task routing logic (which pattern-matches on `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]`) and cause tasks to be silently skipped or re-executed.
 
 **Input Schema:**
 ```jsonc
 {
   "tool_name": "string",        // e.g., "replace_string_in_file"
-  "file_path": "string",        // Must match **/progress.md
+  "file_path": "string",        // Must match an iteration progress path such as **/iterations/*/progress.md
   "old_content": "string",      // The content being replaced
   "new_content": "string"       // The replacement content
 }
@@ -492,7 +492,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Task file not found: iterations/1/tasks/tas
 ```
 
 **Policy Rules:**
-1. Only applies when `file_path` matches `**/progress.md`.
+1. Only applies when `file_path` matches an iteration progress path such as `**/iterations/*/progress.md`.
 2. Parse `new_content` for task status lines matching `- \[(.)\] task-`.
 3. Each extracted status character MUST be one of: ` `, `/`, `P`, `x`, `F`, `C` → BLOCK if any other character found.
 4. Status transitions should follow valid paths (optional WARN):
@@ -501,7 +501,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Task file not found: iterations/1/tasks/tas
    - `[P]` → `[x]` (qualified) or `[/]` (rework)
    - Invalid transitions (e.g., `[ ]` → `[x]` skipping in-progress) → WARN.
 
-**Error Behavior:** Fail-open. Status validation is important but progress.md writes happen frequently; hook crashes should not disrupt flow.
+**Error Behavior:** Fail-open. Status validation is important but writes to `iterations/<N>/progress.md` happen frequently; hook crashes should not disrupt flow.
 
 **Example Enforcement:**
 ```
@@ -652,7 +652,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Signal message must be non-empty" }
 
 **Suggested policy checks:**
 - Deny edits outside `.ralph-sessions/<SESSION_ID>/` and approved agent folders. (→ P0 Hook #7)
-- Deny edits to `progress.md` and `metadata.yaml` unless schema validation passes. (→ P0 Hook #8)
+- Deny edits to `iterations/<N>/progress.md`, `iterations/<N>/metadata.yaml`, and `.ralph-sessions/<SESSION_ID>/metadata.yaml` unless schema validation passes. (→ P0 Hook #8)
 - Deny multi-mode or multi-task subagent invocations. (→ P0 Hook #9)
 - Verify task file exists before executor/reviewer runs. (→ P0 Hook #13)
 - Validate signal file schema on creation. (→ P0 Hook #29)
