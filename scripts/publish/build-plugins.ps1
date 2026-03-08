@@ -172,6 +172,62 @@ function Get-BundledPluginName {
     return $PluginName
 }
 
+function Get-BundledComponentItemName {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Field,
+        [Parameter(Mandatory)][string]$ItemName,
+        [Parameter(Mandatory)][bool]$IsDirectory,
+        [ValidateSet("stable", "beta")][string]$Channel = "beta"
+    )
+
+    if ($Field -eq 'agents' -and -not $IsDirectory -and $Channel -eq 'beta' -and $ItemName -match '\.agent\.md$') {
+        return ($ItemName -replace '\.agent\.md$', '-beta.agent.md')
+    }
+
+    return $ItemName
+}
+
+function Test-AgentChannelContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$BuildDir,
+        [Parameter(Mandatory)][object]$AgentEntries,
+        [ValidateSet("stable", "beta")][string]$Channel = "beta"
+    )
+
+    $errors = @()
+    $agentPaths = if ($AgentEntries -is [System.Array]) { $AgentEntries } else { @($AgentEntries) }
+    $agentFiles = Get-ChildItem -Path (Join-Path $BuildDir 'agents') -Filter '*.agent.md' -File -ErrorAction SilentlyContinue
+
+    foreach ($agentPath in $agentPaths) {
+        $leafName = Split-Path $agentPath -Leaf
+        $isBetaAgentName = $leafName -match '-beta\.agent\.md$'
+
+        if ($Channel -eq 'beta' -and -not $isBetaAgentName) {
+            $errors += "agents`: $agentPath (beta bundle manifest entry must end with -beta.agent.md)"
+        }
+
+        if ($Channel -eq 'stable' -and $isBetaAgentName) {
+            $errors += "agents`: $agentPath (stable bundle manifest entry must not end with -beta.agent.md)"
+        }
+    }
+
+    foreach ($agentFile in $agentFiles) {
+        $isBetaAgentName = $agentFile.Name -match '-beta\.agent\.md$'
+
+        if ($Channel -eq 'beta' -and -not $isBetaAgentName) {
+            $errors += "agents`: agents/$($agentFile.Name) (beta bundle file must end with -beta.agent.md)"
+        }
+
+        if ($Channel -eq 'stable' -and $isBetaAgentName) {
+            $errors += "agents`: agents/$($agentFile.Name) (stable bundle file must not end with -beta.agent.md)"
+        }
+    }
+
+    return $errors
+}
+
 function Copy-HookSupportAssets {
     [CmdletBinding()]
     param(
@@ -387,15 +443,16 @@ function Build-PluginBundle {
                 }
 
                 $itemName = Split-Path $resolvedSource -Leaf
-                $targetPath = Join-Path $componentBuildDir $itemName
                 $isDirectory = Test-Path $resolvedSource -PathType Container
+                $bundledItemName = Get-BundledComponentItemName -Field $field -ItemName $itemName -IsDirectory $isDirectory -Channel $Channel
+                $targetPath = Join-Path $componentBuildDir $bundledItemName
 
                 Copy-Item -Path $resolvedSource -Destination $targetPath -Recurse -Force
                 if ($isDirectory) {
-                    $localPaths += "$field/$itemName/"
+                    $localPaths += "$field/$bundledItemName/"
                 }
                 else {
-                    $localPaths += "$field/$itemName"
+                    $localPaths += "$field/$bundledItemName"
                 }
             }
 
@@ -461,6 +518,10 @@ function Build-PluginBundle {
                 $validationErrors += "$field`: $p (missing in bundle)"
             }
         }
+    }
+
+    if ($cleanManifest.Contains('agents')) {
+        $validationErrors += Test-AgentChannelContract -BuildDir $buildDir -AgentEntries $cleanManifest['agents'] -Channel $Channel
     }
 
     if ($validationErrors.Count -gt 0) {
