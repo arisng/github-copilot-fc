@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Discovers plugins under plugins/cli/ and plugins/vscode/, creates runtime-scoped
-    bundle directories under plugins/<runtime>/.build/<plugin-name>/, resolves component
+    bundle directories under plugins/<runtime>/.build*/<plugin-name>/, resolves component
     path fields, copies artifacts, embeds agent instruction EMBED markers, and validates
     the bundle.
 
@@ -30,7 +30,11 @@
 #>
 param(
     [Parameter(Mandatory = $false)]
-    [string[]]$Plugins
+    [string[]]$Plugins,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("stable", "beta")]
+    [string]$Channel = "beta"
 )
 
 function Merge-AgentInstructions {
@@ -158,13 +162,17 @@ function Get-PluginBundleLayout {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$PluginDir
+        [string]$PluginDir,
+
+        [ValidateSet("stable", "beta")]
+        [string]$Channel = "beta"
     )
 
     $pluginItem = Get-Item -Path $PluginDir -ErrorAction Stop
     $runtimeDir = Split-Path $pluginItem.FullName -Parent
     $runtimeName = Split-Path $runtimeDir -Leaf
-    $buildRoot = Join-Path $runtimeDir '.build'
+    $buildFolderName = if ($Channel -eq 'beta') { '.build-beta' } else { '.build' }
+    $buildRoot = Join-Path $runtimeDir $buildFolderName
     $buildDir = Join-Path $buildRoot $pluginItem.Name
 
     return [PSCustomObject]@{
@@ -173,6 +181,7 @@ function Get-PluginBundleLayout {
         RuntimeName = $runtimeName
         BuildRoot   = $buildRoot
         BuildDir    = $buildDir
+        Channel     = $Channel
     }
 }
 
@@ -192,7 +201,10 @@ function Initialize-PluginBundleOutput {
         [System.IO.DirectoryInfo[]]$SelectedPluginDirs,
 
         [Parameter(Mandatory)]
-        [System.IO.DirectoryInfo[]]$AllPluginDirs
+        [System.IO.DirectoryInfo[]]$AllPluginDirs,
+
+        [ValidateSet("stable", "beta")]
+        [string]$Channel = "beta"
     )
 
     if ($SelectedPluginDirs.Count -eq 0) {
@@ -201,7 +213,7 @@ function Initialize-PluginBundleOutput {
 
     $allLayouts = @{}
     foreach ($pluginDir in $AllPluginDirs) {
-        $layout = Get-PluginBundleLayout -PluginDir $pluginDir.FullName
+        $layout = Get-PluginBundleLayout -PluginDir $pluginDir.FullName -Channel $Channel
         if (-not $allLayouts.ContainsKey($layout.RuntimeName)) {
             $allLayouts[$layout.RuntimeName] = @()
         }
@@ -210,7 +222,7 @@ function Initialize-PluginBundleOutput {
     }
 
     $selectedLayouts = $SelectedPluginDirs | ForEach-Object {
-        Get-PluginBundleLayout -PluginDir $_.FullName
+        Get-PluginBundleLayout -PluginDir $_.FullName -Channel $Channel
     }
 
     foreach ($runtimeGroup in ($selectedLayouts | Group-Object RuntimeName)) {
@@ -254,13 +266,20 @@ function Build-PluginBundle {
     .PARAMETER PluginDir
         Full path to the plugin source directory containing plugin.json.
 
+    .PARAMETER Channel
+        Build channel: 'beta' (default) or 'stable'. Beta builds go to .build-beta/
+        and suffix the plugin name with '-beta' in the manifest.
+
     .OUTPUTS
         [string] Path to the runtime-scoped bundle directory on success, $null on failure.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$PluginDir
+        [string]$PluginDir,
+
+        [ValidateSet("stable", "beta")]
+        [string]$Channel = "beta"
     )
 
     $officialComponentFields = @('agents', 'skills', 'commands', 'hooks', 'mcpServers', 'lspServers')
@@ -284,18 +303,24 @@ function Build-PluginBundle {
 
     $pluginName = $manifest.name
 
+    # Beta channel: suffix plugin name to avoid collision with stable
+    if ($Channel -eq 'beta') {
+        $pluginName = "$pluginName-beta"
+    }
+
     # Convention: validate runtime field
     if (-not $manifest.PSObject.Properties['runtime']) {
         Write-Warning "  plugin.json for '$pluginName' is missing the 'runtime' field. Convention requires explicitly declaring the target Copilot runtime (e.g., 'github-copilot-cli' or 'github-copilot-vscode')."
     }
 
-    $bundleLayout = Get-PluginBundleLayout -PluginDir $PluginDir
+    $bundleLayout = Get-PluginBundleLayout -PluginDir $PluginDir -Channel $Channel
     $buildDir = $bundleLayout.BuildDir
+    $buildFolder = Split-Path $bundleLayout.BuildRoot -Leaf
 
     # Bundle cleanup is orchestrated by Initialize-PluginBundleOutput.
     New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
 
-    Write-Host "  Bundling: $pluginName -> plugins/$($bundleLayout.RuntimeName)/.build/$pluginName/" -ForegroundColor DarkGray
+    Write-Host "  Bundling: $pluginName -> plugins/$($bundleLayout.RuntimeName)/$buildFolder/$($bundleLayout.PluginName)/" -ForegroundColor DarkGray
 
     # Build a clean manifest with only official + convention fields
     $cleanManifest = [ordered]@{}
@@ -306,6 +331,11 @@ function Build-PluginBundle {
         if ($null -ne $value) {
             $cleanManifest[$field] = $value.Value
         }
+    }
+
+    # Override name for beta channel
+    if ($Channel -eq 'beta') {
+        $cleanManifest['name'] = $pluginName
     }
 
     # Process component fields: resolve, copy, and rewrite paths
@@ -429,7 +459,10 @@ function Invoke-PluginBuild {
     #>
     [CmdletBinding()]
     param(
-        [string[]]$Plugins
+        [string[]]$Plugins,
+
+        [ValidateSet("stable", "beta")]
+        [string]$Channel = "beta"
     )
 
     $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
@@ -467,12 +500,12 @@ function Invoke-PluginBuild {
 
     Write-Host "Building $($pluginDirs.Count) plugin(s)..." -ForegroundColor Cyan
 
-    Initialize-PluginBundleOutput -SelectedPluginDirs $pluginDirs -AllPluginDirs $allPluginDirs
+    Initialize-PluginBundleOutput -SelectedPluginDirs $pluginDirs -AllPluginDirs $allPluginDirs -Channel $Channel
 
     $built = 0
     $errors = 0
     foreach ($pluginDir in $pluginDirs) {
-        $buildPath = Build-PluginBundle -PluginDir $pluginDir.FullName
+        $buildPath = Build-PluginBundle -PluginDir $pluginDir.FullName -Channel $Channel
         if ($buildPath) { $built++ } else { $errors++ }
     }
 
@@ -482,5 +515,5 @@ function Invoke-PluginBuild {
 
 # Run standalone when invoked directly (not dot-sourced)
 if ($MyInvocation.InvocationName -ne '.') {
-    Invoke-PluginBuild -Plugins $Plugins
+    Invoke-PluginBuild -Plugins $Plugins -Channel $Channel
 }
