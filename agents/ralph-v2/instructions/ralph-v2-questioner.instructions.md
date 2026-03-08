@@ -93,7 +93,7 @@ Generate questions for initial planning across: technical, requirements, constra
 Answer questions from brainstorm using web search, docs, code analysis.
 
 ### Mode: feedback-analysis
-Analyze human feedback and generate questions for replanning.
+Analyze human feedback and generate questions for iterating. The normative orchestration state name remains `REPLANNING` until the broader contract migration lands.
 
 **Question Types by Issue:**
 

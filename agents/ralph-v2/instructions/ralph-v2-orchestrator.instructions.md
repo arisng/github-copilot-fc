@@ -56,7 +56,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - **SSOT for Status**: Only `iterations/<N>/progress.md` contains `[ ]`, `[/]`, `[P]`, `[x]`, `[F]`, `[C]` markers
 - **Task Files Immutable**: Once created, `iterations/<N>/tasks/<id>.md` definitions don't change (only status in `iterations/<N>/progress.md`)
 - **Feedback Required for Rework**: Failed tasks `[F]` require human feedback before replanning
-- **Replanning is Full Planning**: Iteration >= 2 requires re-brainstorm and re-research (unless Planner triages to a fast-path like `knowledge-promotion`)
+- **Iterating Uses Full Planning**: Iteration >= 2 requires re-brainstorm and re-research (unless Planner triages to a fast-path like `knowledge-promotion`); the stored state name remains `REPLANNING` until the broader contract migration lands
 - **No Direct Work**: Always delegate to subagents
 - **Progress Ownership Preserved**: Treat `iterations/<N>/progress.md` as role-owned input. Wait for the responsible role to persist its status change before the Orchestrator advances `metadata.yaml`.
 - **Iteration Timing**: Track `started_at` and `completed_at` in `iterations/<N>/metadata.yaml`
@@ -156,16 +156,16 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │ (Human provides feedbacks/)
        ▼
 ┌─────────────┐
-│ REPLANNING  │ ─── Feedback-driven replanning (Planner triages intent)
+│ REPLANNING  │ ─── Feedback-driven iterating (Planner triages intent; stored state remains REPLANNING)
 └──────┬──────┘
-       │ Planner analyzes feedbacks + previous_state → returns replanning_route
+    │ Planner analyzes feedbacks + previous_state → returns replanning_route (iterating route)
        │ Route A: "knowledge-promotion" → Librarian (PROMOTE) → COMPLETE
-       │ Route B: "full-replanning" →
+    │ Route B: "full-replanning" → full iterating pipeline
        │   → Creates: iterations/<N+1>/, iterations/<N+1>/tasks/,
        │              iterations/<N+1>/progress.md, iterations/<N+1>/metadata.yaml
        │   plan-rebrainstorm → Ralph-v2-Questioner
        │   plan-reresearch → Ralph-v2-Questioner
-       │   plan-update → Ralph-v2-Planner (MODE: UPDATE)
+    │   plan-update → Ralph-v2-Planner (MODE: UPDATE, retained as the normative mode name)
        │   plan-rebreakdown → Ralph-v2-Planner (MODE: REBREAKDOWN)
        │   → Return to BATCHING
        ▼
@@ -184,7 +184,7 @@ Load `ralph-session-ops-reference` when validating Ralph session artifacts, appl
 - Load on demand only when required:
     - `ralph-session-ops-reference` for schema validation, timeout recovery, and timestamps
     - `ralph-signal-mailbox-protocol` for `Poll-Signals`, ack quorum, routing, and archive rules
-    - `ralph-feedback-batch-protocol` for feedback-batch ingestion and replanning handoff
+    - `ralph-feedback-batch-protocol` for feedback-batch ingestion and iterating handoff
 
 ### 1. Session Resolution
 
@@ -272,7 +272,7 @@ ENFORCE MAX_CYCLES:
         ROUTE to plan-breakdown
 ```
 
-### 4. State: REPLANNING (v2 Addition)
+### 4. State: REPLANNING (Iterating Alias)
 
 Triggered when: user provides feedbacks in `iterations/<N>/feedbacks/`, previous iteration has `[F]` tasks, or human starts new iteration from KNOWLEDGE_EXTRACTION.
 
@@ -295,7 +295,7 @@ IF replanning_route == "knowledge-promotion":
     UPDATE metadata.yaml: state: COMPLETE, previous_state: null
     STATE = COMPLETE
 
-# Route B: Full Replanning Pipeline
+# Route B: Full Iterating Pipeline
 ELSE:
     UPDATE metadata.yaml: previous_state: null
     IF plan-rebrainstorm not [x]:
