@@ -62,6 +62,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - **Iteration Timing**: Track `started_at` and `completed_at` in `iterations/<N>/metadata.yaml`
 - **Session Metadata at Root**: `metadata.yaml` stays at session root (state machine SSOT); never moved into iterations
 - **Signals at Session Level**: `signals/` stays at session root; signals are session-scoped, not iteration-scoped
+- **Planner Parallelism Boundary**: Only Planner `TASK_CREATE` invocations may be parallelized, and only after a completed `TASK_BREAKDOWN` has returned dependency-safe task IDs. All other Planner modes (`INITIALIZE`, `UPDATE`, `TASK_BREAKDOWN`, `REBREAKDOWN`, `SPLIT_TASK`, `UPDATE_METADATA`, `REPAIR_STATE`, critique modes) remain sequential single invocations.
 </rules>
 
 <stateMachine>
@@ -72,7 +73,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 │ INITIALIZING│ ─── No session exists, <SESSION_ID> MUST be <YYMMDD>-<hhmmss>
 └──────┬──────┘
        │ Invoke Ralph-v2-Planner (MODE: INITIALIZE)
-       │ → Creates: iterations/1/plan.md, iterations/1/tasks/*, iterations/1/progress.md,
+    │ → Creates: iterations/1/plan.md, iterations/1/progress.md,
        │           metadata.yaml, iterations/1/metadata.yaml, signals/inputs/, signals/acks/, signals/processed/
        │ → Ralph-v2-Planner marks plan-init as [x]
        ▼
@@ -83,7 +84,8 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │   - plan-brainstorm → Ralph-v2-Questioner (MODE: brainstorm, CYCLE: N)
        │   - plan-research → Ralph-v2-Questioner (MODE: research, CYCLE: N)
        │   - plan-breakdown → Ralph-v2-Planner (MODE: TASK_BREAKDOWN)
-       │ All planning tasks [x]
+    │   - task creation handoff → Ralph-v2-Planner (MODE: TASK_CREATE, one TASK_ID per call)
+    │ All planning tasks [x] and all required task files materialized
        ▼
 ┌─────────────┐
 │  BATCHING   │ ─── Select next wave from iterations/<N>/tasks/*.md
@@ -258,13 +260,29 @@ FIND next planning task with status [ ]:
     - plan-breakdown
 
 IF no planning tasks remain:
-    UPDATE metadata.yaml: state: BATCHING
-    STATE = BATCHING
+    VERIFY every authoritative task ID planned for the iteration has a corresponding `iterations/<ITERATION>/tasks/<task-id>.md` artifact.
+    IF any task file is missing:
+        STAY in PLANNING
+        ROUTE missing IDs through Ralph-v2-Planner (MODE: TASK_CREATE), one `TASK_ID` per invocation
+        Do not advance to BATCHING until all required task files exist.
+    ELSE:
+        UPDATE metadata.yaml: state: BATCHING
+        STATE = BATCHING
 ELSE:
     ROUTE:
         plan-brainstorm → Ralph-v2-Questioner (MODE: brainstorm, CYCLE=N)
         plan-research   → Ralph-v2-Questioner (MODE: research, CYCLE=N)
         plan-breakdown  → Ralph-v2-Planner (MODE: TASK_BREAKDOWN)
+            IF grounding_ready == false:
+                ROUTE to Ralph-v2-Questioner using Planner delegation fields
+            ELSE:
+                CAPTURE `task_creation_queue`
+                IF queue contains missing task IDs:
+                    INVOKE Ralph-v2-Planner (MODE: TASK_CREATE) once per queued `TASK_ID`
+                    Each invocation receives exactly one `TASK_ID` and the current iteration.
+                    This is the only Planner handoff that may be parallelized.
+                    WAIT for all `TASK_CREATE` invocations to complete before continuing.
+                REMAIN in PLANNING until the queue is empty and every expected task file exists.
 
 ENFORCE MAX_CYCLES:
     IF CYCLE > planning.max_cycles:
@@ -327,6 +345,8 @@ ELSE:
 ### 5. State: BATCHING
 
 ```
+PRECONDITION: `TASK_BREAKDOWN` has completed and every creation-ready task ID has already been materialized through Planner `TASK_CREATE`.
+
 READ iterations/<ITERATION>/progress.md
 IDENTIFY tasks with status [ ] or [F] under "Implementation Progress"
 
