@@ -99,6 +99,21 @@ created_at: 2026-02-07T10:00:00Z
 - **Single Mode Only**: Reject any request that asks for multiple tasks in one invocation
 </rules>
 
+## Shared Questioner Grounding Lookup Contract
+
+When consuming Questioner grounding, use this exact resolution order:
+1. If `question_artifact_path` is present in delegated context or a prior Ralph payload, read that file first and treat it as the authoritative handoff artifact.
+2. Otherwise, if the needed category is known, read the canonical category artifact at `iterations/<ITERATION>/questions/<category>.md`.
+3. Only when one artifact is insufficient for the current mode, read additional canonical category artifacts under `iterations/<ITERATION>/questions/`.
+
+Do not infer a preferred artifact from glob order, file timestamps, partial Q-ID overlap, or other role-local heuristics.
+
+An artifact is fresh for the current answered cycle only when both of the following are true:
+- Frontmatter `cycle` matches the latest `## Answers (Cycle <C>)` section in that same file.
+- The questions relevant to the current handoff are marked `Status: Answered` inside that same answers cycle.
+
+If either condition fails, treat grounding as stale or incomplete. Do not mix answers across cycles or silently fall back to a different artifact; instead return or delegate for refreshed Questioner grounding. Preserve the resolved `question_artifact_path` in downstream handoffs so every role consumes the same grounding source.
+
 <workflow>
 ### 0. Skill Discovery
 
@@ -125,6 +140,7 @@ created_at: 2026-02-07T10:00:00Z
 2. If `depends_on` present: read dependency reports, extract patterns/interfaces/conventions.
 3. If `ITERATION > 1`: read `feedbacks/<timestamp>/feedbacks.md`, identify task-relevant issues and fixes.
 4. If `ATTEMPT_NUMBER > 1`: read previous report — PART 1 (what was tried), PART 2 (why it failed).
+5. Resolve Questioner grounding using the Shared Questioner Grounding Lookup Contract before implementing. Prefer the forwarded `question_artifact_path`; otherwise use the canonical category artifact needed to support the task's grounded Q-IDs.
 
 ### 2. Mark WIP
 

@@ -56,6 +56,21 @@ Run during cross-agent validation tasks at iteration end. On Windows without WSL
 | (g) Explicit version grep | `grep -n "version:" agents/ralph-v2/*.agent.md` | All frontmatter lines (9-10) show same version; ignore metadata template matches |
 </rules>
 
+## Shared Questioner Grounding Lookup Contract
+
+When consuming Questioner grounding, use this exact resolution order:
+1. If `question_artifact_path` is present in delegated context or a prior Ralph payload, read that file first and treat it as the authoritative handoff artifact.
+2. Otherwise, if the needed category is known, read the canonical category artifact at `iterations/<ITERATION>/questions/<category>.md`.
+3. Only when one artifact is insufficient for the current mode, read additional canonical category artifacts under `iterations/<ITERATION>/questions/`.
+
+Do not infer a preferred artifact from glob order, file timestamps, partial Q-ID overlap, or other role-local heuristics.
+
+An artifact is fresh for the current answered cycle only when both of the following are true:
+- Frontmatter `cycle` matches the latest `## Answers (Cycle <C>)` section in that same file.
+- The questions relevant to the current handoff are marked `Status: Answered` inside that same answers cycle.
+
+If either condition fails, treat grounding as stale or incomplete. Do not mix answers across cycles or silently fall back to a different artifact; instead return or delegate for refreshed Questioner grounding. Preserve the resolved `question_artifact_path` in downstream handoffs so every role consumes the same grounding source.
+
 <workflow>
 ## Modes of Operation
 
@@ -87,6 +102,7 @@ UTC+7. SESSION_ID `<YYMMDD>-<hhmmss>`: Win `Get-Date -Format "yyMMdd-HHmmss"` | 
 2. Read `iterations/<ITERATION>/reports/<TASK_ID>-report[-r<N>].md` PART 1 — note executor's criteria status, files_modified, verification results
 3. If ITERATION > 1: read `iterations/<ITERATION>/feedbacks/<timestamp>/feedbacks.md` — identify task-relevant issues
 4. Read `iterations/<ITERATION>/plan.md` for session goals
+5. Resolve Questioner grounding using the Shared Questioner Grounding Lookup Contract before validating intent, criteria, or grounded Q-ID evidence.
 
 ### 1.5. Check Live Signals
 
@@ -220,6 +236,7 @@ Poll signals/inputs/: ABORT → exit; PAUSE → wait; INFO → inject into conte
 3. Read all `iterations/*/feedbacks/*/feedbacks.md`
 4. If `iterations/<N>/knowledge/` exists: list files recursively; record path, Diátaxis category (from sub-folder name), description (from frontmatter/filename)
 5. If `knowledge/` contains staging manifests or promoted artifacts tied to the iteration: capture that evidence so the review reflects extracted, staged, and promoted outcomes
+6. Resolve any Questioner grounding referenced by the plan, tasks, or reports through the Shared Questioner Grounding Lookup Contract before assessing cross-agent consistency or unmet grounding.
 
 ### 2. Assess Goal Achievement
 

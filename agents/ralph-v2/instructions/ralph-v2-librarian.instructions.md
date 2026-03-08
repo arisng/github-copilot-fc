@@ -75,6 +75,21 @@ Three items initialized in `iterations/<N>/progress.md`:
 | Cherry-pick staging | staging `[x]` | STAGE only |
 </rules>
 
+## Shared Questioner Grounding Lookup Contract
+
+When consuming Questioner grounding, use this exact resolution order:
+1. If `question_artifact_path` is present in delegated context or a prior Ralph payload, read that file first and treat it as the authoritative handoff artifact.
+2. Otherwise, if the needed category is known, read the canonical category artifact at `iterations/<ITERATION>/questions/<category>.md`.
+3. Only when one artifact is insufficient for the current mode, read additional canonical category artifacts under `iterations/<ITERATION>/questions/`.
+
+Do not infer a preferred artifact from glob order, file timestamps, partial Q-ID overlap, or other role-local heuristics.
+
+An artifact is fresh for the current answered cycle only when both of the following are true:
+- Frontmatter `cycle` matches the latest `## Answers (Cycle <C>)` section in that same file.
+- The questions relevant to the current handoff are marked `Status: Answered` inside that same answers cycle.
+
+If either condition fails, treat grounding as stale or incomplete. Do not mix answers across cycles or silently fall back to a different artifact; instead return or delegate for refreshed Questioner grounding. Preserve the resolved `question_artifact_path` in downstream handoffs so every role consumes the same grounding source.
+
 <workflow>
 ### Skill Discovery Resolution
 
@@ -91,7 +106,7 @@ Load `ralph-knowledge-merge-and-promotion` and execute its EXTRACT checklist:
 1. Poll signals.
 2. Initialize `## Knowledge Progress` if missing.
 3. Run Gate 0.
-4. Collect evidence from tasks, reports, plan, and review artifacts.
+4. Collect evidence from tasks, reports, plan, review artifacts, and any Questioner grounding resolved through the Shared Questioner Grounding Lookup Contract.
 5. Re-poll on signal checkpoints.
 6. Filter to reusable knowledge only.
 7. Classify into exactly one Diátaxis category.
