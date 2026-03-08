@@ -77,6 +77,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Diataxis Subcategory Heuristic](reference/ralph/diataxis-subcategory-heuristic.md)
 - [Harness Engineering Checklist](reference/ralph/harness-engineering-checklist.md)
 - [Ralph Session Artifact Templates](reference/ralph/ralph-artifact-templates.md)
+- [Ralph beta agent frontmatter name contract](reference/ralph/ralph-beta-agent-frontmatter-name-contract.md)
 - [Ralph beta agent filename contract](reference/ralph/ralph-beta-agent-filename-contract.md)
 - [Ralph hook log directory resolution](reference/ralph/ralph-hook-log-directory-resolution.md)
 - [Ralph SDK Migration Guide](reference/ralph/ralph-sdk-migration.md)
