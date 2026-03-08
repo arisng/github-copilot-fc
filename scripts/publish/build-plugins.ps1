@@ -158,6 +158,44 @@ function Merge-AgentInstructions {
     return $result
 }
 
+function Get-BundledPluginName {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginName,
+        [ValidateSet("stable", "beta")][string]$Channel = "beta"
+    )
+
+    if ($Channel -eq 'beta') {
+        return "$PluginName-beta"
+    }
+
+    return $PluginName
+}
+
+function Copy-HookSupportAssets {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$BuildDir
+    )
+
+    $sourceScriptsDir = Join-Path $RepoRoot 'hooks/scripts'
+    if (-not (Test-Path $sourceScriptsDir)) {
+        return $false
+    }
+
+    $hookBuildDir = Join-Path $BuildDir 'hooks'
+    $targetScriptsDir = Join-Path $hookBuildDir 'scripts'
+
+    New-Item -Path $hookBuildDir -ItemType Directory -Force | Out-Null
+    if (Test-Path $targetScriptsDir) {
+        Remove-Item $targetScriptsDir -Recurse -Force
+    }
+
+    Copy-Item -Path $sourceScriptsDir -Destination $targetScriptsDir -Recurse -Force
+    return $true
+}
+
 function Get-PluginBundleLayout {
     [CmdletBinding()]
     param(
@@ -171,17 +209,18 @@ function Get-PluginBundleLayout {
     $pluginItem = Get-Item -Path $PluginDir -ErrorAction Stop
     $runtimeDir = Split-Path $pluginItem.FullName -Parent
     $runtimeName = Split-Path $runtimeDir -Leaf
-    $buildFolderName = if ($Channel -eq 'beta') { '.build-beta' } else { '.build' }
-    $buildRoot = Join-Path $runtimeDir $buildFolderName
-    $buildDir = Join-Path $buildRoot $pluginItem.Name
+    $bundledPluginName = Get-BundledPluginName -PluginName $pluginItem.Name -Channel $Channel
+    $buildRoot = Join-Path $runtimeDir '.build'
+    $buildDir = Join-Path $buildRoot $bundledPluginName
 
     return [PSCustomObject]@{
-        PluginName  = $pluginItem.Name
-        RuntimeDir  = $runtimeDir
-        RuntimeName = $runtimeName
-        BuildRoot   = $buildRoot
-        BuildDir    = $buildDir
-        Channel     = $Channel
+        PluginName        = $bundledPluginName
+        SourcePluginName  = $pluginItem.Name
+        RuntimeDir        = $runtimeDir
+        RuntimeName       = $runtimeName
+        BuildRoot         = $buildRoot
+        BuildDir          = $buildDir
+        Channel           = $Channel
     }
 }
 
@@ -211,37 +250,25 @@ function Initialize-PluginBundleOutput {
         return
     }
 
-    $allLayouts = @{}
-    foreach ($pluginDir in $AllPluginDirs) {
-        $layout = Get-PluginBundleLayout -PluginDir $pluginDir.FullName -Channel $Channel
-        if (-not $allLayouts.ContainsKey($layout.RuntimeName)) {
-            $allLayouts[$layout.RuntimeName] = @()
-        }
-
-        $allLayouts[$layout.RuntimeName] += $layout
-    }
-
     $selectedLayouts = $SelectedPluginDirs | ForEach-Object {
         Get-PluginBundleLayout -PluginDir $_.FullName -Channel $Channel
     }
 
-    foreach ($runtimeGroup in ($selectedLayouts | Group-Object RuntimeName)) {
-        $runtimeName = $runtimeGroup.Name
+    foreach ($runtimeGroup in ($selectedLayouts | Group-Object BuildRoot)) {
         $runtimeLayouts = @($runtimeGroup.Group)
-        $allRuntimeLayouts = @($allLayouts[$runtimeName])
         $buildRoot = $runtimeLayouts[0].BuildRoot
-        $cleanRuntimeRoot = $runtimeLayouts.Count -eq $allRuntimeLayouts.Count
-
-        if ($cleanRuntimeRoot -and (Test-Path $buildRoot)) {
-            Remove-Item $buildRoot -Recurse -Force
-        }
 
         New-Item -Path $buildRoot -ItemType Directory -Force | Out-Null
 
-        if (-not $cleanRuntimeRoot) {
-            foreach ($layout in $runtimeLayouts) {
-                if (Test-Path $layout.BuildDir) {
-                    Remove-Item $layout.BuildDir -Recurse -Force
+        foreach ($layout in $runtimeLayouts) {
+            if (Test-Path $layout.BuildDir) {
+                Remove-Item $layout.BuildDir -Recurse -Force
+            }
+
+            if ($layout.Channel -eq 'beta') {
+                $legacyBetaDir = Join-Path (Join-Path $layout.RuntimeDir '.build-beta') $layout.SourcePluginName
+                if (Test-Path $legacyBetaDir) {
+                    Remove-Item $legacyBetaDir -Recurse -Force
                 }
             }
         }
@@ -267,8 +294,8 @@ function Build-PluginBundle {
         Full path to the plugin source directory containing plugin.json.
 
     .PARAMETER Channel
-        Build channel: 'beta' (default) or 'stable'. Beta builds go to .build-beta/
-        and suffix the plugin name with '-beta' in the manifest.
+        Build channel: 'beta' (default) or 'stable'. Beta builds go to
+        .build/<name>-beta/ while stable builds go to .build/<name>/.
 
     .OUTPUTS
         [string] Path to the runtime-scoped bundle directory on success, $null on failure.
@@ -301,12 +328,8 @@ function Build-PluginBundle {
         return $null
     }
 
-    $pluginName = $manifest.name
-
-    # Beta channel: suffix plugin name to avoid collision with stable
-    if ($Channel -eq 'beta') {
-        $pluginName = "$pluginName-beta"
-    }
+    $sourcePluginName = $manifest.name
+    $pluginName = Get-BundledPluginName -PluginName $sourcePluginName -Channel $Channel
 
     # Convention: validate runtime field
     if (-not $manifest.PSObject.Properties['runtime']) {
@@ -315,15 +338,15 @@ function Build-PluginBundle {
 
     $bundleLayout = Get-PluginBundleLayout -PluginDir $PluginDir -Channel $Channel
     $buildDir = $bundleLayout.BuildDir
-    $buildFolder = Split-Path $bundleLayout.BuildRoot -Leaf
 
     # Bundle cleanup is orchestrated by Initialize-PluginBundleOutput.
     New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
 
-    Write-Host "  Bundling: $pluginName -> plugins/$($bundleLayout.RuntimeName)/$buildFolder/$($bundleLayout.PluginName)/" -ForegroundColor DarkGray
+    Write-Host "  Bundling: $pluginName -> plugins/$($bundleLayout.RuntimeName)/.build/$($bundleLayout.PluginName)/" -ForegroundColor DarkGray
 
     # Build a clean manifest with only official + convention fields
     $cleanManifest = [ordered]@{}
+    $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
 
     # Copy metadata fields
     foreach ($field in $officialMetadataFields) {
@@ -396,13 +419,21 @@ function Build-PluginBundle {
         }
     }
 
+    if ($cleanManifest.Contains('hooks')) {
+        if (Copy-HookSupportAssets -RepoRoot $repoRoot -BuildDir $buildDir) {
+            Write-Host "  Bundled hook scripts: hooks/scripts/" -ForegroundColor DarkGray
+        }
+        else {
+            Write-Warning "  Hook manifests were bundled, but hooks/scripts/ was not found to copy alongside them"
+        }
+    }
+
     # Write cleaned manifest
     $cleanManifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $buildDir "plugin.json") -Encoding UTF8
 
     # Merge agent instructions (embed instruction content into agent bodies)
     if ($cleanManifest.Contains('agents')) {
         $agentBuildDir = Join-Path $buildDir "agents"
-        $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
         $instructionsDir = Join-Path $repoRoot "agents/ralph-v2/instructions"
 
         # VS Code has no CLI-style 30K body limit; allow large merged bodies

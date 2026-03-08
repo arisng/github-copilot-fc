@@ -58,13 +58,13 @@
 
 .PARAMETER Channel
     Publishing channel: 'beta' (default) or 'stable'.
-    - beta: builds to .build-beta/, installs to _direct/<name>-beta/ (CLI),
-            registers .build-beta/ path in VS Code settings. Does not overwrite stable.
+    - beta: builds to .build/<name>-beta/, installs to _direct/<name>-beta/ (CLI),
+            registers .build/<name>-beta in VS Code settings. Does not overwrite stable.
     - stable: standard publish to default locations.
 
 .PARAMETER Promote
-    Promotes the current beta build to stable. Copies .build-beta/ to .build/, then
-    publishes as stable. Requires a prior beta build to exist.
+    Promotes the current beta build to stable by verifying a beta bundle exists under
+    .build/<name>-beta/, then rebuilding and publishing as stable.
 #>
 param(
     [Parameter(Mandatory = $false)]
@@ -284,10 +284,18 @@ function Resolve-VSCodePluginRegistrationPath {
         $runtimeRoot = Split-Path $bundleRoot -Parent
 
         if (($bundleFolderName -ieq '.build' -or $bundleFolderName -ieq '.build-beta') -and (Split-Path $runtimeRoot -Leaf) -ieq 'vscode') {
+            $effectivePluginName = if ($bundleFolderName -ieq '.build-beta') {
+                "$(Split-Path $resolvedPath -Leaf)-beta"
+            }
+            else {
+                Split-Path $resolvedPath -Leaf
+            }
+
             return [PSCustomObject]@{
                 ResolvedPath = $resolvedPath
                 RuntimeRoot = [System.IO.Path]::GetFullPath($runtimeRoot)
                 SourcePluginName = Split-Path $resolvedPath -Leaf
+                EffectivePluginName = $effectivePluginName
             }
         }
 
@@ -295,6 +303,7 @@ function Resolve-VSCodePluginRegistrationPath {
             ResolvedPath = $resolvedPath
             RuntimeRoot = $null
             SourcePluginName = $null
+            EffectivePluginName = $null
         }
     }
 
@@ -380,7 +389,7 @@ function Resolve-VSCodePluginRegistrationPath {
                     $null -ne $canonicalRegistration.RuntimeRoot -and
                     $null -ne $entryRegistration.RuntimeRoot -and
                     $entryRegistration.RuntimeRoot -ieq $canonicalRegistration.RuntimeRoot -and
-                    $entryRegistration.SourcePluginName -ieq $canonicalRegistration.SourcePluginName
+                    $entryRegistration.EffectivePluginName -ieq $canonicalRegistration.EffectivePluginName
 
                 if (($normalizedEntryPath -ieq $canonicalPluginPath -or $isSamePluginRegistration) -and $property.Name -cne $canonicalPluginPath) {
                     $stalePathEntries += $property.Name
@@ -635,10 +644,9 @@ function Promote-BetaToStable {
         Promotes beta plugin builds to stable by rebuilding as stable and publishing.
 
     .DESCRIPTION
-        Verifies that .build-beta/ bundles exist for the requested plugins, then
-        triggers a full stable build + publish from the same source. This ensures
-        the stable bundle is built fresh (not just copied), so manifest names and
-        paths are correct for the stable channel.
+        Verifies that beta bundles exist under .build/<name>-beta/, then triggers
+        a full stable build + publish from the same source. This ensures the stable
+        bundle is built fresh, so manifest names and paths are correct.
     #>
     [CmdletBinding()]
     param()
@@ -648,15 +656,15 @@ function Promote-BetaToStable {
     $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
     $pluginsPath = Join-Path $repoRoot "plugins"
 
-    # Discover plugins that have beta builds
+    # Discover plugins that have beta builds under the shared .build root
     $promoted = 0
     foreach ($runtimeName in @('cli', 'vscode')) {
-        $betaBuildRoot = Join-Path $pluginsPath "$runtimeName/.build-beta"
+        $betaBuildRoot = Join-Path $pluginsPath "$runtimeName/.build"
         if (-not (Test-Path $betaBuildRoot)) { continue }
 
-        $betaPlugins = Get-ChildItem -Path $betaBuildRoot -Directory
+        $betaPlugins = Get-ChildItem -Path $betaBuildRoot -Directory | Where-Object { $_.Name -like '*-beta' }
         foreach ($betaPlugin in $betaPlugins) {
-            $pluginName = $betaPlugin.Name
+            $pluginName = $betaPlugin.Name -replace '-beta$'
             $sourceDir = Join-Path $pluginsPath "$runtimeName/$pluginName"
 
             if (-not (Test-Path (Join-Path $sourceDir "plugin.json"))) {
