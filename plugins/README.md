@@ -94,7 +94,7 @@ Marketplace cache (reference docs): `~/.copilot/marketplace-cache/`
 
 > **⚠️** These paths are documented as-is from official GitHub docs (March 2026). The inconsistency has not been resolved upstream. Verify against your local installation if exact paths matter.
 
-> **Workspace publish caveat:** this repository's CLI publish script copies bundles directly into `_direct/<NAME>` for stable or `_direct/<NAME>-beta` for beta and verifies the copied payload, but local probes still have not proven that a raw `_direct` copy is always discovered the same way as `copilot plugin install`. Treat direct-copy publishing as best-effort until upstream discovery behavior is verified.
+> **Workspace publish accepted limitation:** this repository's CLI publish script copies bundles directly into `_direct/<NAME>` for stable or `_direct/<NAME>-beta` for beta and verifies the copied payload, but local probes still have not proven that a raw `_direct` copy is always discovered the same way as `copilot plugin install`. Keep the caveat documented, but treat it as an accepted limitation of the workspace publish shortcut rather than an active defect; use `copilot plugin install` when you need the officially validated discovery path.
 
 On Windows, `~` resolves to `%USERPROFILE%` (e.g. `C:\Users\<user>\.copilot\...`).
 
