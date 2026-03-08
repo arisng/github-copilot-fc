@@ -1,6 +1,6 @@
 ---
 name: aspire-cli
-description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. Also covers AI-native resource management via the Aspire MCP server: resource discovery, port discovery, console log reading, structured logs, traces, and execute resource commands. Includes combined Aspire + playwright-cli workflows for ad-hoc E2E testing and browser automation—given an Aspire AppHost project, the AI coding assistant can fully orchestrate Aspire resources and drive browser tests like a human.
+description: Guidance for using the .NET Aspire CLI to create, initialize, run, update, publish, deploy, and manage Aspire AppHost projects. Use when selecting or explaining Aspire CLI commands, flags, or workflows (new/init/run/add/update/publish/deploy/do/exec/config/cache/mcp), or when upgrading to Aspire 13.1 CLI behaviors. Also covers AI-native resource management via the Aspire MCP server (resource discovery, port discovery, console log reading, structured logs, traces, and execute resource commands). Includes combined Aspire + playwright-cli workflows for ad-hoc E2E testing and browser automation—given an Aspire AppHost project, the AI coding assistant can fully orchestrate Aspire resources and drive browser tests like a human.
 metadata:
   version: 2.0.0
   author: arisng

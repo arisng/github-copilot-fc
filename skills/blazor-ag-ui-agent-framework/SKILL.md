@@ -1,6 +1,6 @@
 ---
 name: blazor-ag-ui-agent-framework
-description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework (MAF) and ASP.NET Core. Use when implementing the 7 AG-UI protocol features: agentic chat, backend tools, human-in-the-loop approvals, generative UI (async tools), tool-based UI rendering, shared state, and predictive state updates. Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, SSE streaming architecture, and 2026 UX patterns for agentic interfaces (Dual-Pane Architecture, Observable Plans, HITL governance).
+description: Build Blazor-native agent user interfaces using AG-UI protocol with Microsoft Agent Framework (MAF) and ASP.NET Core. Use when implementing the 7 AG-UI protocol features (agentic chat, backend tools, human-in-the-loop approvals, generative UI - async tools, tool-based UI rendering, shared state, and predictive state updates). Covers ASP.NET Core MapAGUI endpoints, Agent Framework integration, Blazor component rendering, SSE streaming architecture, and 2026 UX patterns for agentic interfaces (Dual-Pane Architecture, Observable Plans, HITL governance).
 metadata: 
    version: 2.1.0
    author: arisng
