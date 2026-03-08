@@ -15,7 +15,7 @@ Ralph v2 is structurally sound for single-stream execution and has resolved the 
 - ✅ **Session Governance**: Dedicated Session Review state confirmed
 - ✅ **Operational Guardrails**: Cycle limits, state validation, input hardening added
 - ✅ **Resiliency**: Timeout recovery policy, retry backoff, and task splitting added
-- ✅ **Orchestrator Purity**: Router-only behavior enforced for content, but State Ownership granted for `metadata.yaml`
+- ✅ **Orchestrator Purity**: Router-only behavior enforced for content, but State Ownership granted for `.ralph-sessions/<SESSION_ID>/metadata.yaml`
 - ✅ **Skills Enforcement**: Reasoning-based discovery replaces numeric cap (v2.3.0)
 - ✅ **COMMIT Mode**: Separate mode for git atomic commits within REVIEWING_BATCH (v2.3.0)
 - ✅ **Knowledge Session-Scope**: Session-scope knowledge with frontmatter-based promotion tracking (v2.10.0)
@@ -27,11 +27,11 @@ Ralph v2 is structurally sound for single-stream execution and has resolved the 
 
 ### ✅ Orchestrator-Owned State
 
-The Orchestrator directly updates `metadata.yaml` on state transitions, ensuring atomicity and eliminating sync drift.
+The Orchestrator directly updates `.ralph-sessions/<SESSION_ID>/metadata.yaml` on state transitions, ensuring atomicity and eliminating sync drift.
 
 ### ✅ Single Source of Truth (SSOT)
 
-`progress.md` is the sole progress SSOT; `metadata.yaml` is the sole state SSOT.
+`iterations/<N>/progress.md` is the sole progress SSOT; `.ralph-sessions/<SESSION_ID>/metadata.yaml` is the sole state SSOT.
 
 ### ✅ Structured Feedback Loops
 
@@ -75,7 +75,7 @@ The v2 feedbacks directory layout and REPLANNING state enforce explicit feedback
 
 **Risk**: Pre-check exists; remaining risk is inconsistent task metadata.
 
-**Resolution (v2.3.0)**: Enhanced with multi-pass dependency reasoning in Planner's TASK_BREAKDOWN mode. Pass 2 now includes explicit sub-steps for shared resource analysis, read-after-write detection, interface/contract dependencies, and ordering constraints. Waves are documented with rationale in plan.md. This is a proactive hardening — no known failures existed; the enhancement is conservative and future-proofs for more complex projects (ref: Q-ASM-006).
+**Resolution (v2.3.0)**: Enhanced with multi-pass dependency reasoning in Planner's TASK_BREAKDOWN mode. Pass 2 now includes explicit sub-steps for shared resource analysis, read-after-write detection, interface/contract dependencies, and ordering constraints. Waves are documented with rationale in `iterations/<N>/plan.md`. This is a proactive hardening — no known failures existed; the enhancement is conservative and future-proofs for more complex projects (ref: Q-ASM-006).
 
 ---
 
@@ -85,7 +85,7 @@ The v2 feedbacks directory layout and REPLANNING state enforce explicit feedback
 
 1. **Add regression tests** for orchestrator routing, single-mode enforcement, and schema validation.
 2. **Tighten SESSION_ID validation** to strict regex and enforce in every entry point.
-3. **Add a lightweight lint** for `tasks/<id>.md` metadata completeness.
+3. **Add a lightweight lint** for `iterations/<N>/tasks/task-<id>.md` metadata completeness.
 
 ### Resiliency and Recovery
 
@@ -103,7 +103,7 @@ The v2 feedbacks directory layout and REPLANNING state enforce explicit feedback
 	- **Iteration scope (normalize)**: Treat iteration artifacts as SSOT, avoid duplication across iteration files.
 	- **Session scope (denormalize)**: Allow aggregated views for reporting and human consumption only.
 9. **Add a normalization guide**:
-	- Enumerate SSOT files (e.g., `progress.md`, `tasks/<id>.md`, `iterations/<N>/metadata.yaml`).
+	- Enumerate SSOT files (e.g., `iterations/<N>/progress.md`, `iterations/<N>/tasks/task-<id>.md`, `iterations/<N>/metadata.yaml`).
 	- Define derived artifacts (e.g., dashboards, summaries) as read-only, regenerate anytime.
 10. **Introduce a lightweight state index**:
 	- A generated `iterations/<N>/state.index.json` (or markdown) that summarizes normalized fields without becoming SSOT.
@@ -123,7 +123,7 @@ This section documents the key design decisions made in v2.3.0 across four feedb
 - Adding a new top-level state would change the state machine diagram, all state transition validation logic in the Orchestrator, and potentially the Planner's progress schema (ref: Q-ASM-005).
 - COMMIT is logically a follow-up to a qualified review verdict — it belongs to the review phase, not a distinct lifecycle phase.
 - The Orchestrator invokes Reviewer TASK_REVIEW for each task, then for `[x]` tasks, invokes Reviewer COMMIT mode — all within the same REVIEWING_BATCH state.
-- `metadata.yaml` state remains `REVIEWING_BATCH` throughout; no new state transition needed.
+- `.ralph-sessions/<SESSION_ID>/metadata.yaml` state remains `REVIEWING_BATCH` throughout; no new state transition needed.
 
 **Alternative Considered**: A top-level `COMMITTING` state between REVIEWING_BATCH and SESSION_REVIEW. Rejected because it would require state machine changes with cascading updates across Orchestrator, Planner, and Reviewer.
 
@@ -161,7 +161,7 @@ This section documents the key design decisions made in v2.3.0 across four feedb
 - The current 3-pass approach is adequate; no documented failures exist. The enhancement is proactive hardening for future complexity (ref: Q-ASM-006, source feedback: "not because the current breakdown is not good enough").
 - Adding new passes would increase planning latency and complexity without addressing a real failure mode.
 - Pass 2 sub-steps (shared resource analysis, read-after-write detection, interface/contract dependencies, ordering constraints) add structured reasoning within the existing framework.
-- Waves are now documented in plan.md with rationale for grouping and inter-wave dependencies.
+- Waves are now documented in `iterations/<N>/plan.md` with rationale for grouping and inter-wave dependencies.
 
 **Alternative Considered**: Adding Pass 4 (cross-validation) and Pass 5 (wave optimization). Rejected as over-engineering for a proactive enhancement with no known failures. The expanded Pass 2 achieves the same reasoning depth with less structural change.
 

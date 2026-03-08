@@ -69,14 +69,14 @@ agents/ralph-v2/
 
 All subagents load their behaviour from shared `instructions/` files. The GitHub Copilot CLI enforces a **30,000-character maximum on the Markdown body** (YAML frontmatter is excluded). Ralph-v2 now follows a harness-engineering split: control-plane logic stays inline in the agent instructions, while bulky protocol and template references move into Ralph-specific skills that the agents load on demand.
 
-| File | Purpose | Body (approx) |
-|------|---------|---------------|
-| `ralph-v2-orchestrator.instructions.md` | Orchestrator core — state machine, subagent routing, critique loop, knowledge extraction routing | ~28K |
-| `ralph-v2-planner.instructions.md` | Planner modes: INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | ~28K |
-| `ralph-v2-questioner.instructions.md` | Questioner modes: brainstorm, research, feedback-analysis | ~16K |
-| `ralph-v2-executor.instructions.md` | Executor — task implementation, signal polling, report structure | ~12K |
-| `ralph-v2-reviewer.instructions.md` | Reviewer modes: TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL | ~26K |
-| `ralph-v2-librarian.instructions.md` | Librarian modes: EXTRACT, STAGE, PROMOTE, COMMIT | ~27K |
+| File                                    | Purpose                                                                                                   | Body (approx) |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------- |
+| `ralph-v2-orchestrator.instructions.md` | Orchestrator core — state machine, subagent routing, critique loop, knowledge extraction routing          | ~28K          |
+| `ralph-v2-planner.instructions.md`      | Planner modes: INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | ~28K          |
+| `ralph-v2-questioner.instructions.md`   | Questioner modes: brainstorm, research, feedback-analysis                                                 | ~16K          |
+| `ralph-v2-executor.instructions.md`     | Executor — task implementation, signal polling, report structure                                          | ~12K          |
+| `ralph-v2-reviewer.instructions.md`     | Reviewer modes: TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                         | ~26K          |
+| `ralph-v2-librarian.instructions.md`    | Librarian modes: EXTRACT, STAGE, PROMOTE, COMMIT                                                          | ~27K          |
 
 > **No CLI-trimmed variants**: Previously `ralph-v2-reviewer.cli-embed.instructions.md` and `ralph-v2-librarian.cli-embed.instructions.md` existed as trimmed CLI variants. These are now eliminated — all agents embed from the consolidated instruction files, which have been compressed to fit within the 30K CLI body limit.
 
@@ -84,13 +84,13 @@ All subagents load their behaviour from shared `instructions/` files. The GitHub
 
 These skills are bundled in the Ralph-v2 plugins and loaded on demand by the agents:
 
-| Skill | Primary Consumers | Purpose |
-|------|-------------------|---------|
-| `ralph-session-ops-reference` | Orchestrator, Planner, Reviewer, Executor | Schema validation, timeout recovery, timestamp commands |
-| `ralph-signal-mailbox-protocol` | All Ralph-v2 agents | Live signal mailbox protocol, ack quorum, routing |
-| `ralph-feedback-batch-protocol` | Orchestrator, Questioner | Post-iteration feedback batch handling |
-| `ralph-planning-artifact-templates` | Planner | Canonical plan/progress/metadata/task templates |
-| `ralph-knowledge-merge-and-promotion` | Librarian | Knowledge extraction, staging, merge, promotion rules |
+| Skill                                 | Primary Consumers                         | Purpose                                                 |
+| ------------------------------------- | ----------------------------------------- | ------------------------------------------------------- |
+| `ralph-session-ops-reference`         | Orchestrator, Planner, Reviewer, Executor | Schema validation, timeout recovery, timestamp commands |
+| `ralph-signal-mailbox-protocol`       | All Ralph-v2 agents                       | Live signal mailbox protocol, ack quorum, routing       |
+| `ralph-feedback-batch-protocol`       | Orchestrator, Questioner                  | Post-iteration feedback batch handling                  |
+| `ralph-planning-artifact-templates`   | Planner                                   | Canonical plan/progress/metadata/task templates         |
+| `ralph-knowledge-merge-and-promotion` | Librarian                                 | Knowledge extraction, staging, merge, promotion rules   |
 
 These Ralph-coupled skills intentionally remain in the root `skills/` factory instead of `agents/ralph-v2/skills`. The root location preserves the workspace-wide skill convention and publish tooling, while the Ralph-v2 plugin manifests define the actual ownership boundary by bundling only the skills that belong to the Ralph workflow.
 
@@ -125,29 +125,29 @@ Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should onl
 
 ### Agent Reference
 
-| Agent | Role | Modes | Key Responsibilities |
-|-------|------|-------|---------------------|
-| **Orchestrator** | Routing | — | State machine transitions, subagent invocation, `metadata.yaml` ownership, signal routing |
-| **Planner** | Planning | INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | Plan creation, task decomposition, wave dependency reasoning, replanning |
-| **Questioner** | Discovery | brainstorm, research, feedback-analysis | Q&A generation, research, feedback analysis |
-| **Executor** | Implementation | — | Task execution, design-time validation (build/lint/tests) |
-| **Reviewer** | Quality | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL | Code review, atomic commits (hunk-level staging), session review |
-| **Librarian** | Knowledge | EXTRACT, STAGE, PROMOTE | Knowledge extraction (iteration-scoped), merge staging (session-scoped), wiki promotion |
+| Agent            | Role           | Modes                                                                                      | Key Responsibilities                                                                                       |
+| ---------------- | -------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Orchestrator** | Routing        | —                                                                                          | State machine transitions, subagent invocation, `.ralph-sessions/<SESSION_ID>/metadata.yaml` ownership, signal routing |
+| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | Plan creation, task decomposition, wave dependency reasoning, replanning                                   |
+| **Questioner**   | Discovery      | brainstorm, research, feedback-analysis                                                    | Q&A generation, research, feedback analysis                                                                |
+| **Executor**     | Implementation | —                                                                                          | Task execution, design-time validation (build/lint/tests)                                                  |
+| **Reviewer**     | Quality        | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                          | Code review, atomic commits (hunk-level staging), session review                                           |
+| **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                    | Knowledge extraction (iteration-scoped), merge staging (session-scoped), wiki promotion (workspace-scoped) |
 
 ### Ownership Model
 
-| Artifact | Owner (write) | Notes |
-|----------|--------------|-------|
-| `metadata.yaml` | Planner (init), Orchestrator (transitions) | Session-level state machine SSOT |
-| `iterations/<N>/metadata.yaml` | Planner (init), Reviewer (update) | Iteration timing SSOT |
-| `iterations/<N>/plan.md` | Planner | Mutable plan per iteration |
-| `iterations/<N>/tasks/*.md` | Planner | One file per task |
-| `iterations/<N>/progress.md` | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status |
-| `iterations/<N>/reports/*` | Executor, Reviewer | Task and review reports |
-| `iterations/<N>/questions/*` | Questioner | Per-category Q&A files |
-| `knowledge/` | Librarian (STAGE, PROMOTE) | Session-scope merged knowledge staging and promotion tracking |
-| `iterations/<N>/knowledge/` | Librarian (EXTRACT) | Iteration-scoped extracted knowledge |
-| `signals/` | Human (write), Agents (ack), Orchestrator (route) | Session-level mailbox |
+| Artifact                       | Owner (write)                                      | Notes                                                         |
+| ------------------------------ | -------------------------------------------------- | ------------------------------------------------------------- |
+| `.ralph-sessions/<SESSION_ID>/metadata.yaml` | Planner (init), Orchestrator (transitions)         | Session-level state machine SSOT                              |
+| `iterations/<N>/metadata.yaml` | Planner (init), Reviewer (update)                  | Iteration timing SSOT                                         |
+| `iterations/<N>/plan.md`       | Planner                                            | Mutable plan per iteration                                    |
+| `iterations/<N>/tasks/*.md`    | Planner                                            | One file per task                                             |
+| `iterations/<N>/progress.md`   | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status                   |
+| `iterations/<N>/reports/*`     | Executor, Reviewer                                 | Task and review reports                                       |
+| `iterations/<N>/questions/*`   | Questioner                                         | Per-category Q&A files                                        |
+| `iterations/<N>/knowledge/`    | Librarian (EXTRACT)                                | Iteration-scoped extracted knowledge                          |
+| `knowledge/`                   | Librarian (STAGE, PROMOTE)                         | Session-scope merged knowledge staging and promotion tracking |
+| `signals/`                     | Human (write), Agents (ack), Orchestrator (route)  | Session-level mailbox                                         |
 
 ---
 
@@ -155,7 +155,7 @@ Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should onl
 
 `.ralph-sessions/` is always relative to the **workspace root**. Session ID format: `<YYMMDD>-<hhmmss>`.
 
-Each iteration is **self-contained** — all mutable artifacts live inside `iterations/<N>/`. Session-level state (`metadata.yaml`, `signals/`, `knowledge/`) stays at the session root.
+Each iteration is **self-contained** — all mutable artifacts live inside `iterations/<N>/`. Session-level state (`.ralph-sessions/<SESSION_ID>/metadata.yaml`, `signals/`, `knowledge/`) stays at the session root.
 
 ```
 .ralph-sessions/<SESSION_ID>/
@@ -225,7 +225,7 @@ KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROM
        ▼
    COMPLETE ──── All tasks [x]/[C], or awaiting feedback
        │
-       ▼ (human provides feedbacks/)
+    ▼ (human provides `iterations/<N+1>/feedbacks/<timestamp>/`)
   REPLANNING ──── Planner triages → Questioner → Planner → back to BATCHING
 ```
 
@@ -239,11 +239,11 @@ KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROM
 
 ### Isolated Task Files
 
-One file per task in `tasks/<id>.md` with YAML frontmatter (`id`, `iteration`, `type`, `created_at`), dependencies, and success criteria. Eliminates write contention and enables parallel execution.
+One file per task in `iterations/<N>/tasks/task-<id>.md` with YAML frontmatter (`id`, `iteration`, `type`, `created_at`), dependencies, and success criteria. `tasks/<id>.md` is legacy shorthand only when discussing pre-normalization sessions. Eliminates write contention and enables parallel execution.
 
 ### Single Source of Truth (SSOT) Progress
 
-`progress.md` is the **only** location for task status. Status markers: `[ ]` not started, `[/]` in progress, `[P]` pending review, `[x]` completed, `[F]` failed, `[C]` cancelled/skipped.
+`iterations/<N>/progress.md` is the **only** location for task status. Status markers: `[ ]` not started, `[/]` in progress, `[P]` pending review, `[x]` completed, `[F]` failed, `[C]` cancelled/skipped.
 
 ### Structured Feedback Loops
 
@@ -256,12 +256,12 @@ Two protocols for human feedback:
 
 Four signal types (all universal):
 
-| Signal | Category | Semantics | Polled By |
-|--------|----------|-----------|----------|
-| `STEER` | Universal | Re-route workflow | Orchestrator + Subagents |
-| `INFO` | Universal | Context injection (also used for targeted conventions like skip-promotion) | Orchestrator + Subagents |
-| `PAUSE` | Universal | Temporary halt | Orchestrator + Subagents |
-| `ABORT` | Universal | Permanent halt with cleanup | Orchestrator + Subagents |
+| Signal  | Category  | Semantics                                                                  | Polled By                |
+| ------- | --------- | -------------------------------------------------------------------------- | ------------------------ |
+| `STEER` | Universal | Re-route workflow                                                          | Orchestrator + Subagents |
+| `INFO`  | Universal | Context injection (also used for targeted conventions like skip-promotion) | Orchestrator + Subagents |
+| `PAUSE` | Universal | Temporary halt                                                             | Orchestrator + Subagents |
+| `ABORT` | Universal | Permanent halt with cleanup                                                | Orchestrator + Subagents |
 
 Target-aware routing: Orchestrator checks `target` field and routes to specific subagents. Broadcast signals (`target: ALL`) require ack quorum from all recipients before archival.
 
@@ -295,21 +295,21 @@ All subagents discover and load skills at runtime via 4-step reasoning:
 1. Check agent instructions for skill affinities
 2. Check task context for explicitly mentioned skills
 3. Scan `<SKILLS_DIR>` and match descriptions
-4. Load only directly relevant skills (typically 1-3)
+4. Load only directly relevant skills (typically 1-3 but can be more depending on task context)
 
-| Agent | Primary Skill Affinities |
-|-------|--------------------------|
-| Orchestrator | `ralph-session-ops-reference`, `ralph-signal-mailbox-protocol`, `ralph-feedback-batch-protocol` |
-| Planner | `ralph-planning-artifact-templates`, `ralph-session-ops-reference`, `ralph-signal-mailbox-protocol` |
-| Questioner | `ralph-signal-mailbox-protocol`, `ralph-feedback-batch-protocol`, `ralph-session-ops-reference` |
-| Executor | `ralph-signal-mailbox-protocol`, `ralph-session-ops-reference` |
-| Reviewer | `git-atomic-commit`, `ralph-signal-mailbox-protocol`, `ralph-session-ops-reference` |
-| Librarian | `ralph-knowledge-merge-and-promotion`, `diataxis`, `diataxis-categorizer`, `git-atomic-commit` |
+| Agent        | Primary Skill Affinities                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| Orchestrator | `ralph-session-ops-reference`, `ralph-signal-mailbox-protocol`, `ralph-feedback-batch-protocol`     |
+| Planner      | `ralph-planning-artifact-templates`, `ralph-session-ops-reference`, `ralph-signal-mailbox-protocol` |
+| Questioner   | `ralph-signal-mailbox-protocol`, `ralph-feedback-batch-protocol`, `ralph-session-ops-reference`     |
+| Executor     | `ralph-signal-mailbox-protocol`, `ralph-session-ops-reference`                                      |
+| Reviewer     | `ralph-signal-mailbox-protocol`, `ralph-session-ops-reference`, `git-atomic-commit`                 |
+| Librarian    | `ralph-knowledge-merge-and-promotion`, `diataxis`, `diataxis-categorizer`, `git-atomic-commit`      |
 
 ### Operational Guardrails
 
-- **Schema validation** for `progress.md` and `metadata.yaml`
-- **Orchestrator owns only `metadata.yaml`** — all other writes delegated to subagents
+- **Schema validation** for `iterations/<N>/progress.md`, `iterations/<N>/metadata.yaml`, and `.ralph-sessions/<SESSION_ID>/metadata.yaml`
+- **Orchestrator owns only `.ralph-sessions/<SESSION_ID>/metadata.yaml`** — all other writes delegated to subagents
 - **Single-mode invocations** — each subagent call runs exactly one mode
 - **Timeout recovery** — exponential backoff (30s → 60s → 60s → SPLIT_TASK)
 - **Reviewer-owned runtime validation** — mandatory for every task, workload-aware
@@ -360,23 +360,23 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 
 ### Timestamp Commands
 
-| Format | Windows (PowerShell) | Linux/WSL (bash) |
-|--------|---------------------|------------------|
-| Session ID `<YYMMDD-hhmmss>` | `Get-Date -Format "yyMMdd-HHmmss"` | `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"` |
-| ISO 8601 with offset | `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"` | `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"` |
+| Format                       | Windows (PowerShell)                      | Linux/WSL (bash)                                  |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------- |
+| Session ID `<YYMMDD-hhmmss>` | `Get-Date -Format "yyMMdd-HHmmss"`        | `TZ=Asia/Ho_Chi_Minh date +"%y%m%d-%H%M%S"`       |
+| ISO 8601 with offset         | `Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"` | `TZ=Asia/Ho_Chi_Minh date +"%Y-%m-%dT%H:%M:%S%z"` |
 
 ---
 
 ## Related Documentation
 
-| Document | Description |
-|----------|-------------|
-| [specs/live-signals.spec.md](specs/live-signals.spec.md) | Live signal protocol spec — design, types, routing, ack quorum, checkpoint map (v2.10.0, implemented) |
-| [specs/normalization.spec.md](specs/normalization.spec.md) | SSOT normalization patterns spec (v2.2.0, implemented) |
-| [specs/ralph-v2-stop-hook-metadata-finalization.spec.md](specs/ralph-v2-stop-hook-metadata-finalization.spec.md) | Stop hook metadata finalization spec (implemented) |
-| [docs/design/critique.md](docs/design/critique.md) | Workflow critique and guardrail status |
-| [docs/reference/hooks-integrations.md](docs/reference/hooks-integrations.md) | Hooks integration plan (P0-P3 tiers) |
-| [docs/templates/feedbacks.template.md](docs/templates/feedbacks.template.md) | Feedback file template |
+| Document                                                                                                         | Description                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [specs/live-signals.spec.md](specs/live-signals.spec.md)                                                         | Live signal protocol spec — design, types, routing, ack quorum, checkpoint map (v2.10.0, implemented) |
+| [specs/normalization.spec.md](specs/normalization.spec.md)                                                       | SSOT normalization patterns spec (v2.2.0, implemented)                                                |
+| [specs/ralph-v2-stop-hook-metadata-finalization.spec.md](specs/ralph-v2-stop-hook-metadata-finalization.spec.md) | Stop hook metadata finalization spec (implemented)                                                    |
+| [docs/design/critique.md](docs/design/critique.md)                                                               | Workflow critique and guardrail status                                                                |
+| [docs/reference/hooks-integrations.md](docs/reference/hooks-integrations.md)                                     | Hooks integration plan (P0-P3 tiers)                                                                  |
+| [docs/templates/feedbacks.template.md](docs/templates/feedbacks.template.md)                                     | Feedback file template                                                                                |
 
 ---
 
@@ -465,7 +465,7 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 ### v2.4.0 (2026-02-27)
 
 **CURATE Delegation to Librarian**
-- Librarian now owns the full CURATE gate (signal polling, PROMOTE/skip-promotion execution, `progress.md` marking)
+- Librarian now owns the full CURATE gate (signal polling, PROMOTE/skip-promotion execution, `iterations/<N>/progress.md` marking)
 - New Librarian mode: `CURATE` — encapsulates approval signal reading, promotion, skip-promotion, and post-iteration feedback detection
 - Orchestrator no longer directly marks `plan-knowledge-approval` — removed Hard Rules exception
 - `plan-knowledge-approval` now supports `[/]` (in-progress) status set by Librarian
@@ -484,7 +484,7 @@ created_at: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
 - Session-scope `knowledge/` replaces iteration-scope `iterations/<N>/knowledge/` — eliminated carry-forward logic
 - COMMIT extracted from Reviewer's TASK_REVIEW Step 7 into dedicated mode with hunk-level staging
 - 4-step reasoning-based skill discovery replaces numeric caps and pre-listed skills
-- Structured `plan.md` template (7 mandatory sections) with self-validation
+- Structured `iterations/<N>/plan.md` template (7 mandatory sections) with self-validation
 - Enhanced dependency reasoning (4 sub-steps: shared resource, read-after-write, interface/contract, ordering)
 
 ### v2.2.0 (2026-02-15)

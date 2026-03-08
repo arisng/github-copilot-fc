@@ -130,7 +130,7 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 	- If retries exceed configured max, force a replanning or task-splitting path.
 
 23. 🟡 **Failure Snapshot** `P1`
-  - On failure, snapshot `iterations/<N>/progress.md`, the relevant `metadata.yaml` artifact (`iterations/<N>/metadata.yaml` or `.ralph-sessions/<SESSION_ID>/metadata.yaml`), and the active task file to `logs/failures/`.
+  - On failure, snapshot `iterations/<N>/progress.md`, the relevant iteration-or-session metadata artifact (`iterations/<N>/metadata.yaml` or `.ralph-sessions/<SESSION_ID>/metadata.yaml`), and the active task file to `logs/failures/`.
 
 ### State Transition Hooks
 
@@ -446,7 +446,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Multiple TASK_IDs detected: [task-1, task-2
 
 **Policy Rules:**
 1. Construct expected path: `<session_path>/iterations/<iteration>/tasks/<task_id>.md`
-   - Fallback (pre-normalization sessions): `<session_path>/tasks/<task_id>.md`
+  - Fallback legacy path pattern (pre-normalization sessions only): `<session_path>/tasks/<task_id>.md`
 2. File MUST exist at expected path → BLOCK if not found at either location.
 3. File MUST be non-empty (size > 0 bytes) → WARN if empty.
 
@@ -455,7 +455,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Multiple TASK_IDs detected: [task-1, task-2
 **Example Enforcement:**
 ```
 INPUT:  task_id = "task-99", session_path = ".ralph-sessions/260215-173319/", iteration = 1
-RULE:   File not found at iterations/1/tasks/task-99.md or tasks/task-99.md
+RULE:   File not found at iterations/1/tasks/task-99.md or the legacy fallback path tasks/task-99.md
 OUTPUT: { verdict: "BLOCK", reason: "Task file not found: iterations/1/tasks/task-99.md" }
 ```
 
