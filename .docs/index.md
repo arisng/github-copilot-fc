@@ -77,6 +77,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Diataxis Subcategory Heuristic](reference/ralph/diataxis-subcategory-heuristic.md)
 - [Harness Engineering Checklist](reference/ralph/harness-engineering-checklist.md)
 - [Ralph Session Artifact Templates](reference/ralph/ralph-artifact-templates.md)
+- [Ralph beta agent filename contract](reference/ralph/ralph-beta-agent-filename-contract.md)
+- [Ralph hook log directory resolution](reference/ralph/ralph-hook-log-directory-resolution.md)
 - [Ralph SDK Migration Guide](reference/ralph/ralph-sdk-migration.md)
 - [Ralph Subagent Contracts](reference/ralph/ralph-subagent-contracts.md)
 - [Rename Blast Radius](reference/ralph/rename-blast-radius.md)
@@ -97,6 +99,7 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Copilot
 
+- [About beta plugin identity for parallel installs](explanation/copilot/about-beta-plugin-identity-for-parallel-installs.md)
 - [About CLI Plugins](explanation/copilot/about-cli-plugins.md)
 - [About Copilot FC workspace commands](explanation/copilot/about-copilot-fc.md)
 - [About module-boundary loading for PowerShell publish helpers](explanation/copilot/about-module-boundary-loading-for-powershell-publish-helpers.md)
