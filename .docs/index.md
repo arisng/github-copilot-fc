@@ -99,6 +99,7 @@ This index links Diátaxis-organized documentation for the workspace.
 
 - [About CLI Plugins](explanation/copilot/about-cli-plugins.md)
 - [About Copilot FC workspace commands](explanation/copilot/about-copilot-fc.md)
+- [About module-boundary loading for PowerShell publish helpers](explanation/copilot/about-module-boundary-loading-for-powershell-publish-helpers.md)
 - [Build Time Instruction Embedding Architecture](explanation/copilot/build-time-instruction-embedding-architecture.md)
 - [Research: Claude Code Hooks - Comprehensive Analysis](explanation/copilot/claude-code-hooks-analysis.md)
 - [Claude Code Skills Activation Research: Hierarchical Agent Activation for GitHub Copilot](explanation/copilot/claude-skills-activation-research.md)
