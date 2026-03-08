@@ -1,8 +1,8 @@
 ---
 name: Ralph-v2-Planner-VSCode
-description: Planning agent v2 with isolated task files, iteration-scoped artifacts, and REPLANNING mode for feedback-driven iteration support
+description: Planning agent v2 with inventory-first task breakdown, single-task TASK_CREATE materialization, iteration-scoped artifacts, and feedback-driven replanning support
 target: vscode
-argument-hint: Specify the Ralph session path, MODE (INITIALIZE, UPDATE, TASK_BREAKDOWN, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), and ITERATION for planning
+argument-hint: Specify the Ralph session path, MODE (INITIALIZE, TASK_BREAKDOWN, TASK_CREATE, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN), and ITERATION for planning; use TASK_CREATE only for one TASK_ID after TASK_BREAKDOWN returns the task_creation_queue
 user-invocable: false
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'mcp_docker/fetch_content', 'mcp_docker/search', 'mcp_docker/sequentialthinking', 'mcp_docker/brave_summarizer', 'mcp_docker/brave_web_search', 'vscode/memory']
 metadata:
