@@ -131,7 +131,7 @@ Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should onl
 | **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | Plan creation, task decomposition, wave dependency reasoning, replanning                                   |
 | **Questioner**   | Discovery      | brainstorm, research, feedback-analysis                                                    | Q&A generation, research, feedback analysis                                                                |
 | **Executor**     | Implementation | —                                                                                          | Task execution, design-time validation (build/lint/tests)                                                  |
-| **Reviewer**     | Quality        | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                          | Code review, atomic commits (hunk-level staging), session review                                           |
+| **Reviewer**     | Quality        | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                          | Code review, atomic commits (hunk-level staging), post-knowledge iteration review, `## Live Signals` normalization in `progress.md` |
 | **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                    | Knowledge extraction (iteration-scoped), merge staging (session-scoped), wiki promotion (workspace-scoped) |
 
 ### Ownership Model
@@ -142,7 +142,7 @@ Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should onl
 | `iterations/<N>/metadata.yaml` | Planner (init), Reviewer (update)                  | Iteration timing SSOT                                         |
 | `iterations/<N>/plan.md`       | Planner                                            | Mutable plan per iteration                                    |
 | `iterations/<N>/tasks/*.md`    | Planner                                            | One file per task                                             |
-| `iterations/<N>/progress.md`   | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status                   |
+| `iterations/<N>/progress.md`   | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status; Reviewer normalizes the `## Live Signals` section |
 | `iterations/<N>/reports/*`     | Executor, Reviewer                                 | Task and review reports                                       |
 | `iterations/<N>/questions/*`   | Questioner                                         | Per-category Q&A files                                        |
 | `iterations/<N>/knowledge/`    | Librarian (EXTRACT)                                | Iteration-scoped extracted knowledge                          |
@@ -188,7 +188,7 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
         │   ├── reference/
         │   ├── explanation/
         │   └── index.md           # Iteration knowledge manifest
-        └── review.md              # Iteration review
+        └── review.md              # Post-knowledge iteration review
 ```
 
 ---
@@ -212,16 +212,15 @@ REVIEWING_BATCH ── Reviewer validates → [x] + COMMIT or [F]
        │              │
        │              └── loops back to BATCHING until all waves done
        ▼
-SESSION_REVIEW ── Reviewer (SESSION_REVIEW) → review.md
-       │
-       ▼
 KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROMOTE
        │                    │
-       │                    ├── EXTRACT: iteration artifacts → iterations/<N>/knowledge/
-       │                    ├── 0 items extracted → skip to COMPLETE
+    │                    ├── EXTRACT: iteration artifacts → iterations/<N>/knowledge/
+    │                    ├── 0 items extracted → skip to SESSION_REVIEW
        │                    ├── STAGE: iterations/<N>/knowledge/ → session knowledge/ (merge)
        │                    ├── PROMOTE: session knowledge/ → .docs/ (auto-promote default)
-       │                    └── Skip-promotion INFO signal at PROMOTE → COMPLETE (staged kept)
+    │                    └── Skip-promotion INFO signal at PROMOTE → SESSION_REVIEW (staged kept)
+    ▼
+SESSION_REVIEW ── Reviewer (SESSION_REVIEW) → iteration-scoped review.md
        ▼
    COMPLETE ──── All tasks [x]/[C], or awaiting feedback
        │
@@ -245,6 +244,8 @@ One file per task in `iterations/<N>/tasks/task-<id>.md` with YAML frontmatter (
 
 `iterations/<N>/progress.md` is the **only** location for task status. Status markers: `[ ]` not started, `[/]` in progress, `[P]` pending review, `[x]` completed, `[F]` failed, `[C]` cancelled/skipped.
 
+The `## Live Signals` section inside `iterations/<N>/progress.md` is normalized by Reviewer. Other roles can surface signal outcomes through reports, outputs, or routed context, but should not directly rewrite that section.
+
 ### Structured Feedback Loops
 
 Two protocols for human feedback:
@@ -264,6 +265,8 @@ Four signal types (all universal):
 | `ABORT` | Universal | Permanent halt with cleanup                                                | Orchestrator + Subagents |
 
 Target-aware routing: Orchestrator checks `target` field and routes to specific subagents. Broadcast signals (`target: ALL`) require ack quorum from all recipients before archival.
+
+Reviewer owns the normalized iteration record for signal activity in `iterations/<N>/progress.md` under `## Live Signals`. Planner, Questioner, Executor, Librarian, and Orchestrator may react to signals, but they report those outcomes through their own artifacts or outputs instead of mutating that section directly.
 
 ### Atomic Commits (COMMIT Mode)
 
