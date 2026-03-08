@@ -6,6 +6,46 @@
 # Env: RALPH_LOG_PAYLOAD=true to include tool input in log entries.
 set -euo pipefail
 
+should_log_payload() {
+    local event_name="$1"
+    local payload_mode="${RALPH_LOG_PAYLOAD:-}"
+
+    if [ "$payload_mode" = "false" ]; then
+        return 1
+    fi
+
+    if [ "$payload_mode" = "true" ]; then
+        return 0
+    fi
+
+    case "$event_name" in
+        PreToolUse|PostToolUse)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+extract_tool_input_json() {
+    local input_json="$1"
+    local tool_input_json
+
+    if tool_input_json=$(printf '%s' "$input_json" | jq -c '.toolInput // null' 2>/dev/null); then
+        printf '%s\n' "$tool_input_json"
+        return
+    fi
+
+    if command -v powershell.exe >/dev/null 2>&1; then
+        tool_input_json=$(printf '%s' "$input_json" | powershell.exe -NoProfile -Command '$json = [Console]::In.ReadToEnd(); try { $data = $json | ConvertFrom-Json; if ($null -eq $data.toolInput) { Write-Output ''null'' } else { $data.toolInput | ConvertTo-Json -Compress -Depth 10 } } catch { Write-Output ''null'' }' | tr -d '\r')
+        printf '%s\n' "$tool_input_json"
+        return
+    fi
+
+    printf 'null\n'
+}
+
 resolve_log_dir() {
     local session_root="$1"
     local session_id="$2"
@@ -74,8 +114,8 @@ case "$EVENT_NAME" in
         ;;
     PreToolUse|PostToolUse)
         TOOL_NAME=$(echo "$INPUT" | jq -r '.toolName // empty')
-        if [ "${RALPH_LOG_PAYLOAD:-}" = "true" ]; then
-            TOOL_INPUT=$(echo "$INPUT" | jq -c '.toolInput // null')
+        if should_log_payload "$EVENT_NAME"; then
+            TOOL_INPUT=$(extract_tool_input_json "$INPUT")
             jq -cn --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg ev "$EVENT_NAME" \
                 --arg ag "$AGENT" --arg tool "$TOOL_NAME" --argjson input "$TOOL_INPUT" \
                 '{ts:$ts,sid:$sid,event:$ev,agent:$ag,tool:$tool,input:$input}' >> "$LOG_FILE"
