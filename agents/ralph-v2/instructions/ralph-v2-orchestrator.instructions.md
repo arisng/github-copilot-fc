@@ -248,7 +248,7 @@ THEN: STATE = PLANNING
 ### 3. State: PLANNING
 
 ```
-RUN Poll-Signals  # ABORT→EXIT, PAUSE→WAIT; buffer INFO/STEER for subagent context
+Poll signals/inputs/: ABORT→EXIT, PAUSE→WAIT; buffer INFO/STEER for subagent context
 
 READ iterations/<ITERATION>/progress.md
 FIND next planning task with status [ ]:
@@ -354,7 +354,7 @@ IF any task exceeds timeouts.task_wip_minutes:
         APPLY Timeout Recovery Policy
 
 # Check Live Signals
-RUN Poll-Signals
+Poll signals/inputs/
     IF ABORT: EXIT
     IF PAUSE: WAIT
     IF INFO: Inject message into review context for consideration
@@ -403,7 +403,7 @@ STATE = REVIEWING_BATCH
 READ iterations/<ITERATION>/progress.md
 FIND tasks with status [P]
 
-RUN Poll-Signals  # ABORT→EXIT, PAUSE→WAIT; STEER→pass to Reviewer context; INFO→inject
+Poll signals/inputs/: ABORT→EXIT, PAUSE→WAIT; STEER→pass to Reviewer context; INFO→inject
 
 # TASK_REVIEW → if [x] → COMMIT (sub-step, not a separate state)
 FOR EACH task with status [P]:
@@ -456,7 +456,7 @@ ELSE IF outcome == "blocked":
 ### 8.5. State: SESSION_REVIEW
 
 ```
-RUN Poll-Signals
+Poll signals/inputs/
     IF ABORT: EXIT
     IF PAUSE: WAIT
     IF INFO: Inject message into review context for consideration
@@ -496,7 +496,7 @@ ELSE:
 ### 8.75. State: SESSION_CRITIQUE_REPLAN
 
 ```
-RUN Poll-Signals
+Poll signals/inputs/
     IF ABORT: EXIT
     IF PAUSE: WAIT
     IF INFO: Inject message into critique-planning context
