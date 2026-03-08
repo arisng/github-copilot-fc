@@ -128,11 +128,11 @@ Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should onl
 | Agent            | Role           | Modes                                                                                      | Key Responsibilities                                                                                       |
 | ---------------- | -------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **Orchestrator** | Routing        | —                                                                                          | State machine transitions, subagent invocation, `.ralph-sessions/<SESSION_ID>/metadata.yaml` ownership, signal routing |
-| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | Plan creation, task decomposition, wave dependency reasoning, replanning                                   |
+| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, TASK_CREATE, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN | Plan creation, validated task inventory, single-task task-file materialization, wave dependency reasoning, replanning |
 | **Questioner**   | Discovery      | brainstorm, research, feedback-analysis                                                    | Q&A generation, research, feedback analysis                                                                |
 | **Executor**     | Implementation | —                                                                                          | Task execution, design-time validation (build/lint/tests)                                                  |
-| **Reviewer**     | Quality        | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                          | Code review, atomic commits (hunk-level staging), post-knowledge iteration review, `## Live Signals` normalization in `progress.md` |
-| **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                    | Knowledge extraction (iteration-scoped), merge staging (session-scoped), wiki promotion (workspace-scoped) |
+| **Reviewer**     | Quality        | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                          | Code review, atomic commits (hunk-level staging), post-knowledge iteration review under the retained `SESSION_REVIEW` mode name, `## Live Signals` normalization in `progress.md` |
+| **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                    | Knowledge extraction (iteration-scoped), durable staging, wiki promotion (workspace-scoped) |
 
 ### Ownership Model
 
@@ -167,7 +167,7 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
 │
 ├── knowledge/                     # Session-scope Diátaxis knowledge (merged from iterations)
 │   ├── tutorials/
-│   ├── how-to/
+│   ├── how-to-guides/
 │   ├── reference/
 │   ├── explanation/
 │   └── index.md                   # Knowledge inventory (staged + promoted)
@@ -184,7 +184,7 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
         ├── feedbacks/             # Structured feedback (feedbacks/<timestamp>/)
         ├── knowledge/             # Iteration-scoped extracted knowledge (Librarian EXTRACT)
         │   ├── tutorials/
-        │   ├── how-to/
+        │   ├── how-to-guides/
         │   ├── reference/
         │   ├── explanation/
         │   └── index.md           # Iteration knowledge manifest
@@ -199,10 +199,10 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
 INITIALIZING ─── Planner (INITIALIZE) creates session structure
        │
        ▼
-   PLANNING ──── Questioner (brainstorm/research) → Planner (TASK_BREAKDOWN)
+   PLANNING ──── Questioner (brainstorm/research) → Planner (TASK_BREAKDOWN) → Planner (TASK_CREATE per queued task)
        │
        ▼
-   BATCHING ──── Build waves from task dependencies
+   BATCHING ──── Build waves after all required task files from the Planner queue exist
        │
        ▼
 EXECUTING_BATCH ── Executor runs tasks → marks [P]
@@ -216,8 +216,8 @@ KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROM
        │                    │
     │                    ├── EXTRACT: iteration artifacts → iterations/<N>/knowledge/
     │                    ├── 0 items extracted → skip to SESSION_REVIEW
-       │                    ├── STAGE: iterations/<N>/knowledge/ → session knowledge/ (merge)
-       │                    ├── PROMOTE: session knowledge/ → .docs/ (auto-promote default)
+         │                    ├── STAGE: iterations/<N>/knowledge/ → session knowledge/ (merge; rewrite durable provenance)
+         │                    ├── PROMOTE: session knowledge/ → .docs/ (auto-promote default; publish stable repo-facing provenance)
     │                    └── Skip-promotion INFO signal at PROMOTE → SESSION_REVIEW (staged kept)
     ▼
 SESSION_REVIEW ── Reviewer (SESSION_REVIEW) → iteration-scoped review.md
@@ -274,6 +274,7 @@ Reviewer executes commits via dedicated COMMIT mode with hunk-level analysis:
 - `git diff` per file → classify hunks (TASK-RELEVANT / UNRELATED / AMBIGUOUS)
 - Partial staging via `git apply --cached` — never `git add .` or `git add -A`
 - `git-atomic-commit` skill for conventional commit generation
+- Durable commit messages describe stable repository changes, not `.ralph-sessions/`, iteration folders, or temporary report/test paths
 - Commit failure does NOT affect review verdict (`[x]` preserved)
 
 ### Knowledge Pipeline (EXTRACT → STAGE → PROMOTE)
@@ -287,10 +288,11 @@ Knowledge flows through three tiers with explicit merge semantics:
 Key behaviors:
 - **Auto-extract and auto-stage** are enabled by default in the orchestrator's KNOWLEDGE_EXTRACTION state
 - Promoted knowledge is not re-extracted on subsequent iterations
+- Staged and promoted knowledge must rewrite or omit `.ralph-sessions/...`, `iterations/<N>/...`, and other ephemeral provenance paths in reader-facing content
 - **Cherry-pick staging**: Human can selectively stage specific files from `iterations/<N>/knowledge/` via `CHERRY_PICK` parameter
 - **Cross-iteration staging**: Human can stage knowledge from previous iterations via `SOURCE_ITERATIONS` parameter (useful when auto-stage was disabled)
 - **Merge conflicts**: Auto-resolved by default — newer timestamp wins. Content overlap detected via H2/H3 heading comparison (>50% overlap threshold)
-- Diátaxis categorization: `tutorials/`, `how-to/`, `reference/`, `explanation/`
+- Diátaxis categorization: `tutorials/`, `how-to-guides/`, `reference/`, `explanation/`
 
 ### Skills Enforcement
 
