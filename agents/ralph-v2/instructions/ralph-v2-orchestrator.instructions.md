@@ -62,7 +62,8 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - **Iteration Timing**: Track `started_at` and `completed_at` in `iterations/<N>/metadata.yaml`
 - **Session Metadata at Root**: `metadata.yaml` stays at session root (state machine SSOT); never moved into iterations
 - **Signals at Session Level**: `signals/` stays at session root; signals are session-scoped, not iteration-scoped
-- **Planner Parallelism Boundary**: Only Planner `TASK_CREATE` invocations may be parallelized, and only after a completed `TASK_BREAKDOWN` has returned dependency-safe task IDs. All other Planner modes (`INITIALIZE`, `UPDATE`, `TASK_BREAKDOWN`, `REBREAKDOWN`, `SPLIT_TASK`, `UPDATE_METADATA`, `REPAIR_STATE`, critique modes) remain sequential single invocations.
+- **Planner Parallelism Boundary**: Only Planner `TASK_CREATE` invocations may be parallelized, and only after a completed `TASK_BREAKDOWN` has returned a dependency-annotated `task_creation_queue` plus `task_creation_parallel_safe=true`. Orchestrator must consume that Planner response as the authority for creation safety; do not infer safety ad hoc from filenames, wave numbers, or missing task files alone. All other Planner modes (`INITIALIZE`, `UPDATE`, `TASK_BREAKDOWN`, `REBREAKDOWN`, `SPLIT_TASK`, `UPDATE_METADATA`, `REPAIR_STATE`, critique modes) remain sequential single invocations.
+- **Ordered Mode Pairs Stay Sequential**: Do not overlap or reorder dependent mode pairs. `UPDATE` must complete before `REBREAKDOWN` begins, `TASK_REVIEW` must return `[x]` before `COMMIT` begins for that task, and the knowledge pipeline stays `EXTRACT -> STAGE -> PROMOTE -> SESSION_REVIEW` with each step consuming the persisted output of the previous one.
 </rules>
 
 <stateMachine>
@@ -84,7 +85,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
        │   - plan-brainstorm → Ralph-v2-Questioner (MODE: brainstorm, CYCLE: N)
        │   - plan-research → Ralph-v2-Questioner (MODE: research, CYCLE: N)
        │   - plan-breakdown → Ralph-v2-Planner (MODE: TASK_BREAKDOWN)
-    │   - task creation handoff → Ralph-v2-Planner (MODE: TASK_CREATE, one TASK_ID per call)
+     │   - task creation handoff → Ralph-v2-Planner (MODE: TASK_CREATE, one TASK_ID per call; parallel only when Planner returned a dependency-safe queue)
     │ All planning tasks [x] and all required task files materialized
        ▼
 ┌─────────────┐
@@ -264,6 +265,7 @@ IF no planning tasks remain:
     IF any task file is missing:
         STAY in PLANNING
         ROUTE missing IDs through Ralph-v2-Planner (MODE: TASK_CREATE), one `TASK_ID` per invocation
+        Reconstruct the invocation set from the most recent Planner `task_creation_queue`; do not infer a new parallel-safe set ad hoc.
         Do not advance to BATCHING until all required task files exist.
     ELSE:
         UPDATE metadata.yaml: state: BATCHING
@@ -277,11 +279,18 @@ ELSE:
                 ROUTE to Ralph-v2-Questioner using Planner delegation fields
             ELSE:
                 CAPTURE `task_creation_queue`
+                CAPTURE `task_creation_parallel_safe`
+                FILTER queue to records where `already_materialized == false`
                 IF queue contains missing task IDs:
-                    INVOKE Ralph-v2-Planner (MODE: TASK_CREATE) once per queued `TASK_ID`
-                    Each invocation receives exactly one `TASK_ID` and the current iteration.
-                    This is the only Planner handoff that may be parallelized.
-                    WAIT for all `TASK_CREATE` invocations to complete before continuing.
+                    Treat the Planner-returned queue order and dependency annotations as authoritative.
+                    Do not infer safety from `wave`, `type`, or task filenames alone.
+                    IF task_creation_parallel_safe == true:
+                        INVOKE Ralph-v2-Planner (MODE: TASK_CREATE) once per queued `TASK_ID`
+                        Each invocation receives exactly one `TASK_ID` and the current iteration.
+                        This is the only Planner handoff that may be parallelized.
+                        WAIT for all `TASK_CREATE` invocations to complete before continuing.
+                    ELSE:
+                        INVOKE Ralph-v2-Planner (MODE: TASK_CREATE) sequentially in Planner-returned queue order, one `TASK_ID` at a time
                 REMAIN in PLANNING until the queue is empty and every expected task file exists.
 
 ENFORCE MAX_CYCLES:
@@ -316,6 +325,7 @@ IF replanning_route == "knowledge-promotion":
 # Route B: Full Iterating Pipeline
 ELSE:
     UPDATE metadata.yaml: previous_state: null
+    `UPDATE -> REBREAKDOWN` is an ordered sequential pair. Never invoke `REBREAKDOWN` until `UPDATE` has completed and its plan/progress changes are persisted.
     IF plan-rebrainstorm not [x]:
         INVOKE Ralph-v2-Questioner
             MODE: feedback-analysis
@@ -435,6 +445,8 @@ FOR EACH task with status [P]:
         ITERATION: <current iteration>
 
     # Step 2: Commit if qualified
+    `TASK_REVIEW -> COMMIT` is an ordered sequential pair for the same task.
+    Never queue COMMIT before the TASK_REVIEW verdict is persisted as `[x]`.
     IF verdict == [x]:
         INVOKE Ralph-v2-Reviewer
             SESSION_PATH: .ralph-sessions/<SESSION_ID>/
@@ -454,6 +466,9 @@ STATE = BATCHING
 ### 8. State: KNOWLEDGE_EXTRACTION
 
 ```
+`EXTRACT -> STAGE -> PROMOTE -> SESSION_REVIEW` is a strict sequential pipeline.
+Do not overlap these stages or bypass SESSION_REVIEW with pre-promotion state.
+
 IF 'Ralph-v2-Librarian' NOT in agents list:
     UPDATE metadata.yaml with state: SESSION_REVIEW
     STATE = SESSION_REVIEW
