@@ -172,6 +172,22 @@ function Get-BundledPluginName {
     return $PluginName
 }
 
+function Copy-PluginReadmeToBundle {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginDir,
+        [Parameter(Mandatory)][string]$BuildDir
+    )
+
+    $readmePath = Join-Path $PluginDir 'README.md'
+    if (-not (Test-Path $readmePath -PathType Leaf)) {
+        return $false
+    }
+
+    Copy-Item -Path $readmePath -Destination (Join-Path $BuildDir 'README.md') -Force
+    return $true
+}
+
 function Get-BundledComponentItemName {
     [CmdletBinding()]
     param(
@@ -528,6 +544,10 @@ function Build-PluginBundle {
     New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
 
     Write-Host "  Bundling: $pluginName -> plugins/$($bundleLayout.RuntimeName)/.build/$($bundleLayout.PluginName)/" -ForegroundColor DarkGray
+
+    if (Copy-PluginReadmeToBundle -PluginDir $PluginDir -BuildDir $buildDir) {
+        Write-Host "  Bundled plugin README: README.md" -ForegroundColor DarkGray
+    }
 
     # Build a clean manifest with only official + convention fields
     $cleanManifest = [ordered]@{}
