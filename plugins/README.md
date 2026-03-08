@@ -15,10 +15,12 @@ plugins/
              .build/              # Shared bundle output for stable and beta publishes
     <name>/
       plugin.json        # Plugin manifest (required)
+         README.md          # Optional consumer guide copied into bundles when present
   vscode/                # Plugins targeting VS Code Copilot runtime
              .build/              # Shared bundle output for stable and beta publishes
     <name>/
       plugin.json        # Plugin manifest (required)
+         README.md          # Optional consumer guide copied into bundles when present
 ```
 
 Plugins are organized into runtime-specific subdirectories:
@@ -26,6 +28,8 @@ Plugins are organized into runtime-specific subdirectories:
 - `vscode/` — plugins for the VS Code Copilot runtime (`target: vscode`)
 
 Each plugin lives in its own subdirectory under the respective runtime folder. The directory name should match the `name` field in `plugin.json`.
+
+Each plugin should also carry a concise consumer-facing `README.md`. When present, the bundle builder copies that file into the root of the built plugin directory next to `plugin.json` for both stable and beta outputs.
 
 Build and publish scripts never publish from the source directory directly. They first produce a runtime-scoped bundle under `plugins/<runtime>/.build/`. Stable bundles use `plugins/<runtime>/.build/<name>/`. Beta bundles use the same `.build/` root but suffix the plugin name: `plugins/<runtime>/.build/<name>-beta/`. This allows stable and beta bundles to coexist in parallel.
 
