@@ -55,6 +55,16 @@
 .PARAMETER SkipWSL
     DEPRECATED. Use -Environment windows instead. Kept for backward compatibility.
     When used, emits a deprecation warning and sets Environment = 'windows'.
+
+.PARAMETER Channel
+    Publishing channel: 'beta' (default) or 'stable'.
+    - beta: builds to .build-beta/, installs to _direct/<name>-beta/ (CLI),
+            registers .build-beta/ path in VS Code settings. Does not overwrite stable.
+    - stable: standard publish to default locations.
+
+.PARAMETER Promote
+    Promotes the current beta build to stable. Copies .build-beta/ to .build/, then
+    publishes as stable. Requires a prior beta build to exist.
 #>
 param(
     [Parameter(Mandatory = $false)]
@@ -69,6 +79,13 @@ param(
     [string]$Environment = "all",
 
     [Parameter(Mandatory = $false)]
+    [ValidateSet("stable", "beta")]
+    [string]$Channel = "beta",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Promote,
+
+    [Parameter(Mandatory = $false)]
     [switch]$Force,
 
     [Parameter(Mandatory = $false)]
@@ -81,9 +98,27 @@ if ($SkipWSL) {
     $Environment = 'windows'
 }
 
-# Build functions (Merge-AgentInstructions, Build-PluginBundle, Invoke-PluginBuild)
-# are defined in build-plugins.ps1. Dot-source to load without triggering standalone run.
-. "$PSScriptRoot/build-plugins.ps1"
+function Import-BuildPluginFunctions {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$ScriptPath
+    )
+
+    if (-not (Test-Path $ScriptPath)) {
+        throw "Build helper script not found: $ScriptPath"
+    }
+
+    $buildModule = New-Module -Name "copilot-build-plugins-$PID" -ScriptBlock {
+        param([string]$InnerScriptPath)
+
+        . $InnerScriptPath
+        Export-ModuleMember -Function *
+    } -ArgumentList $ScriptPath
+
+    Import-Module $buildModule -Force -DisableNameChecking | Out-Null
+}
+
+Import-BuildPluginFunctions -ScriptPath (Join-Path $PSScriptRoot 'build-plugins.ps1')
 . "$PSScriptRoot/wsl-helpers.ps1"
 
 function Copy-DirectoryExact {
@@ -385,7 +420,8 @@ function Publish-Plugins {
     [CmdletBinding()]
     param()
 
-    Write-Host "Publishing plugins..." -ForegroundColor Cyan
+    $channelLabel = if ($Channel -eq 'beta') { ' [BETA]' } else { '' }
+    Write-Host "Publishing plugins${channelLabel}..." -ForegroundColor Cyan
 
     $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
     $pluginsPath = Join-Path $repoRoot "plugins"
@@ -449,7 +485,10 @@ function Publish-Plugins {
 
     Write-Host "Discovered $($pluginEntries.Count) plugin(s)" -ForegroundColor Cyan
 
-    Initialize-PluginBundleOutput -SelectedPluginDirs ($pluginEntries | ForEach-Object { $_.Dir }) -AllPluginDirs ($allPluginEntries | ForEach-Object { $_.Dir })
+    # Determine effective channel
+    $effectiveChannel = $Channel
+
+    Initialize-PluginBundleOutput -SelectedPluginDirs ($pluginEntries | ForEach-Object { $_.Dir }) -AllPluginDirs ($allPluginEntries | ForEach-Object { $_.Dir }) -Channel $effectiveChannel
 
     # Pre-check WSL availability once (only needed for CLI plugins)
     $wslAvailable = $false
@@ -486,16 +525,19 @@ function Publish-Plugins {
         Write-Host "[$pluginRuntime] $pluginName" -ForegroundColor Cyan
 
         # Build self-contained bundle
-        $buildPath = Build-PluginBundle -PluginDir $pluginDir.FullName
+        $buildPath = Build-PluginBundle -PluginDir $pluginDir.FullName -Channel $effectiveChannel
         if (-not $buildPath) {
             Write-Error "  Bundle failed for $pluginName — skipping"
             $errors++
             continue
         }
 
+        # For beta channel, the install name is suffixed
+        $installName = if ($effectiveChannel -eq 'beta') { "$pluginName-beta" } else { $pluginName }
+
         # --- VS Code: register in settings.json ---
         if ($pluginRuntime -eq 'vscode') {
-            $registered = Update-VSCodePluginSettings -PluginPath $buildPath -PluginName $pluginName
+            $registered = Update-VSCodePluginSettings -PluginPath $buildPath -PluginName $installName
             if ($registered -gt 0) {
                 $installed++
             }
@@ -508,20 +550,20 @@ function Publish-Plugins {
         # --- CLI: Windows direct-copy install ---
         if ($Environment -eq 'windows' -or $Environment -eq 'all') {
             try {
-                $windowsInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot (Join-Path $env:USERPROFILE '.copilot\installed-plugins') -PluginName $pluginName
+                $windowsInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot (Join-Path $env:USERPROFILE '.copilot\installed-plugins') -PluginName $installName
 
                 if ($windowsInstall.CopySucceeded -and $windowsInstall.DestinationVerified) {
                     Write-Host "  Copied to: $($windowsInstall.DestinationPath)" -ForegroundColor Green
-                    Write-CopilotDiscoveryRiskWarning -PluginName $pluginName -DestinationPath $windowsInstall.DestinationPath -DiscoveryProbeSucceeded $windowsInstall.DiscoveryProbeSucceeded -DiscoveryDetected $windowsInstall.DiscoveryDetected
+                    Write-CopilotDiscoveryRiskWarning -PluginName $installName -DestinationPath $windowsInstall.DestinationPath -DiscoveryProbeSucceeded $windowsInstall.DiscoveryProbeSucceeded -DiscoveryDetected $windowsInstall.DiscoveryDetected
                     $installed++
                 }
                 else {
-                    Write-Error "  Failed to publish direct-copy payload for $pluginName to $($windowsInstall.DestinationPath)"
+                    Write-Error "  Failed to publish direct-copy payload for $installName to $($windowsInstall.DestinationPath)"
                     $errors++
                 }
             }
             catch {
-                Write-Error "  Failed to publish $pluginName to the Windows direct-install root: $_"
+                Write-Error "  Failed to publish $installName to the Windows direct-install root: $_"
                 $errors++
             }
         }
@@ -529,27 +571,93 @@ function Publish-Plugins {
         # --- CLI: WSL direct-copy install ---
         if ($wslAvailable -and ($Environment -eq 'wsl' -or $Environment -eq 'all')) {
             try {
-                $wslInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot "$wslHome/.copilot/installed-plugins" -PluginName $pluginName -UseWSL
+                $wslInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot "$wslHome/.copilot/installed-plugins" -PluginName $installName -UseWSL
 
                 if ($wslInstall.CopySucceeded -and $wslInstall.DestinationVerified) {
                     Write-Host "  WSL copied to: $($wslInstall.DestinationPath)" -ForegroundColor Green
-                    Write-CopilotDiscoveryRiskWarning -PluginName $pluginName -DestinationPath $wslInstall.DestinationPath -DiscoveryProbeSucceeded $wslInstall.DiscoveryProbeSucceeded -DiscoveryDetected $wslInstall.DiscoveryDetected -UseWSL
+                    Write-CopilotDiscoveryRiskWarning -PluginName $installName -DestinationPath $wslInstall.DestinationPath -DiscoveryProbeSucceeded $wslInstall.DiscoveryProbeSucceeded -DiscoveryDetected $wslInstall.DiscoveryDetected -UseWSL
                     $installed++
                 }
                 else {
-                    Write-Error "  WSL failed to publish direct-copy payload for $pluginName to $($wslInstall.DestinationPath)"
+                    Write-Error "  WSL failed to publish direct-copy payload for $installName to $($wslInstall.DestinationPath)"
                     $errors++
                 }
             }
             catch {
-                Write-Error "  WSL failed to publish $pluginName to the direct-install root: $_"
+                Write-Error "  WSL failed to publish $installName to the direct-install root: $_"
                 $errors++
             }
         }
     }
 
     Write-Host ""
-    Write-Host "Done: $installed installed, $errors error(s)" -ForegroundColor Cyan
+    $channelLabel = if ($effectiveChannel -eq 'beta') { ' (beta)' } else { '' }
+    Write-Host "Done${channelLabel}: $installed installed, $errors error(s)" -ForegroundColor Cyan
 }
 
-Publish-Plugins
+function Promote-BetaToStable {
+    <#
+    .SYNOPSIS
+        Promotes beta plugin builds to stable by rebuilding as stable and publishing.
+
+    .DESCRIPTION
+        Verifies that .build-beta/ bundles exist for the requested plugins, then
+        triggers a full stable build + publish from the same source. This ensures
+        the stable bundle is built fresh (not just copied), so manifest names and
+        paths are correct for the stable channel.
+    #>
+    [CmdletBinding()]
+    param()
+
+    Write-Host "Promoting beta builds to stable..." -ForegroundColor Cyan
+
+    $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
+    $pluginsPath = Join-Path $repoRoot "plugins"
+
+    # Discover plugins that have beta builds
+    $promoted = 0
+    foreach ($runtimeName in @('cli', 'vscode')) {
+        $betaBuildRoot = Join-Path $pluginsPath "$runtimeName/.build-beta"
+        if (-not (Test-Path $betaBuildRoot)) { continue }
+
+        $betaPlugins = Get-ChildItem -Path $betaBuildRoot -Directory
+        foreach ($betaPlugin in $betaPlugins) {
+            $pluginName = $betaPlugin.Name
+            $sourceDir = Join-Path $pluginsPath "$runtimeName/$pluginName"
+
+            if (-not (Test-Path (Join-Path $sourceDir "plugin.json"))) {
+                Write-Warning "  Source plugin not found for beta build: $pluginName ($runtimeName)"
+                continue
+            }
+
+            # Apply -Plugins filter if specified
+            if ($Plugins) {
+                $pluginList = @()
+                foreach ($item in $Plugins) {
+                    $pluginList += @($item -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+                }
+                $matched = $pluginList | Where-Object { $pluginName -like $_ } | Select-Object -First 1
+                if (-not $matched) { continue }
+            }
+
+            Write-Host "  [$runtimeName] Promoting $pluginName from beta -> stable" -ForegroundColor Green
+            $promoted++
+        }
+    }
+
+    if ($promoted -eq 0) {
+        Write-Host "No beta builds found to promote." -ForegroundColor Yellow
+        return
+    }
+
+    # Run a standard stable publish (Channel = stable will rebuild from source into .build/)
+    $script:Channel = 'stable'
+    Publish-Plugins
+}
+
+if ($Promote) {
+    Promote-BetaToStable
+}
+else {
+    Publish-Plugins
+}
