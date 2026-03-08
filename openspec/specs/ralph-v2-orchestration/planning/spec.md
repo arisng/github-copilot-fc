@@ -3,23 +3,23 @@ domain: planning
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-07T22:41:52+07:00
+updated_at: 2026-03-07T23:03:04+07:00
 ---
 
 # Planning Specification
 
 ## Purpose
 
-This specification defines the behavioral contracts for the Planning Role — the role responsible for session initialization, task breakdown, replanning, state repair, and critique-driven gap-filling. It establishes nine planning modes, the Task Definition Record structure, the multi-pass breakdown algorithm, grounding requirements, the Iteration Plan lifecycle, and wave optimization. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix).
+This specification defines the behavioral contracts for the Planning Role — the role responsible for session initialization, task breakdown, iterating, state repair, and critique-driven gap-filling. It establishes nine planning modes, the Task Definition Record structure, the multi-pass breakdown algorithm, grounding requirements, the Iteration Plan lifecycle, and wave optimization. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix). User-facing guidance in this spec prefers iterating terminology, while the normative orchestration state remains REPLANNING and the normative planning mode remains UPDATE until a coordinated contract migration updates dependent artifacts.
 
 ## Planning Modes
 
-The Planning Role operates in exactly nine modes. Each mode is invoked by the Orchestration Role from a specific state (per the Orchestration Role Routing Table). The Planning Role MUST accept exactly one mode per invocation (per SES-022).
+The Planning Role operates in exactly nine modes. Each mode is invoked by the Orchestration Role from a specific state (per the Orchestration Role Routing Table). The Planning Role MUST accept exactly one mode per invocation (per SES-022). Where this spec uses iterating language, UPDATE remains the normative mode name in role inputs and outputs.
 
 | # | Mode | Invoked From | Purpose |
 |---|---|---|---|
 | 1 | **INITIALIZE** | INITIALIZING (ORCH-004) | Create the initial session structure: Session State Store, Iteration Container, Iteration State Store, session-specific instructions file, Progress Tracker, Iteration Plan, and Signal Channel |
-| 2 | **UPDATE** | REPLANNING (ORCH-013) | Integrate feedback and Discovery Record outputs into the Iteration Plan, appending replanning history |
+| 2 | **UPDATE** | REPLANNING (ORCH-013) | Integrate feedback and Discovery Record outputs into the Iteration Plan during iterating, appending iterating history |
 | 3 | **TASK_BREAKDOWN** | PLANNING (ORCH-005) | Decompose the Iteration Plan into isolated Task Definition Records using the multi-pass breakdown algorithm |
 | 4 | **REBREAKDOWN** | REPLANNING (ORCH-013) | Revise failed Task Definition Records based on feedback, reset their status, and create new records if required |
 | 5 | **SPLIT_TASK** | Timeout Recovery (ORCH-020) | Decompose a single oversized Task Definition Record into smaller sub-records after repeated execution timeouts |
@@ -60,8 +60,8 @@ When invoked in UPDATE mode, the Planning Role MUST:
 3. Revise the Iteration Plan to incorporate feedback and discovery outputs.
 4. Include a grounding section in the revised Iteration Plan that cites the specific Discovery Record identifiers and Feedback Collection identifiers driving each decision (per PLAN-029).
 
-#### PLAN-005: Replanning History Append
-In UPDATE mode, the Planning Role MUST append a replanning history section to the Iteration Plan. This section MUST include: a feedback summary (issue counts by severity), a changes section (items removed, added, and modified), and a rationale explaining how the changes address the feedback.
+#### PLAN-005: Iterating History Append
+In UPDATE mode, the Planning Role MUST append an iterating history section to the Iteration Plan. This section MUST include: a feedback summary (issue counts by severity), a changes section (items removed, added, and modified), and a rationale explaining how the changes address the feedback.
 
 #### PLAN-006: Plan Self-Validation After Update
 After revising the Iteration Plan in UPDATE mode, the Planning Role MUST verify that all mandatory sections (per PLAN-030) are present. If any section is missing, the Planning Role MUST add it with a placeholder before returning.
@@ -207,8 +207,8 @@ Every Iteration Plan MUST include the following mandatory sections:
 #### PLAN-031: Iteration Plan Mutability
 The Iteration Plan is mutable within its iteration. The Planning Role MAY update the Iteration Plan in INITIALIZE, UPDATE, and TASK_BREAKDOWN modes. The Iteration Plan MUST NOT be modified by any role other than the Planning Role (per SES-012).
 
-#### PLAN-032: Replanning History Requirement
-For iterations after the first (iteration ≥ 2), the Iteration Plan MUST include a replanning history section appended by UPDATE mode (per PLAN-005). The replanning history section is omitted in the first iteration.
+#### PLAN-032: Iterating History Requirement
+For iterations after the first (iteration ≥ 2), the Iteration Plan MUST include an iterating history section appended by UPDATE mode (per PLAN-005). The iterating history section is omitted in the first iteration.
 
 #### PLAN-033: Plan Self-Validation
 After every mutation of the Iteration Plan (in INITIALIZE, UPDATE, or TASK_BREAKDOWN mode), the Planning Role MUST verify that all mandatory sections defined in PLAN-030 are present. Missing sections MUST be added with placeholder content before the mode returns.
@@ -287,7 +287,7 @@ WHEN the Planning Role is invoked in UPDATE mode
 THEN it reads all Feedback Collection artifacts and Discovery Records
 AND revises the Iteration Plan incorporating feedback-driven changes
 AND includes a grounding section citing Discovery Record identifiers and Feedback Collection identifiers
-AND appends a replanning history section with feedback summary, changes (removed/added/modified), and rationale
+AND appends an iterating history section with feedback summary, changes (removed/added/modified), and rationale
 ```
 
 ### SC-PLAN-003: UPDATE — Plan Self-Validation
@@ -502,15 +502,15 @@ THEN it polls and processes the INFO signal (per SIG-003)
 AND incorporates the context into the breakdown algorithm
 ```
 
-### SC-PLAN-023: Replanning History in Iteration 2+
+### SC-PLAN-023: Iterating History in Iteration 2+
 **Validates**: PLAN-032
 ```
 GIVEN the system is in iteration 2 and the Planning Role is invoked in UPDATE mode
 WHEN the Iteration Plan is revised
-THEN the replanning history section is present in the Iteration Plan
+THEN the iterating history section is present in the Iteration Plan
 AND it contains the feedback summary, changes (removed/added/modified), and rationale
 AND GIVEN the system is in iteration 1 and INITIALIZE mode
-THEN the replanning history section is omitted from the Iteration Plan
+THEN the iterating history section is omitted from the Iteration Plan
 ```
 
 ### SC-PLAN-024: mutation authority Enforcement

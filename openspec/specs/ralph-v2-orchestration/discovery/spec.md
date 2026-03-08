@@ -3,14 +3,14 @@ domain: discovery
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-07T22:41:52+07:00
+updated_at: 2026-03-07T23:03:04+07:00
 ---
 
 # Discovery Specification
 
 ## Purpose
 
-This specification defines the behavioral contracts for the Discovery Role — the role responsible for question generation, evidence-based research, and feedback analysis. It establishes three discovery modes, the question category taxonomy, the Discovery Record structure, the research protocol with confidence levels and implication tracking, the feedback analysis workflow, and the cycle model with summary statistics. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix).
+This specification defines the behavioral contracts for the Discovery Role — the role responsible for question generation, evidence-based research, and feedback analysis. It establishes three discovery modes, the question category taxonomy, the Discovery Record structure, the research protocol with confidence levels and implication tracking, the feedback analysis workflow, and the cycle model with summary statistics. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), and the Signal protocol (SIG- prefix). User-facing guidance in this spec prefers iterating terminology for the feedback-driven loop, while the normative orchestration state name remains REPLANNING until a coordinated contract migration updates dependent artifacts.
 
 ## Discovery Modes
 
@@ -20,7 +20,7 @@ The Discovery Role operates in exactly three modes. Each mode is invoked by the 
 |---|---|---|---|
 | 1 | **BRAINSTORM** | PLANNING (ORCH-005), SESSION_CRITIQUE_REPLAN (ORCH-027 step 2) | Generate questions across a designated category to identify knowledge gaps |
 | 2 | **RESEARCH** | PLANNING (ORCH-005), SESSION_CRITIQUE_REPLAN (ORCH-027 step 3) | Answer unanswered questions with evidence-based findings, source citations, and confidence levels |
-| 3 | **FEEDBACK_ANALYSIS** | REPLANNING (ORCH-013) | Analyze Feedback Collection artifacts to produce actionable questions that drive the replanning pipeline |
+| 3 | **FEEDBACK_ANALYSIS** | REPLANNING (ORCH-013) | Analyze Feedback Collection artifacts to produce actionable questions that drive the iterating pipeline |
 
 ## Question Categories
 
@@ -36,7 +36,7 @@ The Discovery Role organizes questions into a fixed taxonomy. Each category targ
 | 6 | **Feedback-Driven** | Q-FDB | Root causes, fixes, and prevention items extracted from Feedback Collection |
 | 7 | **Critique** | Q-CRT | Knowledge gaps extracted from Iteration Review Report issues during SESSION_CRITIQUE_REPLAN |
 
-Categories 1–5 are standard categories used in BRAINSTORM mode during PLANNING. Category 6 is produced exclusively by FEEDBACK_ANALYSIS mode during REPLANNING. Category 7 is produced by BRAINSTORM mode when invoked with a critique source during SESSION_CRITIQUE_REPLAN (per ORCH-027 step 2).
+Categories 1–5 are standard categories used in BRAINSTORM mode during PLANNING. Category 6 is produced exclusively by FEEDBACK_ANALYSIS mode during iterating, while the normative orchestration state name remains REPLANNING. Category 7 is produced by BRAINSTORM mode when invoked with a critique source during SESSION_CRITIQUE_REPLAN (per ORCH-027 step 2).
 
 ## Requirements
 

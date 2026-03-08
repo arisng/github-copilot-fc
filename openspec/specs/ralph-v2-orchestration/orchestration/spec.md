@@ -3,14 +3,14 @@ domain: orchestration
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-02T15:42:16+07:00
+updated_at: 2026-03-07T23:03:04+07:00
 ---
 
 # Orchestration Specification
 
 ## Purpose
 
-This specification defines the state machine backbone that drives all role invocations. It establishes the system's ten states, their transition rules with behavioral guards, the role routing model, and four cross-cutting protocols: Messenger Protocol, Timeout Recovery Escalation, Schema Validation on Resume, and Critique Self-Loop. All other domain specifications receive their invocation patterns from the routing table defined here. This specification depends on Session vocabulary (SES- prefix) and the Signal protocol (SIG- prefix).
+This specification defines the state machine backbone that drives all role invocations. It establishes the system's ten states, their transition rules with behavioral guards, the role routing model, and four cross-cutting protocols: Messenger Protocol, Timeout Recovery Escalation, Schema Validation on Resume, and Critique Self-Loop. All other domain specifications receive their invocation patterns from the routing table defined here. This specification depends on Session vocabulary (SES- prefix) and the Signal protocol (SIG- prefix). User-facing guidance in this spec prefers iterating terminology for the feedback-driven post-completion loop, while the normative state enum remains REPLANNING until a coordinated contract migration updates all dependent artifacts.
 
 ## State Machine Definition
 
@@ -24,10 +24,10 @@ The system defines exactly ten states. Each state represents a distinct phase of
 | 4 | **EXECUTING_BATCH** | Task execution — the Execution Role implements each task in the current wave |
 | 5 | **REVIEWING_BATCH** | Batch validation — the Review Role validates each completed task and executes atomic commits for qualified work |
 | 6 | **SESSION_REVIEW** | Post-knowledge iteration assessment — the Review Role evaluates the final iteration state, including knowledge-pipeline evidence, and returns issue counts |
-| 7 | **SESSION_CRITIQUE_REPLAN** | Critique replanning — the Planning Role triages issues and the Discovery Role optionally brainstorms and researches; the Planning Role produces gap-filling tasks |
+| 7 | **SESSION_CRITIQUE_REPLAN** | Critique iterating — the Planning Role triages issues and the Discovery Role optionally brainstorms and researches; the Planning Role produces gap-filling tasks |
 | 8 | **KNOWLEDGE_EXTRACTION** | Knowledge pipeline — the Knowledge Role extracts, stages, and promotes reusable knowledge before final session review |
 | 9 | **COMPLETE** | Final state — all tasks are finished or awaiting feedback; broadcast signals are finalized |
-| 10 | **REPLANNING** | Feedback-driven replanning — the Planning Role triages feedback intent and routes to either full replanning or fast-path knowledge promotion |
+| 10 | **REPLANNING** | Feedback-driven iterating — the Planning Role triages feedback intent and routes to either full iterating or fast-path knowledge promotion; the stored state name remains REPLANNING for compatibility |
 
 ## Transition Table
 
@@ -46,7 +46,7 @@ Every transition follows the form: **FROM** state **→ TO** state **WHEN** a be
 | T9 | SESSION_CRITIQUE_REPLAN | BATCHING | All critique planning tasks for the current cycle are complete |
 | T10 | SESSION_REVIEW | COMPLETE | The active issue count is zero, OR the critique cycle counter has reached the configured maximum |
 | T11 | COMPLETE | REPLANNING | Post-iteration feedback is detected in the next Iteration Container's Feedback Collection |
-| T12 | REPLANNING | BATCHING | The full replanning pipeline has completed (feedback analysis, plan update, and task rebreakdown are all done) |
+| T12 | REPLANNING | BATCHING | The full iterating pipeline has completed (feedback analysis, plan update, and task rebreakdown are all done) |
 | T13 | REPLANNING | COMPLETE | The knowledge-promotion fast-path has completed |
 
 ## Role Routing Table
@@ -64,7 +64,7 @@ Each state invokes zero or more roles. The Orchestration Role defines which role
 | SESSION_CRITIQUE_REPLAN | Planning Role, Discovery Role | Planning: critique triage and critique breakdown. Discovery: optional brainstorm and research |
 | KNOWLEDGE_EXTRACTION | Knowledge Role | Three-stage pipeline: extract, stage, promote before SESSION_REVIEW |
 | COMPLETE | *(none — terminal)* | Finalize remaining broadcast signals and exit |
-| REPLANNING | Planning Role, Discovery Role | Planning: metadata update, plan update, task rebreakdown. Discovery: feedback analysis and research |
+| REPLANNING | Planning Role, Discovery Role | Planning: metadata update, plan update, task rebreakdown for iterating. Discovery: feedback analysis and research |
 
 ## Requirements
 
@@ -118,9 +118,9 @@ The transition from KNOWLEDGE_EXTRACTION to SESSION_REVIEW MUST occur when:
 #### ORCH-012: Feedback Detection Guard (T11)
 The transition from COMPLETE to REPLANNING MUST occur only when the Orchestration Role detects unprocessed Feedback Collection artifacts in the next Iteration Container. The Orchestration Role MUST record the previous state before transitioning.
 
-#### ORCH-013: Replanning Route Guards (T12, T13)
-After the Planning Role triages feedback intent, it returns a replanning route:
-- **Full replanning** (T12): the pipeline includes feedback analysis, plan update, and task rebreakdown. The transition to BATCHING MUST occur only when all replanning tasks are complete.
+#### ORCH-013: Iterating Route Guards (T12, T13)
+After the Planning Role triages feedback intent, it returns an iterating route while continuing to use the normative REPLANNING state name:
+- **Full iterating** (T12): the pipeline includes feedback analysis, plan update, and task rebreakdown. The transition to BATCHING MUST occur only when all iterating tasks are complete.
 - **Knowledge promotion fast-path** (T13): the Knowledge Role executes promotion directly. The transition to COMPLETE MUST occur when promotion finishes.
 
 ### Dependency Pre-Check
@@ -238,7 +238,7 @@ AND the active issue count is zero so the state transitions to COMPLETE (T10)
 AND the system maintains exactly one state throughout the entire sequence
 ```
 
-### SC-ORCH-002: Replanning Loop — Feedback Triggers New Iteration
+### SC-ORCH-002: Iterating Loop — Feedback Triggers New Iteration
 **Validates**: ORCH-012, ORCH-013 (T12)
 ```
 GIVEN the system is in COMPLETE with all tasks finished
@@ -246,8 +246,8 @@ AND the human deposits Feedback Collection artifacts in the next Iteration Conta
 WHEN the Orchestration Role resumes the session
 THEN it detects unprocessed feedback and records the previous state
 AND transitions to REPLANNING (T11)
-AND the Planning Role triages feedback and returns a full-replanning route
-AND the replanning pipeline completes (feedback analysis, plan update, task rebreakdown)
+AND the Planning Role triages feedback and returns a full-iterating route
+AND the iterating pipeline completes (feedback analysis, plan update, task rebreakdown)
 AND the state transitions to BATCHING (T12)
 ```
 
