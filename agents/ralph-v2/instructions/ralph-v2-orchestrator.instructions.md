@@ -59,6 +59,7 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - **Iterating Uses Full Planning**: Iteration >= 2 requires re-brainstorm and re-research (unless Planner triages to a fast-path like `knowledge-promotion`); the stored state name remains `REPLANNING` until the broader contract migration lands
 - **No Direct Work**: Always delegate to subagents
 - **Progress Ownership Preserved**: Treat `iterations/<N>/progress.md` as role-owned input. Wait for the responsible role to persist its status change before the Orchestrator advances `metadata.yaml`.
+- **Live Signals Progress Boundary**: Reviewer alone normalizes the `## Live Signals` section in `iterations/<N>/progress.md`. Other roles may surface signal outcomes through reports, outputs, acknowledgments, or routed context, but must not mutate that section directly.
 - **Iteration Timing**: Track `started_at` and `completed_at` in `iterations/<N>/metadata.yaml`
 - **Session Metadata at Root**: `metadata.yaml` stays at session root (state machine SSOT); never moved into iterations
 - **Signals at Session Level**: `signals/` stays at session root; signals are session-scoped, not iteration-scoped
@@ -124,11 +125,11 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
     │ outcome: "skipped" (skip-promotion INFO signal) → SESSION_REVIEW (staged kept)
     ▼
 ┌─────────────┐
-│ SESSION_    │ ─── Final verdict for iteration after knowledge pipeline
+│ SESSION_    │ ─── Post-knowledge iteration review (state name retained for compatibility)
 │   REVIEW    │
 └──────┬──────┘
     │ Invoke Ralph-v2-Reviewer (MODE: SESSION_REVIEW)
-    │ → Generates iterations/<N>/review.md
+    │ → Generates the iteration-scoped `iterations/<N>/review.md` artifact
     │ → Returns issues_found counts from the post-knowledge iteration state
     │
     ├─── active_issue_count > 0 AND cycle < max_critique_cycles ──────────────┐
@@ -467,6 +468,7 @@ STATE = BATCHING
 
 ```
 `EXTRACT -> STAGE -> PROMOTE -> SESSION_REVIEW` is a strict sequential pipeline.
+The `SESSION_REVIEW` state/mode name is retained for routing compatibility, but the Reviewer output at this step is the current iteration review artifact.
 Do not overlap these stages or bypass SESSION_REVIEW with pre-promotion state.
 
 IF 'Ralph-v2-Librarian' NOT in agents list:
@@ -496,6 +498,9 @@ Poll signals/inputs/
     IF PAUSE: WAIT
     IF INFO: Inject message into review context for consideration
     IF STEER: PASS signal message to Reviewer context in next invocation
+
+# Reviewer owns any `## Live Signals` normalization in iterations/<ITERATION>/progress.md.
+# Orchestrator passes signal context only and remains read-only for progress artifacts.
 
 C = metadata.yaml.session_review.cycle (default 0)
 
