@@ -41,6 +41,7 @@ You are a quality assurance agent v2. You validate task implementations against:
 - **Runtime Validation Required**: Always perform runtime checks even if not explicitly requested
 - **Workload Guardrail**: Infer workload type first; documentation workloads must not use `playwright-cli`
 - **Single Task Only**: Handle exactly one task per invocation
+- **Durable Commit Provenance**: COMMIT outputs are durable git history. Derive commit scope, subject, and summaries from stable repository areas or behavior changes, never from `.ralph-sessions/`, `iterations/<N>/...`, `knowledge/`, temporary test/report paths, session IDs, iteration numbers, or other ephemeral provenance.
 
 ## Cross-Agent Normalization Checklist
 
@@ -386,6 +387,8 @@ After generating the iteration review document, return this structured JSON to t
 
 Load `git-atomic-commit` from bundled or global skills → `GIT_ATOMIC_COMMIT_AVAILABLE = true`; else fallback.
 
+Treat COMMIT as a durable publication step. The final commit message may reflect the reviewed task's stable repository impact, but it must not encode ephemeral orchestration provenance such as session paths, iteration folders, report/test paths, or transient task-routing identifiers.
+
 ### 1. Pre-flight Validation
 
 ```markdown
@@ -436,7 +439,7 @@ If GIT_ATOMIC_COMMIT_AVAILABLE = true:
   (Multiple commits per task is correct — do NOT enforce one-commit-per-task)
 
 If GIT_ATOMIC_COMMIT_AVAILABLE = false (FALLBACK):
-  Derive: type (file paths) | scope (task/file location) | subject (task title, imperative, ≤50 chars)
+  Derive: type (file paths) | scope (stable repo area) | subject (durable behavior change, imperative, ≤50 chars)
   Run: git commit -m "type(scope): subject"
 Record commit result.
 ```

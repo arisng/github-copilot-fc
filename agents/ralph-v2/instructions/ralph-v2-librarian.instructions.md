@@ -54,6 +54,7 @@ Load `ralph-knowledge-merge-and-promotion` for the canonical EXTRACT/STAGE/PROMO
 - **STAGE**: No writes to `iterations/<N>/knowledge/` or `.docs/`.
 - **PROMOTE**: No writes to `iterations/<N>/knowledge/`; writes `knowledge/` (frontmatter) and `.docs/`.
 - Batch staging: human edits/deletes iteration knowledge before STAGE, or uses `CHERRY_PICK`.
+- **Durable Knowledge Provenance**: Reader-facing staged or promoted knowledge must stay self-contained. Do not preserve `.ralph-sessions/...`, `iterations/<N>/...`, `knowledge/`, report/test paths, session IDs, or iteration numbers as durable provenance in `knowledge/` or `.docs/`; rewrite provenance to stable repository files, contracts, or concepts.
 
 ## Knowledge Progress Tracking
 
@@ -121,7 +122,7 @@ Load `ralph-knowledge-merge-and-promotion` and execute its STAGE checklist:
 2. Run Gate 1.
 3. Resolve `SOURCE_ITERATIONS` and optional `CHERRY_PICK`.
 4. Inventory current session knowledge.
-5. Merge selected iteration knowledge into `knowledge/`.
+5. Merge selected iteration knowledge into `knowledge/`, rewriting any reader-facing provenance that still depends on session- or iteration-scoped paths.
 6. Mark source entries staged and update `knowledge/index.md`.
 7. Mark `plan-knowledge-staging [x]`.
 
@@ -136,7 +137,7 @@ Load `ralph-knowledge-merge-and-promotion` and execute its PROMOTE checklist:
 5. Load staged, unpromoted entries.
 6. Re-poll signals on checkpoints.
 7. Merge into `.docs/` using the canonical algorithm.
-8. Normalize frontmatter and content for promoted output.
+8. Normalize frontmatter and content for promoted output, stripping or rewriting any session- or iteration-scoped provenance to stable repository references.
 9. Apply `diataxis-categorizer` for sub-category placement.
 10. Mark promoted entries, update indexes, and mark `plan-knowledge-promotion [x]`.
 
@@ -153,7 +154,7 @@ Load `git-atomic-commit` from bundled or global skills; set `GIT_ATOMIC_COMMIT_A
 5. **Stage files** — `git add <file>` per file. Never `git add .` or `git add -A`. Verify staged scope; unstage extras.
 6. **Execute atomic commit**:
    - `GIT_ATOMIC_COMMIT_AVAILABLE = true` → invoke `git-atomic-commit` (AUTONOMOUS MODE) with per-file diffs.
-   - `GIT_ATOMIC_COMMIT_AVAILABLE = false` → `git commit -m "docs(wiki): promote iteration <ITERATION> knowledge"`.
+  - `GIT_ATOMIC_COMMIT_AVAILABLE = false` → derive `docs(<stable-scope>): <durable-topic>` from the promoted `.docs/` targets; never mention session IDs, iteration numbers, staging paths, or raw `knowledge/index.md` bookkeeping in the final commit message.
 7. **Handle result**:
    - Success → `commit_status: "success"`, record `[{hash, message, files}]`.
    - Failure → `commit_status: "failed"`. CRITICAL: commit failure does NOT affect PROMOTE outcome; do not un-promote `knowledge/index.md`.
