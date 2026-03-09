@@ -567,6 +567,22 @@ function Publish-Plugins {
         Write-Host ""
         Write-Host "[$pluginRuntime] $pluginName" -ForegroundColor Cyan
 
+        if ($pluginName -eq 'ralph-v2') {
+            try {
+                $sourceManifest = Get-Content (Join-Path $pluginDir.FullName 'plugin.json') -Raw | ConvertFrom-Json
+                $ralphVersionContract = Get-RalphWorkflowVersionContract -PluginDir $pluginDir.FullName -Manifest $sourceManifest
+                if ($null -ne $ralphVersionContract) {
+                    $alignmentLabel = if ($ralphVersionContract.ManifestMatches) { 'source manifest aligned' } else { 'bundle will be stamped from canonical workflow version' }
+                    Write-Host "  Ralph workflow version preflight: $($ralphVersionContract.WorkflowVersion) ($alignmentLabel)" -ForegroundColor DarkGray
+                }
+            }
+            catch {
+                Write-Error "  Ralph workflow version preflight failed for $pluginName`: $_"
+                $errors++
+                continue
+            }
+        }
+
         # Build self-contained bundle
         $buildPath = Build-PluginBundle -PluginDir $pluginDir.FullName -Channel $effectiveChannel
         if (-not $buildPath) {

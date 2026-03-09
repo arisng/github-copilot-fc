@@ -241,6 +241,107 @@ function Get-AgentFrontmatterName {
     return $null
 }
 
+function Get-AgentFrontmatterVersion {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath
+    )
+
+    if (-not (Test-Path $AgentPath -PathType Leaf)) {
+        return $null
+    }
+
+    $content = Get-Content -Path $AgentPath -Raw
+    $lines = $content -split "`r?`n"
+    if ($lines.Count -lt 3 -or $lines[0] -ne '---') {
+        return $null
+    }
+
+    $frontmatterEnd = -1
+    for ($index = 1; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -eq '---') {
+            $frontmatterEnd = $index
+            break
+        }
+    }
+
+    if ($frontmatterEnd -lt 0) {
+        return $null
+    }
+
+    for ($index = 1; $index -lt $frontmatterEnd; $index++) {
+        if ($lines[$index] -match '^\s*version:\s*(["'']?)(.+?)\1\s*$') {
+            return $Matches[2].Trim()
+        }
+    }
+
+    return $null
+}
+
+function Get-RalphWorkflowVersionContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginDir,
+        [Parameter(Mandatory)][object]$Manifest
+    )
+
+    if ($Manifest.name -ne 'ralph-v2') {
+        return $null
+    }
+
+    $agentProperty = $Manifest.PSObject.Properties['agents']
+    if ($null -eq $agentProperty) {
+        throw "Ralph plugin manifest is missing the 'agents' field."
+    }
+
+    $agentEntries = if ($agentProperty.Value -is [System.Array]) {
+        $agentProperty.Value
+    }
+    else {
+        @($agentProperty.Value)
+    }
+
+    if ($agentEntries.Count -eq 0) {
+        throw "Ralph plugin manifest does not declare any agent entries."
+    }
+
+    $agentVersions = @()
+    foreach ($agentEntry in $agentEntries) {
+        $agentPath = Join-Path $PluginDir $agentEntry
+        try {
+            $resolvedAgentPath = (Resolve-Path $agentPath -ErrorAction Stop).Path
+        }
+        catch {
+            throw "Unable to resolve Ralph agent path '$agentEntry'."
+        }
+
+        $agentVersion = Get-AgentFrontmatterVersion -AgentPath $resolvedAgentPath
+        if ([string]::IsNullOrWhiteSpace($agentVersion)) {
+            throw "Ralph agent '$agentEntry' is missing a YAML frontmatter version."
+        }
+
+        $agentVersions += [PSCustomObject]@{
+            Path = $resolvedAgentPath
+            Version = $agentVersion
+        }
+    }
+
+    $distinctVersions = @($agentVersions.Version | Sort-Object -Unique)
+    if ($distinctVersions.Count -ne 1) {
+        $versionSummary = ($agentVersions | ForEach-Object { "$($_.Path)=$($_.Version)" }) -join '; '
+        throw "Ralph agents do not share one canonical workflow version: $versionSummary"
+    }
+
+    $workflowVersion = $distinctVersions[0]
+    $manifestVersion = if ($Manifest.PSObject.Properties['version']) { [string]$Manifest.version } else { $null }
+
+    return [PSCustomObject]@{
+        WorkflowVersion = $workflowVersion
+        ManifestVersion = $manifestVersion
+        ManifestMatches = ($manifestVersion -eq $workflowVersion)
+    }
+}
+
 function Update-AgentFrontmatterNameForChannel {
     [CmdletBinding()]
     param(
@@ -531,6 +632,15 @@ function Build-PluginBundle {
 
     $sourcePluginName = $manifest.name
     $pluginName = Get-BundledPluginName -PluginName $sourcePluginName -Channel $Channel
+    $ralphVersionContract = $null
+
+    try {
+        $ralphVersionContract = Get-RalphWorkflowVersionContract -PluginDir $PluginDir -Manifest $manifest
+    }
+    catch {
+        Write-Error "Failed to resolve Ralph workflow version contract for $PluginDir`: $_"
+        return $null
+    }
 
     # Convention: validate runtime field
     if (-not $manifest.PSObject.Properties['runtime']) {
@@ -559,6 +669,16 @@ function Build-PluginBundle {
         if ($null -ne $value) {
             $cleanManifest[$field] = $value.Value
         }
+    }
+
+    if ($null -ne $ralphVersionContract) {
+        if (-not $ralphVersionContract.ManifestMatches) {
+            Write-Warning "  Source Ralph plugin manifest version '$($ralphVersionContract.ManifestVersion)' does not match canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. The bundled manifest will be stamped from the canonical workflow version."
+        }
+
+        # Ralph workflow version governance is channel-agnostic; beta/stable only affect bundle identity.
+        $cleanManifest['version'] = $ralphVersionContract.WorkflowVersion
+        Write-Host "  Ralph workflow version: $($ralphVersionContract.WorkflowVersion)" -ForegroundColor DarkGray
     }
 
     # Override name for beta channel
