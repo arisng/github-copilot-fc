@@ -63,8 +63,14 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 - **Iteration Timing**: Track `started_at` and `completed_at` in `iterations/<N>/metadata.yaml`
 - **Session Metadata at Root**: `metadata.yaml` stays at session root (state machine SSOT); never moved into iterations
 - **Signals at Session Level**: `signals/` stays at session root; signals are session-scoped, not iteration-scoped
-- **Planner Parallelism Boundary**: Only Planner `TASK_CREATE` invocations may be parallelized, and only after a completed `TASK_BREAKDOWN` has returned a dependency-annotated `task_creation_queue` plus `task_creation_parallel_safe=true`. Orchestrator must consume that Planner response as the authority for creation safety; do not infer safety ad hoc from filenames, wave numbers, or missing task files alone. All other Planner modes (`INITIALIZE`, `UPDATE`, `TASK_BREAKDOWN`, `REBREAKDOWN`, `SPLIT_TASK`, `UPDATE_METADATA`, `REPAIR_STATE`, critique modes) remain sequential single invocations.
-- **Ordered Mode Pairs Stay Sequential**: Do not overlap or reorder dependent mode pairs. `UPDATE` must complete before `REBREAKDOWN` begins, `TASK_REVIEW` must return `[x]` before `COMMIT` begins for that task, and the knowledge pipeline stays `EXTRACT -> STAGE -> PROMOTE -> SESSION_REVIEW` with each step consuming the persisted output of the previous one.
+- **Orchestration Concurrency SSOT**: This instruction and `openspec/specs/ralph-v2-orchestration/orchestration/spec.md` are the canonical source of truth for parallel-safe versus sequential role modes. Downstream role contracts and generated runtime bundles must follow these source definitions.
+- **Planner Parallelism Boundary**: Only Planner `TASK_CREATE` invocations may be parallelized, and only after a completed `TASK_BREAKDOWN` has returned a dependency-annotated `task_creation_queue` plus `task_creation_parallel_safe=true`. Orchestrator must consume that Planner response as the authority for creation safety; do not infer safety ad hoc from filenames, wave numbers, or missing task files alone. All other Planner modes (`INITIALIZE`, `UPDATE`, `TASK_BREAKDOWN`, `REBREAKDOWN`, `SPLIT_TASK`, `UPDATE_METADATA`, `REPAIR_STATE`, `CRITIQUE_TRIAGE`, `CRITIQUE_BREAKDOWN`) remain sequential single invocations.
+- **Questioner Parallelism Boundary**: Questioner modes are sequential only. Do not parallelize brainstorm, research, feedback-analysis, or critique-questioner calls within the same route.
+- **Executor Parallelism Boundary**: Executor invocations may run in parallel only across tasks in the same wave after batching and dependency guards have been satisfied. Cross-wave execution remains sequential.
+- **Reviewer Parallelism Boundary**: Reviewer `TASK_REVIEW` may be parallelized across distinct `[P]` tasks in the same wave. `COMMIT` remains sequential per task after a persisted `[x]` verdict. `ITERATION_REVIEW` and `SESSION_REVIEW` remain sequential single invocations.
+- **Librarian Parallelism Boundary**: Librarian modes are sequential only. The knowledge pipeline remains `EXTRACT -> STAGE -> PROMOTE`, followed by `ITERATION_REVIEW` as an ordered orchestration handoff.
+- **Ordered Mode Pairs Stay Sequential**: Do not overlap or reorder dependent mode pairs. `TASK_BREAKDOWN -> TASK_CREATE`, `UPDATE -> REBREAKDOWN`, `TASK_REVIEW -> COMMIT`, and `EXTRACT -> STAGE -> PROMOTE -> ITERATION_REVIEW` must consume persisted output from the prior step before the next begins.
+- **Source-First Migration Rule**: Land canonical workflow-name and concurrency updates in source instructions/specs first. Do not edit generated plugin bundle output under `plugins/*/.build/` directly.
 </rules>
 
 <stateMachine>
@@ -115,53 +121,55 @@ Session directory: `.ralph-sessions/<SESSION_ID>/`
 │ KNOWLEDGE_  │ ─── Extract, stage, and promote knowledge (conditional)
 │ EXTRACTION  │     Auto-sequences: EXTRACT → STAGE → PROMOTE
 └──────┬──────┘
-    │ IF 'Ralph-v2-Librarian' NOT in agents list → skip pipeline and continue to SESSION_REVIEW
-       │ Invoke Ralph-v2-Librarian (MODE: EXTRACT)
-    │ IF 0 items extracted → skip remaining stages and continue to SESSION_REVIEW
-       │ Invoke Ralph-v2-Librarian (MODE: STAGE)
-       │ Invoke Ralph-v2-Librarian (MODE: PROMOTE)
-       │ → PROMOTE auto-promotes by default, checks for skip-promotion INFO signal opt-out
-    │ outcome: "promoted" → SESSION_REVIEW
-    │ outcome: "skipped" (skip-promotion INFO signal) → SESSION_REVIEW (staged kept)
-    ▼
+     │ IF 'Ralph-v2-Librarian' NOT in agents list → skip pipeline and continue to ITERATION_REVIEW
+         │ Invoke Ralph-v2-Librarian (MODE: EXTRACT)
+     │ IF 0 items extracted → skip remaining stages and continue to ITERATION_REVIEW
+         │ Invoke Ralph-v2-Librarian (MODE: STAGE)
+         │ Invoke Ralph-v2-Librarian (MODE: PROMOTE)
+         │ → PROMOTE auto-promotes by default, checks for skip-promotion INFO signal opt-out
+     │ outcome: "promoted" → ITERATION_REVIEW
+     │ outcome: "skipped" (skip-promotion INFO signal) → ITERATION_REVIEW (staged kept)
+     ▼
 ┌─────────────┐
-│ SESSION_    │ ─── Post-knowledge iteration review (state name retained for compatibility)
+│ ITERATION_  │ ─── Post-knowledge iteration review
 │   REVIEW    │
 └──────┬──────┘
-    │ Invoke Ralph-v2-Reviewer (MODE: SESSION_REVIEW)
-    │ → Generates the iteration-scoped `iterations/<N>/review.md` artifact
-    │ → Returns issues_found counts from the post-knowledge iteration state
-    │
-    ├─── active_issue_count > 0 AND cycle < max_critique_cycles ──────────────┐
-    │                                                                          ▼
-    │                                                              ┌──────────────────────┐
-    │                                                              │ SESSION_CRITIQUE_     │
-    │                                                              │   REPLAN              │
-    │                                                              └──────────┬───────────┘
-    │                                                                         │ plan-critique-triage  → Ralph-v2-Planner (CRITIQUE_TRIAGE)
-    │                                                                         │ plan-critique-brainstorm (opt) → Questioner (brainstorm, SOURCE: critique)
-    │                                                                         │ plan-critique-research (opt)   → Questioner (research, critique-<C>)
-    │                                                                         │ plan-critique-breakdown → Ralph-v2-Planner (CRITIQUE_BREAKDOWN)
-    │                                                                         │ All critique tasks [x]
-    │                                                                         ▼
-    │                                                              ┌──────────────────────┐
-    │                                                              │      BATCHING         │
-    │                                                              └──────────┬───────────┘
-    │                                                                         │
-    │         ┌─────────────────────────────────────────────────────────────┘
-    │         │ (loop back to KNOWLEDGE_EXTRACTION, then SESSION_REVIEW, for the next critique cycle)
-    │
-    ├─── active_issue_count == 0  OR  cycle >= max_critique_cycles
-    │
-       ▼
+     │ Invoke Ralph-v2-Reviewer for the iteration-scoped review gate
+     │ → Generates the iteration-scoped `iterations/<N>/review.md` artifact
+     │ → Returns issues_found counts from the post-knowledge iteration state
+     │
+     ├─── active_issue_count > 0 AND cycle < max_critique_cycles ──────────────┐
+     │                                                                          ▼
+     │                                                              ┌──────────────────────┐
+     │                                                              │ ITERATION_CRITIQUE_   │
+     │                                                              │   REPLAN              │
+     │                                                              └──────────┬───────────┘
+     │                                                                         │ plan-critique-triage  → Ralph-v2-Planner (CRITIQUE_TRIAGE)
+     │                                                                         │ plan-critique-brainstorm (opt) → Questioner (brainstorm, SOURCE: critique)
+     │                                                                         │ plan-critique-research (opt)   → Questioner (research, critique-<C>)
+     │                                                                         │ plan-critique-breakdown → Ralph-v2-Planner (CRITIQUE_BREAKDOWN)
+     │                                                                         │ All critique tasks [x]
+     │                                                                         ▼
+     │                                                              ┌──────────────────────┐
+     │                                                              │      BATCHING         │
+     │                                                              └──────────┬───────────┘
+     │                                                                         │
+     │         ┌─────────────────────────────────────────────────────────────┘
+     │         │ (loop back to KNOWLEDGE_EXTRACTION, then ITERATION_REVIEW, for the next critique cycle)
+     │
+     ├─── active_issue_count == 0  OR  cycle >= max_critique_cycles
+     │
+         ▼
 ┌─────────────┐
-│  COMPLETE   │ ─── All tasks [x] or [F]
+│  COMPLETE   │ ─── Iteration closed; await feedback or an explicit session-close retrospective request
 └──────┬──────┘
-       │ (Human provides feedbacks/)
-       ▼
-┌─────────────┐
-│ REPLANNING  │ ─── Feedback-driven iterating (Planner triages intent; stored state remains REPLANNING)
-└──────┬──────┘
+         │ (Human provides feedbacks/)
+         ├──────────────────────────────────────────────┐
+         ▼                                              ▼
+┌─────────────┐                              ┌─────────────┐
+│ REPLANNING  │ ─── Feedback-driven         │ SESSION_    │ ─── Explicit end-of-session retrospective
+└──────┬──────┘     iterating                │   REVIEW    │
+                                                             └─────────────┘
     │ Planner analyzes feedbacks + previous_state → returns replanning_route (iterating route)
        │ Route A: "knowledge-promotion" → Librarian (PROMOTE) → COMPLETE
     │ Route B: "full-replanning" → full iterating pipeline
@@ -394,6 +402,7 @@ Poll signals/inputs/
         PASS signal message to Executor context in next invocation
 
 FOR EACH task (respect max_parallel_executors):
+    # Only same-wave tasks may execute in parallel. Cross-wave execution stays sequential.
     # Wave ordering guarantees all dependencies for this wave are satisfied by prior waves.
     # No per-task dependency pre-check is needed here — that analysis belongs to the Planner.
 
@@ -437,7 +446,9 @@ FIND tasks with status [P]
 Poll signals/inputs/: ABORT→EXIT, PAUSE→WAIT; STEER→pass to Reviewer context; INFO→inject
 
 # TASK_REVIEW → if [x] → COMMIT (sub-step, not a separate state)
-FOR EACH task with status [P]:
+# `TASK_REVIEW` may run in parallel across distinct pending tasks in the same wave.
+# `COMMIT` remains sequential per task after a persisted `[x]` verdict.
+FOR EACH task with status [P] (respect max_parallel_reviewers):
     # Step 1: Review
     INVOKE Ralph-v2-Reviewer
         SESSION_PATH: .ralph-sessions/<SESSION_ID>/
@@ -467,30 +478,29 @@ STATE = BATCHING
 ### 8. State: KNOWLEDGE_EXTRACTION
 
 ```
-`EXTRACT -> STAGE -> PROMOTE -> SESSION_REVIEW` is a strict sequential pipeline.
-The `SESSION_REVIEW` state/mode name is retained for routing compatibility, but the Reviewer output at this step is the current iteration review artifact.
-Do not overlap these stages or bypass SESSION_REVIEW with pre-promotion state.
+`EXTRACT -> STAGE -> PROMOTE -> ITERATION_REVIEW` is a strict sequential pipeline.
+Do not overlap these stages or bypass `ITERATION_REVIEW` with a pre-promotion transition.
 
 IF 'Ralph-v2-Librarian' NOT in agents list:
-    UPDATE metadata.yaml with state: SESSION_REVIEW
-    STATE = SESSION_REVIEW
+    UPDATE metadata.yaml with state: ITERATION_REVIEW
+    STATE = ITERATION_REVIEW
 
 INVOKE Ralph-v2-Librarian (MODE: EXTRACT)
 IF Librarian returns 0 items extracted:
-    UPDATE metadata.yaml with state: SESSION_REVIEW
-    STATE = SESSION_REVIEW
+    UPDATE metadata.yaml with state: ITERATION_REVIEW
+    STATE = ITERATION_REVIEW
 
 INVOKE Ralph-v2-Librarian (MODE: STAGE)
 INVOKE Ralph-v2-Librarian (MODE: PROMOTE)
 
 IF outcome == "promoted" OR outcome == "skipped":
-    UPDATE metadata.yaml with state: SESSION_REVIEW
-    STATE = SESSION_REVIEW
+    UPDATE metadata.yaml with state: ITERATION_REVIEW
+    STATE = ITERATION_REVIEW
 ELSE IF outcome == "blocked":
     EXIT with error "Knowledge promotion blocked — manual intervention required"
 ```
 
-### 8.5. State: SESSION_REVIEW
+### 8.5. State: ITERATION_REVIEW
 
 ```
 Poll signals/inputs/
@@ -505,10 +515,10 @@ Poll signals/inputs/
 C = metadata.yaml.session_review.cycle (default 0)
 
 INVOKE Ralph-v2-Reviewer
-    MODE: SESSION_REVIEW
+    MODE: ITERATION_REVIEW
     SESSION_PATH: .ralph-sessions/<SESSION_ID>/
     ITERATION: <current iteration>
-    SESSION_REVIEW_CYCLE: C
+    ITERATION_REVIEW_CYCLE: C
     ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
 
 COMPUTE ACTIVE_ISSUE_COUNT using session_review.issue_severity_threshold:
@@ -529,11 +539,11 @@ ELSE IF session_review.max_critique_cycles is not null AND C >= session_review.m
     STATE = COMPLETE
 
 ELSE:
-    UPDATE metadata.yaml: state: SESSION_CRITIQUE_REPLAN, session_review.cycle: C + 1
-    STATE = SESSION_CRITIQUE_REPLAN
+    UPDATE metadata.yaml: state: ITERATION_CRITIQUE_REPLAN, session_review.cycle: C + 1
+    STATE = ITERATION_CRITIQUE_REPLAN
 ```
 
-### 8.75. State: SESSION_CRITIQUE_REPLAN
+### 8.75. State: ITERATION_CRITIQUE_REPLAN
 
 ```
 Poll signals/inputs/
@@ -567,12 +577,38 @@ FOR each signal in signals/inputs/ where target == ALL:
     ELSE:
         MOVE signal to signals/processed/ with delivery_status: partial and unacked_agents list
 
+IF explicit session-close retrospective was requested AND no unprocessed feedback batch is waiting:
+    UPDATE metadata.yaml: state: SESSION_REVIEW
+    STATE = SESSION_REVIEW
+
 READ iterations/<ITERATION>/progress.md
 IF all tasks [x] or [C]:
     EXIT with success summary
 
     ELSE IF any tasks [F]:
     EXIT with instructions for next iteration
+```
+
+### 9.5. State: SESSION_REVIEW
+
+```
+This state is reserved for the true session-level retrospective after iteration work is already closed.
+It is never used as the per-iteration post-knowledge gate.
+
+Poll signals/inputs/
+    IF ABORT: EXIT
+    IF PAUSE: WAIT
+    IF INFO: Inject message into retrospective context for consideration
+    IF STEER: PASS signal message to Reviewer context in next invocation
+
+INVOKE Ralph-v2-Reviewer
+    MODE: SESSION_REVIEW
+    SESSION_PATH: .ralph-sessions/<SESSION_ID>/
+    ITERATION: <current iteration>
+    ORCHESTRATOR_CONTEXT: PENDING_CONTEXT (if available)
+
+UPDATE metadata.yaml: state: COMPLETE
+STATE = COMPLETE
 ```
 </stateMachine>
 
@@ -602,7 +638,7 @@ IF all tasks [x] or [C]:
   "status": "completed | in_progress | awaiting_feedback | blocked",
   "session_id": "string",
   "iteration": "number - Current iteration number",
-  "current_state": "INITIALIZING | PLANNING | REPLANNING | BATCHING | EXECUTING_BATCH | REVIEWING_BATCH | SESSION_REVIEW | KNOWLEDGE_EXTRACTION | COMPLETE",
+    "current_state": "INITIALIZING | PLANNING | REPLANNING | BATCHING | EXECUTING_BATCH | REVIEWING_BATCH | KNOWLEDGE_EXTRACTION | ITERATION_REVIEW | ITERATION_CRITIQUE_REPLAN | COMPLETE | SESSION_REVIEW",
   "current_wave": "number",
   "tasks_summary": {
     "total": "number",
