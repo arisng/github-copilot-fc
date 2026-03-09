@@ -109,8 +109,8 @@ If either condition fails, treat grounding as stale or incomplete. Do not mix an
 | SPLIT_TASK | Orchestrator Timeout Recovery only | Splits one oversized task into 2-4 |
 | UPDATE_METADATA | Status transition | Updates global metadata.yaml |
 | REPAIR_STATE | Orchestrator schema validation failure | Repairs malformed progress.md / metadata.yaml |
-| CRITIQUE_TRIAGE | SESSION_CRITIQUE_REPLAN | Analyzes review issues, plans critique task structure |
-| CRITIQUE_BREAKDOWN | SESSION_CRITIQUE_REPLAN (after CRITIQUE_TRIAGE) | Creates gap-filling tasks from review issues |
+| CRITIQUE_TRIAGE | ITERATION_CRITIQUE_REPLAN | Analyzes review issues, plans critique task structure |
+| CRITIQUE_BREAKDOWN | ITERATION_CRITIQUE_REPLAN (after CRITIQUE_TRIAGE) | Creates gap-filling tasks from review issues |
 
 ## Artifact Schemas
 
@@ -363,7 +363,7 @@ version: 1, session_id, timestamps, iteration (infer from tasks/), orchestrator.
 
 #### CRITIQUE_TRIAGE Mode
 
-**Inputs:** `ITERATION`, `REVIEW_PATH` (`iterations/<N>/review.md`), `SESSION_REVIEW_CYCLE` (C, 1-based)
+**Inputs:** `ITERATION`, `REVIEW_PATH` (`iterations/<N>/review.md`, Iteration Review Report), `CRITIQUE_CYCLE` (C, 1-based)
 
 ```markdown
 # Step 1: Read REVIEW_PATH - extract all issues from "## Issues Found" (Critical, Major, Minor).
@@ -389,7 +389,7 @@ version: 1, session_id, timestamps, iteration (infer from tasks/), orchestrator.
   "status": "completed",
   "mode": "CRITIQUE_TRIAGE",
   "iteration": "<N>",
-  "session_review_cycle": "<C>",
+  "critique_cycle": "<C>",
   "brainstorm_needed": "true | false",
   "research_needed": "true | false",
   "issue_groups": ["group description"],
@@ -399,7 +399,7 @@ version: 1, session_id, timestamps, iteration (infer from tasks/), orchestrator.
 
 #### CRITIQUE_BREAKDOWN Mode
 
-**Inputs:** `ITERATION`, `REVIEW_PATH` (`iterations/<N>/review.md`), `SESSION_REVIEW_CYCLE` (C, 1-based)
+**Inputs:** `ITERATION`, `REVIEW_PATH` (`iterations/<N>/review.md`, Iteration Review Report), `CRITIQUE_CYCLE` (C, 1-based)
 
 ```markdown
 # Step 1: Read REVIEW_PATH - re-parse all issues from "## Issues Found".
@@ -426,7 +426,7 @@ version: 1, session_id, timestamps, iteration (infer from tasks/), orchestrator.
   "status": "completed",
   "mode": "CRITIQUE_BREAKDOWN",
   "iteration": "<N>",
-  "session_review_cycle": "<C>",
+  "critique_cycle": "<C>",
   "tasks_created": ["task-critique-<C>-1"],
   "files_updated": ["iterations/<N>/progress.md", "iterations/<N>/tasks/task-critique-<C>-*.md"]
 }
