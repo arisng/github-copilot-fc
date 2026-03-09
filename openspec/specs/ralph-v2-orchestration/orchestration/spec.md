@@ -3,18 +3,18 @@ domain: orchestration
 version: 0.1.0
 status: draft
 created_at: 2026-03-02T15:08:02+07:00
-updated_at: 2026-03-07T23:03:04+07:00
+updated_at: 2026-03-09T10:18:39+07:00
 ---
 
 # Orchestration Specification
 
 ## Purpose
 
-This specification defines the state machine backbone that drives all role invocations. It establishes the system's ten states, their transition rules with behavioral guards, the role routing model, and four cross-cutting protocols: Messenger Protocol, Timeout Recovery Escalation, Schema Validation on Resume, and Critique Self-Loop. All other domain specifications receive their invocation patterns from the routing table defined here. This specification depends on Session vocabulary (SES- prefix) and the Signal protocol (SIG- prefix). User-facing guidance in this spec prefers iterating terminology for the feedback-driven post-completion loop, while the normative state enum remains REPLANNING until a coordinated contract migration updates all dependent artifacts.
+This specification defines the state machine backbone that drives all role invocations. It establishes the system's eleven canonical states, their transition rules with behavioral guards, the role routing model, and six cross-cutting protocols: Messenger Protocol, Timeout Recovery Escalation, Schema Validation on Resume, Critique Self-Loop, Concurrency Source-of-Truth, and Source-First Migration. All other domain specifications receive their invocation patterns from the routing table defined here. This specification depends on Session vocabulary (SES- prefix) and the Signal protocol (SIG- prefix). User-facing guidance in this spec prefers iterating terminology for the feedback-driven post-completion loop, while the normative state enum remains REPLANNING until a coordinated contract migration updates all dependent artifacts.
 
 ## State Machine Definition
 
-The system defines exactly ten states. Each state represents a distinct phase of the session lifecycle. The Orchestration Role maintains the current state in the Session State Store (per SES-012).
+The system defines exactly eleven states. Each state represents a distinct phase of the session lifecycle. The Orchestration Role maintains the current state in the Session State Store (per SES-012).
 
 | # | State | Purpose |
 |---|---|---|
@@ -23,11 +23,12 @@ The system defines exactly ten states. Each state represents a distinct phase of
 | 3 | **BATCHING** | Wave selection — the Orchestration Role constructs waves from Task Definition Records and identifies the next incomplete wave |
 | 4 | **EXECUTING_BATCH** | Task execution — the Execution Role implements each task in the current wave |
 | 5 | **REVIEWING_BATCH** | Batch validation — the Review Role validates each completed task and executes atomic commits for qualified work |
-| 6 | **SESSION_REVIEW** | Post-knowledge iteration assessment — the Review Role evaluates the final iteration state, including knowledge-pipeline evidence, and returns issue counts |
-| 7 | **SESSION_CRITIQUE_REPLAN** | Critique iterating — the Planning Role triages issues and the Discovery Role optionally brainstorms and researches; the Planning Role produces gap-filling tasks |
-| 8 | **KNOWLEDGE_EXTRACTION** | Knowledge pipeline — the Knowledge Role extracts, stages, and promotes reusable knowledge before final session review |
-| 9 | **COMPLETE** | Final state — all tasks are finished or awaiting feedback; broadcast signals are finalized |
+| 6 | **ITERATION_REVIEW** | Post-knowledge iteration assessment — the Review Role evaluates the final iteration state, including knowledge-pipeline evidence, and returns issue counts |
+| 7 | **ITERATION_CRITIQUE_REPLAN** | Critique iterating — the Planning Role triages iteration-review issues and the Discovery Role optionally brainstorms and researches; the Planning Role produces gap-filling tasks |
+| 8 | **KNOWLEDGE_EXTRACTION** | Knowledge pipeline — the Knowledge Role extracts, stages, and promotes reusable knowledge before iteration review |
+| 9 | **COMPLETE** | Iteration-complete holding state — all work for the current iteration is closed; the session can await feedback or, when explicitly requested, route into the final session retrospective |
 | 10 | **REPLANNING** | Feedback-driven iterating — the Planning Role triages feedback intent and routes to either full iterating or fast-path knowledge promotion; the stored state name remains REPLANNING for compatibility |
+| 11 | **SESSION_REVIEW** | Final session retrospective — the Review Role summarizes all completed iterations after implementation work is closed |
 
 ## Transition Table
 
@@ -41,13 +42,15 @@ Every transition follows the form: **FROM** state **→ TO** state **WHEN** a be
 | T4 | BATCHING | KNOWLEDGE_EXTRACTION | No wave contains tasks that are not complete and not cancelled |
 | T5 | EXECUTING_BATCH | REVIEWING_BATCH | All tasks in the current wave have completed execution or failed |
 | T6 | REVIEWING_BATCH | BATCHING | All review-pending tasks in the current wave have received verdicts |
-| T7 | KNOWLEDGE_EXTRACTION | SESSION_REVIEW | The knowledge pipeline has finished (all three stages complete, or the pipeline was skipped) |
-| T8 | SESSION_REVIEW | SESSION_CRITIQUE_REPLAN | The active issue count is above zero AND the critique cycle counter has not reached the configured maximum |
-| T9 | SESSION_CRITIQUE_REPLAN | BATCHING | All critique planning tasks for the current cycle are complete |
-| T10 | SESSION_REVIEW | COMPLETE | The active issue count is zero, OR the critique cycle counter has reached the configured maximum |
+| T7 | KNOWLEDGE_EXTRACTION | ITERATION_REVIEW | The knowledge pipeline has finished (all three stages complete, or the pipeline was skipped) |
+| T8 | ITERATION_REVIEW | ITERATION_CRITIQUE_REPLAN | The active issue count is above zero AND the critique cycle counter has not reached the configured maximum |
+| T9 | ITERATION_CRITIQUE_REPLAN | BATCHING | All critique planning tasks for the current cycle are complete |
+| T10 | ITERATION_REVIEW | COMPLETE | The active issue count is zero, OR the critique cycle counter has reached the configured maximum |
 | T11 | COMPLETE | REPLANNING | Post-iteration feedback is detected in the next Iteration Container's Feedback Collection |
 | T12 | REPLANNING | BATCHING | The full iterating pipeline has completed (feedback analysis, plan update, and task rebreakdown are all done) |
 | T13 | REPLANNING | COMPLETE | The knowledge-promotion fast-path has completed |
+| T14 | COMPLETE | SESSION_REVIEW | A final session retrospective is explicitly requested and there is no unprocessed feedback waiting for the next iteration |
+| T15 | SESSION_REVIEW | COMPLETE | The session retrospective artifact is persisted, or the retrospective is intentionally skipped, and the session returns to its complete hold state |
 
 ## Role Routing Table
 
@@ -60,18 +63,19 @@ Each state invokes zero or more roles. The Orchestration Role defines which role
 | BATCHING | *(none — routing only)* | Orchestration Role computes waves and selects the next incomplete wave |
 | EXECUTING_BATCH | Execution Role | Implement each task in the current wave; one invocation per task |
 | REVIEWING_BATCH | Review Role | Validate each review-pending task; for qualified tasks, invoke commit mode as a sub-step |
-| SESSION_REVIEW | Review Role | Produce the post-knowledge Iteration Review Report with issue counts by severity |
-| SESSION_CRITIQUE_REPLAN | Planning Role, Discovery Role | Planning: critique triage and critique breakdown. Discovery: optional brainstorm and research |
-| KNOWLEDGE_EXTRACTION | Knowledge Role | Three-stage pipeline: extract, stage, promote before SESSION_REVIEW |
-| COMPLETE | *(none — terminal)* | Finalize remaining broadcast signals and exit |
+| ITERATION_REVIEW | Review Role | Produce the post-knowledge Iteration Review Report with issue counts by severity |
+| ITERATION_CRITIQUE_REPLAN | Planning Role, Discovery Role | Planning: critique triage and critique breakdown. Discovery: optional brainstorm and research |
+| KNOWLEDGE_EXTRACTION | Knowledge Role | Three-stage pipeline: extract, stage, promote before ITERATION_REVIEW |
+| COMPLETE | *(none — hold state)* | Finalize remaining broadcast signals, await feedback, or route into the explicit session retrospective |
 | REPLANNING | Planning Role, Discovery Role | Planning: metadata update, plan update, task rebreakdown for iterating. Discovery: feedback analysis and research |
+| SESSION_REVIEW | Review Role | Produce the final cross-iteration session retrospective after the session is otherwise complete |
 
 ## Requirements
 
 ### State Machine Core
 
 #### ORCH-001: State Enumeration
-The system MUST define exactly ten states: INITIALIZING, PLANNING, BATCHING, EXECUTING_BATCH, REVIEWING_BATCH, SESSION_REVIEW, SESSION_CRITIQUE_REPLAN, KNOWLEDGE_EXTRACTION, COMPLETE, and REPLANNING.
+The system MUST define exactly eleven states: INITIALIZING, PLANNING, BATCHING, EXECUTING_BATCH, REVIEWING_BATCH, ITERATION_REVIEW, ITERATION_CRITIQUE_REPLAN, KNOWLEDGE_EXTRACTION, COMPLETE, REPLANNING, and SESSION_REVIEW.
 
 #### ORCH-002: Single Active State
 The system MUST maintain exactly one current state in the Session State Store (per SES-012) at any time. Every state transition MUST atomically update the current state before any role invocation for the new state begins.
@@ -98,19 +102,19 @@ The transition from EXECUTING_BATCH to REVIEWING_BATCH MUST occur only when ever
 #### ORCH-008: Review Completion Guard (T6)
 The transition from REVIEWING_BATCH to BATCHING MUST occur only when every review-pending task in the current wave has received a review verdict (qualified or failed). For each qualified task, the Review Role's commit sub-step MUST have been attempted before the transition occurs.
 
-#### ORCH-009: Session Review Decision Guard (T8, T10)
+#### ORCH-009: Iteration Review Decision Guard (T8, T10)
 After the Review Role returns the Iteration Review Report, the Orchestration Role MUST compute the active issue count by applying the configured severity threshold:
 - Threshold "any": all reported issues are active.
 - Threshold "major": only critical and major issues are active.
 - Threshold "critical": only critical issues are active.
 
-If the active issue count is zero OR the critique cycle counter equals or exceeds the configured maximum, the system MUST transition to COMPLETE (T10). Otherwise, it MUST transition to SESSION_CRITIQUE_REPLAN (T8).
+If the active issue count is zero OR the critique cycle counter equals or exceeds the configured maximum, the system MUST transition to COMPLETE (T10). Otherwise, it MUST transition to ITERATION_CRITIQUE_REPLAN (T8).
 
-#### ORCH-010: Critique Completion Guard (T9)
-The transition from SESSION_CRITIQUE_REPLAN to BATCHING MUST occur only when all critique planning tasks for the current critique cycle are complete in the Progress Tracker. Gap-filling tasks produced by critique breakdown are added to the current iteration's implementation scope.
+#### ORCH-010: Iteration Critique Completion Guard (T9)
+The transition from ITERATION_CRITIQUE_REPLAN to BATCHING MUST occur only when all critique planning tasks for the current critique cycle are complete in the Progress Tracker. Gap-filling tasks produced by critique breakdown are added to the current iteration's implementation scope.
 
 #### ORCH-011: Knowledge Pipeline Completion Guard (T7)
-The transition from KNOWLEDGE_EXTRACTION to SESSION_REVIEW MUST occur when:
+The transition from KNOWLEDGE_EXTRACTION to ITERATION_REVIEW MUST occur when:
 - The Knowledge Role is not available (conditional skip), OR
 - The extraction stage returns zero items, OR
 - All three pipeline stages (extract, stage, promote) have completed.
@@ -126,7 +130,7 @@ After the Planning Role triages feedback intent, it returns an iterating route w
 ### Dependency Pre-Check
 
 #### ORCH-014: Task Dependency Enforcement
-Before invoking the Execution Role for any task in EXECUTING_BATCH, the Orchestration Role MUST verify that all tasks listed in the Task Definition Record's dependency set have reached terminal complete status in the Progress Tracker. Tasks with unsatisfied dependencies MUST be skipped within the current wave.
+Before invoking the Execution Role for any task in EXECUTING_BATCH, the Orchestration Role MUST respect the Planner-authored dependency graph. This guard MAY be satisfied by selecting only a wave whose prior-wave dependencies have already reached terminal complete status in the Progress Tracker, or by explicit per-task verification when needed. Tasks with unsatisfied dependencies MUST NOT be dispatched.
 
 #### ORCH-015: Task Definition Existence Check
 Before invoking the Execution Role, the Orchestration Role MUST verify that the Task Definition Record exists. If the record is missing, the task MUST be marked as failed in the Progress Tracker with a missing-definition reason.
@@ -173,13 +177,13 @@ If schema validation fails for either the Session State Store or the Progress Tr
 The critique self-loop MUST use a configurable severity threshold loaded from session-level configuration. Valid threshold values are "any" (all issues trigger critique), "major" (only critical and major issues trigger critique), and "critical" (only critical issues trigger critique). The default MUST be "any".
 
 #### ORCH-025: Critique Cycle Counter
-The Orchestration Role MUST maintain a critique cycle counter in the Session State Store. The counter MUST be incremented each time the system enters SESSION_CRITIQUE_REPLAN and MUST be reset to zero at the start of each new iteration.
+The Orchestration Role MUST maintain a critique cycle counter in the Session State Store. The counter MUST be incremented each time the system enters ITERATION_CRITIQUE_REPLAN and MUST be reset to zero at the start of each new iteration.
 
 #### ORCH-026: Critique Cycle Cap
 The critique self-loop MUST respect a configurable maximum cycle count loaded from session-level configuration. A null value means unlimited cycles. When the counter reaches the maximum, the system MUST advance to COMPLETE regardless of remaining active issues and MUST log a warning indicating the cap was reached.
 
 #### ORCH-027: Critique Planning Task Sequence
-Within SESSION_CRITIQUE_REPLAN, the Orchestration Role MUST route critique planning tasks in the following order:
+Within ITERATION_CRITIQUE_REPLAN, the Orchestration Role MUST route critique planning tasks in the following order:
 1. **Critique triage** — Planning Role evaluates the Iteration Review Report and determines which issues require action.
 2. **Critique brainstorm** (optional) — Discovery Role brainstorms if triage indicates brainstorming is needed.
 3. **Critique research** (optional) — Discovery Role researches if triage indicates research is needed.
@@ -206,10 +210,35 @@ Within REVIEWING_BATCH, for each task that receives a qualified verdict, the Orc
 ### Conditional Knowledge Activation
 
 #### ORCH-032: Knowledge Role Availability Check
-Before entering the knowledge pipeline in KNOWLEDGE_EXTRACTION, the Orchestration Role MUST check whether the Knowledge Role is available. If the Knowledge Role is not available, the system MUST skip the entire pipeline and transition to SESSION_REVIEW so final review still covers the skipped knowledge stage.
+Before entering the knowledge pipeline in KNOWLEDGE_EXTRACTION, the Orchestration Role MUST check whether the Knowledge Role is available. If the Knowledge Role is not available, the system MUST skip the entire pipeline and transition to ITERATION_REVIEW so final review still covers the skipped knowledge stage.
 
 #### ORCH-033: Knowledge Pipeline Sequence
-When the Knowledge Role is available, the Orchestration Role MUST invoke it in exactly three sequential stages: extract (iteration artifacts to Knowledge Extraction Area), stage (Knowledge Extraction Area to Knowledge Staging Area), and promote (Knowledge Staging Area to Knowledge Repository). If the extract stage returns zero items, the remaining stages MUST be skipped and SESSION_REVIEW MUST still run on the post-pipeline state.
+When the Knowledge Role is available, the Orchestration Role MUST invoke it in exactly three sequential stages: extract (iteration artifacts to Knowledge Extraction Area), stage (Knowledge Extraction Area to Knowledge Staging Area), and promote (Knowledge Staging Area to Knowledge Repository). If the extract stage returns zero items, the remaining stages MUST be skipped and ITERATION_REVIEW MUST still run on the post-pipeline state.
+
+### Concurrency Source Of Truth
+
+#### ORCH-036: Orchestration Concurrency SSOT
+The orchestration source artifacts, specifically this specification and the Orchestrator instruction source, MUST be the canonical source of truth for which role modes may run in parallel and which remain sequential. Downstream role contracts, wrapper agents, and documentation MUST follow this contract and MUST NOT redefine broader parallelism on their own.
+
+#### ORCH-037: Role Mode Concurrency Boundaries
+The Orchestration Role MUST enforce the following mode boundaries:
+- Planning Role: `TASK_CREATE` is the only parallel-safe mode, and only when task breakdown has produced a dependency-safe creation queue. All other Planning modes remain sequential.
+- Discovery Role: Questioner modes remain sequential single invocations for a session route. Brainstorm, research, feedback-analysis, and critique research/brainstorm MUST NOT be parallelized.
+- Execution Role: Executor invocations may run in parallel only across tasks in the same wave after dependency and batching guards are satisfied. Cross-wave execution remains sequential.
+- Review Role: `TASK_REVIEW` may run in parallel across distinct pending tasks in the same wave. `COMMIT` remains sequential per task after a qualified verdict. `ITERATION_REVIEW` and `SESSION_REVIEW` remain sequential single invocations.
+- Knowledge Role: `EXTRACT`, `STAGE`, and `PROMOTE` remain a strict sequential pipeline with no overlap.
+
+#### ORCH-038: Ordered Handoff Rules
+The Orchestration Role MUST preserve the following ordered handoffs and MUST NOT overlap or reorder them:
+- `TASK_BREAKDOWN -> TASK_CREATE`
+- `UPDATE -> REBREAKDOWN`
+- same-wave `EXECUTING_BATCH -> REVIEWING_BATCH`
+- `TASK_REVIEW -> COMMIT` per task
+- `EXTRACT -> STAGE -> PROMOTE -> ITERATION_REVIEW`
+- `ITERATION_REVIEW -> ITERATION_CRITIQUE_REPLAN` when active issues remain
+
+#### ORCH-039: Source-First Migration Contract
+When canonical workflow names, concurrency rules, or review routing change, the migration order MUST be source-first: update the orchestration spec and orchestration instruction source first, then propagate into downstream role contracts, documentation, and generated runtime artifacts. Generated plugin bundle output MUST NOT be edited directly.
 
 ### Orchestration Role Boundaries
 
@@ -233,7 +262,7 @@ AND the Orchestration Role identifies a wave with incomplete tasks and transitio
 AND upon all wave tasks completing execution the state transitions to REVIEWING_BATCH (T5)
 AND upon all verdicts being issued the state transitions to BATCHING (T6)
 AND when no incomplete waves remain the state transitions to KNOWLEDGE_EXTRACTION (T4)
-AND the knowledge pipeline completes and the state transitions to SESSION_REVIEW (T7)
+AND the knowledge pipeline completes and the state transitions to ITERATION_REVIEW (T7)
 AND the active issue count is zero so the state transitions to COMPLETE (T10)
 AND the system maintains exactly one state throughout the entire sequence
 ```
@@ -264,22 +293,22 @@ AND the state transitions to COMPLETE (T13) without entering BATCHING
 ### SC-ORCH-004: Critique Self-Loop — Issues Found and Resolved
 **Validates**: ORCH-009 (T8), ORCH-010, ORCH-025, ORCH-027
 ```
-GIVEN the system is in SESSION_REVIEW
+GIVEN the system is in ITERATION_REVIEW
 AND the Review Role returns an Iteration Review Report with three major issues
 AND the severity threshold is "any" and the critique cycle counter is 0
 WHEN the Orchestration Role computes the active issue count as 3
 THEN it increments the critique cycle counter to 1
-AND transitions to SESSION_CRITIQUE_REPLAN (T8)
+AND transitions to ITERATION_CRITIQUE_REPLAN (T8)
 AND routes critique planning tasks in order: triage, optional brainstorm, optional research, breakdown
 AND upon all critique planning tasks completing, transitions to BATCHING (T9)
 AND the gap-filling tasks are executed and reviewed
-AND when SESSION_REVIEW is re-entered with zero active issues, the state transitions to COMPLETE (T10)
+AND when ITERATION_REVIEW is re-entered with zero active issues, the state transitions to COMPLETE (T10)
 ```
 
 ### SC-ORCH-005: Critique Cycle Cap Reached
 **Validates**: ORCH-026, ORCH-009 (T10 via cap)
 ```
-GIVEN the system is in SESSION_REVIEW
+GIVEN the system is in ITERATION_REVIEW
 AND the critique cycle counter equals the configured maximum critique cycles
 AND the active issue count is above zero
 WHEN the Orchestration Role evaluates the critique loop decision
@@ -291,7 +320,7 @@ AND the critique cycle counter is reset to zero
 ### SC-ORCH-006: Severity Threshold Filters Issues
 **Validates**: ORCH-024
 ```
-GIVEN the system is in SESSION_REVIEW
+GIVEN the system is in ITERATION_REVIEW
 AND the Review Role reports 2 minor issues and 0 major or critical issues
 AND the severity threshold is "major"
 WHEN the Orchestration Role computes the active issue count
@@ -423,7 +452,7 @@ GIVEN the system transitions to KNOWLEDGE_EXTRACTION
 AND the Knowledge Role is not available in the current session
 WHEN the Orchestration Role checks Knowledge Role availability
 THEN it skips the entire knowledge pipeline
-AND transitions to SESSION_REVIEW (T7)
+AND transitions to ITERATION_REVIEW (T7)
 ```
 
 ### SC-ORCH-019: Knowledge Pipeline — Zero Extraction Short-Circuit
@@ -433,7 +462,7 @@ GIVEN the Knowledge Role is available
 AND the extract stage processes iteration artifacts but finds zero reusable items
 WHEN the extract stage returns a zero-item result
 THEN the Orchestration Role skips the stage and promote stages
-AND transitions to SESSION_REVIEW (T7)
+AND transitions to ITERATION_REVIEW (T7)
 ```
 
 ### SC-ORCH-020: Session-End Signal Finalization
@@ -459,15 +488,15 @@ AND the Orchestration Role only updates the Session State Store for state transi
 **Validates**: ORCH-003
 ```
 GIVEN the system is in EXECUTING_BATCH
-WHEN a condition arises that would suggest transitioning directly to SESSION_REVIEW
-THEN the Orchestration Role rejects the transition because EXECUTING_BATCH → SESSION_REVIEW is not in the Transition Table
+WHEN a condition arises that would suggest transitioning directly to ITERATION_REVIEW
+THEN the Orchestration Role rejects the transition because EXECUTING_BATCH → ITERATION_REVIEW is not in the Transition Table
 AND instead follows the required path through REVIEWING_BATCH and BATCHING
 ```
 
 ### SC-ORCH-023: Critique Optional Steps Skipped
 **Validates**: ORCH-027
 ```
-GIVEN the system is in SESSION_CRITIQUE_REPLAN
+GIVEN the system is in ITERATION_CRITIQUE_REPLAN
 AND the critique triage determines that neither brainstorming nor research is needed
 WHEN the Orchestration Role routes critique planning tasks
 THEN it skips the brainstorm and research steps
