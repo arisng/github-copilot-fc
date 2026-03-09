@@ -2,7 +2,7 @@
 name: Ralph-v2-Reviewer-VSCode
 description: Quality assurance agent v2 with isolated task files, feedback-aware validation, durable commit guardrails, and structured review reports
 target: vscode
-argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, SESSION_REVIEW for post-knowledge iteration review, TIMEOUT_FAIL, COMMIT after a qualified task review), TASK_ID, REPORT_PATH, and ITERATION for review
+argument-hint: Specify the Ralph session path, MODE (TASK_REVIEW, ITERATION_REVIEW for the blocking post-knowledge iteration gate, SESSION_REVIEW for the final session-scoped retrospective, TIMEOUT_FAIL, COMMIT after a qualified task review), TASK_ID, REPORT_PATH, and ITERATION for review
 user-invocable: false
 tools: [vscode/memory, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, execute/runTests, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, search, web, 'aspire/*', mcp_docker/brave_summarizer, mcp_docker/brave_web_search, mcp_docker/fetch_content, mcp_docker/search, mcp_docker/sequentialthinking]
 metadata:
