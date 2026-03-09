@@ -75,12 +75,15 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Orchestrator Router Contract Boundary](reference/ralph/orchestrator-router-contract-boundary.md)
 - [Planner Questioner Grounding Handshake](reference/ralph/planner-questioner-grounding-handshake.md)
 - [Diataxis Subcategory Heuristic](reference/ralph/diataxis-subcategory-heuristic.md)
+- [Durable provenance for commit and knowledge outputs](reference/ralph/durable-provenance-for-commit-and-knowledge-outputs.md)
 - [Harness Engineering Checklist](reference/ralph/harness-engineering-checklist.md)
 - [Ralph Session Artifact Templates](reference/ralph/ralph-artifact-templates.md)
 - [Ralph beta agent frontmatter name contract](reference/ralph/ralph-beta-agent-frontmatter-name-contract.md)
 - [Ralph beta agent filename contract](reference/ralph/ralph-beta-agent-filename-contract.md)
 - [Ralph finalized workflow contract](reference/ralph/ralph-finalized-workflow-contract.md)
 - [Ralph hook log directory resolution](reference/ralph/ralph-hook-log-directory-resolution.md)
+- [Ralph hook log field inventory and telemetry gaps](reference/ralph/ralph-hook-log-field-inventory-and-gaps.md)
+- [Ralph hook manifest cross-runtime compatibility status](reference/ralph/ralph-hook-manifest-cross-runtime-status.md)
 - [Ralph iteration artifact reference normalization](reference/ralph/ralph-iteration-artifact-reference-normalization.md)
 - [Ralph SDK Migration Guide](reference/ralph/ralph-sdk-migration.md)
 - [Ralph Subagent Contracts](reference/ralph/ralph-subagent-contracts.md)
@@ -88,9 +91,13 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Rename Blast Radius](reference/ralph/rename-blast-radius.md)
 - [Self Critique Checklist](reference/ralph/self-critique-checklist.md)
 - [Session Instructions Required During Initialize](reference/ralph/session-instructions-required-during-initialize.md)
+- [Shared Questioner grounding lookup contract](reference/ralph/shared-questioner-grounding-lookup-contract.md)
 - [Specs Frontmatter Convention](reference/ralph/specs-frontmatter-convention.md)
 - [Targeted Info Signal Convention](reference/ralph/targeted-info-signal-convention.md)
 - [V2.10.0 Contract Changes](reference/ralph/v2.10.0-contract-changes.md)
+- [VS Code vs Copilot CLI hook payload field mapping](reference/ralph/vscode-vs-cli-hook-payload-field-mapping.md)
+- [Windows App Alias python3 shim crashes Bash scripts under set -euo pipefail](reference/ralph/windows-app-alias-python3-bash-pitfall.md)
+- [jq empty-propagation bug in Ralph Bash hook logger](reference/ralph/jq-empty-propagation-in-ralph-hook-logger.md)
 
 ## Explanation
 
@@ -133,4 +140,3 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph V1 State Machine](explanation/ralph/ralph-v1-state-machine.md)
 - [Self Critique Extension Rationale](explanation/ralph/self-critique-extension-rationale.md)
 - [V2.10.0 Knowledge Pipeline Refactor](explanation/ralph/v2.10.0-knowledge-pipeline-refactor.md)
-
