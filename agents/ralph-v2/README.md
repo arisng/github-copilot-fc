@@ -48,7 +48,7 @@ agents/
         └── ralph-v2-librarian-CLI.agent.md
 ```
 
-> **Note**: `specs/`, `docs/`, and shared files remain at the `ralph-v2/` root. (specs/ and docs/ are deprecated now)
+> **Note**: `specs/`, `docs/`, and shared files remain at the `ralph-v2/` root. The normative Ralph workflow contract lives under `openspec/specs/ralph-v2-orchestration/`; the files under `agents/ralph-v2/` summarize and normalize that contract for public Ralph-facing surfaces.
 
 ```
 agents/ralph-v2/
@@ -75,7 +75,7 @@ All subagents load their behaviour from shared `instructions/` files. The GitHub
 | `ralph-v2-planner.instructions.md`      | Planner modes: INITIALIZE, TASK_BREAKDOWN, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE | ~28K          |
 | `ralph-v2-questioner.instructions.md`   | Questioner modes: brainstorm, research, feedback-analysis                                                 | ~16K          |
 | `ralph-v2-executor.instructions.md`     | Executor — task implementation, signal polling, report structure                                          | ~12K          |
-| `ralph-v2-reviewer.instructions.md`     | Reviewer modes: TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                         | ~26K          |
+| `ralph-v2-reviewer.instructions.md`     | Reviewer modes: TASK_REVIEW, ITERATION_REVIEW, SESSION_REVIEW, COMMIT, TIMEOUT_FAIL                       | ~26K          |
 | `ralph-v2-librarian.instructions.md`    | Librarian modes: EXTRACT, STAGE, PROMOTE, COMMIT                                                          | ~27K          |
 
 > **No CLI-trimmed variants**: Previously `ralph-v2-reviewer.cli-embed.instructions.md` and `ralph-v2-librarian.cli-embed.instructions.md` existed as trimmed CLI variants. These are now eliminated — all agents embed from the consolidated instruction files, which have been compressed to fit within the 30K CLI body limit.
@@ -123,15 +123,24 @@ VS Code publish builds `plugins/vscode/.build/ralph-v2/` and registers that runt
 
 Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should only be used if the required skills have already been published separately.
 
+### Version Governance
+
+Ralph-v2 now uses one workflow-version contract across source and published artifacts:
+
+- The canonical Ralph workflow version is the shared `version` frontmatter carried by the source Ralph agent wrapper files.
+- The source CLI and VS Code `plugin.json` manifests mirror that workflow version for readability.
+- Build and publish automation stamp bundled plugin manifests from the canonical workflow version before publication.
+- Channel naming remains orthogonal to versioning: beta and stable may change bundle identity, but they do not suffix or derive the workflow version.
+
 ### Agent Reference
 
 | Agent            | Role           | Modes                                                                                      | Key Responsibilities                                                                                       |
 | ---------------- | -------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| **Orchestrator** | Routing        | —                                                                                          | State machine transitions, subagent invocation, `.ralph-sessions/<SESSION_ID>/metadata.yaml` ownership, signal routing |
-| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, TASK_CREATE, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN | Plan creation, validated task inventory, single-task task-file materialization, wave dependency reasoning, replanning |
+| **Orchestrator** | Routing        | —                                                                                          | State machine transitions, concurrency SSOT, ordered handoffs, `.ralph-sessions/<SESSION_ID>/metadata.yaml` ownership, signal routing |
+| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, TASK_CREATE, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN | Plan creation, validated task inventory, single-task task-file materialization, wave dependency reasoning, critique-loop replanning |
 | **Questioner**   | Discovery      | brainstorm, research, feedback-analysis                                                    | Q&A generation, research, feedback analysis                                                                |
 | **Executor**     | Implementation | —                                                                                          | Task execution, design-time validation (build/lint/tests)                                                  |
-| **Reviewer**     | Quality        | TASK_REVIEW, COMMIT, SESSION_REVIEW, TIMEOUT_FAIL                                          | Code review, atomic commits (hunk-level staging), post-knowledge iteration review under the retained `SESSION_REVIEW` mode name, `## Live Signals` normalization in `progress.md` |
+| **Reviewer**     | Quality        | TASK_REVIEW, ITERATION_REVIEW, SESSION_REVIEW, COMMIT, TIMEOUT_FAIL                        | Task review, blocking post-knowledge iteration review, final session retrospective, atomic commits, `## Live Signals` normalization in `progress.md` |
 | **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                    | Knowledge extraction (iteration-scoped), durable staging, wiki promotion (workspace-scoped) |
 
 ### Ownership Model
@@ -197,40 +206,63 @@ Each iteration is **self-contained** — all mutable artifacts live inside `iter
 
 ```
 INITIALIZING ─── Planner (INITIALIZE) creates session structure
-       │
-       ▼
-   PLANNING ──── Questioner (brainstorm/research) → Planner (TASK_BREAKDOWN) → Planner (TASK_CREATE per queued task)
-       │
-       ▼
-   BATCHING ──── Build waves after all required task files from the Planner queue exist
-       │
-       ▼
-EXECUTING_BATCH ── Executor runs tasks → marks [P]
-       │
-       ▼
-REVIEWING_BATCH ── Reviewer validates → [x] + COMMIT or [F]
-       │              │
-       │              └── loops back to BATCHING until all waves done
-       ▼
-KNOWLEDGE_EXTRACTION ── Librarian auto-sequences: EXTRACT → STAGE → PROMOTE
-       │                    │
-    │                    ├── EXTRACT: iteration artifacts → iterations/<N>/knowledge/
-    │                    ├── 0 items extracted → skip to SESSION_REVIEW
-         │                    ├── STAGE: iterations/<N>/knowledge/ → session knowledge/ (merge; rewrite durable provenance)
-         │                    ├── PROMOTE: session knowledge/ → .docs/ (auto-promote default; publish stable repo-facing provenance)
-    │                    └── Skip-promotion INFO signal at PROMOTE → SESSION_REVIEW (staged kept)
+    │
     ▼
-SESSION_REVIEW ── Reviewer (SESSION_REVIEW) → iteration-scoped review.md
-       ▼
-   COMPLETE ──── All tasks [x]/[C], or awaiting feedback
-       │
-    ▼ (human provides `iterations/<N+1>/feedbacks/<timestamp>/`)
-  REPLANNING ──── Planner triages → Questioner → Planner → back to BATCHING
+   PLANNING ──── Questioner (brainstorm/research) → Planner (TASK_BREAKDOWN) → Planner (TASK_CREATE per queued task)
+    │
+    ▼
+   BATCHING ──── Orchestrator selects the next incomplete wave after task dependencies are satisfied
+    │
+    ▼
+EXECUTING_BATCH ── Executor runs same-wave tasks whose dependency guards are satisfied
+    │
+    ▼
+REVIEWING_BATCH ── Reviewer runs TASK_REVIEW across distinct pending tasks → COMMIT remains ordered per qualified task
+    │
+    └── loops back to BATCHING until all waves are closed
+    ▼
+KNOWLEDGE_EXTRACTION ── Librarian auto-sequences EXTRACT → STAGE → PROMOTE
+    │                    ├── EXTRACT: iteration artifacts → `iterations/<N>/knowledge/`
+    │                    ├── STAGE: iteration knowledge → session `knowledge/`
+    │                    ├── PROMOTE: session knowledge → `.docs/`
+    │                    └── Skip or zero-item paths still close the knowledge pipeline before review
+    ▼
+ITERATION_REVIEW ── Reviewer (ITERATION_REVIEW) writes `iterations/<N>/review.md`
+    │
+    ├── no active issues or critique cap reached → COMPLETE
+    └── active issues remain → ITERATION_CRITIQUE_REPLAN
+                     │
+                     ▼
+                Planner triages critique gaps → optional Questioner support → Planner breaks down follow-up work → BATCHING
+
+COMPLETE ─── iteration is closed and waiting for feedback or an explicit final retrospective
+    │
+    ├── feedback arrives → REPLANNING
+    └── final retrospective requested → SESSION_REVIEW
+                          │
+                          ▼
+                    Reviewer (SESSION_REVIEW) writes `.ralph-sessions/<SESSION_ID>/session-review.md`
+                          │
+                          ▼
+                          COMPLETE
 ```
 
+**Concurrency boundaries:**
+- Orchestration is the source of truth for parallel-safe versus sequential work.
+- Planner remains sequential except for `TASK_CREATE`, which may fan out only after `TASK_BREAKDOWN` or critique planning has already produced the queued task inventory.
+- Questioner remains sequential.
+- Executor parallelism is limited to same-wave tasks whose dependency guards are already satisfied.
+- Reviewer may parallelize `TASK_REVIEW` across distinct tasks in the same wave, but `COMMIT`, `ITERATION_REVIEW`, and `SESSION_REVIEW` remain sequential.
+- Librarian remains sequential across `EXTRACT -> STAGE -> PROMOTE -> ITERATION_REVIEW`.
+
+**Review semantics:**
+- `ITERATION_REVIEW` is the blocking, post-knowledge gate for the current iteration.
+- `SESSION_REVIEW` is the optional session-scoped retrospective after iteration work is already closed.
+- `ITERATION_CRITIQUE_REPLAN` is the critique-loop state that generates follow-up work from iteration-review findings.
+
 **Replanning routes:**
-- `full-replanning` — Questioner (feedback-analysis, research) → Planner (UPDATE, REBREAKDOWN) → BATCHING
-- `knowledge-promotion` — Fast-path from KNOWLEDGE_EXTRACTION: Librarian (PROMOTE) → COMPLETE
+- `full-replanning` — Questioner (`feedback-analysis`, research) → Planner (`UPDATE`, `REBREAKDOWN`) → BATCHING
+- `knowledge-promotion` — Fast-path from REPLANNING: Librarian (`PROMOTE`) → COMPLETE
 
 ---
 
