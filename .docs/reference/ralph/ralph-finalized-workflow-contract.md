@@ -6,9 +6,9 @@ source_artifacts:
   - agents/ralph-v2/instructions/ralph-v2-reviewer.instructions.md
   - agents/ralph-v2/README.md
   - agents/ralph-v2/specs/normalization.spec.md
-extracted_at: 2026-03-09T10:55:16+07:00
+extracted_at: 2026-03-09T12:34:25+07:00
 promoted: true
-promoted_at: 2026-03-09T11:00:21.9466240+07:00
+promoted_at: 2026-03-09T12:34:25+07:00
 ---
 
 # Ralph finalized workflow contract
@@ -30,7 +30,7 @@ This reference captures the durable Ralph-v2 workflow contract so later staging 
 - Questioner runs sequentially.
 - Executors may run in parallel only for same-wave tasks after dependency guards are satisfied.
 - Reviewer task reviews may run in parallel across distinct pending tasks in the same wave, but `TASK_REVIEW -> COMMIT` remains sequential per task.
-- Librarian knowledge work is sequential and follows `EXTRACT -> STAGE -> PROMOTE -> ITERATION_REVIEW`.
+- Librarian knowledge work is sequential and follows `EXTRACT -> STAGE -> PROMOTE -> COMMIT -> ITERATION_REVIEW`.
 
 ## Review artifact boundaries
 
