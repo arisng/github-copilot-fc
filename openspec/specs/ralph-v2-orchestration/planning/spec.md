@@ -25,8 +25,8 @@ The Planning Role operates in exactly nine modes. Each mode is invoked by the Or
 | 5 | **SPLIT_TASK** | Timeout Recovery (ORCH-020) | Decompose a single oversized Task Definition Record into smaller sub-records after repeated execution timeouts |
 | 6 | **UPDATE_METADATA** | Any state | Update the Session State Store with status, timestamp, and iteration changes |
 | 7 | **REPAIR_STATE** | Schema Validation failure (ORCH-023) | Reconstruct malformed or missing Progress Tracker and Session State Store artifacts |
-| 8 | **CRITIQUE_TRIAGE** | SESSION_CRITIQUE_REPLAN (ORCH-027 step 1) | Analyze the Iteration Review Report and determine whether brainstorm or research cycles are needed before critique breakdown |
-| 9 | **CRITIQUE_BREAKDOWN** | SESSION_CRITIQUE_REPLAN (ORCH-027 step 4) | Create gap-filling Task Definition Records from issues identified in the Iteration Review Report |
+| 8 | **CRITIQUE_TRIAGE** | ITERATION_CRITIQUE_REPLAN (ORCH-027 step 1) | Analyze the Iteration Review Report and determine whether brainstorm or research cycles are needed before critique breakdown |
+| 9 | **CRITIQUE_BREAKDOWN** | ITERATION_CRITIQUE_REPLAN (ORCH-027 step 4) | Create gap-filling Task Definition Records from issues identified in the Iteration Review Report |
 
 ## Requirements
 
@@ -131,7 +131,7 @@ When invoked in REPAIR_STATE mode (per ORCH-023), the Planning Role MUST:
 ### CRITIQUE_TRIAGE Mode
 
 #### PLAN-017: Issue Analysis and Routing
-When invoked in CRITIQUE_TRIAGE mode within SESSION_CRITIQUE_REPLAN (per ORCH-027), the Planning Role MUST:
+When invoked in CRITIQUE_TRIAGE mode within ITERATION_CRITIQUE_REPLAN (per ORCH-027), the Planning Role MUST:
 1. Read the Iteration Review Report and extract all issues grouped by severity.
 2. Group issues by theme or component to identify logical fix batches.
 3. Determine whether brainstorm or research cycles are needed:
@@ -146,7 +146,7 @@ The CRITIQUE_TRIAGE mode MUST return a structured response indicating: the curre
 ### CRITIQUE_BREAKDOWN Mode
 
 #### PLAN-019: Gap-Filling Record Creation
-When invoked in CRITIQUE_BREAKDOWN mode within SESSION_CRITIQUE_REPLAN (per ORCH-027 step 4), the Planning Role MUST:
+When invoked in CRITIQUE_BREAKDOWN mode within ITERATION_CRITIQUE_REPLAN (per ORCH-027 step 4), the Planning Role MUST:
 1. Re-parse all issues from the Iteration Review Report.
 2. If Discovery Records from the current critique cycle exist, read them for additional context.
 3. Group issues into logical fix batches (typically 1–4 records per cycle).
@@ -401,7 +401,7 @@ AND after repair, the Orchestration Role exits the current turn
 ### SC-PLAN-013: CRITIQUE_TRIAGE — Issue Analysis
 **Validates**: PLAN-017, PLAN-018
 ```
-GIVEN the system is in SESSION_CRITIQUE_REPLAN (per ORCH-027)
+GIVEN the system is in ITERATION_CRITIQUE_REPLAN (per ORCH-027)
 AND the Iteration Review Report contains 3 critical issues spanning multiple domains
 WHEN the Planning Role is invoked in CRITIQUE_TRIAGE mode
 THEN it groups the issues by theme
@@ -424,7 +424,7 @@ AND the Orchestration Role proceeds directly to CRITIQUE_BREAKDOWN (per ORCH-027
 ### SC-PLAN-015: CRITIQUE_BREAKDOWN — Gap-Filling Record Creation
 **Validates**: PLAN-019, PLAN-020, PLAN-021
 ```
-GIVEN the system is in SESSION_CRITIQUE_REPLAN after triage and optional discovery cycles
+GIVEN the system is in ITERATION_CRITIQUE_REPLAN after triage and optional discovery cycles
 AND 3 issues have been triaged into 2 logical fix batches
 WHEN the Planning Role is invoked in CRITIQUE_BREAKDOWN mode
 THEN it creates 2 Task Definition Records within the current Iteration Container

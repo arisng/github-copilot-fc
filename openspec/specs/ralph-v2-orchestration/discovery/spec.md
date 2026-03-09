@@ -18,8 +18,8 @@ The Discovery Role operates in exactly three modes. Each mode is invoked by the 
 
 | # | Mode | Invoked From | Purpose |
 |---|---|---|---|
-| 1 | **BRAINSTORM** | PLANNING (ORCH-005), SESSION_CRITIQUE_REPLAN (ORCH-027 step 2) | Generate questions across a designated category to identify knowledge gaps |
-| 2 | **RESEARCH** | PLANNING (ORCH-005), SESSION_CRITIQUE_REPLAN (ORCH-027 step 3) | Answer unanswered questions with evidence-based findings, source citations, and confidence levels |
+| 1 | **BRAINSTORM** | PLANNING (ORCH-005), ITERATION_CRITIQUE_REPLAN (ORCH-027 step 2) | Generate questions across a designated category to identify knowledge gaps |
+| 2 | **RESEARCH** | PLANNING (ORCH-005), ITERATION_CRITIQUE_REPLAN (ORCH-027 step 3) | Answer unanswered questions with evidence-based findings, source citations, and confidence levels |
 | 3 | **FEEDBACK_ANALYSIS** | REPLANNING (ORCH-013) | Analyze Feedback Collection artifacts to produce actionable questions that drive the iterating pipeline |
 
 ## Question Categories
@@ -34,9 +34,9 @@ The Discovery Role organizes questions into a fixed taxonomy. Each category targ
 | 4 | **Assumptions** | Q-ASM | Unstated beliefs, implicit dependencies, preconditions |
 | 5 | **Risks** | Q-RSK | Failure modes, edge cases, external dependencies |
 | 6 | **Feedback-Driven** | Q-FDB | Root causes, fixes, and prevention items extracted from Feedback Collection |
-| 7 | **Critique** | Q-CRT | Knowledge gaps extracted from Iteration Review Report issues during SESSION_CRITIQUE_REPLAN |
+| 7 | **Critique** | Q-CRT | Knowledge gaps extracted from Iteration Review Report issues during ITERATION_CRITIQUE_REPLAN |
 
-Categories 1–5 are standard categories used in BRAINSTORM mode during PLANNING. Category 6 is produced exclusively by FEEDBACK_ANALYSIS mode during iterating, while the normative orchestration state name remains REPLANNING. Category 7 is produced by BRAINSTORM mode when invoked with a critique source during SESSION_CRITIQUE_REPLAN (per ORCH-027 step 2).
+Categories 1–5 are standard categories used in BRAINSTORM mode during PLANNING. Category 6 is produced exclusively by FEEDBACK_ANALYSIS mode during iterating, while the normative orchestration state name remains REPLANNING. Category 7 is produced by BRAINSTORM mode when invoked with a critique source during ITERATION_CRITIQUE_REPLAN (per ORCH-027 step 2).
 
 ## Requirements
 
@@ -258,7 +258,7 @@ AND returns a completed status without generating questions
 ### SC-DISC-004: BRAINSTORM — Critique Source Override
 **Validates**: DISC-003, DISC-010, DISC-013
 ```
-GIVEN the system is in SESSION_CRITIQUE_REPLAN and the Iteration Review Report contains 2 critical and 1 major issue
+GIVEN the system is in ITERATION_CRITIQUE_REPLAN and the Iteration Review Report contains 2 critical and 1 major issue
 AND the Orchestration Role invokes BRAINSTORM mode with a critique source and cycle 1
 WHEN the Discovery Role reads the Iteration Review Report
 THEN it uses the issue descriptions as knowledge-gap seeds instead of analyzing the Iteration Plan
