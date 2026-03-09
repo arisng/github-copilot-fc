@@ -142,8 +142,9 @@ Below is an expanded, pick-and-choose list of potential hook integrations. Each 
 25. 🟡 **Replanning Trigger Guard** `P1`
 	- When feedbacks are detected, require a valid `feedbacks.md` before entering REPLANNING.
 
-26. 🟡 **Session Review Gate** `P1`
-	- Block SESSION_REVIEW if any tasks remain `[ ]`, `[/]`, or `[P]`.
+26. 🟡 **Iteration Review Gate** `P1`
+  - Block ITERATION_REVIEW if any tasks remain `[ ]`, `[/]`, or `[P]`, or if iteration live signals are not yet finalized.
+  - Treat `iterations/<N>/review.md` as the iteration gate artifact; reserve `.ralph-sessions/<SESSION_ID>/session-review.md` for the separate end-of-session retrospective.
 
 ### Feedback Intake
 
@@ -599,7 +600,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Signal message must be non-empty" }
 | 22  | Retry Budget Guard           | Error Occurred    | Recovery — prevents infinite retries               |
 | 23  | Failure Snapshot             | Error Occurred    | Recovery — preserves failure context               |
 | 25  | Replanning Trigger Guard     | State Transition* | Workflow correctness — prevents invalid replanning |
-| 26  | Session Review Gate          | State Transition* | Workflow correctness — prevents premature review   |
+| 26  | Iteration Review Gate        | State Transition* | Workflow correctness — prevents premature iteration closure |
 
 *\* Items 25-26 are state transition guards implemented in the Orchestrator, not native Copilot Hooks.*
 

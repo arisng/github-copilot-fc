@@ -10,18 +10,19 @@ updated_at: 2026-03-02T16:31:00+07:00
 
 ## Purpose
 
-This specification defines the behavioral contracts for the Review Role — the role responsible for validating task implementations, producing iteration-wide assessments, persisting qualified changes, and handling execution failures. It establishes four review modes, three review dimensions, the verdict system, the workload inference protocol, the change persistence model, the session review lifecycle, and the cross-agent normalization checklist. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), the Signal protocol (SIG- prefix), and references Execution outputs (EXEC- prefix) and Planning structures (PLAN- prefix).
+This specification defines the behavioral contracts for the Review Role — the role responsible for validating task implementations, producing iteration-wide assessments, persisting qualified changes, and handling execution failures. It establishes five review modes, three review dimensions, the verdict system, the workload inference protocol, the change persistence model, the iteration review gate, the session retrospective lifecycle, and the cross-agent normalization checklist. This specification depends on Session vocabulary (SES- prefix), Orchestration routing (ORCH- prefix), the Signal protocol (SIG- prefix), and references Execution outputs (EXEC- prefix) and Planning structures (PLAN- prefix).
 
 ## Review Modes
 
-The Review Role operates in exactly four modes. Each mode is invoked by the Orchestration Role from a specific state. The Review Role MUST accept exactly one mode per invocation (per SES-022).
+The Review Role operates in exactly five modes. Each mode is invoked by the Orchestration Role from a specific state. The Review Role MUST accept exactly one mode per invocation (per SES-022).
 
 | # | Mode | Invoked From | Purpose |
 |---|---|---|---|
 | 1 | **TASK_REVIEW** | REVIEWING_BATCH (ORCH-008) | Validate a single task implementation against its Task Definition Record and produce a verdict |
-| 2 | **SESSION_REVIEW** | SESSION_REVIEW (ORCH-009) | Produce the Iteration Review Report — a holistic assessment of iteration outcomes with issue counts by severity |
-| 3 | **COMMIT** | REVIEWING_BATCH (ORCH-031) | Persist qualified task changes atomically with sub-artifact-level selective staging and conventional labeling |
-| 4 | **TIMEOUT_FAIL** | REVIEWING_BATCH (ORCH-019) | Mark a task as failed when the Execution Role timed out or crashed and no Task Report was produced |
+| 2 | **ITERATION_REVIEW** | ITERATION_REVIEW (ORCH-009) | Produce the blocking Iteration Review Report — a holistic assessment of the current iteration after knowledge work completes |
+| 3 | **SESSION_REVIEW** | SESSION_REVIEW (T14/T15) | Produce the final session-scoped retrospective after iteration work is already closed |
+| 4 | **COMMIT** | REVIEWING_BATCH (ORCH-031) | Persist qualified task changes atomically with sub-artifact-level selective staging and conventional labeling |
+| 5 | **TIMEOUT_FAIL** | REVIEWING_BATCH (ORCH-019) | Mark a task as failed when the Execution Role timed out or crashed and no Task Report was produced |
 
 ## Review Dimensions
 
@@ -38,7 +39,7 @@ Every TASK_REVIEW evaluation applies exactly three dimensions. Each dimension pr
 ### Mode Enumeration
 
 #### REV-001: Recognized Review Mode Set
-The Review Role MUST recognize exactly four modes: TASK_REVIEW, SESSION_REVIEW, COMMIT, and TIMEOUT_FAIL. Any request specifying a mode not in this set MUST be rejected.
+The Review Role MUST recognize exactly five modes: TASK_REVIEW, ITERATION_REVIEW, SESSION_REVIEW, COMMIT, and TIMEOUT_FAIL. Any request specifying a mode not in this set MUST be rejected.
 
 #### REV-002: Single-Mode Invocation Constraint
 The Review Role MUST accept exactly one mode and exactly one task per invocation (per SES-022). A request that specifies multiple modes or multiple tasks in a single invocation MUST be rejected.
@@ -149,12 +150,21 @@ The Review Role MUST select validation actions appropriate to the inferred workl
 #### REV-022: Documentation Workload Guardrail
 When the inferred workload type is Documentation, the Review Role MUST NOT invoke interactive runtime tools (browser automation, UI testing frameworks). Validation MUST be limited to inspection-based checks: structural accuracy, reference validity, content completeness, and criterion satisfaction.
 
-### SESSION_REVIEW Mode
+### ITERATION_REVIEW Mode
 
-#### REV-023: Session Review Scope
-In SESSION_REVIEW mode, the Review Role MUST assess the entire iteration holistically — not individual tasks. The assessment compares all task outcomes against the Iteration Plan goals to identify gaps, unaddressed issues, and quality patterns across the iteration.
+#### REV-023: Iteration Review Scope
+In ITERATION_REVIEW mode, the Review Role MUST assess the current iteration holistically — not individual tasks. The assessment compares all task outcomes against the Iteration Plan goals to identify gaps, unaddressed issues, and quality patterns across the iteration.
 
-#### REV-024: Artifact Reading — Iteration-Wide
+#### REV-024: Blocking Checklist
+Before the Review Role may assess the iteration as Complete, it MUST execute a blocking checklist covering at least the following items:
+1. No task in the current iteration remains `[ ]`, `[/]`, or `[P]` in the Progress Tracker.
+2. Every non-cancelled task has a Task Report with both Part 1 and Part 2 present.
+3. The knowledge pipeline outcome is explicitly evidenced as completed or skipped.
+4. Iteration-relevant live signals are finalized, and the normalized `## Live Signals` section in the Progress Tracker reflects that final state.
+
+If any blocking checklist item fails, the iteration assessment MUST be Needs Rework and iteration closure MUST be denied.
+
+#### REV-025: Artifact Reading — Iteration-Wide
 The Review Role MUST read the following artifacts before producing the Iteration Review Report:
 1. The Iteration Plan for the current iteration.
 2. All Task Reports (both Part 1 and Part 2) within the Iteration Container.
@@ -164,11 +174,11 @@ The Review Role MUST read the following artifacts before producing the Iteration
 6. The Iteration State Store for the current iteration.
 7. The current iteration's knowledge artifacts and any staging or promotion evidence tied to the iteration, if present.
 
-#### REV-025: Goal Achievement Assessment
+#### REV-026: Goal Achievement Assessment
 The Review Role MUST evaluate each success criterion listed in the Iteration Plan and classify it as one of: Achieved (fully satisfied with evidence), Partial (partially satisfied with documented gaps), or Not Achieved (not satisfied with impact assessment). The assessment MUST include the count of goals achieved out of the total.
 
-#### REV-026: Issue Severity Classification
-The Review Role MUST categorize all issues identified during the session review into exactly three severity levels:
+#### REV-027: Issue Severity Classification
+The Review Role MUST categorize all issues identified during the iteration review into exactly three severity levels:
 
 | Severity | Definition |
 |---|---|
@@ -178,31 +188,52 @@ The Review Role MUST categorize all issues identified during the session review 
 
 Each issue MUST carry a unique identity, a description, the originating task reference, and an impact statement.
 
-#### REV-027: Iteration Review Report Structure
+#### REV-028: Iteration Review Report Structure
 The Review Role MUST produce the Iteration Review Report (per SES-012 ownership) with the following mandatory sections:
 1. **Metadata** — iteration number, review timestamp, overall verdict, session reference.
 2. **Executive Summary** — overview of iteration results (2–3 sentences).
-3. **Iteration Summary** — table of all tasks with verdict, persistence status, and key issues.
-4. **Goal Achievement** — table mapping each Iteration Plan success criterion to its achievement status with evidence.
-5. **Quality Assessment** — rated metrics for structural quality, cross-agent consistency, validation coverage, documentation completeness, and success criteria coverage.
-6. **Issues Found** — categorized by severity (Critical, Major, Minor) with unique identities.
-7. **Cross-Agent Consistency** — results of the Cross-Agent Normalization Checklist (per REV-038).
-8. **Persistence Summary** — table of persisted changes per task with identifiers and labels.
-9. **Knowledge Artifacts** — knowledge items extracted, staged, or promoted during the iteration, including skipped or empty-pipeline evidence when applicable.
-10. **Feedback Loop Effectiveness** — counts of feedback batches processed, issues resolved, issues remaining, and rework cycles.
-11. **Recommendations** — actionable items for the next iteration or session closure.
-12. **Next Actions** — recommended next step (continue, replan, or complete) with rationale. This section is advisory only; the Orchestration Role retains routing authority.
+3. **Blocking Checklist** — pass/fail status for task completion, task review coverage, knowledge pipeline completion, live-signal completion, and artifact readiness.
+4. **Iteration Summary** — table of all tasks with verdict, persistence status, and key issues.
+5. **Goal Achievement** — table mapping each Iteration Plan success criterion to its achievement status with evidence.
+6. **Quality Assessment** — rated metrics for structural quality, cross-agent consistency, validation coverage, documentation completeness, and success criteria coverage.
+7. **Issues Found** — categorized by severity (Critical, Major, Minor) with unique identities.
+8. **Cross-Agent Consistency** — results of the Cross-Agent Normalization Checklist (per REV-043).
+9. **Persistence Summary** — table of persisted changes per task with identifiers and labels.
+10. **Knowledge Artifacts** — knowledge items extracted, staged, or promoted during the iteration, including skipped or empty-pipeline evidence when applicable.
+11. **Feedback Loop Effectiveness** — counts of feedback batches processed, issues resolved, issues remaining, and rework cycles.
+12. **Recommendations** — actionable items for the next iteration or session closure.
+13. **Next Actions** — recommended next step (continue, replan, or complete) with rationale. This section is advisory only; the Orchestration Role retains routing authority.
 
-#### REV-028: Session Review Output
-Upon completing the Iteration Review Report, the Review Role MUST return to the Orchestration Role: the assessment (Complete or Needs Rework), the issue counts by severity (critical, major, minor, total), and the path to the review document. The report MUST reflect the post-knowledge iteration state. The Orchestration Role uses these counts with the configured severity threshold (per ORCH-024) to determine whether to enter the critique self-loop (per ORCH-009). The Review Role MUST NOT encode routing decisions inside the Iteration Review Report.
+#### REV-029: Iteration Review Output
+Upon completing the Iteration Review Report, the Review Role MUST return to the Orchestration Role: the assessment (Complete or Needs Rework), the issue counts by severity (critical, major, minor, total), the critique cycle counter echo when provided, and the path to the review document. The report MUST reflect the post-knowledge iteration state. The Orchestration Role uses these counts with the configured severity threshold (per ORCH-024) to determine whether to enter the critique self-loop (per ORCH-009). The Review Role MUST NOT encode routing decisions inside the Iteration Review Report.
 
-#### REV-029: Assessment Derivation
+#### REV-030: Assessment Derivation
 The assessment value MUST be derived as follows:
-- **Complete** — the Issues Found section contains zero issues across all severity levels.
-- **Needs Rework** — at least one issue exists in any severity category.
+- **Complete** — the Issues Found section contains zero issues across all severity levels and every blocking checklist item passes.
+- **Needs Rework** — at least one issue exists in any severity category, or any blocking checklist item fails.
 
-#### REV-030: Critique Cycle Awareness
-The SESSION_REVIEW invocation MAY include a critique cycle counter from the Orchestration Role. The Review Role MUST echo this counter in its output. The Review Role MUST NOT use the counter to influence its assessment — it reports issues objectively and lets the Orchestration Role apply threshold logic (per ORCH-024, ORCH-025, ORCH-026).
+#### REV-030A: Critique Cycle Awareness
+The ITERATION_REVIEW invocation MAY include a critique cycle counter from the Orchestration Role. The Review Role MUST echo this counter in its output. The Review Role MUST NOT use the counter to influence its assessment — it reports issues objectively and lets the Orchestration Role apply threshold logic (per ORCH-024, ORCH-025, ORCH-026).
+
+### SESSION_REVIEW Mode
+
+#### REV-030B: Session Retrospective Scope
+In SESSION_REVIEW mode, the Review Role MUST produce a session-scoped retrospective after iteration work is already closed. This retrospective is distinct from the Iteration Review Report and MUST NOT be used to reopen or replace the iteration gate.
+
+#### REV-030C: Session Retrospective Inputs
+Before producing the session retrospective, the Review Role MUST read the Session State Store, the current session instructions, and each completed iteration's Iteration Plan, Progress Tracker, and Iteration Review Report in numeric order. Task Reports MAY be consulted only when needed to clarify material risks or notable outcomes.
+
+#### REV-030D: Session Retrospective Structure
+The session retrospective artifact MUST be written at session scope and remain minimal and pragmatic. It MUST contain, in order:
+1. **Executive Summary** — concise whole-session assessment first.
+2. **Iteration Drill-Down** — ordered iteration summaries from iteration 1 through the current completed iteration.
+3. **Follow-Up** — only when material cross-iteration risks or actions remain.
+
+#### REV-030E: Session Retrospective Output
+Upon completing SESSION_REVIEW, the Review Role MUST return: status (completed), mode (SESSION_REVIEW), assessment (Stable or Follow-Up Suggested), completed-iteration count, and the path to the session-scoped retrospective artifact. The output MUST summarize the final session state and MUST NOT include routing directives.
+
+#### REV-030F: Session Retrospective Artifact Boundary
+The Iteration Review Report MUST remain at `iterations/<N>/review.md`. The session-scoped retrospective MUST be a separate artifact at session scope and MUST NOT overwrite or alias the iteration review report path.
 
 ### COMMIT Mode
 
@@ -272,7 +303,7 @@ The Review Role MUST update the Progress Tracker to mark the task as failed (per
 ### Cross-Agent Normalization Checklist
 
 #### REV-042: Normalization Checklist Application
-During SESSION_REVIEW mode, the Review Role MUST execute the Cross-Agent Normalization Checklist to detect consistency regressions across all role artifacts within the iteration scope. The checklist results MUST be recorded in the Cross-Agent Consistency section of the Iteration Review Report (per REV-027, section 7).
+During ITERATION_REVIEW mode, the Review Role MUST execute the Cross-Agent Normalization Checklist to detect consistency regressions across all role artifacts within the iteration scope. The checklist results MUST be recorded in the Cross-Agent Consistency section of the Iteration Review Report (per REV-028, section 8).
 
 #### REV-043: Seven Consistency Checks
 The Cross-Agent Normalization Checklist MUST include exactly seven checks:
@@ -304,8 +335,11 @@ After computing the verdict and before finalizing the Progress Tracker update, t
 - **PAUSE** — wait for resumption.
 - **INFO** — log to context.
 
-#### REV-047: Session Review Signal Poll
-At the start of SESSION_REVIEW mode, the Review Role MUST poll the Signal Channel. ABORT signals MUST cause immediate exit. PAUSE signals MUST cause the role to wait. INFO signals MUST be injected into the review context. STEER signals MUST be logged and applied to the review evaluation.
+#### REV-047: Iteration Review Signal Poll
+At the start of ITERATION_REVIEW mode, the Review Role MUST poll the Signal Channel. ABORT signals MUST cause immediate exit. PAUSE signals MUST cause the role to wait. INFO signals MUST be injected into the review context. STEER signals MUST be logged and applied to the review evaluation.
+
+#### REV-047A: Session Retrospective Signal Poll
+At the start of SESSION_REVIEW mode, the Review Role MUST poll the Signal Channel. ABORT signals MUST cause immediate exit. PAUSE signals MUST cause the role to wait. INFO signals MUST be injected into the retrospective context. STEER signals MUST be logged and applied to the retrospective evaluation.
 
 ### Capability Discovery
 
@@ -320,11 +354,17 @@ The Review Role in TASK_REVIEW mode MUST accept input consisting of: Session Ref
 #### REV-050: TASK_REVIEW Output Contract
 Upon completing TASK_REVIEW, the Review Role MUST return: status (completed), mode (TASK_REVIEW), verdict (PASS, FAIL, or PASS_WITH_NOTES), Task Identifier, Iteration, criteria results (total, met, not-met counts), feedback resolution (issues checked, resolved, not resolved — present only when iteration is greater than 1), path to the updated Task Report, rework guidance (present only when verdict is FAIL), and an optional next-role suggestion with a forwarded message (per ORCH-016).
 
-#### REV-051: SESSION_REVIEW Input Contract
-The Review Role in SESSION_REVIEW mode MUST accept input consisting of: Session Reference, mode identifier, Iteration, optional critique cycle counter, and optional Orchestrator Context. The invocation occurs after the KNOWLEDGE_EXTRACTION state has either completed or been skipped.
+#### REV-051: ITERATION_REVIEW Input Contract
+The Review Role in ITERATION_REVIEW mode MUST accept input consisting of: Session Reference, mode identifier, Iteration, optional critique cycle counter, and optional Orchestrator Context. The invocation occurs after the KNOWLEDGE_EXTRACTION state has either completed or been skipped.
 
-#### REV-052: SESSION_REVIEW Output Contract
-Upon completing SESSION_REVIEW, the Review Role MUST return: status (completed), mode (SESSION_REVIEW), critique cycle counter echo, assessment (Complete or Needs Rework), issue counts by severity (critical, major, minor, total), and path to the Iteration Review Report. The output MUST summarize a post-knowledge assessment and MUST NOT include routing directives.
+#### REV-052: ITERATION_REVIEW Output Contract
+Upon completing ITERATION_REVIEW, the Review Role MUST return: status (completed), mode (ITERATION_REVIEW), critique cycle counter echo, assessment (Complete or Needs Rework), issue counts by severity (critical, major, minor, total), and path to the Iteration Review Report. The output MUST summarize a post-knowledge assessment and MUST NOT include routing directives.
+
+#### REV-052A: SESSION_REVIEW Input Contract
+The Review Role in SESSION_REVIEW mode MUST accept input consisting of: Session Reference, mode identifier, Iteration, and optional Orchestrator Context. The invocation occurs only after iteration work is otherwise closed and a final session retrospective was explicitly requested.
+
+#### REV-052B: SESSION_REVIEW Output Contract
+Upon completing SESSION_REVIEW, the Review Role MUST return: status (completed), mode (SESSION_REVIEW), assessment (Stable or Follow-Up Suggested), completed-iteration count, and the path to the session-scoped retrospective artifact. The output MUST summarize the final session state and MUST NOT include routing directives.
 
 #### REV-053: COMMIT Input Contract
 The Review Role in COMMIT mode MUST accept input consisting of: Session Reference, mode identifier, Task Identifier, path to the Task Report, Iteration, and optional Orchestrator Context.
@@ -342,8 +382,9 @@ Upon completing TIMEOUT_FAIL mode, the Review Role MUST return: status (complete
 After any non-error invocation, the following MUST hold:
 1. The Progress Tracker reflects the updated status of the reviewed task (TASK_REVIEW, TIMEOUT_FAIL) or remains unchanged (SESSION_REVIEW, COMMIT).
 2. The Task Report contains Part 2 with the review verdict and findings (TASK_REVIEW, TIMEOUT_FAIL).
-3. The Iteration Review Report exists at the session level (SESSION_REVIEW).
-4. Validation artifacts, if any, are stored in the task-scoped verification area within the Iteration Container.
+3. The Iteration Review Report exists within the Iteration Container (ITERATION_REVIEW).
+4. The session-scoped retrospective exists at session scope when SESSION_REVIEW runs.
+5. Validation artifacts, if any, are stored in the task-scoped verification area within the Iteration Container.
 
 ## Scenarios
 
@@ -436,12 +477,13 @@ AND the Review Role uses interactive runtime tools for visual and behavioral che
 AND validation artifacts are saved in the task-scoped verification area within the Iteration Container
 ```
 
-### SC-REV-008: Session Review — Complete with No Issues
-**Validates**: REV-023, REV-024, REV-025, REV-027, REV-028, REV-029, REV-042, REV-051, REV-052
+### SC-REV-008: Iteration Review — Complete with No Issues
+**Validates**: REV-023, REV-024, REV-025, REV-026, REV-028, REV-029, REV-030, REV-042, REV-051, REV-052
 ```
 GIVEN all tasks in the iteration have PASS or PASS_WITH_NOTES verdicts
 AND all Iteration Plan goals are assessed as Achieved
-WHEN the Review Role executes SESSION_REVIEW
+AND the blocking checklist confirms task completion, task review coverage, knowledge completion, and live-signal completion
+WHEN the Review Role executes ITERATION_REVIEW
 THEN it reads all Task Reports, Task Definition Records, the Iteration Plan, and available knowledge-pipeline artifacts for the iteration
 AND produces the Iteration Review Report with all mandatory sections
 AND the Issues Found section contains zero entries across all severity levels
@@ -450,12 +492,12 @@ AND the role returns issue counts of zero for critical, major, and minor
 AND the Cross-Agent Normalization Checklist results are recorded in the report
 ```
 
-### SC-REV-009: Session Review — Issues Found Triggering Critique Loop
-**Validates**: REV-026, REV-028, REV-029, REV-030
+### SC-REV-009: Iteration Review — Issues Found Triggering Critique Loop
+**Validates**: REV-027, REV-029, REV-030, REV-030A
 ```
 GIVEN two tasks received PASS verdicts but one Iteration Plan goal is only partially achieved
 AND the Review Role identifies one major issue and two minor issues
-WHEN the Review Role completes SESSION_REVIEW
+WHEN the Review Role completes ITERATION_REVIEW
 THEN the Issues Found section lists the major issue under Major and the two minor issues under Minor
 AND the assessment is "Needs Rework"
 AND the role returns issue counts: critical=0, major=1, minor=2, total=3
@@ -463,10 +505,10 @@ AND the Orchestration Role receives these counts to evaluate against the severit
 AND the Review Role does NOT encode routing decisions in the Iteration Review Report
 ```
 
-### SC-REV-010: Session Review — Issue Severity Classification
-**Validates**: REV-026
+### SC-REV-010: Iteration Review — Issue Severity Classification
+**Validates**: REV-027
 ```
-GIVEN the Review Role identifies three issues during session review
+GIVEN the Review Role identifies three issues during iteration review
 AND issue A prevents the iteration goal from being met
 AND issue B significantly degrades the iteration outcome but does not prevent goal achievement
 AND issue C is a non-blocking style observation
@@ -475,6 +517,19 @@ THEN issue A is classified as Critical
 AND issue B is classified as Major
 AND issue C is classified as Minor
 AND each issue carries a unique identity, description, originating task reference, and impact statement
+```
+
+### SC-REV-010A: Session Retrospective — Minimal Executive-First Output
+**Validates**: REV-030B, REV-030C, REV-030D, REV-030E, REV-030F, REV-052A, REV-052B
+```
+GIVEN iteration work is already closed
+AND a final session retrospective is explicitly requested
+WHEN the Review Role executes SESSION_REVIEW
+THEN it reads the Session State Store plus completed iteration plans, progress trackers, and iteration review reports in numeric order
+AND writes a session-scoped retrospective artifact separate from `iterations/<N>/review.md`
+AND the retrospective starts with an Executive Summary
+AND the next section is an ordered Iteration Drill-Down
+AND the output returns the session retrospective path and a Stable or Follow-Up Suggested assessment
 ```
 
 ### SC-REV-011: COMMIT — Full Selective Persistence
@@ -604,7 +659,7 @@ AND returns a blocked status with a single-mode violation reason
 ### SC-REV-022: Cross-Agent Normalization — Version Drift Detected
 **Validates**: REV-042, REV-043
 ```
-GIVEN the SESSION_REVIEW has reached the Cross-Agent Normalization Checklist
+GIVEN the ITERATION_REVIEW has reached the Cross-Agent Normalization Checklist
 AND role artifact metadata shows two different version values across artifacts
 WHEN the Review Role executes check (a) Version Consistency
 THEN the check result is Fail
@@ -642,11 +697,11 @@ THEN the Review Role performs runtime validation regardless of the absence of an
 AND the Review Report's Validation Actions Performed section records the runtime checks executed
 ```
 
-### SC-REV-026: Session Review Signal — ABORT at Start
-**Validates**: REV-047
+### SC-REV-026: Session Retrospective Signal — ABORT at Start
+**Validates**: REV-047A
 ```
 GIVEN a pending ABORT signal exists in the Signal Channel
 WHEN the Review Role begins SESSION_REVIEW and polls the Signal Channel
 THEN the Review Role processes the ABORT signal and exits immediately
-AND no Iteration Review Report is produced
+AND no session-scoped retrospective artifact is produced
 ```
