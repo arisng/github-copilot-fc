@@ -66,3 +66,7 @@ Both loggers normalize this difference so the logged `tool_args` field is always
 |---------|-------------|------|---------------|
 | VS Code | `tool_input` | Object | Returned directly |
 | CLI | `toolArgs` | String | `ConvertFrom-JsonSafe` (PS) / `fromjson?` (Bash) |
+
+## Fallback Order Convention
+
+Snake_case (VS Code native) fields are checked first in the fallback order. This ensures that when both field sets are present (which shouldn't happen in practice), the runtime-native field wins. The pattern is consistent across all field lookups in both scripts.
