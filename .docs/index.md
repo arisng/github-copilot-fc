@@ -31,7 +31,11 @@ This index links Diátaxis-organized documentation for the workspace.
 ### Ralph
 
 - [Docs To Specs Migration](how-to/ralph/docs-to-specs-migration.md)
+- [How to Add a New Hook Event Type](how-to/ralph/how-to-add-hook-event-type.md)
+- [How to Debug Hook Payloads](how-to/ralph/how-to-debug-hook-payloads.md)
 - [How to extract iteration knowledge with Diátaxis](how-to/ralph/how-to-extract-iteration-knowledge-with-diataxis.md)
+- [How to Publish Hooks](how-to/ralph/how-to-publish-hooks.md)
+- [How to Test Hook Scripts Locally](how-to/ralph/how-to-test-hook-scripts-locally.md)
 - [Integrate Categorizer Into Promotion](how-to/ralph/integrate-categorizer-into-promotion.md)
 - [Self Contained Knowledge Promotion](how-to/ralph/self-contained-knowledge-promotion.md)
 - [V2.10.0 Migration Patterns](how-to/ralph/v2.10.0-migration-patterns.md)
