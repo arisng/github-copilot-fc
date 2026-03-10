@@ -210,6 +210,10 @@ IF no .ralph-sessions/<SESSION_ID>/ exists:
         EXIT with error "Session ID must follow format <YYMMDD>-<hhmmss>"
 ELSE:
     READ .ralph-sessions/<SESSION_ID>.instructions.md (if exists)
+    WRITE .ralph-sessions/<SESSION_ID>/.active-session with bare session ID (<SESSION_ID>)
+        # Resume-path pointer refresh (SES-004: single-session, pointer MUST identify active session)
+        # Planner INITIALIZE handles new-session writes; this covers resumed sessions
+        # Best-effort: stop-hook finalization is the crash-recovery safety net
     LOAD guardrails:
         - planning.max_cycles (default 5)
         - retries.max_subagent_retries (default 3)
@@ -574,6 +578,11 @@ ELSE:
 ### 9. State: COMPLETE
 
 ```
+# Clear .active-session pointer (SES-004: pointer MUST be cleared on session complete)
+# SES-003: only 3 statuses (in_progress, completed, awaiting_feedback) — no ABORTED/CANCELLED
+# Best-effort: stop-hook finalization is the crash-recovery safety net for incomplete cleanup
+DELETE .ralph-sessions/<SESSION_ID>/.active-session (if exists)
+
 # Finalize remaining broadcast signals before exit
 FOR each signal in signals/inputs/ where target == ALL:
     IF ack quorum met for ALL_RECIPIENTS:
