@@ -6,7 +6,10 @@ param(
     [switch]$Force,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SkipWSL
+    [switch]$SkipWSL,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$UserLevel
 )
 
 . "$PSScriptRoot/wsl-helpers.ps1"
@@ -124,15 +127,15 @@ function Publish-HookSet {
 function Publish-HooksToWorkspace {
     <#
     .SYNOPSIS
-        Publishes agent hook configurations to workspace and personal Copilot hook folders.
+        Publishes agent hook configurations to workspace hook folder, with optional user-level publishing.
 
     .DESCRIPTION
         Copies hook JSON files from the authoring hooks/ folder to:
-        - `.github/hooks/` for workspace-level discovery
-        - `~/.copilot/hooks/` on Windows for personal Copilot hook storage and VS Code discovery
+        - `.github/hooks/` for workspace-level discovery (default)
+        When -UserLevel is specified, also publishes to:
+        - `~/.copilot/hooks/` on Windows for personal Copilot hook storage
         - `~/.copilot/hooks/` inside WSL when available
-        Also ensures VS Code's `chat.hookFilesLocations` includes both `.github/hooks`
-        and `~/.copilot/hooks`.
+        And ensures VS Code's `chat.hookFilesLocations` includes the user-level path.
 
     .PARAMETER Hooks
         Array or comma-separated string of hook names to publish (without .hooks.json extension).
@@ -141,21 +144,34 @@ function Publish-HooksToWorkspace {
     .PARAMETER Force
         Overwrite existing hooks without prompting for confirmation.
 
+    .PARAMETER UserLevel
+        Also publish hooks to ~/.copilot/hooks/ (user-level). Without this switch,
+        hooks are only published to .github/hooks/ (workspace-level).
+
     .EXAMPLE
         Publish-HooksToWorkspace
-        Copies all hook files from hooks/ to .github/hooks/.
+        Copies all hook files from hooks/ to .github/hooks/ only.
+
+    .EXAMPLE
+        Publish-HooksToWorkspace -UserLevel
+        Copies hooks to .github/hooks/ and ~/.copilot/hooks/.
 
     .EXAMPLE
         Publish-HooksToWorkspace -Hooks "security-policy,format-on-save"
-        Publishes only the named hooks.
+        Publishes only the named hooks to .github/hooks/.
 
     .EXAMPLE
         Publish-HooksToWorkspace -Force
         Overwrites existing hooks in .github/hooks/.
     #>
 
-    Write-Host "Publishing hooks to workspace and Copilot user hook folders..." -ForegroundColor Cyan
-    Write-Host "Workspace hooks remain published to .github/hooks for repository-level Copilot discovery." -ForegroundColor DarkGray
+    Write-Host "Publishing hooks to workspace .github/hooks/ folder..." -ForegroundColor Cyan
+    if ($UserLevel) {
+        Write-Host "User-level publishing enabled: also publishing to ~/.copilot/hooks/" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "Workspace-only mode (use -UserLevel to also publish to ~/.copilot/hooks/)" -ForegroundColor DarkGray
+    }
 
     $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
     $projectHooksPath = Join-Path $repoRoot "hooks"
@@ -164,7 +180,7 @@ function Publish-HooksToWorkspace {
     $wslAvailable = $false
     $wslHome = $null
 
-    if (-not $SkipWSL) {
+    if ($UserLevel -and -not $SkipWSL) {
         $wslAvailable = Test-WSLAvailable -WslHome ([ref]$wslHome)
         if ($wslAvailable) {
             Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
@@ -214,14 +230,19 @@ function Publish-HooksToWorkspace {
     Write-Host "Publishing $($hookFiles.Count) hook(s)" -ForegroundColor Cyan
 
     $workspaceResult = Publish-HookSet -HookFiles $hookFiles -DestinationRoot $workspaceHooksPath -Label '.github/hooks'
-    $windowsResult = Publish-HookSet -HookFiles $hookFiles -DestinationRoot $windowsUserHooksPath -Label '~/.copilot/hooks'
 
+    $windowsResult = [PSCustomObject]@{ Published = 0; Skipped = 0 }
     $wslResult = [PSCustomObject]@{ Published = 0; Skipped = 0 }
-    if ($wslAvailable) {
-        $wslResult = Publish-HookSet -HookFiles $hookFiles -DestinationRoot "$wslHome/.copilot/hooks" -Label 'WSL ~/.copilot/hooks' -UseWSL
-    }
 
-    Update-VSCodeHookSettings -WorkspaceHookPath '.github/hooks' -UserHookPath '~/.copilot/hooks' | Out-Null
+    if ($UserLevel) {
+        $windowsResult = Publish-HookSet -HookFiles $hookFiles -DestinationRoot $windowsUserHooksPath -Label '~/.copilot/hooks'
+
+        if ($wslAvailable) {
+            $wslResult = Publish-HookSet -HookFiles $hookFiles -DestinationRoot "$wslHome/.copilot/hooks" -Label 'WSL ~/.copilot/hooks' -UseWSL
+        }
+
+        Update-VSCodeHookSettings -WorkspaceHookPath '.github/hooks' -UserHookPath '~/.copilot/hooks' | Out-Null
+    }
 
     $published = $workspaceResult.Published + $windowsResult.Published + $wslResult.Published
     $skipped = $workspaceResult.Skipped + $windowsResult.Skipped + $wslResult.Skipped
