@@ -73,12 +73,62 @@ Each hook is a JSON file containing a `hooks` object with arrays of hook command
 
 ## Hook I/O
 
-- **Input**: JSON via stdin with common fields such as `timestamp`, `cwd`, `sessionId`, `hookEventName`, and `transcript_path`, plus event-specific fields.
-- **VS Code tool hooks**: `toolName`, `toolArgs`, `toolResult`
-- **Legacy logger compatibility**: the Ralph logger also accepts `toolInput` and `toolResponse` when present so one script can survive cross-runtime differences.
-- **Subagent hooks**: `agentName` is the key field for `subagentStart` and `subagentStop`.
-- **Output**: JSON via stdout (`continue`, `stopReason`, `systemMessage`, plus event-specific `hookSpecificOutput`).
+Hook scripts receive JSON via stdin and emit JSON via stdout. The payload schema differs between VS Code and CLI runtimes.
+
+### Common Fields (Both Runtimes)
+
+`timestamp`, `cwd`, `sessionId`, `hookEventName`, `transcript_path`
+
+### Tool Hook Fields (`preToolUse` / `postToolUse`)
+
+| Field | VS Code (snake_case) | CLI (camelCase) | Notes |
+|-------|---------------------|-----------------|-------|
+| Tool name | `tool_name` | `toolName` | |
+| Tool arguments | `tool_input` (parsed object) | `toolArgs` (JSON string) | VS Code sends a native object; CLI sends a serialized JSON string |
+| Tool result | `tool_response` | `toolResult` | |
+
+### Subagent Hook Fields (`subagentStart` / `subagentStop`)
+
+| Field | VS Code (snake_case) | CLI (camelCase) |
+|-------|---------------------|------------------|
+| Agent name | `agent_id` | `agentName` |
+| Agent type | `agent_type` | *(not present)* |
+
+### Output
+
+- JSON via stdout: `continue`, `stopReason`, `systemMessage`, plus event-specific `hookSpecificOutput`.
 - **Exit codes**: `0` = success, `2` = blocking error, other = non-blocking warning.
+
+### Cross-Runtime Compatibility
+
+The Ralph logger scripts use dual-field fallback to consume both schemas. For tool arguments, VS Code `tool_input` (object) is returned directly while CLI `toolArgs` (string) is parsed to an object — both normalize to the same internal representation.
+
+**VS Code payload example** (snake_case, `tool_input` is an object):
+```json
+{
+  "hookEventName": "postToolUse",
+  "tool_name": "readFile",
+  "tool_input": { "path": "src/index.ts", "startLine": 1, "endLine": 50 },
+  "tool_response": { "resultType": "text", "textResultForLlm": "..." },
+  "agent_id": "Executor-VSCode",
+  "agent_type": "participant",
+  "timestamp": 1741588800000,
+  "cwd": "/workspace"
+}
+```
+
+**CLI payload example** (camelCase, `toolArgs` is a JSON string):
+```json
+{
+  "hookEventName": "postToolUse",
+  "toolName": "readFile",
+  "toolArgs": "{\"path\":\"src/index.ts\",\"startLine\":1,\"endLine\":50}",
+  "toolResult": { "resultType": "text", "textResultForLlm": "..." },
+  "agentName": "Executor-CLI",
+  "timestamp": 1741588800000,
+  "cwd": "/workspace"
+}
+```
 
 ## Ralph Hook Logs
 
@@ -91,23 +141,23 @@ The logger also keys agent attribution by `transcript_path` instead of a single 
 
 ## Deployment Locations
 
-VS Code searches for hook configuration files in these locations (workspace hooks take precedence):
+`.github/hooks/` is the **primary default** deployment target. VS Code discovers hook files in this workspace directory automatically. User-level deployment to `~/.copilot/hooks/` is **opt-in** and requires both the `-UserLevel` publish switch and the `chat.hookFilesLocations` VS Code setting — it is **not** a default VS Code search path.
 
-| Location                      | Scope              |
-| ----------------------------- | ------------------ |
-| `.github/hooks/*.json`        | Workspace (shared) |
-| `.claude/settings.local.json` | Workspace (local)  |
-| `.claude/settings.json`       | Workspace          |
-| `~/.claude/settings.json`     | User (global)      |
-| `~/.copilot/hooks/*.json`     | User (global)      |
+| Location | Scope | Discovery |
+| --- | --- | --- |
+| `.github/hooks/*.json` | Workspace (shared) | **Default** — VS Code searches automatically |
+| `~/.copilot/hooks/*.json` | User (global) | **Opt-in** — requires `chat.hookFilesLocations` setting and `-UserLevel` publish |
 
 ## Publishing
 
-The publish script copies hook files from `hooks/` to `.github/hooks/` for workspace deployment:
+The publish script copies hook files from `hooks/` to `.github/hooks/` for workspace deployment (default). User-level publishing to `~/.copilot/hooks/` is available via the `-UserLevel` switch:
 
 ```powershell
-# Publish all hooks
+# Publish all hooks (workspace-level only, default)
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1
+
+# Publish with user-level deployment (requires chat.hookFilesLocations setting)
+pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -UserLevel
 
 # Publish specific hooks
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Hooks "security-policy"
