@@ -35,15 +35,18 @@ project-root/
 │   └── prompts/opsx-*.prompt.md     # Copilot slash commands (auto-generated)
 └── openspec/
     ├── config.yaml                  # Project context, schema, artifact rules
-    ├── specs/<domain>/spec.md       # Source of truth — current specifications
+    ├── specs/<workflow>/<domain>/spec.md  # Preferred for shared workspaces with multiple systems
+    │                                      # specs/<domain>/spec.md is acceptable only for one top-level system
     ├── changes/<change-name>/       # Active change proposals
     │   ├── .openspec.yaml           # Metadata (schema, created date)
     │   ├── proposal.md              # Why, what changes, capabilities, impact
-    │   ├── specs/<domain>/spec.md   # Delta specs (ADDED/MODIFIED/REMOVED/RENAMED)
+    │   ├── specs/<workflow>/<domain>/spec.md  # Delta specs (ADDED/MODIFIED/REMOVED/RENAMED)
     │   ├── design.md                # Technical approach, architecture decisions
     │   └── tasks.md                 # Implementation checklist
     └── changes/archive/             # Completed changes (YYYY-MM-DD-<name>/)
 ```
+
+For a single-system repository, `openspec/specs/<domain>/spec.md` is fine. For a repository that hosts multiple workflows or products, group domains under a stable namespace such as `openspec/specs/<workflow>/<domain>/spec.md` to avoid collisions and make cross-workflow ownership explicit.
 
 ## Core Workflow
 
@@ -59,6 +62,19 @@ Default `core` profile — 4 commands for end-to-end flow:
 **Typical flow**: `propose` → `apply` → `archive`.
 Use `explore` before `propose` when the problem is unclear.
 
+## AI Coding Agent Adaptation
+
+The `/opsx:*` names are workflow aliases, not a required user interface. If the environment cannot invoke slash prompts directly, execute the equivalent OpenSpec workflow through skills or CLI steps instead of stopping at "run `/opsx:*`".
+
+| Alias | AI-agent equivalent |
+|---|---|
+| `/opsx:explore` | Use `.github/skills/openspec-explore/SKILL.md` behavior or follow the explore rules directly |
+| `/opsx:propose` | Use `.github/skills/openspec-propose/SKILL.md` or run `openspec new change`, `openspec status`, and `openspec instructions` to create artifacts |
+| `/opsx:apply` | Use `.github/skills/openspec-apply-change/SKILL.md` or run `openspec instructions apply --change <name> --json` and implement tasks |
+| `/opsx:archive` | Use `.github/skills/openspec-archive-change/SKILL.md` or run the archive workflow with validation and sync checks |
+
+When operating as an AI coding agent, read [references/ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md) before changing anything under `openspec/`.
+
 ### Custom Profile Commands
 
 Enable: `openspec config profile` → select custom → `openspec update`.
@@ -73,9 +89,11 @@ Enable: `openspec config profile` → select custom → `openspec update`.
 | `/opsx:bulk-archive` | Archive multiple completed changes with conflict detection |
 | `/opsx:onboard` | Guided walkthrough for new users |
 
+> **Skill generation**: When the custom profile is enabled, `openspec update` generates a dedicated skill file (`.github/skills/openspec-<command>/SKILL.md`) and prompt file (`.github/prompts/opsx-<command>.prompt.md`) for each custom command, enabling the same skill-first routing pattern used by core commands.
+
 ## Spec Format
 
-Specs in `openspec/specs/<domain>/spec.md`:
+Specs in `openspec/specs/<workflow>/<domain>/spec.md` or, for single-system repositories, `openspec/specs/<domain>/spec.md`:
 
 ```markdown
 # <Domain> Specification
@@ -106,7 +124,7 @@ For detailed templates of each artifact, see [references/artifact-templates.md](
 | Artifact | Purpose | Key content |
 |---|---|---|
 | `proposal.md` | Why + what | Why, what changes, capabilities (new + modified), impact |
-| `specs/<domain>/spec.md` | Delta specs | ADDED/MODIFIED/REMOVED/RENAMED requirements |
+| `specs/<workflow>/<domain>/spec.md` | Delta specs | ADDED/MODIFIED/REMOVED/RENAMED requirements |
 | `design.md` | How | Technical approach, architecture decisions, file changes |
 | `tasks.md` | Checklist | Phased tasks with `- [ ]` / `- [x]` checkboxes |
 
@@ -235,11 +253,14 @@ For each domain identified during exploration, create specs describing **current
 
 ```bash
 # Create spec file manually
-mkdir -p openspec/specs/auth
+# Single-system repo:    mkdir -p openspec/specs/auth
+# Multi-workflow repo:   mkdir -p openspec/specs/<workflow>/auth
 # Then write the spec capturing existing behavior
 ```
 
 Write specs for what the system **does today**, not what it should do. Use `/opsx:propose` for any **new** changes on top.
+
+This manual creation step is the main exception to the "change specs through change proposals" rule. It is for first-time baseline capture of current behavior, not routine edits to established specs.
 
 ### Step 5: Evolve with changes
 
@@ -247,6 +268,18 @@ From this point, all new features and modifications follow the standard workflow
 `/opsx:propose` → `/opsx:apply` → `/opsx:archive`
 
 Each archived change automatically merges delta specs into the main specs, keeping documentation evergreen.
+
+## Current-Spec Mutation Rule
+
+After a domain has been established, treat `openspec/specs/**` as protocol-governed current-state artifacts.
+
+- Do not directly edit `openspec/specs/**` for new behavior, changed behavior, renamed requirements, or removed requirements.
+- Stage those changes in `openspec/changes/<change-name>/specs/**` first.
+- Update main specs only through the sync or archive step.
+- Treat `openspec/config.yaml` as protocol-governed too; change it deliberately when project-wide rules or context change.
+- Use direct edits to current specs only for explicit brownfield baseline capture or a user-approved repair of previously corrupted synced content.
+
+For the full mutation policy and enforcement details, see [references/ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md).
 
 ## CLI Quick Reference
 
