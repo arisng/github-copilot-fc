@@ -191,7 +191,10 @@ case "$EVENT_NAME" in
             --arg cwd "$CWD" \
             --arg ag "$AGENT" \
             --arg tp "$TRANSCRIPT_PATH" \
-            '{ts:$ts,ts_iso:($ts_iso | select(. != "null")),sid:$sid,event:$ev,cwd:$cwd,agent:($ag | select(. != "")),transcript_path:($tp | select(. != ""))}' >> "$SUBAGENT_LOG_FILE"
+            '{ts:$ts,sid:$sid,event:$ev,cwd:$cwd}
+            + (if $ts_iso != "null" then {ts_iso:$ts_iso} else {} end)
+            + (if $ag != "" then {agent:$ag} else {} end)
+            + (if $tp != "" then {transcript_path:$tp} else {} end)' >> "$SUBAGENT_LOG_FILE"
         ;;
     subagentStop)
         STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // .stopHookActive // empty')
@@ -204,7 +207,11 @@ case "$EVENT_NAME" in
             --arg ag "$AGENT" \
             --arg tp "$TRANSCRIPT_PATH" \
             --arg sha "$STOP_HOOK_ACTIVE" \
-            '{ts:$ts,ts_iso:($ts_iso | select(. != "null")),sid:$sid,event:$ev,cwd:$cwd,agent:($ag | select(. != "")),transcript_path:($tp | select(. != "")),stop_hook_active:(if $sha == "" then empty else ($sha == "true") end)}' >> "$SUBAGENT_LOG_FILE"
+            '{ts:$ts,sid:$sid,event:$ev,cwd:$cwd}
+            + (if $ts_iso != "null" then {ts_iso:$ts_iso} else {} end)
+            + (if $ag != "" then {agent:$ag} else {} end)
+            + (if $tp != "" then {transcript_path:$tp} else {} end)
+            + (if $sha != "" then {stop_hook_active:($sha == "true")} else {} end)' >> "$SUBAGENT_LOG_FILE"
         if [ -n "$TRANSCRIPT_PATH" ]; then
             tmp_state=$(mktemp)
             jq --arg tp "$TRANSCRIPT_PATH" 'del(.activeAgents[$tp]) | .lastAgent = ((.activeAgents | to_entries | last | .value) // null)' "$HOOK_STATE_FILE" > "$tmp_state"
@@ -236,7 +243,14 @@ case "$EVENT_NAME" in
             --arg txt "$RESULT_TEXT" \
             --argjson args "$TOOL_ARGS" \
             --argjson result "$TOOL_RESULT" \
-            '{ts:$ts,ts_iso:($ts_iso | select(. != "null")),sid:$sid,event:$ev,cwd:$cwd,agent:($ag | select(. != "")),transcript_path:($tp | select(. != "")),tool:($tool | select(. != "")),result_type:($rt | select(. != "")),result_text:($txt | select(. != "")),tool_args:(if $args == null then empty else $args end),tool_result:(if $result == null then empty else $result end)}' >> "$TOOL_LOG_FILE"
+            '{ts:$ts,sid:$sid,event:$ev,cwd:$cwd,tool:$tool}
+            + (if $ts_iso != "null" then {ts_iso:$ts_iso} else {} end)
+            + (if $ag != "" then {agent:$ag} else {} end)
+            + (if $tp != "" then {transcript_path:$tp} else {} end)
+            + (if $rt != "" then {result_type:$rt} else {} end)
+            + (if $txt != "" then {result_text:$txt} else {} end)
+            + (if $args != null then {tool_args:$args} else {} end)
+            + (if $result != null then {tool_result:$result} else {} end)' >> "$TOOL_LOG_FILE"
         ;;
 esac
 
