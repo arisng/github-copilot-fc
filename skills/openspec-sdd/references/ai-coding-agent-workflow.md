@@ -14,14 +14,14 @@ The agent should not make ad hoc edits to main specs when the requested work is 
 
 ## Intent Routing
 
-| User intent | Agent action |
-|---|---|
-| Understand a problem, compare options, inspect current specs | Follow the `explore` workflow. Read existing specs and active changes, but do not implement or mutate code. |
-| Add or change spec behavior | Create or continue an OpenSpec change under `openspec/changes/<change-name>/`. |
-| Implement approved work | Use the `apply` workflow against the active change and update `tasks.md` as work completes. |
-| Merge approved deltas into current specs | Use the `archive` workflow, including validation and delta merge checks. |
-| Capture existing undocumented behavior for the first time | Use brownfield baseline capture. This is the narrow exception where direct creation under `openspec/specs/**` is allowed. |
-| Abandon a change that is no longer needed | Delete the change folder from `openspec/changes/`. |
+| User intent                                                  | Agent action                                                                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Understand a problem, compare options, inspect current specs | Follow the `explore` workflow. Read existing specs and active changes, but do not implement or mutate code.               |
+| Add or change spec behavior                                  | Create or continue an OpenSpec change under `openspec/changes/<change-name>/`.                                            |
+| Implement approved work                                      | Use the `apply` workflow against the active change and update `tasks.md` as work completes.                               |
+| Merge approved deltas into current specs                     | Use the `archive` workflow, including validation and delta merge checks.                                                  |
+| Capture existing undocumented behavior for the first time    | Use brownfield baseline capture. This is the narrow exception where direct creation under `openspec/specs/**` is allowed. |
+| Abandon a change that is no longer needed                    | Delete the change folder from `openspec/changes/`.                                                                        |
 
 > **Custom profile commands** add intents not covered by this table (e.g., verify implementation, sync without archiving, onboard a new user). When the custom profile is enabled, consult the generated skill files for these commands (see note below the Slash Command Translation table).
 
@@ -29,12 +29,12 @@ The agent should not make ad hoc edits to main specs when the requested work is 
 
 If the environment cannot invoke `/opsx:*` directly, treat those names as aliases for the following actions:
 
-| Alias | Skill-first route | CLI fallback |
-|---|---|---|
-| `/opsx:explore` | `.github/skills/openspec-explore/SKILL.md` | `openspec list --json` plus read-only investigation |
-| `/opsx:propose` | `.github/skills/openspec-propose/SKILL.md` | `openspec new change`, `openspec status`, `openspec instructions <artifact>` |
-| `/opsx:apply` | `.github/skills/openspec-apply-change/SKILL.md` | `openspec status`, `openspec instructions apply --change <name> --json` |
-| `/opsx:archive` | `.github/skills/openspec-archive-change/SKILL.md` | `openspec validate`, sync assessment, `openspec archive <name>` |
+| Alias           | Skill-first route                                 | CLI fallback                                                                 |
+| --------------- | ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `/opsx:explore` | `.github/skills/openspec-explore/SKILL.md`        | `openspec list --json` plus read-only investigation                          |
+| `/opsx:propose` | `.github/skills/openspec-propose/SKILL.md`        | `openspec new change`, `openspec status`, `openspec instructions <artifact>` |
+| `/opsx:apply`   | `.github/skills/openspec-apply-change/SKILL.md`   | `openspec status`, `openspec instructions apply --change <name> --json`      |
+| `/opsx:archive` | `.github/skills/openspec-archive-change/SKILL.md` | `openspec validate`, sync assessment, `openspec archive <name>`              |
 
 The agent should execute the matching workflow directly. Do not stop at a recommendation like "run `/opsx:propose`" when the agent can perform the equivalent workflow itself.
 
@@ -42,16 +42,16 @@ The agent should execute the matching workflow directly. Do not stop at a recomm
 
 ## Allowed Edit Surface
 
-| Path | Default policy | Notes |
-|---|---|---|
-| `openspec/changes/**` | Editable | Normal place for proposal, delta specs, design, and tasks. |
-| `openspec/specs/**` | Read-only during active change work | Update through sync or archive, not by ad hoc edits. |
-| `openspec/config.yaml` | Restricted | Edit only when schema, project context, or generation rules need to change. |
-| `.github/skills/openspec-*` | Editable | Use when adapting OpenSpec workflow entry points for AI agents. |
-| `.github/prompts/opsx-*` | Reference only unless intentionally maintaining prompt UX | These are useful for human UX but are not the primary AI-agent entry point. |
-| `openspec/changes/archive/**` | Read-only | Completed changes; do not edit archived content. |
-| `skills/openspec-sdd/**` | Editable | The SDD skill package itself, including this reference document. |
-| `scripts/openspec/**` | Editable | OpenSpec validation and utility scripts. |
+| Path                          | Default policy                                            | Notes                                                                       |
+| ----------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `openspec/changes/**`         | Editable                                                  | Normal place for proposal, delta specs, design, and tasks.                  |
+| `openspec/specs/**`           | Read-only during active change work                       | Update through sync or archive, not by ad hoc edits.                        |
+| `openspec/config.yaml`        | Restricted                                                | Edit only when schema, project context, or generation rules need to change. |
+| `.github/skills/openspec-*`   | Editable                                                  | Use when adapting OpenSpec workflow entry points for AI agents.             |
+| `.github/prompts/opsx-*`      | Reference only unless intentionally maintaining prompt UX | These are useful for human UX but are not the primary AI-agent entry point. |
+| `openspec/changes/archive/**` | Read-only                                                 | Completed changes; do not edit archived content.                            |
+| `skills/openspec-sdd/**`      | Editable                                                  | The SDD skill package itself, including this reference document.            |
+| `scripts/openspec/**`         | Editable                                                  | OpenSpec validation and utility scripts.                                    |
 
 ## Namespace Guidance
 
