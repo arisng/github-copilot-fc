@@ -2,50 +2,67 @@
 
 ## Summary
 
-The shared Ralph hook manifest (`hooks/ralph-tool-logger.hooks.json`) is cross-runtime compatible — both VS Code and Copilot CLI accept the lowerCamelCase event keys and `bash`/`powershell` command properties. The real compatibility gap is in **payload field naming**: both Ralph logger scripts consume CLI-style camelCase fields while VS Code-native payloads use snake_case fields.
+The shared Ralph hook manifest (`.github/hooks/ralph-tool-logger.hooks.json`) is cross-runtime compatible — both VS Code and Copilot CLI accept the lowerCamelCase event keys and `bash`/`powershell` command properties. Both logger scripts implement a **dual-fallback pattern** that reads VS Code snake_case fields first and falls through to CLI camelCase fields, producing identical normalized log entries regardless of runtime.
 
 ## Field mapping
 
 ### Tool events (`preToolUse` / `postToolUse`)
 
-| Concept | Copilot CLI field | VS Code native field | Ralph logger reads |
-|---------|-------------------|---------------------|--------------------|
-| Tool name | `toolName` | `tool_name` | `toolName` only |
-| Tool input | `toolArgs` / `toolInput` | `tool_input` | `toolArgs`, `toolInput` |
-| Tool result | `toolResult` / `toolResponse` | `tool_response` | `toolResult`, `toolResponse` |
-| Invocation ID | (not present) | `tool_use_id` | (not consumed) |
+| Concept | VS Code native field | Copilot CLI field | Logger fallback order | Normalization |
+|---------|---------------------|-------------------|-----------------------|---------------|
+| Tool name | `tool_name` | `toolName` | `tool_name` → `toolName` | Direct string |
+| Tool input | `tool_input` (parsed JSON object) | `toolArgs` (JSON string) | `tool_input` → `toolInput` → `toolArgs` | VS Code object returned directly; CLI string parsed via `ConvertFrom-JsonSafe` (PS) / `fromjson?` (Bash). Both produce a JSON object in `tool_args`. |
+| Tool result | `tool_response` (object) | `toolResult` / `toolResponse` | `tool_result` → `toolResult` → `tool_response` → `toolResponse` | Parsed to object via `ConvertFrom-JsonSafe` (PS) / jq (Bash) |
+| Result type | Nested in `tool_response.resultType` | Nested in `toolResult.resultType` | All four result containers checked with `.resultType` | Direct string |
+| Result text | Nested in `tool_response.textResultForLlm` | Nested in `toolResult.textResultForLlm` | All four result containers checked with `.textResultForLlm` | Direct string |
+| Invocation ID | `tool_use_id` | (not present) | (not consumed) | — |
 
 ### Subagent events (`subagentStart` / `subagentStop`)
 
-| Concept | Copilot CLI field | VS Code native field | Ralph logger reads |
-|---------|-------------------|---------------------|--------------------|
-| Agent name | `agentName` | `agent_type` | `agentName` only |
-| Agent ID | (not present) | `agent_id` | (not consumed) |
-| Stop active flag | (not present) | `stop_hook_active` | (consumed when present) |
+| Concept | VS Code native field | Copilot CLI field | Logger fallback order | Notes |
+|---------|---------------------|-------------------|-----------------------|-------|
+| Agent identity | `agent_id` | `agentName` | `agent_id` → `agentName` | Used for log `agent` field and active-agent tracking |
+| Agent type | `agent_type` | (not present) | `agent_type` only | Conditionally included in log when present; absent for CLI payloads |
+| Stop active flag | `stop_hook_active` | `stopHookActive` | `stop_hook_active` → `stopHookActive` | Conditionally included in subagentStop entries |
 
 ### Shared fields (both runtimes)
 
 | Field | Notes |
 |-------|-------|
-| `hookEventName` | Present in both runtimes |
-| `timestamp` | Present in both runtimes |
+| `hookEventName` | Present in both runtimes; loggers normalize PascalCase → lowerCamelCase |
+| `timestamp` | Present in both runtimes; converted to ISO 8601 via `ConvertTo-IsoTimestamp` / `to_iso_timestamp` |
 | `cwd` | Present in both runtimes |
-| `sessionId` | Present in both runtimes |
+| `sessionId` | Present in both runtimes; falls back to `.active-session` file content |
 | `transcript_path` / `transcriptPath` | Present in both; loggers normalize both variants |
 
-## Impact
+## Dual-fallback implementation
 
-Under native VS Code payloads, the Ralph loggers may produce blank or degraded values for `tool`, `tool_args`, `tool_result`, and `agent` fields because the CLI-style field names they check are not present. The logger does not crash — it just writes empty values for those fields.
+Both loggers use the same priority pattern: **snake_case first → camelCase fallback**.
 
-## Recommended fix pattern
-
-Add snake_case fallbacks alongside existing camelCase reads in both loggers:
-
+**PowerShell** — uses `Get-HookProperty` with ordered name arrays:
 ```powershell
-# PowerShell example:
-$ToolName = $Event.toolName ?? $Event.tool_name ?? ''
-$ToolInput = $Event.toolInput ?? $Event.toolArgs ?? $Event.tool_input ?? $null
-$ToolResult = $Event.toolResult ?? $Event.toolResponse ?? $Event.tool_response ?? $null
-$AgentName = $Event.agentName ?? $Event.agent_type ?? $Event.agent_id ?? ''
-$ToolUseId = $Event.tool_use_id ?? $null
+# Tool name: snake_case first
+$toolName = Get-HookProperty -Event $event -Names @('tool_name', 'toolName')
+# Agent identity: VS Code agent_id first, CLI agentName fallback
+$agentName = Get-HookProperty -Event $event -Names @('agent_id', 'agentName')
 ```
+
+**Bash** — uses jq `//` fallback operator:
+```bash
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // .toolName // empty')
+AGENT_NAME=$(echo "$INPUT" | jq -r '.agent_id // .agentName // empty')
+```
+
+### Key structural difference: `tool_input` vs `toolArgs`
+
+The most significant cross-runtime difference is in tool arguments:
+
+- **VS Code** sends `tool_input` as a **parsed JSON object** — already structured data.
+- **CLI** sends `toolArgs` as a **JSON string** — must be parsed before logging.
+
+Both loggers normalize this difference so the logged `tool_args` field is always a JSON object:
+
+| Runtime | Source field | Type | Normalization |
+|---------|-------------|------|---------------|
+| VS Code | `tool_input` | Object | Returned directly |
+| CLI | `toolArgs` | String | `ConvertFrom-JsonSafe` (PS) / `fromjson?` (Bash) |
