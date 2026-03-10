@@ -180,7 +180,7 @@ function Get-ToolArgumentsPayload {
         return $toolInput
     }
 
-    # CLI sends toolArgs as a JSON string — parse to object for normalization
+    # CLI sends toolArgs as a JSON string; parse to object for normalization
     $toolArgs = Get-HookProperty -Event $Event -Names @('toolArgs')
     return ConvertFrom-JsonSafe -Value $toolArgs
 }
@@ -260,7 +260,7 @@ try {
     $sessionRoot = Join-Path $event.cwd '.ralph-sessions'
     $activeSessionFile = Join-Path $sessionRoot '.active-session'
 
-    # No active Ralph session — pass through silently
+    # No active Ralph session; pass through silently
     if (-not (Test-Path $activeSessionFile)) {
         Write-Output '{"continue":true}'
         exit 0
@@ -279,7 +279,7 @@ try {
     # Defensive session-state validation: reject stale/completed sessions
     $sessionDir = Join-Path $sessionRoot $sessionId
     if (-not (Test-Path $sessionDir)) {
-        Write-Warning "[ralph-tool-logger] Session directory not found: $sessionId — skipping log entry"
+        Write-Warning "[ralph-tool-logger] Session directory not found: $sessionId - skipping log entry"
         Write-Output '{"continue":true}'
         exit 0
     }
@@ -289,13 +289,13 @@ try {
         try {
             $metaContent = Get-Content $sessionMetadataPath -Raw
             if ($metaContent -match '(?m)^\s*state:\s*COMPLETE\s*$') {
-                Write-Warning "[ralph-tool-logger] Session $sessionId is COMPLETE — skipping log entry"
+                Write-Warning "[ralph-tool-logger] Session $sessionId is COMPLETE - skipping log entry"
                 Write-Output '{"continue":true}'
                 exit 0
             }
         }
         catch {
-            # metadata unreadable — allow logging (fail-open)
+            # metadata unreadable; allow logging (fail-open)
         }
     }
 
