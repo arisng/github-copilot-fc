@@ -183,6 +183,23 @@ if [ -z "$SESSION_ID" ]; then
     exit 0
 fi
 
+# Defensive session-state validation: reject stale/completed sessions
+SESSION_DIR="${SESSION_ROOT}/${SESSION_ID}"
+if [ ! -d "$SESSION_DIR" ]; then
+    echo "[ralph-tool-logger] Session directory not found: ${SESSION_ID} — skipping log entry" >&2
+    echo '{"continue":true}'
+    exit 0
+fi
+
+SESSION_METADATA="${SESSION_DIR}/metadata.yaml"
+if [ -f "$SESSION_METADATA" ]; then
+    if grep -qE '^[[:space:]]*state:[[:space:]]*COMPLETE[[:space:]]*$' "$SESSION_METADATA" 2>/dev/null; then
+        echo "[ralph-tool-logger] Session ${SESSION_ID} is COMPLETE — skipping log entry" >&2
+        echo '{"continue":true}'
+        exit 0
+    fi
+fi
+
 LOG_DIR=$(resolve_log_dir "$SESSION_ROOT" "$SESSION_ID")
 TOOL_LOG_FILE="${LOG_DIR}/tool-usage.jsonl"
 SUBAGENT_LOG_FILE="${LOG_DIR}/subagent-usage.jsonl"

@@ -276,6 +276,29 @@ try {
         exit 0
     }
 
+    # Defensive session-state validation: reject stale/completed sessions
+    $sessionDir = Join-Path $sessionRoot $sessionId
+    if (-not (Test-Path $sessionDir)) {
+        Write-Warning "[ralph-tool-logger] Session directory not found: $sessionId — skipping log entry"
+        Write-Output '{"continue":true}'
+        exit 0
+    }
+
+    $sessionMetadataPath = Join-Path $sessionDir 'metadata.yaml'
+    if (Test-Path $sessionMetadataPath) {
+        try {
+            $metaContent = Get-Content $sessionMetadataPath -Raw
+            if ($metaContent -match '(?m)^\s*state:\s*COMPLETE\s*$') {
+                Write-Warning "[ralph-tool-logger] Session $sessionId is COMPLETE — skipping log entry"
+                Write-Output '{"continue":true}'
+                exit 0
+            }
+        }
+        catch {
+            # metadata unreadable — allow logging (fail-open)
+        }
+    }
+
     $logDir = Get-LogDirectory -SessionRoot $sessionRoot -SessionId $sessionId
     $toolLogFile = Join-Path $logDir 'tool-usage.jsonl'
     $subagentLogFile = Join-Path $logDir 'subagent-usage.jsonl'
