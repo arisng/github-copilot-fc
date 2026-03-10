@@ -45,6 +45,7 @@ This index links Diátaxis-organized documentation for the workspace.
 ### Copilot
 
 - [Agent Variant Directory Convention](reference/copilot/agent-variant-directory-convention.md)
+- [Three-Layer Architecture for AI-Agent-Facing Skill Documentation](reference/copilot/three-layer-skill-artifact-architecture.md)
 - [Agent Variant Directory Structure Proposal](reference/copilot/agent-variant-proposal.md)
 - [Cli Agent 30K Character Limit](reference/copilot/cli-agent-30k-character-limit.md)
 - [Cli Agent Directory Path Convention](reference/copilot/cli-agent-directory-path-convention.md)
@@ -67,6 +68,7 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Openspec
 
+- [OpenSpec Custom Profile Command Routing](reference/openspec/openspec-custom-profile-command-routing.md)
 - [Openspec Ralph V2 Domain Map](reference/openspec/openspec-ralph-v2-domain-map.md)
 - [Openspec Workspace Scoping Convention](reference/openspec/openspec-workspace-scoping-convention.md)
 
@@ -115,6 +117,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [About Copilot FC workspace commands](explanation/copilot/about-copilot-fc.md)
 - [About module-boundary loading for PowerShell publish helpers](explanation/copilot/about-module-boundary-loading-for-powershell-publish-helpers.md)
 - [Build Time Instruction Embedding Architecture](explanation/copilot/build-time-instruction-embedding-architecture.md)
+- [Portable Skill vs Workspace-Specific Enforcement Layering](explanation/copilot/portable-vs-workspace-enforcement-layering.md)
 - [Research: Claude Code Hooks - Comprehensive Analysis](explanation/copilot/claude-code-hooks-analysis.md)
 - [Claude Code Skills Activation Research: Hierarchical Agent Activation for GitHub Copilot](explanation/copilot/claude-skills-activation-research.md)
 - [Ralph-v2 Tool Compatibility Analysis for Copilot CLI](explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md)
