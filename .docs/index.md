@@ -98,6 +98,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Self Critique Checklist](reference/ralph/self-critique-checklist.md)
 - [Session Instructions Required During Initialize](reference/ralph/session-instructions-required-during-initialize.md)
 - [Shared Questioner grounding lookup contract](reference/ralph/shared-questioner-grounding-lookup-contract.md)
+- [`.active-session` lifecycle contract](reference/ralph/active-session-lifecycle-contract.md)
+- [jq `fromjson?` evaluation context pitfall](reference/ralph/jq-fromjson-evaluation-context-pitfall.md)
 - [Specs Frontmatter Convention](reference/ralph/specs-frontmatter-convention.md)
 - [Targeted Info Signal Convention](reference/ralph/targeted-info-signal-convention.md)
 - [V2.10.0 Contract Changes](reference/ralph/v2.10.0-contract-changes.md)
