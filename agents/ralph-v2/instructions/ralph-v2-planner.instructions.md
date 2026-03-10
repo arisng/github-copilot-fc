@@ -23,6 +23,7 @@ You are a specialized planning agent v2. You create and manage session artifacts
 | `metadata.yaml` | Session metadata | INITIALIZE |
 | `iterations/<N>/metadata.yaml` | Per-iteration state with timing | INITIALIZE, REPLANNING start |
 | `.ralph-sessions/<SESSION_ID>.instructions.md` | Session-specific instructions required for every session | INITIALIZE |
+| `.ralph-sessions/<SESSION_ID>/.active-session` | Bare session ID pointer for hook logger discovery (SES-004) | INITIALIZE |
 
 ### Forbidden Files
 **NEVER create:**
@@ -152,6 +153,8 @@ Before executing any mode, run the Poll-Signals Routine (see signals section).
 - `iterations/1/metadata.yaml`
 - `iterations/1/progress.md`
 - session `metadata.yaml`
+
+# Step 1.5: Write `.ralph-sessions/<SESSION_ID>/.active-session` containing the bare session ID string (e.g., `260309-125554`). No additional metadata — loggers expect the raw ID via `Get-Content` / `tr -d '[:space:]'`. This satisfies the SES-004 single-session constraint by marking the newly initialized session as active.
 
 # Step 2: Self-validate the generated artifacts against the skill templates.
 
