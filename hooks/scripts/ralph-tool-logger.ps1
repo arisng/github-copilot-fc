@@ -174,11 +174,13 @@ function Resolve-AgentName {
 function Get-ToolArgumentsPayload {
     param($Event)
 
-    $toolInput = Get-HookProperty -Event $Event -Names @('toolInput')
+    # VS Code sends tool_input as a parsed object; CLI may send toolInput
+    $toolInput = Get-HookProperty -Event $Event -Names @('tool_input', 'toolInput')
     if ($null -ne $toolInput) {
         return $toolInput
     }
 
+    # CLI sends toolArgs as a JSON string — parse to object for normalization
     $toolArgs = Get-HookProperty -Event $Event -Names @('toolArgs')
     return ConvertFrom-JsonSafe -Value $toolArgs
 }
@@ -186,7 +188,7 @@ function Get-ToolArgumentsPayload {
 function Get-ToolResultPayload {
     param($Event)
 
-    $toolResult = Get-HookProperty -Event $Event -Names @('toolResult', 'toolResponse')
+    $toolResult = Get-HookProperty -Event $Event -Names @('tool_result', 'toolResult', 'tool_response', 'toolResponse')
     return ConvertFrom-JsonSafe -Value $toolResult
 }
 
@@ -285,7 +287,8 @@ try {
     if (-not (Test-Path $hookStateDir)) { New-Item -ItemType Directory -Path $hookStateDir -Force | Out-Null }
 
     $state = Get-HookState -StatePath $hookStateFile
-    $agentName = [string](Get-HookProperty -Event $event -Names @('agentName'))
+    $agentName = [string](Get-HookProperty -Event $event -Names @('agent_id', 'agentName'))
+    $agentType = [string](Get-HookProperty -Event $event -Names @('agent_type'))
     $resolvedAgentName = Resolve-AgentName -State $state -TranscriptPath $transcriptPath -AgentName $agentName
 
     switch ($normalizedEventName) {
@@ -293,6 +296,9 @@ try {
             $entry = New-LogEntry -Event $event -SessionId $sessionId -NormalizedEventName $normalizedEventName -Timestamp $timestamp -TranscriptPath $transcriptPath
             if ($resolvedAgentName) {
                 $entry.agent = $resolvedAgentName
+            }
+            if ($agentType) {
+                $entry.agent_type = $agentType
             }
 
             if ($transcriptPath -and $resolvedAgentName) {
@@ -310,6 +316,9 @@ try {
             $entry = New-LogEntry -Event $event -SessionId $sessionId -NormalizedEventName $normalizedEventName -Timestamp $timestamp -TranscriptPath $transcriptPath
             if ($resolvedAgentName) {
                 $entry.agent = $resolvedAgentName
+            }
+            if ($agentType) {
+                $entry.agent_type = $agentType
             }
 
             $stopHookActive = Get-HookProperty -Event $event -Names @('stop_hook_active', 'stopHookActive')
@@ -334,9 +343,12 @@ try {
                 $entry.agent = $resolvedAgentName
             }
 
-            $toolName = [string](Get-HookProperty -Event $event -Names @('toolName'))
+            $toolName = [string](Get-HookProperty -Event $event -Names @('tool_name', 'toolName'))
             if ($toolName) {
                 $entry.tool = $toolName
+            }
+            if ($agentType) {
+                $entry.agent_type = $agentType
             }
 
             $toolArguments = Get-ToolArgumentsPayload -Event $event

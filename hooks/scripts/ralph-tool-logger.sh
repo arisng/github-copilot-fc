@@ -110,13 +110,13 @@ extract_tool_args_json() {
     local input_json="$1"
     local tool_args_json
 
-    if tool_args_json=$(printf '%s' "$input_json" | jq -c 'if .toolInput? != null then .toolInput elif .toolArgs? != null then (.toolArgs | fromjson? // .toolArgs) else null end' 2>/dev/null); then
+    if tool_args_json=$(printf '%s' "$input_json" | jq -c 'if .tool_input? != null then .tool_input elif .toolInput? != null then .toolInput elif .toolArgs? != null then (.toolArgs | fromjson? // .toolArgs) else null end' 2>/dev/null); then
         printf '%s\n' "$tool_args_json"
         return
     fi
 
     if command -v powershell.exe >/dev/null 2>&1; then
-        tool_args_json=$(printf '%s' "$input_json" | powershell.exe -NoProfile -Command '$json = [Console]::In.ReadToEnd(); try { $data = $json | ConvertFrom-Json; if ($null -ne $data.toolInput) { $data.toolInput | ConvertTo-Json -Compress -Depth 10 } elseif ($null -ne $data.toolArgs) { try { $data.toolArgs | ConvertFrom-Json | ConvertTo-Json -Compress -Depth 10 } catch { $data.toolArgs | ConvertTo-Json -Compress } } else { Write-Output ''null'' } } catch { Write-Output ''null'' }' | tr -d '\r')
+        tool_args_json=$(printf '%s' "$input_json" | powershell.exe -NoProfile -Command '$json = [Console]::In.ReadToEnd(); try { $data = $json | ConvertFrom-Json; if ($null -ne $data.tool_input) { $data.tool_input | ConvertTo-Json -Compress -Depth 10 } elseif ($null -ne $data.toolInput) { $data.toolInput | ConvertTo-Json -Compress -Depth 10 } elseif ($null -ne $data.toolArgs) { try { $data.toolArgs | ConvertFrom-Json | ConvertTo-Json -Compress -Depth 10 } catch { $data.toolArgs | ConvertTo-Json -Compress } } else { Write-Output ''null'' } } catch { Write-Output ''null'' }' | tr -d '\r')
         printf '%s\n' "$tool_args_json"
         return
     fi
@@ -127,7 +127,7 @@ extract_tool_args_json() {
 extract_tool_result_json() {
     local input_json="$1"
 
-    if printf '%s' "$input_json" | jq -c '.toolResult // .toolResponse // null' 2>/dev/null; then
+    if printf '%s' "$input_json" | jq -c '.tool_result // .toolResult // .tool_response // .toolResponse // null' 2>/dev/null; then
         return
     fi
 
@@ -191,7 +191,8 @@ HOOK_STATE_FILE="${HOOK_STATE_DIR}/active-agents.json"
 mkdir -p "$LOG_DIR" "$HOOK_STATE_DIR"
 ensure_state_file "$HOOK_STATE_FILE"
 
-AGENT_NAME=$(echo "$INPUT" | jq -r '.agentName // empty')
+AGENT_NAME=$(echo "$INPUT" | jq -r '.agent_id // .agentName // empty')
+AGENT_TYPE=$(echo "$INPUT" | jq -r '.agent_type // empty')
 AGENT=$(resolve_agent "$HOOK_STATE_FILE" "$TRANSCRIPT_PATH" "$AGENT_NAME")
 TS_ISO=$(to_iso_timestamp "$TIMESTAMP")
 
@@ -210,9 +211,11 @@ case "$EVENT_NAME" in
             --arg cwd "$CWD" \
             --arg ag "$AGENT" \
             --arg tp "$TRANSCRIPT_PATH" \
+            --arg at "$AGENT_TYPE" \
             '{ts:$ts,sid:$sid,event:$ev,cwd:$cwd}
             + (if $ts_iso != "null" then {ts_iso:$ts_iso} else {} end)
             + (if $ag != "" then {agent:$ag} else {} end)
+            + (if $at != "" then {agent_type:$at} else {} end)
             + (if $tp != "" then {transcript_path:$tp} else {} end)' >> "$SUBAGENT_LOG_FILE"
         ;;
     subagentStop)
@@ -225,10 +228,12 @@ case "$EVENT_NAME" in
             --arg cwd "$CWD" \
             --arg ag "$AGENT" \
             --arg tp "$TRANSCRIPT_PATH" \
+            --arg at "$AGENT_TYPE" \
             --arg sha "$STOP_HOOK_ACTIVE" \
             '{ts:$ts,sid:$sid,event:$ev,cwd:$cwd}
             + (if $ts_iso != "null" then {ts_iso:$ts_iso} else {} end)
             + (if $ag != "" then {agent:$ag} else {} end)
+            + (if $at != "" then {agent_type:$at} else {} end)
             + (if $tp != "" then {transcript_path:$tp} else {} end)
             + (if $sha != "" then {stop_hook_active:($sha == "true")} else {} end)' >> "$SUBAGENT_LOG_FILE"
         if [ -n "$TRANSCRIPT_PATH" ]; then
@@ -238,11 +243,11 @@ case "$EVENT_NAME" in
         fi
         ;;
     preToolUse|postToolUse)
-        TOOL_NAME=$(echo "$INPUT" | jq -r '.toolName // empty')
+        TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // .toolName // empty')
         TOOL_ARGS='null'
         TOOL_RESULT='null'
-        RESULT_TYPE=$(echo "$INPUT" | jq -r '.toolResult.resultType // .toolResponse.resultType // empty')
-        RESULT_TEXT=$(echo "$INPUT" | jq -r '.toolResult.textResultForLlm // .toolResponse.textResultForLlm // empty')
+        RESULT_TYPE=$(echo "$INPUT" | jq -r '.tool_result.resultType // .toolResult.resultType // .tool_response.resultType // .toolResponse.resultType // empty')
+        RESULT_TEXT=$(echo "$INPUT" | jq -r '.tool_result.textResultForLlm // .toolResult.textResultForLlm // .tool_response.textResultForLlm // .toolResponse.textResultForLlm // empty')
 
         if should_log_payload; then
             TOOL_ARGS=$(extract_tool_args_json "$INPUT")
@@ -257,6 +262,7 @@ case "$EVENT_NAME" in
             --arg cwd "$CWD" \
             --arg ag "$AGENT" \
             --arg tp "$TRANSCRIPT_PATH" \
+            --arg at "$AGENT_TYPE" \
             --arg tool "$TOOL_NAME" \
             --arg rt "$RESULT_TYPE" \
             --arg txt "$RESULT_TEXT" \
@@ -265,6 +271,7 @@ case "$EVENT_NAME" in
             '{ts:$ts,sid:$sid,event:$ev,cwd:$cwd,tool:$tool}
             + (if $ts_iso != "null" then {ts_iso:$ts_iso} else {} end)
             + (if $ag != "" then {agent:$ag} else {} end)
+            + (if $at != "" then {agent_type:$at} else {} end)
             + (if $tp != "" then {transcript_path:$tp} else {} end)
             + (if $rt != "" then {result_type:$rt} else {} end)
             + (if $txt != "" then {result_text:$txt} else {} end)
