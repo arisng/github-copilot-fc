@@ -6,6 +6,25 @@
 # Env: RALPH_LOG_PAYLOAD=true to include tool arguments and results in log entries.
 set -euo pipefail
 
+resolve_python() {
+    local candidate path
+    for candidate in python3 python py; do
+        path=$(command -v "$candidate" 2>/dev/null) || continue
+        # Skip Windows App Alias shim (resolves via command -v but opens Microsoft Store)
+        case "$path" in
+            *WindowsApps*) continue ;;
+        esac
+        # Verify the candidate actually runs
+        if "$candidate" --version >/dev/null 2>&1; then
+            printf '%s\n' "$candidate"
+            return
+        fi
+    done
+    printf '\n'
+}
+
+PYTHON_CMD=$(resolve_python)
+
 normalize_event_name() {
     case "$1" in
         PreToolUse|preToolUse) printf 'preToolUse\n' ;;
@@ -26,15 +45,15 @@ to_iso_timestamp() {
 
     if [[ "$ts" =~ ^[0-9]+$ ]]; then
         if [ "$ts" -ge 1000000000000 ] 2>/dev/null; then
-            if command -v python3 >/dev/null 2>&1; then
-                python3 -c 'import datetime,sys; print(datetime.datetime.fromtimestamp(int(sys.argv[1]) / 1000, datetime.timezone.utc).isoformat().replace("+00:00", "Z"))' "$ts"
+            if [ -n "$PYTHON_CMD" ]; then
+                "$PYTHON_CMD" -c 'import datetime,sys; print(datetime.datetime.fromtimestamp(int(sys.argv[1]) / 1000, datetime.timezone.utc).isoformat().replace("+00:00", "Z"))' "$ts"
                 return
             fi
         fi
 
         if [ "$ts" -ge 1000000000 ] 2>/dev/null; then
-            if command -v python3 >/dev/null 2>&1; then
-                python3 -c 'import datetime,sys; print(datetime.datetime.fromtimestamp(int(sys.argv[1]), datetime.timezone.utc).isoformat().replace("+00:00", "Z"))' "$ts"
+            if [ -n "$PYTHON_CMD" ]; then
+                "$PYTHON_CMD" -c 'import datetime,sys; print(datetime.datetime.fromtimestamp(int(sys.argv[1]), datetime.timezone.utc).isoformat().replace("+00:00", "Z"))' "$ts"
                 return
             fi
         fi
