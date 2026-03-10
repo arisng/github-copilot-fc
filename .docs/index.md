@@ -105,6 +105,8 @@ This index links Diátaxis-organized documentation for the workspace.
 - [V2.10.0 Contract Changes](reference/ralph/v2.10.0-contract-changes.md)
 - [VS Code vs Copilot CLI hook payload field mapping](reference/ralph/vscode-vs-cli-hook-payload-field-mapping.md)
 - [Windows App Alias python3 shim crashes Bash scripts under set -euo pipefail](reference/ralph/windows-app-alias-python3-bash-pitfall.md)
+- [Windows PowerShell Hook Logger ASCII Compatibility](reference/ralph/windows-powershell-hook-logger-ascii-compatibility.md)
+- [Windows Hook Manifest-Runtime Smoke Test Contract](reference/ralph/windows-hook-manifest-runtime-smoke-test-contract.md)
 - [jq empty-propagation bug in Ralph Bash hook logger](reference/ralph/jq-empty-propagation-in-ralph-hook-logger.md)
 - [Workspace-Level Hook Deployment Model](reference/ralph/workspace-level-hook-deployment-model.md)
 - [Hook Session-State Validation Guard](reference/ralph/hook-session-state-validation-guard.md)
