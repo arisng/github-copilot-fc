@@ -40,170 +40,127 @@ def get_issues_folder():
     else:
         return repo_root / '.docs' / 'issues'
 
-def get_template(type_name):
-    """Get the template content for the given type."""
-    templates = {
-        'Bug': """---
-date: {date}
-type: Bug
-severity: {severity}
-status: {status}
-{author}{reviewer}{id}{related}{milestone}
----
-
-# {title}
-
-## Problem
-{description}
-
-## Root Cause
-[Why did it happen? Trace to origin.]
-
-## Solution
-[How was it fixed? Show code before/after.]
-
-## Lessons Learned
-- [Actionable takeaway]
-
-## Prevention
-- [ ] [Checklist item]
-""",
-        'Feature Plan': """---
-date: {date}
-type: Feature Plan
-severity: {severity}
-status: {status}
-{author}{reviewer}{id}{related}{milestone}
----
-
-# {title}
-
-## Goal
-{description}
-
-## Requirements
-- [ ] User Story 1
-- [ ] User Story 2
-
-## Proposed Implementation
-[High-level technical approach. Components involved.]
-
-## Risks & Considerations
-- [Potential blockers or edge cases]
-""",
-        'RFC': """---
-date: {date}
-type: RFC
-severity: {severity}
-status: {status}
-{author}{reviewer}{id}{related}{milestone}
----
-
-# RFC: {title}
-
-## Summary
-{description}
-
-## Motivation
-[Why do we need this? What problem does it solve?]
-
-## Detailed Design
-[How will it work? API changes, data models, etc.]
-
-## Alternatives Considered
-- [Option A]: [Why rejected?]
-
-## Unresolved Questions
-- [ ] Question 1?
-""",
-        'ADR': """---
-date: {date}
-type: ADR
-severity: N/A
-status: Proposed
-{author}{reviewer}{id}{related}{milestone}
-tags:
-  - architecture
-  - decision
----
-
-# ADR: {title}
-
-## Context
-{description}
-
-## Decision
-[The change that we are proposing or have agreed to.]
-
-## Consequences
-**Positive:**
-- [Benefit 1]
-
-**Negative:**
-- [Trade-off 1]
-""",
-        'Task': """---
-date: {date}
-type: Task
-severity: {severity}
-status: {status}
-{author}{reviewer}{id}{related}{milestone}
----
-
-# Task: {title}
-
-## Objective
-{description}
-
-## Tasks
-- [ ] Step 1
-- [ ] Step 2
-
-## Acceptance Criteria
-- [ ] Criteria 1
-- [ ] Criteria 2
-
-## References
-- [Link to code or docs]
-""",
-        'Retrospective': """---
-date: {date}
-type: Retrospective
-severity: N/A
-status: Documented
-{author}{reviewer}{id}{related}{milestone}
----
-
-# Lesson: {title}
-
-## Context
-{description}
-
-## What Went Well
-- [Positive aspects or successes]
-
-## What Didn't Go Well
-- [Challenges, mistakes, or areas for improvement]
-
-## Key Lessons Learned
-- [Actionable insights and takeaways]
-- [What we learned about processes, tools, or team dynamics]
-
-## Actions Taken
-- [Immediate fixes or changes implemented]
-
-## Future Prevention / Improvements
-- [ ] [Checklist item for preventing recurrence]
-- [ ] [Recommendations for similar situations]
-"""
+def get_template_path(type_name):
+    """Get the path to the template file for the given type."""
+    type_to_filename = {
+        'Bug': 'bug-report.md',
+        'Feature Plan': 'feature-plan.md',
+        'RFC': 'rfc.md',
+        'ADR': 'adr.md',
+        'Task': 'task.md',
+        'Retrospective': 'retrospective.md'
     }
-    return templates.get(type_name, '')
+    
+    filename = type_to_filename.get(type_name)
+    if not filename:
+        return None
+    
+    # Look for templates directory relative to this script
+    script_dir = Path(__file__).parent
+    templates_dir = script_dir.parent / 'templates'
+    
+    template_file = templates_dir / filename
+    if template_file.exists():
+        return template_file
+    
+    return None
+
+def extract_template_section(template_content):
+    """Extract the template markdown section from a template file.
+    
+    The template files contain a "## Template" section with triple backticks
+    containing the raw markdown template.
+    """
+    # Find the template section - look for content between ```markdown and ```
+    match = re.search(r'## Template\s*\n```markdown?\n(.*?)\n```', template_content, re.DOTALL)
+    if match:
+        return match.group(1)
+    return ''
+
+def get_template(type_name):
+    """Get the template content for the given type.
+    
+    Loads templates from the templates/ directory to avoid duplication.
+    """
+    template_path = get_template_path(type_name)
+    if not template_path:
+        return ''
+    
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Extract the template from the markdown code block
+        template = extract_template_section(content)
+        return template
+    except Exception as e:
+        print(f"Error reading template from {template_path}: {e}")
+        return ''
 
 def format_optional(field, value):
     """Format optional YAML field."""
     if value:
         return f'{field}: {value}\n'
     return ''
+
+def prepare_template_for_substitution(template_str):
+    """Prepare template for Python string formatting.
+    
+    Converts template placeholders to Python format strings:
+    - YYYY-MM-DD → {date}
+    - [Concise Title] → {title}
+    - [What broke?...] → {description}
+    - severity/status lines → {severity}/{status} placeholders
+    """
+    result = template_str
+    
+    # Replace date placeholder
+    result = result.replace('YYYY-MM-DD', '{date}')
+    
+    # Replace field values in YAML frontmatter
+    result = re.sub(r'severity: .*', 'severity: {severity}', result)
+    result = re.sub(r'status: .*', 'status: {status}', result)
+    
+    # Replace common section placeholders with {title} and {description}
+    # [Concise Title], [Feature Name], [Task Name], etc. → {title}
+    result = re.sub(r'\[(?:Concise Title|Feature Name|Topic|Decision Title|Task Name|Title)\]', '{title}', result)
+    
+    # For description placeholders - look for the first occurrence in each section after the title
+    # Handle various descriptive placeholders
+    lines = result.split('\n')
+    in_frontmatter = False
+    first_description = True
+    
+    for i, line in enumerate(lines):
+        if line.startswith('---'):
+            in_frontmatter = not in_frontmatter
+            continue
+        
+        if in_frontmatter:
+            continue
+        
+        # Skip the title line
+        if line.startswith('#'):
+            continue
+        
+        # Replace the first substantial placeholder with {description}
+        if first_description and '[' in line and ']' in line:
+            # Replace opening bracket content with {description}
+            lines[i] = re.sub(r'\[.*?\]', '{description}', line, count=1)
+            first_description = False
+            break
+    
+    result = '\n'.join(lines)
+    
+    # Handle optional fields that should be empty if not provided
+    # author, reviewer, id, related, milestone
+    result = result.replace('{author}', '')  # Will be filled by format_optional
+    result = result.replace('{reviewer}', '')
+    result = result.replace('{id}', '')
+    result = result.replace('{related}', '')
+    result = result.replace('{milestone}', '')
+    
+    return result
 
 def main():
     parser = argparse.ArgumentParser(description='Create a new issue document.')
@@ -236,6 +193,15 @@ def main():
 
     filepath = issues_folder / filename
 
+    # Get template
+    template = get_template(args.type)
+    if not template:
+        print(f"Unknown type: {args.type}")
+        return
+    
+    # Prepare template for substitution
+    template = prepare_template_for_substitution(template)
+    
     # Format optional fields
     author = format_optional('author', args.author)
     reviewer = format_optional('reviewer', args.reviewer)
@@ -246,12 +212,6 @@ def main():
         related = f'related:\n{related_list}\n'
     else:
         related = ''
-
-    # Get template
-    template = get_template(args.type)
-    if not template:
-        print(f"Unknown type: {args.type}")
-        return
 
     # Fill template
     content = template.format(
