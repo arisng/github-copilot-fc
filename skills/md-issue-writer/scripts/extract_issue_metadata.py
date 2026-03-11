@@ -13,11 +13,17 @@ from datetime import datetime
 import yaml
 
 def get_issues_folder():
-    """Determine the issues folder: check _docs first, then .docs"""
-    if Path("_docs/issues").exists():
-        return Path("_docs/issues")
-    else:
-        return Path(".docs/issues")
+    """Determine the issues folder for metadata extraction.
+
+    The only supported location is the top-level `.issues` directory.  If it
+    doesn't exist we create it and return that path.  Legacy `_docs/issues`
+    and `.docs/issues` are no longer consulted; those folders may still hold
+    older files but they will be ignored by new tooling.
+    """
+    dot_issues = Path('.issues')
+    if not dot_issues.exists():
+        dot_issues.mkdir(parents=True, exist_ok=True)
+    return dot_issues
 
 def parse_yaml_frontmatter(content):
     """Parse YAML frontmatter from markdown content."""

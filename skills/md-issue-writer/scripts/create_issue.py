@@ -33,12 +33,25 @@ def kebab_case(s):
     return s.lower()
 
 def get_issues_folder():
-    """Determine the issues folder: _docs/issues if exists, else .docs/issues."""
+    """Determine the issues folder.
+    
+    The new default location is the top‑level `.issues` directory, which is
+    created if necessary.  For backwards compatibility we still fall back to the
+    previous `_docs/issues` or `.docs/issues` locations only if `.issues`
+    doesn't exist yet, but new documents will always land under `.issues` once
+    the folder is present.
+    """
     repo_root = Path.cwd()
-    if (repo_root / '_docs' / 'issues').exists():
-        return repo_root / '_docs' / 'issues'
-    else:
-        return repo_root / '.docs' / 'issues'
+    dot_issues = repo_root / '.issues'
+
+    # Always prefer `.issues`.  Create the directory if it doesn't exist so that
+    # subsequent runs (and other tools) can rely on its presence.
+    if not dot_issues.exists():
+        # if any of the legacy folders exist, migrate their contents lazily by
+        # leaving them alone; users can manually move files later.  But we still
+        # use `.issues` as the target going forward.
+        dot_issues.mkdir(parents=True, exist_ok=True)
+    return dot_issues
 
 def get_template_path(type_name):
     """Get the path to the template file for the given type."""

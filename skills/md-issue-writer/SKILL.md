@@ -2,7 +2,7 @@
 name: md-issue-writer
 description: "Create and draft markdown-based issue documents (bug reports, feature plans, RFCs, ADRs, tasks, retrospectives) in .docs/issues/ or _docs/issues/ folders. Use this skill whenever you need to document software issues, feature proposals, architectural decisions, work items, or post-mortems. Includes templates, metadata indexing, and structured YAML frontmatter. Different from issue tracker systems — this is for archival, decision-making, and knowledge base documents."
 metadata: 
-  version: 2.0.0
+  version: 2.1.0
   author: arisng
 ---
 
