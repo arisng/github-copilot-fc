@@ -22,6 +22,7 @@ Optional args:
 
 import argparse
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 import re
@@ -36,10 +37,8 @@ def get_issues_folder():
     """Determine the issues folder.
     
     The new default location is the top‑level `.issues` directory, which is
-    created if necessary.  For backwards compatibility we still fall back to the
-    previous `_docs/issues` or `.docs/issues` locations only if `.issues`
-    doesn't exist yet, but new documents will always land under `.issues` once
-    the folder is present.
+    created if necessary.  All new documents are written there; legacy folders
+    are no longer consulted.
     """
     repo_root = Path.cwd()
     dot_issues = repo_root / '.issues'
@@ -246,12 +245,20 @@ def main():
 
     print(f"Created issue document: {filepath}")
 
-    # Optionally run metadata extraction
+    # Automatically run metadata extraction to keep the index fresh.
+    # We use subprocess for better control and to report errors.
     script_dir = Path(__file__).parent
     script = script_dir / 'extract_issue_metadata.py'
     if script.exists():
         print("Running metadata extraction...")
-        os.system(f'python {script}')
+        try:
+            # Use the same Python interpreter, capture output for visibility
+            import subprocess
+            result = subprocess.run([sys.executable, str(script)], check=True)
+            if result.returncode != 0:
+                print(f"[ERROR] metadata script exited with {result.returncode}")
+        except Exception as e:
+            print(f"[ERROR] failed to run metadata extraction: {e}")
 
 if __name__ == "__main__":
     main()

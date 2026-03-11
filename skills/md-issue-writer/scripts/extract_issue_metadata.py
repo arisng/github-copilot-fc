@@ -2,8 +2,9 @@
 """
 Extract MD Issue Metadata and Generate Report Table
 
-This script extracts metadata from issue documents in .docs/issues or _docs/issues,
-generates summary statistics, and creates an index.md with a table of all issues.
+This script extracts metadata from issue documents in the top‑level `.issues`
+directory, generates summary statistics, and creates an index.md with a table
+of all issues.
 """
 
 import os
@@ -17,7 +18,7 @@ def get_issues_folder():
 
     The only supported location is the top-level `.issues` directory.  If it
     doesn't exist we create it and return that path.  Legacy `_docs/issues`
-    and `.docs/issues` are no longer consulted; those folders may still hold
+    and legacy folders are no longer consulted; those folders may still hold
     older files but they will be ignored by new tooling.
     """
     dot_issues = Path('.issues')

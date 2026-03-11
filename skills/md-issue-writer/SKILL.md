@@ -1,8 +1,8 @@
 ---
 name: md-issue-writer
-description: "Create and draft markdown-based issue documents (bug reports, feature plans, RFCs, ADRs, tasks, retrospectives) in .docs/issues/ or _docs/issues/ folders. Use this skill whenever you need to document software issues, feature proposals, architectural decisions, work items, or post-mortems. Includes templates, metadata indexing, and structured YAML frontmatter. Different from issue tracker systems — this is for archival, decision-making, and knowledge base documents."
+description: "Create and draft markdown-based issue documents (bug reports, feature plans, RFCs, ADRs, tasks, retrospectives) in the top-level `.issues/` folder. Use this skill whenever you need to document software issues, feature proposals, architectural decisions, work items, or post-mortems. Includes templates, metadata indexing, and structured YAML frontmatter. Different from issue tracker systems — this is for archival, decision-making, and knowledge base documents."
 metadata: 
-  version: 2.1.0
+  version: 2.2.0
   author: arisng
 ---
 
@@ -29,7 +29,7 @@ Use this decision tree to select the right template:
 
 1. **Choose the document type** using the decision tree above or by reviewing the templates in `templates/`.
 2. **Gather required metadata**: title, description, severity (if applicable), status, author (if applicable).
-3. **Generate the document** using the provided script or by copying a template into `.docs/issues/` or `_docs/issues/`.
+3. **Generate the document** using the provided script or by copying a template into the new `.issues/` directory (it will be created automatically).
 4. **Fill in the content** following the template structure.
 5. **(Optional) Index all documents** by running the metadata extraction script to keep the central index current.
 
@@ -44,7 +44,7 @@ python scripts/create_issue.py --type "Bug" --title "Fix login timeout" --descri
 Or copy a template directly:
 
 ```bash
-cp templates/<type>.md .docs/issues/<date>_<slug>.md
+cp templates/<type>.md .issues/<date>_<slug>.md
 ```
 
 To extract metadata and regenerate the index of all issues:
