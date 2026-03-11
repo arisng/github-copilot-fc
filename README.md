@@ -66,7 +66,7 @@ pwsh -NoProfile -File scripts/workspace/run-command.ps1 list
 # Execute a named workspace command
 pwsh -NoProfile -File scripts/workspace/run-command.ps1 skills:publish
 
-# Reindex issue metadata (.docs/issues or _docs/issues)
+# Reindex issue metadata (.issues)
 pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1
 
 # Publish one artifact via router
@@ -195,7 +195,7 @@ Behavioral specifications for the Ralph v2 multi-agent system live under `opensp
 - Publish output not reflected:
  	- Re-run publish script and verify personal target folders.
 - Issue index not generated:
- 	- Ensure `.docs/issues` or `_docs/issues` exists and contains markdown issue files.
+ 	- Ensure `.issues` exists and contains markdown issue files.
 - Python tooling scripts fail:
  	- Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
  	- Install Python 3 and invoke those utilities as `python3`.

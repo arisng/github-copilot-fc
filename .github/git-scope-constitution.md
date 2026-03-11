@@ -80,7 +80,7 @@ Documentation-only changes (non-code, non-artifact).
 - `changelog`: Changelog files and release notes
 - `constitution`: Commit scope constitution or governance docs (`.github/scope-*.md`)
 - `copilot-cli`: GitHub Copilot CLI documentation
-- `issue`: Issue documents (`_docs/issues/`, `.docs/issues/`)
+- `issue`: Issue documents (`.issues/`)
 - `readme`: Root or directory-level README files
 - `reference`: Reference materials, API docs, or specification files
 - `plugin`: Documentation for Copilot CLI plugins (e.g., README.md in `plugins/`)
