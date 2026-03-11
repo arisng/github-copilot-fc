@@ -2,7 +2,7 @@
 name: git-atomic-commit
 description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md.'
 metadata: 
-   version: 2.0.0
+   version: 2.1.0
    author: arisng
 ---
 
@@ -66,7 +66,7 @@ Scopes are entirely repo-specific and governed by `.github/git-scope-constitutio
 
 | File Path Pattern | Type (Tier 2) | Scope (Tier 3) | Rationale |
 |-------------------|---------------|----------------|-----------|
-| `.docs/issues/*` | `docs` | `issue` | Issue documentation and tracking |
+| `.issues/*` | `docs` | `issue` | Issue documentation and tracking |
 | `.docs/changelogs/*` | `docs` | `changelog` | Changelog files |
 | `.github/git-scope-constitution.md` | `docs` | `constitution` | Scope constitution governance |
 | `instructions/*.md` | `copilot` | `instruction` | Repository-level Copilot instructions |
@@ -357,7 +357,7 @@ git commit -m "<subject>" -m "<body>"
    Files: instructions/claude-skills.instructions.md
 
 3. docs(issue): remove deprecated copilot-skills design decision issue
-   Files: .docs/issues/251210_copilot-skills.md
+   Files: .issues/251210_copilot-skills.md
 
 ✅ Pre-commit verification: All file paths mapped to correct project-specific types
 Ready to proceed with commit #1? (yes/no/edit)
