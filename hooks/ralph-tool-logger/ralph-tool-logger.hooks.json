@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "hooks": {
+    "subagentStart": [
+      {
+        "type": "command",
+        "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+        "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
+        "timeoutSec": 5
+      }
+    ],
+    "subagentStop": [
+      {
+        "type": "command",
+        "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+        "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
+        "timeoutSec": 5
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+        "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
+        "timeoutSec": 5,
+        "env": {
+          "RALPH_LOG_PAYLOAD": "true"
+        }
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+        "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
+        "timeoutSec": 5,
+        "env": {
+          "RALPH_LOG_PAYLOAD": "true"
+        }
+      }
+    ]
+  }
+}

@@ -21,9 +21,20 @@ The VS Code hooks documentation explicitly states that VS Code can parse Copilot
 
 ## Hook File Format
 
-Each hook is a JSON file containing a `hooks` object with arrays of hook commands keyed by event type.
+Each hook manifest is a JSON file containing a `hooks` object with arrays of hook commands keyed by event type.
 
-**Naming convention:** `hooks/<name>.hooks.json`
+**Naming convention:** `hooks/<name>/<name>.hooks.json`
+
+**Authoring layout:**
+
+```text
+hooks/
+└── <name>/
+    ├── <name>.hooks.json
+    └── scripts/
+        ├── <script>.ps1
+        └── <script>.sh
+```
 
 ### Minimal Example
 
@@ -31,11 +42,12 @@ Each hook is a JSON file containing a `hooks` object with arrays of hook command
 {
   "version": 1,
   "hooks": {
-    "PostToolUse": [
+    "postToolUse": [
       {
         "type": "command",
-        "command": "./scripts/format.sh",
-        "windows": "powershell -File scripts\\format.ps1"
+        "bash": "bash hooks/security-policy/scripts/format.sh",
+        "powershell": "powershell -NoProfile -File hooks\\security-policy\\scripts\\format.ps1",
+        "timeoutSec": 5
       }
     ]
   }
@@ -141,22 +153,25 @@ The logger also keys agent attribution by `transcript_path` instead of a single 
 
 ## Deployment Locations
 
-`.github/hooks/` is the **primary default** deployment target. VS Code discovers hook files in this workspace directory automatically. User-level deployment to `~/.copilot/hooks/` is **opt-in** and requires both the `-UserLevel` publish switch and the `chat.hookFilesLocations` VS Code setting — it is **not** a default VS Code search path.
+`.github/hooks/` is the **primary default** deployment target. VS Code discovers hook files in this workspace directory automatically. User-level deployment to `~/.copilot/hooks/` is **opt-in** and requires `-Scope user-level` plus the `chat.hookFilesLocations` VS Code setting — it is **not** a default VS Code search path.
 
 | Location | Scope | Discovery |
 | --- | --- | --- |
-| `.github/hooks/*.json` | Workspace (shared) | **Default** — VS Code searches automatically |
-| `~/.copilot/hooks/*.json` | User (global) | **Opt-in** — requires `chat.hookFilesLocations` setting and `-UserLevel` publish |
+| `.github/hooks/*.hooks.json` | Workspace (shared) | **Default** — VS Code searches automatically |
+| `~/.copilot/hooks/*.hooks.json` | User (global) | **Opt-in** — requires `chat.hookFilesLocations` setting and `-Scope user-level` publish |
 
 ## Publishing
 
-The publish script copies hook files from `hooks/` to `.github/hooks/` for workspace deployment (default). User-level publishing to `~/.copilot/hooks/` is available via the `-UserLevel` switch:
+The publish script discovers hook manifests under `hooks/<name>/` and publishes them to `.github/hooks/` for workspace deployment (default). User-level publishing to `~/.copilot/hooks/` is available via `-Scope user-level`:
 
 ```powershell
 # Publish all hooks (workspace-level only, default)
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1
 
-# Publish with user-level deployment (requires chat.hookFilesLocations setting)
+# Publish as user-level hooks (requires chat.hookFilesLocations setting)
+pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level
+
+# Legacy alias (supported, but prefer -Scope user-level)
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -UserLevel
 
 # Publish specific hooks
@@ -168,10 +183,10 @@ pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type hook -Name "sec
 
 ## Authoring Guidelines
 
-1. Author hook configs in `hooks/` (not directly in `.github/hooks/`).
+1. Author each hook in its own `hooks/<name>/` directory (not directly in `.github/hooks/`).
 2. Use the `*.hooks.json` naming convention for clarity.
 3. Provide `windows` overrides alongside the default `command` for cross-platform compatibility.
-4. Keep hook scripts under `hooks/scripts/` or the relevant skill's `scripts/` folder.
+4. Keep hook scripts under the owning hook's `scripts/` folder (for example, `hooks/security-policy/scripts/`) or the relevant skill's `scripts/` folder. In user-level mode, the publish script copies referenced scripts into `~/.copilot/hooks/<name>/scripts/` and rewrites the published hook JSON to use full script paths.
 5. Always validate and sanitize stdin input in hook scripts to prevent injection.
 6. Never hardcode secrets — use environment variables or credential stores.
 

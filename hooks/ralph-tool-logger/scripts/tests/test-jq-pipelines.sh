@@ -7,7 +7,7 @@
 #   2. extract_tool_result_json — reads tool_result/toolResult/tool_response/toolResponse
 #   3. Main JSONL assembly — conditional + (if ... then {k:v} else {} end) for optional fields
 #
-# Usage: bash hooks/scripts/tests/test-jq-pipelines.sh
+# Usage: bash hooks/ralph-tool-logger/scripts/tests/test-jq-pipelines.sh
 set -euo pipefail
 
 PASS=0

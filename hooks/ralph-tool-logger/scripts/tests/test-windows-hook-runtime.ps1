@@ -89,7 +89,7 @@ function Invoke-ManifestHook {
 
     Push-Location $RepoRoot
     try {
-        $output = $payloadJson | & powershell -NoProfile -File 'hooks\scripts\ralph-tool-logger.ps1' 2>&1
+        $output = $payloadJson | & powershell -NoProfile -File 'hooks\ralph-tool-logger\scripts\ralph-tool-logger.ps1' 2>&1
         $exitCode = $LASTEXITCODE
     }
     finally {
@@ -109,11 +109,11 @@ function Invoke-ManifestHook {
     }
 }
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
-$manifestPath = Join-Path $repoRoot 'hooks\ralph-tool-logger.hooks.json'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+$manifestPath = Join-Path $repoRoot 'hooks\ralph-tool-logger\ralph-tool-logger.hooks.json'
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 
-$expectedCommand = 'powershell -NoProfile -File hooks\scripts\ralph-tool-logger.ps1'
+$expectedCommand = 'powershell -NoProfile -File hooks\ralph-tool-logger\scripts\ralph-tool-logger.ps1'
 $eventOrder = @('subagentStart', 'preToolUse', 'postToolUse', 'subagentStop')
 $hookConfigs = @{}
 
