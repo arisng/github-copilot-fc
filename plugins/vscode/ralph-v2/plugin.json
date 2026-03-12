@@ -12,7 +12,7 @@
     "../../../agents/ralph-v2/vscode/ralph-v2-librarian-VSCode.agent.md"
   ],
   "hooks": [
-    "../../../hooks/ralph-tool-logger.hooks.json"
+    "../../../hooks/ralph-tool-logger/ralph-tool-logger.hooks.json"
   ],
   "skills": [
     "../../../skills/git-atomic-commit",
