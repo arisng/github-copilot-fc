@@ -120,7 +120,7 @@ Plugins **supplement** the existing publish-script workflow — they do not repl
 - **CLI publish is a direct copy**: the prepared CLI beta bundle is copied straight into Copilot's `_direct/<name>-beta` install root with exact replacement semantics, without `.install/` staging. Explicit stable publish uses `_direct/<name>`.
 - **VS Code publish is registration-only**: the prepared VS Code beta bundle path is written into `chat.plugins.paths` as `.build/<name>-beta`; explicit stable publish registers `.build/<name>`. VS Code does not use the CLI `_direct` install flow.
 - **Stable is an explicit promotion path**: use `publish-plugins.ps1 -Promote` after a beta build is ready, or pass `-Channel stable` when you intentionally want a stable publish.
-- **Hook scripts travel with the plugin bundle**: when a plugin declares `hooks`, the build pipeline copies `hooks/scripts/` into the bundled `hooks/scripts/` directory so bundled hook manifests can invoke their companion scripts in other workspaces.
+- **Hook scripts travel with the plugin bundle**: when a plugin declares `hooks`, the build pipeline copies each hook's `hooks/<name>/scripts/` folder into the bundled hook tree so bundled hook manifests can invoke their companion scripts in other workspaces.
 
 Use publish scripts for local development iteration. Use plugins for packaging and sharing complete workflows.
 

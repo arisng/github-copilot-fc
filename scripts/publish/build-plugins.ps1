@@ -481,20 +481,40 @@ function Copy-HookSupportAssets {
         [Parameter(Mandatory)][string]$BuildDir
     )
 
-    $sourceScriptsDir = Join-Path $RepoRoot 'hooks/scripts'
-    if (-not (Test-Path $sourceScriptsDir)) {
+    $sourceHooksDir = Join-Path $RepoRoot 'hooks'
+    if (-not (Test-Path $sourceHooksDir)) {
+        return $false
+    }
+
+    $sourceScriptDirs = @(
+        Get-ChildItem -Path $sourceHooksDir -Directory -Recurse |
+            Where-Object { $_.Name -eq 'scripts' }
+    )
+
+    if ($sourceScriptDirs.Count -eq 0) {
         return $false
     }
 
     $hookBuildDir = Join-Path $BuildDir 'hooks'
-    $targetScriptsDir = Join-Path $hookBuildDir 'scripts'
-
     New-Item -Path $hookBuildDir -ItemType Directory -Force | Out-Null
-    if (Test-Path $targetScriptsDir) {
-        Remove-Item $targetScriptsDir -Recurse -Force
+
+    foreach ($sourceScriptDir in $sourceScriptDirs) {
+        $relativeScriptDir = [System.IO.Path]::GetRelativePath($sourceHooksDir, $sourceScriptDir.FullName)
+        if ($relativeScriptDir.StartsWith('..')) {
+            throw "Hook support assets must remain inside hooks/: $($sourceScriptDir.FullName)"
+        }
+
+        $targetScriptDir = Join-Path $hookBuildDir $relativeScriptDir
+        $targetParentDir = Split-Path -Path $targetScriptDir -Parent
+        New-Item -Path $targetParentDir -ItemType Directory -Force | Out-Null
+
+        if (Test-Path $targetScriptDir) {
+            Remove-Item $targetScriptDir -Recurse -Force
+        }
+
+        Copy-Item -Path $sourceScriptDir.FullName -Destination $targetScriptDir -Recurse -Force
     }
 
-    Copy-Item -Path $sourceScriptsDir -Destination $targetScriptsDir -Recurse -Force
     return $true
 }
 
@@ -753,10 +773,10 @@ function Build-PluginBundle {
 
     if ($cleanManifest.Contains('hooks')) {
         if (Copy-HookSupportAssets -RepoRoot $repoRoot -BuildDir $buildDir) {
-            Write-Host "  Bundled hook scripts: hooks/scripts/" -ForegroundColor DarkGray
+            Write-Host "  Bundled hook support assets under hooks/" -ForegroundColor DarkGray
         }
         else {
-            Write-Warning "  Hook manifests were bundled, but hooks/scripts/ was not found to copy alongside them"
+            Write-Warning "  Hook manifests were bundled, but no hook support assets were found under hooks/"
         }
     }
 
