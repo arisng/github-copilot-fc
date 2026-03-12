@@ -1,6 +1,6 @@
 # Ralph v2 — Multi-Agent Orchestration System
 
-A feedback-driven, multi-agent system with isolated task files, structured iteration loops, live signal injection, and session-scope knowledge management. v1 agents are archived in `agents/archived/ralph*.agent.md` — do not reference them for new development.
+A feedback-driven, multi-agent system with isolated task files, structured iteration loops, live signal injection, and session-scope knowledge management. v1 agents are archived in `agents/.archived/ralph*.agent.md` — do not reference them for new development.
 
 **Current version: v2.13.0**
 

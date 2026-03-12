@@ -18,7 +18,7 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 
 - Workspace-first authoring: build artifacts in this repo, then publish to personal locations.
 - Script-first operations: `scripts/` is the source of truth for automation behavior.
-- Clear boundaries: treat `archived/` content as deprecated and not a template source.
+- Clear boundaries: treat `.archived/` content as deprecated and not a template source.
 - Cross-shell usage: commands are designed to run from Windows PowerShell and Linux/WSL (`pwsh`).
 
 ## Repository Layout
@@ -26,7 +26,7 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 - `plugins/`: plugin definitions and assets for local development; publish to personal plugin folders.
 - `agents/`: active agent definitions plus `agents/ralph-v2/` system docs.
 - `hooks/`: agent hook configurations (lifecycle hooks); publish to `.github/hooks/`.
-- `instructions/`: reusable instruction files; `instructions/archived/` for superseded items.
+- `instructions/`: reusable instruction files; `instructions/.archived/` for superseded items.
 - `prompts/`: reusable prompt files for workflow automation.
 - `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
 - `skills/`: skill factory source; publish from here to personal skill folders.
@@ -45,8 +45,8 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 
 Archived locations that should not be used as authoring templates:
 
-- `agents/archived/`
-- `instructions/archived/`
+- `agents/.archived/`
+- `instructions/.archived/`
 - `skills/playwright-cli-archived/`
 
 ## Quickstart

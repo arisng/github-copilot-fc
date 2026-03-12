@@ -6,7 +6,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - This workspace is a **customization factory**: `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, `toolsets/`, `plugins/`, plus publish/automation scripts in `scripts/`.
 - Authoring is workspace-first by design (see `README.md` and `skills/README.md`): artifacts are created here, then published to personal folders (`~/.copilot/`, `~/.codex/`, `%APPDATA%/Code*/User/prompts`) via publish scripts.
 - `.docs/` is the workspace wiki, organized using the **Diátaxis framework** (tutorials, how-to, reference, explanation), with domain sub-folders (copilot, openspec, ralph, blazor-agui). Must use skills `diataxis` and `diataxis-categorizer` for maintenaning this wiki.
-- `archived/` content is deprecated/superseded; do not use archived files as references/templates for new work.
+- `.archived/` content is deprecated/superseded; do not use archived files as references/templates for new work.
 
 ## Architecture and boundaries
 
