@@ -14,6 +14,9 @@ description: >-
   "copilot customization strategy", "maximize copilot harness", "copilot harness checklist",
   "agent prompt budget", "instruction compression", "multi-agent audit",
   "agent variant", "runtime-specific tools", "custom agent runtime".
+metadata: 
+  version: 1.0.0
+  author: arisng
 ---
 
 # Harness Engineering for GitHub Copilot

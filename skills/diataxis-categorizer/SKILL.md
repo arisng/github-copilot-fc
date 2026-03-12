@@ -1,6 +1,9 @@
 ---
 name: diataxis-categorizer
 description: Classify documentation files into domain-based sub-categories within Diátaxis top-level categories (tutorials, how-to, reference, explanation). Use when organizing wiki files into sub-folders like ralph/, copilot/, sdk/ within a Diátaxis category, determining where a file belongs using the three-rule heuristic (keyword extraction → reuse check → create check → fallback), reclassifying research/ staging files into standard categories, or performing batch wiki reorganization. Supplements the `diataxis` skill which handles top-level classification — this skill adds sub-category depth.
+metadata: 
+  version: 1.0.0
+  author: arisng
 ---
 
 # Diátaxis Categorizer — Domain-Based Sub-Category Classification

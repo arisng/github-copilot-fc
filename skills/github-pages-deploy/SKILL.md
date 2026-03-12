@@ -3,6 +3,7 @@ name: github-pages-deploy
 description: Deploy a static HTML file or static site directory to GitHub Pages. Use when the user wants a durable GitHub-hosted URL for a static page, diagram, report, or generated site, and can provide GitHub authentication via GITHUB_TOKEN or GH_TOKEN.
 metadata:
   version: "0.1.0"
+  author: arisng
 ---
 
 # GitHub Pages Deploy

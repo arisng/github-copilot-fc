@@ -14,6 +14,9 @@ description: >-
   "coding agent scaffolding", "AI-maintainable codebase", "garbage collection agents",
   "context engineering for agents", "architectural enforcement", "structural tests",
   "custom linters for agents", "agent autonomy", "harness assessment".
+metadata: 
+  version: 1.0.0
+  author: arisng
 ---
 
 # Harness Engineering
