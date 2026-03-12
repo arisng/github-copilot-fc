@@ -12,10 +12,10 @@
     ~/.copilot/agents/ only. The VS Code prompts directory (Code\User\prompts) is no longer
     used; VS Code discovers custom agents from ~/.copilot/agents/ in user scope.
 
-    Supports platform-aware publishing via the -Platform parameter:
+    Supports runtime-aware publishing via the -Runtime parameter:
     - vscode: publishes VS Code variant agents (agents/*/vscode/) and root-level agents to VS Code prompts dirs
     - cli: publishes CLI variant agents (agents/*/cli/) to ~/.copilot/agents/
-    - (default): publishes both platforms
+    - (default): publishes both runtimes
 
     Handles both array and comma-separated string input formats for agent names.
     Automatically detects and publishes to WSL if available.
@@ -29,11 +29,11 @@
     - Comma-separated: -Agents 'git-committer,meta'
     - String array: -Agents 'git-committer','meta'
 
-.PARAMETER Platform
-    Target platform for publishing. Valid values: 'vscode', 'cli', 'all'. Default: 'all'.
+.PARAMETER Runtime
+    Target runtime for publishing. Valid values: 'vscode', 'cli', 'all'. Default: 'all'.
     - vscode: discovers agents/*/vscode/*.agent.md + agents/*.agent.md (root non-variant agents)
     - cli: discovers agents/*/cli/*.agent.md
-    - all: publishes both platforms (default behavior)
+    - all: publishes both runtimes (default behavior)
 
 .PARAMETER Force
     Overwrite existing agents without prompting for confirmation.
@@ -42,16 +42,16 @@
     Skip publishing to WSL (Windows-only mode).
 
 .EXAMPLE
-    # Publish all agents (both platforms)
+    # Publish all agents (both runtimes)
     ./publish-agents.ps1
 
 .EXAMPLE
     # Publish VS Code agents only
-    ./publish-agents.ps1 -Platform vscode -Force
+    ./publish-agents.ps1 -Runtime vscode -Force
 
 .EXAMPLE
     # Publish CLI agents only
-    ./publish-agents.ps1 -Platform cli -Force
+    ./publish-agents.ps1 -Runtime cli -Force
 
 .EXAMPLE
     # Publish specific agents using array (recommended)
@@ -67,7 +67,7 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("vscode", "cli", "all")]
-    [string]$Platform = "all",
+    [string]$Runtime = "all",
 
     [Parameter(Mandatory = $false)]
     [switch]$Force,
@@ -81,12 +81,12 @@ param(
 function Get-AgentFiles {
     <#
     .SYNOPSIS
-        Discovers agent files based on platform selection.
+        Discovers agent files based on runtime selection.
 
     .PARAMETER ProjectAgentsPath
         Root agents/ directory in the workspace.
 
-    .PARAMETER Platform
+    .PARAMETER Runtime
         'vscode', 'cli', or 'all' (default) for both.
 
     .OUTPUTS
@@ -98,13 +98,13 @@ function Get-AgentFiles {
         [string]$ProjectAgentsPath,
 
         [Parameter(Mandatory = $false)]
-        [string]$Platform
+        [string]$Runtime
     )
 
     $results = @()
 
-    $publishVSCode = ($Platform -eq 'vscode') -or ($Platform -eq 'all')
-    $publishCLI = ($Platform -eq 'cli') -or ($Platform -eq 'all')
+    $publishVSCode = ($Runtime -eq 'vscode') -or ($Runtime -eq 'all')
+    $publishCLI = ($Runtime -eq 'cli') -or ($Runtime -eq 'all')
 
     if ($publishVSCode) {
         # VS Code variant agents: agents/*/vscode/*.agent.md
@@ -126,7 +126,7 @@ function Get-AgentFiles {
                 $results += [PSCustomObject]@{
                     FullName        = $_.FullName
                     DestinationName = $_.Name
-                    Platform        = 'vscode'
+                    Runtime         = 'vscode'
                 }
             }
         }
@@ -136,7 +136,7 @@ function Get-AgentFiles {
             $results += [PSCustomObject]@{
                 FullName        = $_.FullName
                 DestinationName = $_.Name
-                Platform        = 'vscode'
+                Runtime         = 'vscode'
             }
         }
     }
@@ -161,7 +161,7 @@ function Get-AgentFiles {
                 $results += [PSCustomObject]@{
                     FullName        = $_.FullName
                     DestinationName = $_.Name
-                    Platform        = 'cli'
+                    Runtime         = 'cli'
                 }
             }
         }
@@ -172,15 +172,15 @@ function Get-AgentFiles {
 
 function Publish-AgentsToVSCode {
 
-    $publishVSCode = ($Platform -eq 'vscode') -or ($Platform -eq 'all')
-    $publishCLI = ($Platform -eq 'cli') -or ($Platform -eq 'all')
+    $publishVSCode = ($Runtime -eq 'vscode') -or ($Runtime -eq 'all')
+    $publishCLI = ($Runtime -eq 'cli') -or ($Runtime -eq 'all')
 
-    $platformLabel = if ($Platform -ne 'all') { $Platform } else { 'all platforms' }
-    Write-Host "Publishing agents ($platformLabel)..." -ForegroundColor Cyan
+    $runtimeLabel = if ($Runtime -ne 'all') { $Runtime } else { 'all runtimes' }
+    Write-Host "Publishing agents ($runtimeLabel)..." -ForegroundColor Cyan
 
     $projectAgentsPath = Join-Path $PSScriptRoot "..\..\agents"
 
-    # All agents (both vscode and cli platform) publish to ~/.copilot/agents/
+    # All agents (both vscode and cli runtime) publish to ~/.copilot/agents/
     # VS Code discovers custom agents from this location in user scope.
     $copilotAgentsPaths = @(
         (Join-Path $env:USERPROFILE ".copilot\agents")
@@ -231,8 +231,8 @@ function Publish-AgentsToVSCode {
         $agentList = $agentList | Select-Object -Unique
     }
 
-    # Discover agent files based on platform
-    $discoveredAgents = @(Get-AgentFiles -ProjectAgentsPath $projectAgentsPath -Platform $Platform)
+    # Discover agent files based on runtime
+    $discoveredAgents = @(Get-AgentFiles -ProjectAgentsPath $projectAgentsPath -Runtime $Runtime)
 
     # Apply agent name filter
     if ($agentList.Count -gt 0) {
@@ -244,17 +244,17 @@ function Publish-AgentsToVSCode {
         if ($discoveredAgents.Count -eq 0) {
             Write-Host "Warning: No agents found matching: $($agentList -join ', ')" -ForegroundColor Yellow
             Write-Host "Available agents:" -ForegroundColor Cyan
-            $allAgents = @(Get-AgentFiles -ProjectAgentsPath $projectAgentsPath -Platform $Platform)
+            $allAgents = @(Get-AgentFiles -ProjectAgentsPath $projectAgentsPath -Runtime $Runtime)
             $allAgents | ForEach-Object {
                 $basename = $_.DestinationName -replace '\.agent\.md$'
-                Write-Host "  - $basename ($($_.Platform))" 
+                Write-Host "  - $basename ($($_.Runtime))" 
             }
             return
         }
     }
 
     if ($discoveredAgents.Count -eq 0) {
-        Write-Host "No agent files found for platform: $platformLabel" -ForegroundColor Yellow
+        Write-Host "No agent files found for runtime: $runtimeLabel" -ForegroundColor Yellow
         return
     }
 
@@ -266,10 +266,10 @@ function Publish-AgentsToVSCode {
     foreach ($agentEntry in $discoveredAgents) {
         $sourcePath = $agentEntry.FullName
         $destFileName = $agentEntry.DestinationName
-        $agentPlatform = $agentEntry.Platform
+        $agentRuntime = $agentEntry.Runtime
 
-        # Determine destinations based on agent's platform
-        # Both vscode and cli platform agents go to ~/.copilot/agents/
+        # Determine destinations based on agent's runtime
+        # Both vscode and cli runtime agents go to ~/.copilot/agents/
         $targetPaths = $copilotAgentsPaths
 
         foreach ($path in $targetPaths) {
@@ -286,7 +286,7 @@ function Publish-AgentsToVSCode {
 
             try {
                 Copy-Item -Path $sourcePath -Destination $destinationPath -Force
-                Write-Host "Published: $($destFileName -replace '\.agent\.md$') [$agentPlatform] to .copilot/agents" -ForegroundColor Green
+                Write-Host "Published: $($destFileName -replace '\.agent\.md$') [$agentRuntime] to .copilot/agents" -ForegroundColor Green
                 $successCount++
             }
             catch {
@@ -297,7 +297,7 @@ function Publish-AgentsToVSCode {
 
         # Publish to WSL
         if ($wslAvailable) {
-            # WSL: both vscode and cli platform agents go to .copilot/agents
+            # WSL: both vscode and cli runtime agents go to .copilot/agents
             $wslFolders = @(".copilot/agents")
 
             foreach ($wslFolder in $wslFolders) {
@@ -314,7 +314,7 @@ function Publish-AgentsToVSCode {
                     $copiedToWsl = Copy-ToWSL -Source $sourcePath -Destination $wslTargetPath
 
                     if ($copiedToWsl) {
-                        Write-Host "Copied: $($destFileName -replace '\.agent\.md$') [$agentPlatform] to WSL/$wslFolder" -ForegroundColor Green
+                        Write-Host "Copied: $($destFileName -replace '\.agent\.md$') [$agentRuntime] to WSL/$wslFolder" -ForegroundColor Green
                         $successCount++
                     }
                     else {
