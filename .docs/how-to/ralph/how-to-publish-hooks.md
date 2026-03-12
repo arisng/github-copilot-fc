@@ -8,19 +8,19 @@ This guide shows you how to publish hook configurations from the authoring `hook
 
 ## When to Use This Guide
 
-Use this when you have authored or modified hook files in `hooks/` and need to deploy them so VS Code discovers them at runtime. Covers both workspace-level (default) and user-level (opt-in) publishing.
+Use this when you have authored or modified hook files in `hooks/` and need to deploy them so VS Code discovers them at runtime. Covers both repo-scoped (default) and user-level (opt-in) publishing.
 
 ## Prerequisites
 
 - PowerShell 7+ (`pwsh`) available on your system.
-- Hook JSON files exist in the `hooks/` directory (e.g., `ralph-tool-logger.hooks.json`).
+- Hook manifests exist under `hooks/<name>/` (for example, `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`).
 - Familiarity with the deployment model — see [Workspace-Level Hook Deployment Model](../../reference/ralph/workspace-level-hook-deployment-model.md) for why workspace-level is the default.
 
 ## Steps
 
 ### 1. Publish to Workspace (Default)
 
-Run the publish script with no extra flags to copy hook files from `hooks/` to `.github/hooks/`:
+Run the publish script with no extra flags to copy hook manifests discovered under `hooks/<name>/` to `.github/hooks/`:
 
 ```powershell
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1
@@ -50,21 +50,24 @@ By default, existing hooks at the destination are skipped. Use `-Force` to overw
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Force
 ```
 
-### 4. Enable User-Level Publishing (Opt-In)
+### 4. Publish as User-Level Hooks (Opt-In)
 
-To also publish hooks to `~/.copilot/hooks/` (and WSL mirror if available), add the `-UserLevel` switch:
+To publish a hook as a user-level hook in `~/.copilot/hooks/` (and WSL mirror if available), select the user-level scope:
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -UserLevel
+pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level
 ```
 
-This performs three additional actions beyond the workspace publish:
+This performs four user-level actions:
 
-1. Copies hook files to `~/.copilot/hooks/` on Windows.
+1. Copies hook manifests to `~/.copilot/hooks/` on Windows.
 2. Mirrors to `~/.copilot/hooks/` inside WSL (if WSL is detected).
-3. Updates `chat.hookFilesLocations` in VS Code settings to include both `.github/hooks` and `~/.copilot/hooks/`.
+3. Copies referenced hook scripts into the published user-level hook tree, preserving hook-relative subpaths such as `ralph-tool-logger/scripts/`.
+4. Rewrites script paths in the published hook JSON from workspace-relative paths to full user-level paths, then updates `chat.hookFilesLocations` in VS Code settings to include both `.github/hooks` and `~/.copilot/hooks/`.
 
-> **Important**: User-level hooks fire in *every* workspace — only use `-UserLevel` when you intentionally want cross-workspace hook activation. The `chat.hookFilesLocations` VS Code setting is required for user-level path discovery since `~/.copilot/hooks/` is not a default search path.
+> **Important**: User-level hooks fire in *every* workspace - only use `-Scope user-level` when you intentionally want cross-workspace hook activation. The `chat.hookFilesLocations` VS Code setting is required for user-level path discovery since `~/.copilot/hooks/` is not a default search path.
+
+> **Compatibility note**: `-UserLevel` still works as a legacy alias, but new automation should prefer `-Scope user-level`.
 
 ### 5. Validate the Published Hook
 
@@ -72,10 +75,13 @@ After publishing, confirm the hook file exists at the target:
 
 ```powershell
 # Workspace-level check
-Test-Path .github/hooks/ralph-tool-logger.hooks.json
+Test-Path ".github\hooks\ralph-tool-logger.hooks.json"
 
-# User-level check (only if -UserLevel was used)
-Test-Path "$env:USERPROFILE/.copilot/hooks/ralph-tool-logger.hooks.json"
+# User-level check (only if -Scope user-level was used)
+Test-Path "$env:USERPROFILE\.copilot\hooks\ralph-tool-logger.hooks.json"
+
+# User-level script check
+Test-Path "$env:USERPROFILE\.copilot\hooks\ralph-tool-logger\scripts\ralph-tool-logger.ps1"
 ```
 
 Verify VS Code discovers the hooks by opening the Command Palette and running **Developer: Show Running Extensions** — hook-related activity appears in the Copilot output channel.
@@ -86,10 +92,10 @@ Verify VS Code discovers the hooks by opening the Command Palette and running **
 Workspace-level hooks must be in `.github/hooks/` — verify the file was copied there, not just `hooks/`. The `hooks/` directory is the authoring source; it is not a discovery path.
 
 **Problem: User-level hook not discovered**
-Ensure `chat.hookFilesLocations` in your VS Code `settings.json` includes `~/.copilot/hooks/`. The publish script sets this automatically with `-UserLevel`, but manual edits may have removed it.
+Ensure `chat.hookFilesLocations` in your VS Code `settings.json` includes `~/.copilot/hooks/`. The publish script sets this automatically in user-level mode, but manual edits may have removed it.
 
 **Problem: Hook script path not resolving**
-Hook `command` fields use workspace-relative paths (e.g., `hooks/scripts/ralph-tool-logger.sh`). These paths only resolve when the hook manifest is discovered from the workspace that contains the scripts. User-level hooks pointing to workspace-relative scripts will fail in other workspaces.
+Repo-scoped hooks can keep workspace-relative paths (for example, `hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh`). In user-level mode the publish script copies referenced scripts into `~/.copilot/hooks/ralph-tool-logger/scripts/` and rewrites the published hook JSON to use full user-level paths. If a user-level hook still has a relative script path, republish it with `-Force -Scope user-level`.
 
 ## See Also
 

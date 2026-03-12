@@ -278,9 +278,10 @@ Hooks use the same JSON schema in both VS Code and Copilot CLI. The CLI discover
 
 ### What the script does
 
-- Copies `hooks/*.hooks.json` → `.github/hooks/`
+- Default behavior is repo-scoped: publishes manifests discovered under `hooks/<name>/` into `.github/hooks/`
+- `-Scope user-level` publishes globally to `~/.copilot/hooks/`; `-UserLevel` still works as a legacy alias
+- User-level publishing copies referenced scripts into the published hook tree and rewrites command paths to full user-level paths
 - Same JSON schema: `{ "version": 1, "hooks": { ... } }`
-- Hook scripts referenced by hooks must also be accessible from the repo root
 
 ### Supported lifecycle events
 

@@ -26,14 +26,14 @@ Use this when hook log entries are missing expected fields, when tool arguments 
 
 ### 1. Enable full payload logging
 
-Set `RALPH_LOG_PAYLOAD=true` in the hooks manifest to capture tool arguments and results. This is configured per-event in `hooks/ralph-tool-logger.hooks.json`:
+Set `RALPH_LOG_PAYLOAD=true` in the hooks manifest to capture tool arguments and results. This is configured per-event in `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`:
 
 ```json
 "preToolUse": [
   {
     "type": "command",
-    "bash": "bash hooks/scripts/ralph-tool-logger.sh",
-    "powershell": "powershell -NoProfile -File hooks\\scripts\\ralph-tool-logger.ps1",
+    "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+    "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
     "timeoutSec": 5,
     "env": {
       "RALPH_LOG_PAYLOAD": "true"

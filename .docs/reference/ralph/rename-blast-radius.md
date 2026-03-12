@@ -31,7 +31,7 @@ State machine state names, mode parameter values, and cross-references are confi
 
 | Category | Path Pattern | Why Safe |
 |----------|--------------|----------|
-| Hook configs | `hooks/*.hooks.json` | Reference lifecycle events (onStop), not state machine states |
+| Hook configs | `hooks/<name>/<name>.hooks.json` | Reference lifecycle events (onStop), not state machine states |
 | Hook scripts | `scripts/hooks/*.ps1`, `*.sh`, `*.py` | Read `metadata.yaml` fields (status, session_id), not mode names |
 | Publish scripts | `scripts/publish/*.ps1` | Operate on file paths, not agent content |
 | Workspace scripts | `scripts/workspace/*.ps1` | Command dispatch, not agent semantics |

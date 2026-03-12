@@ -701,10 +701,10 @@ OUTPUT: { verdict: "BLOCK", reason: "Signal message must be non-empty" }
 
 ## Pilot: Stop Hook Metadata Finalization
 
-- Hook file: `hooks/ralph-v2-stop-finalizer.hooks.json`
+- Hook file: `hooks/ralph-v2-stop-finalizer/ralph-v2-stop-finalizer.hooks.json`
 - Session-binding hook: `UserPromptSubmit` updates `.ralph-sessions/.hook-bindings/<HOOK_SESSION_ID>.json`
-- Windows command: `pwsh -NoProfile -File hooks/scripts/ralph-v2-finalize-session-stop.ps1`
-- Linux/WSL command: `bash hooks/scripts/ralph-v2-finalize-session-stop.sh`
+- Windows command: `pwsh -NoProfile -File hooks\ralph-v2-stop-finalizer\scripts\ralph-v2-finalize-session-stop.ps1`
+- Linux/WSL command: `bash hooks/ralph-v2-stop-finalizer/scripts/ralph-v2-finalize-session-stop.sh`
 - `Stop` resolution order: binding by hook `sessionId` -> `transcript_path` parsing -> `.active-session` fallback
 - Deterministic session target: `.ralph-sessions/.active-session`
 - Ralph-only applicability marker: `.ralph-sessions/<SESSION_ID>/.hook-enabled`

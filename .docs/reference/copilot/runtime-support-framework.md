@@ -77,7 +77,7 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 | copilot-cli (Win) | `.github/hooks/*.hooks.json` (repo-scoped, CWD-discovered) | Same repo-scoped mechanism                  |
 | copilot-cli (WSL) | `.github/hooks/*.hooks.json` (in WSL-cloned repo)          | Repo-scoped: works if repo is cloned in WSL |
 
-**Script:** `scripts/publish/publish-hooks.ps1` — copies from `hooks/` to `.github/hooks/` in the workspace root. Both VS Code and copilot-cli discover hooks from `.github/hooks/` when operating on the repo. No personal (`~/.copilot/`) hook path publish is needed for repo-scoped hooks.
+**Script:** `scripts/publish/publish-hooks.ps1` — publishes manifests discovered under `hooks/<name>/` to `.github/hooks/` by default. `-Scope user-level` publishes to `~/.copilot/hooks/`, copies referenced scripts into the published hook tree, rewrites command paths to full user-level paths, and still accepts the legacy alias `-UserLevel`. Both VS Code and copilot-cli discover repo-scoped hooks from `.github/hooks/` when operating on the repo.
 
 **CWD caveat:** copilot-cli discovers hooks from the current working directory. If invoked from a subdirectory, `.github/hooks/` may not be found. Standard usage (CLI from repo root) works correctly.
 

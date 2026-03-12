@@ -6,17 +6,17 @@ category: reference
 
 ## Summary
 
-The Windows Ralph hook manifest executes `hooks/scripts/ralph-tool-logger.ps1` through `powershell -NoProfile -File ...`. Under that runtime contract, source-text compatibility matters before any hook routing or logging logic runs.
+The Windows Ralph hook manifest executes `hooks/ralph-tool-logger/scripts/ralph-tool-logger.ps1` through `powershell -NoProfile -File ...`. Under that runtime contract, source-text compatibility matters before any hook routing or logging logic runs.
 
 ## Constraint
 
-- Keep `hooks/scripts/ralph-tool-logger.ps1` ASCII-safe unless the runtime or file-encoding contract is intentionally changed.
+- Keep `hooks/ralph-tool-logger/scripts/ralph-tool-logger.ps1` ASCII-safe unless the runtime or file-encoding contract is intentionally changed.
 - Treat non-ASCII punctuation in comments or emitted strings as a startup risk for the current Windows manifest runtime.
 - Prefer narrow text-only fixes when the failure is a parser or startup regression rather than a logging-behavior defect.
 
 ## Blast Radius
 
-`hooks/ralph-tool-logger.hooks.json` routes these four shared events to the same PowerShell entrypoint:
+`hooks/ralph-tool-logger/ralph-tool-logger.hooks.json` routes these four shared events to the same PowerShell entrypoint:
 
 - `subagentStart`
 - `subagentStop`
@@ -39,4 +39,4 @@ If the script fails to parse at startup, all four Windows hook events lose loggi
 
 ## Related Guardrail
 
-Pair this constraint with the Windows manifest-runtime smoke test in `hooks/scripts/tests/test-windows-hook-runtime.ps1` so future parser or startup regressions are detected before publish.
+Pair this constraint with the Windows manifest-runtime smoke test in `hooks/ralph-tool-logger/scripts/tests/test-windows-hook-runtime.ps1` so future parser or startup regressions are detected before publish.

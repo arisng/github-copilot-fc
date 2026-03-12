@@ -6,11 +6,11 @@ category: reference
 
 ## Summary
 
-The workspace keeps a dedicated Windows smoke test at `hooks/scripts/tests/test-windows-hook-runtime.ps1` to guard the shared Ralph hook logger against parser and startup regressions under the exact manifest runtime.
+The workspace keeps a dedicated Windows smoke test at `hooks/ralph-tool-logger/scripts/tests/test-windows-hook-runtime.ps1` to guard the shared Ralph hook logger against parser and startup regressions under the exact manifest runtime.
 
 ## Runtime Under Test
 
-- The test validates the Windows manifest command declared in `hooks/ralph-tool-logger.hooks.json`: `powershell -NoProfile -File hooks\scripts\ralph-tool-logger.ps1`.
+- The test validates the Windows manifest command declared in `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`: `powershell -NoProfile -File hooks\ralph-tool-logger\scripts\ralph-tool-logger.ps1`.
 - It treats that command as the contract, not just the logger script in isolation.
 - All four shared hook events use the same PowerShell entrypoint: `subagentStart`, `subagentStop`, `preToolUse`, and `postToolUse`.
 
@@ -40,4 +40,4 @@ The smoke test should replay all four shared events through the configured manif
 
 ## Maintenance Implication
 
-When modifying either `hooks/scripts/ralph-tool-logger.ps1` or `hooks/ralph-tool-logger.hooks.json`, keep this smoke test passing under the exact `powershell` manifest command. That preserves coverage for the full four-event Windows blast radius instead of only tool-hook paths.
+When modifying either `hooks/ralph-tool-logger/scripts/ralph-tool-logger.ps1` or `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`, keep this smoke test passing under the exact `powershell` manifest command. That preserves coverage for the full four-event Windows blast radius instead of only tool-hook paths.

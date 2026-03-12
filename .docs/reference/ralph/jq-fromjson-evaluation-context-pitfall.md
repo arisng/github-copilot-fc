@@ -35,4 +35,4 @@ This correctly passes through pre-parsed objects because `$ta` retains the origi
 
 ## Test Evidence
 
-The jq pipeline test suite (`hooks/scripts/tests/test-jq-pipelines.sh`, test case 1d) explicitly documents this behavior: a pre-parsed object `toolArgs` yields `null`, confirming the current source-code semantics.
+The jq pipeline test suite (`hooks/ralph-tool-logger/scripts/tests/test-jq-pipelines.sh`, test case 1d) explicitly documents this behavior: a pre-parsed object `toolArgs` yields `null`, confirming the current source-code semantics.

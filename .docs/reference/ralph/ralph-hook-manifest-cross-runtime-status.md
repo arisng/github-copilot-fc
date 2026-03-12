@@ -2,7 +2,7 @@
 
 ## Manifest verdict
 
-The shared Ralph hook manifest (`hooks/ralph-tool-logger.hooks.json`) is cross-runtime compatible for the four events it currently wires:
+The shared Ralph hook manifest (`hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`) is cross-runtime compatible for the four events it currently wires:
 
 | Event | Payload logging | Status |
 |-------|----------------|--------|
@@ -19,7 +19,7 @@ The compatibility gap is in **payload parsing**, not manifest syntax:
 
 - **Manifest format**: Cross-runtime compatible. No rewrite needed.
 - **Payload field names**: Both loggers read CLI-style camelCase fields (`toolName`, `toolArgs`, `toolResult`, `agentName`) while VS Code native payloads use snake_case fields (`tool_name`, `tool_input`, `tool_response`, `agent_type`, `agent_id`). See the VS Code vs CLI hook payload field mapping reference for details.
-- **Documentation**: `hooks/README.md` correctly recommends CLI-style manifest schema for shared files but inaccurately labels VS Code payload fields using CLI-style names.
+- **Documentation**: `hooks/README.md` correctly recommends the CLI-style manifest schema for shared files and the nested `hooks/<name>/` authoring layout.
 
 ## Scope limitation
 

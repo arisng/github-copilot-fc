@@ -21,10 +21,10 @@ Use this after modifying hook logger scripts (`ralph-tool-logger.sh` or `ralph-t
 
 ### 1. Run the jq Pipeline Test Suite
 
-The test suite at `hooks/scripts/tests/test-jq-pipelines.sh` isolates and tests all three jq merging pipelines used by the Bash logger:
+The test suite at `hooks/ralph-tool-logger/scripts/tests/test-jq-pipelines.sh` isolates and tests all three jq merging pipelines used by the Bash logger:
 
 ```bash
-bash hooks/scripts/tests/test-jq-pipelines.sh
+bash hooks/ralph-tool-logger/scripts/tests/test-jq-pipelines.sh
 ```
 
 Expected output ends with a pass/fail summary:
@@ -96,7 +96,7 @@ EOF
 Pipe the test fixture into the logger:
 
 ```bash
-cat /tmp/test-hook-payload.json | bash hooks/scripts/ralph-tool-logger.sh
+cat /tmp/test-hook-payload.json | bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh
 ```
 
 The script outputs `{"continue":true}` on success. Check the generated log:
@@ -120,7 +120,7 @@ The guard prevents logging to stale or completed sessions. Test each edge case:
 ```bash
 rm "$TEST_ROOT/.active-session"
 echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"test"}' \
-  | bash hooks/scripts/ralph-tool-logger.sh
+  | bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh
 # Expected: {"continue":true} — no log written, no error
 ```
 
@@ -130,7 +130,7 @@ echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"tes
 echo -n "$SESSION_ID" > "$TEST_ROOT/.active-session"
 sed -i 's/IN_PROGRESS/COMPLETE/' "$TEST_ROOT/$SESSION_ID/metadata.yaml"
 echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"test"}' \
-  | bash hooks/scripts/ralph-tool-logger.sh
+  | bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh
 # Expected: {"continue":true} + stderr warning about COMPLETE session
 ```
 
@@ -139,7 +139,7 @@ echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"tes
 ```bash
 echo -n "nonexistent-session" > "$TEST_ROOT/.active-session"
 echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"test"}' \
-  | bash hooks/scripts/ralph-tool-logger.sh
+  | bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh
 # Expected: {"continue":true} + stderr warning about missing directory
 ```
 
@@ -149,7 +149,7 @@ echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"tes
 echo -n "$SESSION_ID" > "$TEST_ROOT/.active-session"
 rm -f "$TEST_ROOT/$SESSION_ID/metadata.yaml"
 echo '{"hookEventName":"preToolUse","cwd":"/tmp/test-workspace","tool_name":"test"}' \
-  | bash hooks/scripts/ralph-tool-logger.sh
+  | bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh
 # Expected: {"continue":true} — logging proceeds (fail-open design)
 ```
 

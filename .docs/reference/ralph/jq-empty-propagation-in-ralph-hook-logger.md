@@ -2,7 +2,7 @@
 
 ## Problem
 
-The Bash Ralph hook logger (`hooks/scripts/ralph-tool-logger.sh`) uses a `jq -cn` pattern to construct tool-usage JSONL entries. Several optional fields use `select(. != "")` or `if $var == null then empty else $var end` to conditionally include values. In jq, when **any** field expression evaluates to `empty`, the **entire JSON object** is suppressed — zero output, exit code 0.
+The Bash Ralph hook logger (`hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh`) uses a `jq -cn` pattern to construct tool-usage JSONL entries. Several optional fields use `select(. != "")` or `if $var == null then empty else $var end` to conditionally include values. In jq, when **any** field expression evaluates to `empty`, the **entire JSON object** is suppressed — zero output, exit code 0.
 
 ## Affected events
 

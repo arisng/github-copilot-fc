@@ -33,7 +33,7 @@ Determine the lowerCamelCase event name (e.g., `preToolUse`) and the payload fie
 
 ### 2. Add the handler to the Bash logger
 
-Open `hooks/scripts/ralph-tool-logger.sh` and add a new `case` branch in the main event dispatch (the `case "$EVENT_NAME" in` block near the end of the file).
+Open `hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh` and add a new `case` branch in the main event dispatch (the `case "$EVENT_NAME" in` block near the end of the file).
 
 ```bash
     yourNewEvent)
@@ -62,7 +62,7 @@ Key patterns to follow:
 
 ### 3. Add the handler to the PowerShell logger
 
-Open `hooks/scripts/ralph-tool-logger.ps1` and add a new branch in the `switch ($normalizedEventName)` block.
+Open `hooks/ralph-tool-logger/scripts/ralph-tool-logger.ps1` and add a new branch in the `switch ($normalizedEventName)` block.
 
 ```powershell
         'yourNewEvent' {
@@ -118,7 +118,7 @@ function Get-NormalizedEventName {
 
 ### 5. Update the hooks manifest
 
-Open `hooks/ralph-tool-logger.hooks.json` and add your event to the `hooks` object:
+Open `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json` and add your event to the `hooks` object:
 
 ```json
 {
@@ -127,8 +127,8 @@ Open `hooks/ralph-tool-logger.hooks.json` and add your event to the `hooks` obje
     "yourNewEvent": [
       {
         "type": "command",
-        "bash": "bash hooks/scripts/ralph-tool-logger.sh",
-        "powershell": "powershell -NoProfile -File hooks\\scripts\\ralph-tool-logger.ps1",
+        "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+        "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
         "timeoutSec": 5
       }
     ]
@@ -141,8 +141,8 @@ To enable payload logging for the event, add the `env` block:
 ```json
 {
   "type": "command",
-  "bash": "bash hooks/scripts/ralph-tool-logger.sh",
-  "powershell": "powershell -NoProfile -File hooks\\scripts\\ralph-tool-logger.ps1",
+  "bash": "bash hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh",
+  "powershell": "powershell -NoProfile -File hooks\\ralph-tool-logger\\scripts\\ralph-tool-logger.ps1",
   "timeoutSec": 5,
   "env": {
     "RALPH_LOG_PAYLOAD": "true"
@@ -160,7 +160,7 @@ Run the publish script to deploy the updated manifest to `.github/hooks/`:
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1
 ```
 
-This copies the hooks manifest from `hooks/` to `.github/hooks/` where VS Code auto-discovers it. The logger scripts remain in `hooks/scripts/` and are referenced by workspace-relative paths.
+This publishes the authored manifest from `hooks/ralph-tool-logger/` to `.github/hooks/ralph-tool-logger.hooks.json`, where VS Code auto-discovers it. The logger scripts remain in `hooks/ralph-tool-logger/scripts/` and are referenced by workspace-relative paths.
 
 ### 7. Verify the new event fires
 

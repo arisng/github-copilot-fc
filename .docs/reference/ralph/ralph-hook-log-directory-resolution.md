@@ -8,7 +8,7 @@ This reference defines where Ralph hook logger events are written and how the lo
 
 The hook manifest is deployed as a **workspace-scoped** file at `.github/hooks/ralph-tool-logger.hooks.json`. This is the primary deployment location — GitHub Copilot discovers and loads hooks from `.github/hooks/` relative to the workspace root.
 
-The manifest references logger scripts at `hooks/scripts/ralph-tool-logger.ps1` (PowerShell) and `hooks/scripts/ralph-tool-logger.sh` (Bash), both resolved relative to the workspace root.
+The manifest references logger scripts at `hooks/ralph-tool-logger/scripts/ralph-tool-logger.ps1` (PowerShell) and `hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh` (Bash), both resolved relative to the workspace root.
 
 ## Session-state validation guard
 
