@@ -1,7 +1,9 @@
 ---
 name: googleworkspace-cli
 description: Unified CLI interface for Google Workspace APIs (Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, etc.) with structured output and multi-service support
-tags: [google-workspace, automation, productivity, email, documents, calendar, admin]
+metadata:
+  version: 0.1.0
+  author: arisng
 ---
 
 # Google Workspace CLI Agent Skill
