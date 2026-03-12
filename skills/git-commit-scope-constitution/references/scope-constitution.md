@@ -91,7 +91,7 @@ Documentation changes.
 
 | Scope          | Description                        | File Patterns                       |
 | -------------- | ---------------------------------- | ----------------------------------- |
-| `issue`        | Issue documentation and tracking   | `.docs/issues/*`                    |
+| `issue`        | Issue documentation and tracking   | `.issues/*`                    |
 | `changelog`    | Changelog files                    | `.docs/changelogs/*`                |
 | `constitution` | Scope constitution governance docs | `.github/git-scope-constitution.md` |
 | `[add-others]` | [Description]                      | [Patterns]                          |
