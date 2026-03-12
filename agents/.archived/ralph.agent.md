@@ -2,7 +2,7 @@
 name: Ralph
 description: Orchestration agent that routes tasks to specialized subagents and tracks progress in a session file in `.ralph-sessions`
 argument-hint: Outline the task or question to be handled by Ralph orchestrator
-user-invokable: true
+user-invocable: true
 target: vscode
 tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runTask', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'agent', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'brave-search/brave_web_search', 'sequentialthinking/*', 'time/*']
 agents: ['Ralph-Planner', 'Ralph-Questioner', 'Ralph-Executor', 'Ralph-Reviewer']
