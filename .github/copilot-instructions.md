@@ -30,7 +30,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 
 ## File and naming conventions
 - Custom Agents: `agents/<name>.agent.md` (standalone) or `agents/<name>/<runtime>/<name>-<runtime>.agent.md` (variants)
-- Agent Hooks: `hooks/<name>.hooks.json`
+- Agent Hooks: `hooks/<name>/<name>.hooks.json`
 - Custom Instructions: `instructions/<name>.instructions.md`
 - Agent-specific private instructions: `agents/<name>/instructions/*.instructions.md` (tightly coupled to that agent workflow)
 - Custom Prompts: `prompts/*.prompt.md`

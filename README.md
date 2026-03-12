@@ -6,7 +6,7 @@ Use this repository to create, validate, and distribute:
 
 - Plugins (`plugins/<plugin-name>/`)
 - Custom Agents (`agents/*.agent.md`)
-- Agent Hooks (`hooks/*.hooks.json`)
+- Agent Hooks (`hooks/<name>/<name>.hooks.json`)
 - Custom Instructions (`instructions/*.instructions.md`)
 - Prompt files (`prompts/*.prompt.md`)
 - Skills (`skills/<skill-name>/SKILL.md`)
@@ -25,7 +25,7 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 
 - `plugins/`: plugin definitions and assets for local development; publish to personal plugin folders.
 - `agents/`: active agent definitions plus `agents/ralph-v2/` system docs.
-- `hooks/`: agent hook configurations (lifecycle hooks); publish to `.github/hooks/`.
+- `hooks/`: agent hook configurations organized as per-hook directories with manifests and companion scripts; publish manifests to `.github/hooks/`.
 - `instructions/`: reusable instruction files; `instructions/.archived/` for superseded items.
 - `prompts/`: reusable prompt files for workflow automation.
 - `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
@@ -155,7 +155,7 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 ## Naming and Authoring Conventions
 
 - Agent file naming: `agents/<name>.agent.md`
-- Hook file naming: `hooks/<name>.hooks.json`
+- Hook file naming: `hooks/<name>/<name>.hooks.json`
 - Instruction naming: `instructions/<name>.instructions.md`
 - Prompt naming: `prompts/<name>.prompt.md`
 - Skill folder requirement: `skills/<name>/SKILL.md`

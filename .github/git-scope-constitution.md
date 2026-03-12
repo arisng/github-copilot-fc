@@ -37,27 +37,24 @@ This repository is a **customization factory** for GitHub Copilot customizations
 
 Changes to GitHub Copilot customization artifact files — the most-used commit type in this repo.
 
-- `custom-agent`: Custom Copilot agent definition files (`agents/**/*.agent.md`)
-- `instruction`: Copilot instruction files (`instructions/**/*.instructions.md`)
+- `custom-agent`: Copilot custom agent definition files (`agents/**/*.agent.md`)
+- `instruction`: Copilot custom instruction files (`instructions/**/*.instructions.md`)
 - `mcp`: MCP server configuration for Copilot CLI (`.github/mcp*.json`, `mcp-config.json`)
 - `memory`: Copilot memory files (`.copilot/memories/`)
-- `plugin`: Copilot CLI plugin definition and assets (`plugins/**/plugin.json`)
-- `prompt`: Copilot prompt template files (`prompts/**/*.prompt.md`)
-- `skill`: Copilot skill files (`skills/**/SKILL.md` and all supporting skill scripts)
+- `plugin`: Copilot plugin definition and assets (`plugins/**/plugin.json`)
+- `prompt`: Copilot prompt files (`prompts/**/*.prompt.md`)
 - `toolset`: Copilot toolset configuration files (`toolsets/**/*.toolsets.jsonc`)
+- `hook`: Copilot hook lifecycle configurations (`hooks/`)
 
 ### `agent`
 
 Tier 2 extended type replacing the deprecated `ai` type. Use for changes to AI agent assets and AI model-facing behavior — skill instructions, agent intelligence, or model configuration.
-Use `agent` when the *substance* of AI capability changes; use `copilot` when the *artifact file* lifecycle is the focus.
+Use `agent` when the scope is beyond Copilot artifact files; Skill is now standard customization across Coding Agents and not specific to Copilot; use `copilot` when the scope is a Copilot specific customization artifact.
 
 - `codex`: AI codex knowledge base or index entries
-- `hook`: Agent hook lifecycle configurations (`hooks/`)
 - `instruction`: AI behavioral changes to agent definition files (instructions, persona, reasoning) *(was `ai(agent)`)*
-- `mcp`: Model Context Protocol configuration affecting AI behavior
-- `prompt`: AI prompt content and engineering changes
 - `prompt-engineering`: Prompt engineering research and analysis (`prompt-engineering/`)
-- `skill`: Skill content changes that affect AI behavior or instructions
+- `skill`: AI instruction content within skills folders (`skills/**`)
 
 ### `ai`
 
