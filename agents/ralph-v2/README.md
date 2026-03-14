@@ -100,18 +100,24 @@ Ralph-v2 CLI agents are distributed **exclusively via the ralph-v2 CLI plugin**.
 
 Plugin location: `plugins/cli/ralph-v2/plugin.json`
 Runtime-scoped bundle root: `plugins/cli/.build/`
-CLI publish unit: `plugins/cli/.build/ralph-v2/`
-CLI install location (workspace publish flow): `~/.copilot/installed-plugins/_direct/ralph-v2`
+CLI local install unit: the built bundle under `plugins/cli/.build/` (for example `plugins/cli/.build/ralph-v2/`)
+Supported local install command: `copilot plugin install <local_plugin_path>`
 
-The workspace publisher now copies the prepared CLI bundle directly into `_direct/ralph-v2` with exact replacement semantics and no `.install/` staging. That payload copy is verified, but Copilot CLI discovery of raw `_direct` copies is still treated as a best-effort path because local probes have not yet proven parity with `copilot plugin install`.
+The supported local CLI flow is: build the bundle, then install that local bundle with `copilot plugin install`. If you inspect Copilot CLI's cache afterward, current local runs may still materialize the installed payload under `_direct/ralph-v2`, but that is an implementation detail rather than the publish contract.
 
-To publish:
+To build the bundle:
 ```powershell
 # Publish via plugin (required for CLI agents)
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
 
 # Or using the artifact publisher:
 pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type plugin -Name ralph-v2
+```
+
+After the bundle is ready, install it with the supported local CLI flow:
+
+```bash
+copilot plugin install <local_plugin_path>
 ```
 
 For VS Code, prefer the plugin publisher so the Ralph-coupled skills are bundled together:
