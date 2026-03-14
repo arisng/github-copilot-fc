@@ -1,6 +1,6 @@
 # How to Create a CLI Plugin
 
-This guide walks you through creating a Copilot CLI plugin from scratch — from directory setup through manifest authoring to local installation and validation.
+This guide walks you through creating a Copilot CLI plugin from scratch — from directory setup through manifest authoring to the supported local install-and-verify flow.
 
 ## When to use this guide
 
@@ -97,13 +97,41 @@ For workspace plugins that reference existing artifacts, use relative paths in `
 
 This is the approach used by the workspace's pilot plugin at [plugins/cli/ralph-v2/plugin.json](../../../plugins/cli/ralph-v2/plugin.json). For team distribution, run `publish-plugins.ps1` to create a self-contained bundle — bundling is the default behavior. Use `-SkipBundle` only for development/debugging.
 
-## Step 4: Install locally
+## Step 4: Build a bundle when your plugin uses workspace-relative paths
 
-Install the plugin from the local directory:
+If your plugin already has a self-contained directory layout, you can install that directory directly.
+
+If your `plugin.json` points at workspace-relative paths such as `../../agents/...` or `../../skills/...`, build the bundle first:
+
+```powershell
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
+```
+
+That command builds a self-contained bundle at `plugins/cli/.build/my-plugin/`.
+
+Use this as your practical contract for local CLI installs:
+
+1. Start with either the self-contained plugin directory or the built bundle directory.
+2. Run `copilot plugin install <path>`.
+3. Run `copilot plugin list` to confirm discovery.
+
+This matches the supported GitHub Copilot CLI workflow documented in [Creating a plugin for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating) and the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference).
+
+## Step 5: Install with `copilot plugin install`
+
+Install the plugin from the plugin directory or built bundle directory:
 
 ```bash
 copilot plugin install ./plugins/cli/my-plugin
 ```
+
+If you built a bundle in step 4, install the bundle instead:
+
+```bash
+copilot plugin install ./plugins/cli/.build/my-plugin
+```
+
+## Step 6: Verify with `copilot plugin list`
 
 Verify the installation:
 
@@ -113,13 +141,17 @@ copilot plugin list
 
 The plugin's agents, skills, and other components are now available in your Copilot CLI sessions.
 
-If you want to use the workspace publish automation instead of the official CLI install flow, run:
+If you want to use the workspace publish automation as a fallback instead of installing the source directory directly, use it to rebuild the runtime-scoped bundle and then install that local bundle with the supported CLI flow:
 
 ```powershell
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
 ```
 
-That workflow builds `plugins/cli/.build/my-plugin/` and copies it directly into `~/.copilot/installed-plugins/_direct/my-plugin/` with exact replacement semantics. It does **not** create a `.install/` staging directory. The payload copy is verified, but raw `_direct` copy discovery is still a documented best-effort path until parity with `copilot plugin install` is proven.
+```bash
+copilot plugin install ./plugins/cli/.build/my-plugin
+```
+
+That workflow keeps `plugins/cli/.build/my-plugin/` as the handoff point. If you inspect Copilot CLI's cache after the install, current local runs may still materialize the payload under `_direct/my-plugin`, but that is storage observation only — not the supported Copilot CLI installation contract.
 
 ---
 
@@ -129,8 +161,11 @@ The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that demonstrat
 
 1. **Directory**: `plugins/cli/ralph-v2/`
 2. **Manifest**: `plugins/cli/ralph-v2/plugin.json` — references CLI agents, hooks, and selected skills via relative paths
-3. **Install**: `copilot plugin install ./plugins/cli/ralph-v2`
-4. **Publish script**: `scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins ralph-v2` builds `plugins/cli/.build/ralph-v2/` and copies that bundle into `_direct/ralph-v2`
+3. **Build for distribution**: `scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins ralph-v2` creates `plugins/cli/.build/ralph-v2/`
+4. **Install**: `copilot plugin install ./plugins/cli/.build/ralph-v2`
+5. **Verify**: `copilot plugin list`
+
+If you inspect the cache after installing the built bundle, you may still see `_direct/ralph-v2`, but treat that as post-install storage observation rather than the canonical Copilot CLI method.
 
 See [plugins/README.md](../../../plugins/README.md) for the full directory documentation.
 
@@ -157,13 +192,17 @@ copilot plugin uninstall my-plugin
 copilot plugin install ./plugins/cli/my-plugin
 ```
 
-Or use the publish script with `-Force`:
+Or rebuild the bundle and reinstall it:
 
 ```powershell
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin -Force
 ```
 
-> **Note:** Bundling is the default behavior. Use `-SkipBundle` only for development when you want to skip the bundle build step.
+```bash
+copilot plugin install ./plugins/cli/.build/my-plugin
+```
+
+> **Note:** Bundling is the default behavior. Use `-SkipBundle` only for development when you want to skip the bundle build step. After any rebuild, re-run `copilot plugin install <path>` and then `copilot plugin list` to verify the updated plugin is the one Copilot CLI sees.
 
 ### Temporarily disable a plugin
 

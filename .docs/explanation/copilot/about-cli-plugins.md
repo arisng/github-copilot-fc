@@ -16,7 +16,7 @@ copilot plugin install ./plugins/cli/ralph-v2
 
 This installs all the components declared in the plugin manifest in one step.
 
-In this workspace, plugin authoring and plugin publishing are separate concerns: source manifests live under `plugins/<runtime>/<name>/`, while the publish scripts first materialize a runtime-scoped bundle under `plugins/<runtime>/.build/<name>/` and publish from that bundle.
+In this workspace, plugin authoring and plugin publishing are separate concerns: source manifests live under `plugins/<runtime>/<name>/`, while the publish scripts first materialize a runtime-scoped bundle under `plugins/<runtime>/.build/<name>/` and publish from that bundle. For VS Code, that publish step means copying the built bundle into the Windows user-data `agentPlugins` directory and registering the published location in `chat.plugins.paths`, rather than pointing VS Code directly at the workspace `.build` path. The important conceptual boundary is that GitHub documents plugin installation as a CLI command contract, while this workspace also has implementation-specific automation for local publishing.
 
 ---
 
@@ -44,31 +44,20 @@ Plugins solve this by:
 
 ---
 
-## Plugins vs. Manual Configuration
+## The Important Boundary: Contract vs. Automation
 
-Both approaches are valid. The right choice depends on your workflow:
+The most useful distinction is not "plugins versus publish scripts," but **upstream contract versus workspace automation**.
 
-| Factor                | Plugins                              | Manual Configuration (Publish Scripts)     |
-| --------------------- | ------------------------------------ | ------------------------------------------ |
-| **Setup speed**       | One command installs everything      | Multiple publish scripts per artifact type |
-| **Best for**          | Distribution to other machines/teams | Local development iteration                |
-| **Update workflow**   | `copilot plugin update <name>`       | Re-run publish scripts                     |
-| **Granularity**       | All-or-nothing per plugin            | Individual artifact control                |
-| **Temporary removal** | `copilot plugin disable <name>`      | Delete files from discovery paths          |
-| **Audience**          | Team members, new machine setup      | Solo developer, active authoring           |
+GitHub's public contract is command-oriented: the documented way to install a plugin is `copilot plugin install <source>`, where `<source>` can be a local path, repository location, or marketplace reference. That matters because the command is the stable abstraction boundary. It lets the CLI decide how to validate the manifest, where to cache files, and how to evolve its internal storage model without changing the user-facing installation story.
 
-### When to Use Plugins
+The workspace's bundle-first local plugin flow serves a different purpose. It builds a local bundle and uses `copilot plugin install <local_plugin_path>` as the supported install step. If you inspect the cache after install, current local runs may materialize files under `_direct`, but that is a storage detail the public docs do not promise: directory names, cache layout, and any install-time bookkeeping the CLI may perform when it installs a plugin itself.
 
-- **Setting up a new machine**: Install your complete workflow with one command instead of running multiple publish scripts
-- **Sharing with teammates**: Distribute a tested, versioned bundle instead of setup instructions
-- **Version-controlled distribution**: Pin a specific plugin version for consistency across a team
-- **Clean separation**: Keep experimental workflows isolated — disable a plugin when not needed
-
-### When to Use Manual Configuration
-
-- **Active development**: Publish scripts provide faster iteration when editing individual agents or skills
-- **Selective customization**: You only need some artifacts from a workflow, not the full bundle
-- **VS Code primary**: VS Code plugins in this workspace are registration-based through `chat.plugins.paths`, not installed through the CLI `_direct` flow
+| Concern | Upstream contract | Workspace automation |
+| ------- | ----------------- | -------------------- |
+| Stable user-facing boundary | `copilot plugin install <source>` | Build bundle + `copilot plugin install <local_plugin_path>` |
+| Backed by public GitHub docs | Yes | No |
+| Depends on current on-disk layout | No | Yes |
+| Suitable as explanation-level guidance | Yes | Only as a workspace implementation note |
 
 ### Coexistence Warning
 
@@ -78,22 +67,23 @@ Plugins and publish scripts can coexist, but be aware of **precedence conflicts*
 
 ---
 
-## Where Plugins Are Installed
+## Why the Install Path Is Not the Contract
 
-Plugin files are **copied** (cached) on install — not symlinked. To pick up local changes after editing a plugin, you must reinstall it with `copilot plugin install`.
+Plugin files are **copied** on install rather than symlinked, but the exact destination is where the current story becomes messy.
 
-| Source                          | Install Path                                               |
-| ------------------------------- | ---------------------------------------------------------- |
-| Direct install (reference page) | `~/.copilot/state/installed-plugins/<NAME>/`               |
-| Direct install (how-to page)    | `~/.copilot/installed-plugins/_direct/<NAME>/`             |
-| Marketplace install             | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
-| Marketplace cache               | `~/.copilot/state/marketplace-cache/`                      |
+Recent local verification for this workspace found a three-way mismatch:
 
-> **⚠️ Documented inconsistency:** Two official GitHub docs disagree on direct install paths. The [CLI Plugin Reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) uses `~/.copilot/state/installed-plugins/<NAME>/`, while the [How-to: Finding and Installing Plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) uses `~/.copilot/installed-plugins/_direct/<NAME>/`. Key differences: the `state/` prefix (reference has it, how-to doesn't) and the `_direct/` subdirectory (how-to has it, reference doesn't). Verify the actual path on your local filesystem after installing a plugin.
+| Source of truth | What it suggests for local CLI plugin installs |
+| ---------------- | ------------------------------------ |
+| Current web docs | `~/.copilot/state/installed-plugins/<NAME>/` |
+| Observed local Copilot CLI 1.0.4 post-install cache | `~/.copilot/installed-plugins/_direct/<NAME>/` |
+| Supported workspace local flow | Build `plugins/cli/.build/<name>/` and run `copilot plugin install <local_plugin_path>` |
 
-On Windows, `~` resolves to `%USERPROFILE%` (e.g., `C:\Users\<username>\.copilot\...`).
+The mismatch is wider than one page disagreeing with another. The latest web docs explicitly support `copilot plugin install <local-path>`, while the local `copilot plugin install --help` output is narrower and omits local-path examples, even though the runtime still accepted local-path installs during verification. In other words, the docs, local help text, and observed filesystem behavior are not perfectly aligned.
 
-This workspace currently uses the how-to page's `_direct/<NAME>` path for CLI publish automation. The publisher verifies that the copied bundle landed in the target directory, but local probes still have not proven that a raw `_direct` copy is always discovered the same way as `copilot plugin install`.
+That is exactly why the install directory should be treated as an implementation detail rather than as the conceptual model. If readers internalize "`_direct` is how plugins work," they are learning a volatile storage detail. If they internalize "`copilot plugin install <source>` is the supported contract," they are learning the boundary GitHub is actually documenting.
+
+On Windows, `~` resolves to `%USERPROFILE%` (for example, `C:\Users\<username>\.copilot\...`).
 
 ---
 
@@ -103,10 +93,12 @@ The repository's publish flow is runtime-scoped:
 
 - Source manifests live under `plugins/cli/<name>/plugin.json` and `plugins/vscode/<name>/plugin.json`.
 - Bundles are built under `plugins/cli/.build/<name>/` or `plugins/vscode/.build/<name>/`.
-- CLI publish copies the prepared bundle directly into `~/.copilot/installed-plugins/_direct/<name>/` with exact replacement semantics and no `.install/` staging.
-- VS Code publish registers `plugins/vscode/.build/<name>/` in `chat.plugins.paths`.
+- CLI local publish/install uses the built bundle as the handoff point and installs it with `copilot plugin install <local_plugin_path>`.
+- VS Code publish copies the built bundle into VS Code's Windows user-data `agentPlugins` directory (for example `C:\Users\ADMIN\AppData\Roaming\Code - Insiders\agentPlugins\`) and registers that published location in `chat.plugins.paths`.
 
-The runtime-scoped `.build/` root is only a container. The actual publishable unit is the per-plugin bundle directory beneath it.
+The runtime-scoped `.build/` root is only a staging container. For CLI, it is the local install unit passed to `copilot plugin install`; the CLI then manages its own cache. If you inspect that cache today, you may still see `_direct`. For VS Code, the bundle is copied into `agentPlugins` and the published copy is registered there.
+
+For explanation purposes, the important point is not that `_direct` exists, but **why the workspace keeps a bundle-first local flow at all**. The cache path reflects current local observations. It does **not** redefine the upstream model. If GitHub changes its install root, caching behavior, or install-time validation, the workspace publisher is the piece that must adapt; the conceptual contract remains `copilot plugin install <source>`.
 
 ---
 
@@ -124,28 +116,11 @@ This means a user-level agent with the same name as a plugin agent will shadow t
 
 ---
 
-## Team Distribution Scenarios
+## Distribution Perspectives
 
-### Scenario 1: Solo Developer, Multiple Machines
+Plugins are most valuable when the unit of sharing is "the whole workflow" rather than an individual agent or skill. For a solo developer, that makes plugins a portable bundle across machines. For a team, it makes the repository path or marketplace reference the handoff point instead of a checklist of manual copy steps. For an organization, it creates a path toward curated distribution through marketplaces rather than through per-user filesystem conventions.
 
-1. Author CLI plugins in the workspace (`plugins/cli/<name>/plugin.json`)
-2. Push to GitHub
-3. On a new machine: `copilot plugin install github.com/owner/repo:plugins/cli/<name>`
-
-### Scenario 2: Team Sharing via Repository
-
-1. Create a plugin with self-contained components (not relative paths)
-2. Commit to a shared repository
-3. Team members install: `copilot plugin install github.com/team/plugins-repo:plugins/cli/<name>`
-4. Updates: `copilot plugin update <name>`
-
-### Scenario 3: Organization-Wide Distribution
-
-1. Publish plugins to a private marketplace
-2. Register the marketplace: `copilot plugin marketplace add org/marketplace`
-3. Team members install: `copilot plugin install @org/plugin-name`
-
-> **Note:** Scenario 3 requires marketplace infrastructure, which is **deferred** to a future iteration.
+This workspace is intentionally in between those worlds. It authors plugins as first-class bundles, but it also keeps bundle-first local publish automation because active authoring benefits from fast local replacement. Marketplace distribution remains a later concern rather than the current baseline.
 
 ---
 

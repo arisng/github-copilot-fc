@@ -1,6 +1,6 @@
 # CLI Plugin Reference
 
-> **Last verified**: GA v0.0.420 (February 2026)
+> **Last verified**: GitHub Docs (March 2026) and local GitHub Copilot CLI 1.0.4 observations on this machine
 > **Related**: [About CLI Plugins](../../explanation/copilot/about-cli-plugins.md) · [How to Create a CLI Plugin](../../how-to/copilot/how-to-create-cli-plugin.md) · [Customization Matrix](copilot-cli-customization-matrix.md)
 
 This reference documents the `plugin.json` manifest schema, CLI commands, installation spec patterns, directory conventions, and loading precedence for GitHub Copilot CLI plugins.
@@ -10,7 +10,10 @@ This reference documents the `plugin.json` manifest schema, CLI commands, instal
 ## References (Official Documentation)
 
 Periodically verify against the official documentation to ensure accuracy, as the CLI is rapidly evolving and may have discrepancies or silent changes:
-([GitHub Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference))
+
+- [GitHub Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
+- [Finding and installing plugins for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing)
+- [Creating a plugin for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating)
 
 ## Directory Conventions
 
@@ -30,7 +33,9 @@ plugins/
       plugin.json        # VS Code plugin manifest (required)
 ```
 
-The directory name should match the `name` field in `plugin.json`. Build and publish scripts emit per-plugin bundles under `plugins/<runtime>/.build/<name>/`; that child directory is the publish unit.
+The directory name should match the `name` field in `plugin.json`. Build and publish scripts emit per-plugin bundles under `plugins/<runtime>/.build/<name>/`; that child directory is the runtime-scoped build output and publish input.
+
+For VS Code workspace publishing, the `.build/` bundle is not the final user-facing destination. The publish flow builds under `plugins/vscode/.build/<name>/`, then copies that bundle into VS Code's Windows user-data `agentPlugins` directory and registers the published location in `chat.plugins.paths`. One concrete Windows Insiders root is `C:\Users\ADMIN\AppData\Roaming\Code - Insiders\agentPlugins\`.
 
 ### File Locations
 
@@ -122,7 +127,7 @@ All plugin commands use `copilot plugin` from the shell.
 
 | Command | Description |
 |---------|-------------|
-| `copilot plugin install <spec>` | Install a plugin from a local path, GitHub URL, or marketplace. See [Install Spec Patterns](#install-spec-patterns). |
+| `copilot plugin install <spec>` | Official plugin installation entrypoint. Web docs document local path, GitHub URL/path, and marketplace specs. See [Install Spec Patterns](#install-spec-patterns). |
 | `copilot plugin uninstall <name>` | Remove an installed plugin and its components. |
 | `copilot plugin list` | List all installed plugins and their status (enabled/disabled). |
 | `copilot plugin update <name>` | Update a plugin to the latest version from its original source. |
@@ -164,26 +169,30 @@ The `copilot plugin install` command accepts multiple source formats:
 
 Additional marketplaces can be registered via `copilot plugin marketplace add`.
 
+> **Help/docs drift:** Current web docs document local-path installs, including `copilot plugin install ./my-plugin`, but the local `copilot plugin install --help` output observed in CLI 1.0.4 omits local-path examples and parsing guidance. Treat that omission as help-text drift, not as a stronger contract than the published docs.
+
 > **Note:** Marketplace publishing is **deferred** to a future iteration. Currently, local path and GitHub URL installs are the primary distribution methods. See [About CLI Plugins](../../explanation/copilot/about-cli-plugins.md) for marketplace ecosystem status.
 
 ---
 
-## Install Paths
+## Installation Contract and File Locations
 
-Plugin files are **copied** (cached) on install — not symlinked. To pick up local changes, reinstall with `copilot plugin install`.
+Plugin files are copied on install; they are not linked back to the source directory. The documented contract is the install command itself, not a guaranteed on-disk path layout.
 
-| Source | Install Path |
-|--------|--------------|
-| Direct install (reference page) | `~/.copilot/state/installed-plugins/<NAME>/` |
-| Direct install (how-to page) | `~/.copilot/installed-plugins/_direct/<NAME>/` |
-| Marketplace install | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` |
-| Marketplace cache | `~/.copilot/state/marketplace-cache/` |
+| Topic | Documented / official | Observed on this machine | Notes |
+|-------|------------------------|--------------------------|-------|
+| Install entrypoint | `copilot plugin install <source>` | Local-path installs succeeded with `copilot plugin install <local_plugin_path>` in local CLI 1.0.4. | Treat the command as the stable contract. |
+| Direct install storage | `~/.copilot/state/installed-plugins/<NAME>/` | `%USERPROFILE%\.copilot\installed-plugins\_direct\<NAME>\` | Current docs and local runtime behavior differ. |
+| Marketplace install storage | `~/.copilot/state/installed-plugins/<MARKETPLACE>/<NAME>/` | Not re-verified in the local runtime check. | This page preserves the current docs claim. |
+| Marketplace cache | `~/.copilot/state/marketplace-cache/` | Not re-verified in the local runtime check. | Docs-only statement in this page. |
+| Local-path guidance | Web docs explicitly document local-path installs. | Local `copilot plugin install --help` omitted local-path examples and parsing order. | Help/docs drift exists in local CLI 1.0.4. |
+| `--config-dir` behavior | No plugin-specific storage guarantee was located in the official references above. | In the local runtime check, the temporary config root remained empty while installs appeared under the global `%USERPROFILE%\.copilot\installed-plugins\_direct\...` tree. | Evidence is limited to the observed CLI 1.0.4 behavior on this machine; do not generalize beyond that. |
 
-> **⚠️ Documented inconsistency:** The [CLI Plugin Reference](https://docs.github.com/en/copilot/reference/cli-plugin-reference#file-locations) page uses `~/.copilot/state/installed-plugins/<NAME>/` for direct installs, while the [How-to: Finding and Installing Plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing#where-plugins-are-stored) page uses `~/.copilot/installed-plugins/_direct/<NAME>/`. Key differences: the `state/` prefix (reference has it, how-to doesn't) and the `_direct/` subdirectory (how-to has it, reference doesn't). Verify paths on your local filesystem.
+> **Evidence note:** The documented/observed distinctions above are based on the official docs linked in [References](#references-official-documentation) and the local research summary at `C:\Users\ADMIN\.copilot\session-state\24d7a4e4-9149-4ac6-a5c4-5cade4d9db90\research\double-check-method-to-install-plugins-created-in-.md` (especially lines 5-8, 25, 39-48, 64-82, 169-173).
 
 On Windows, `~` resolves to `%USERPROFILE%` (e.g., `C:\Users\<username>\.copilot\...`).
 
-> **Workspace publish caveat:** `scripts/publish/publish-plugins.ps1` uses the `_direct/<NAME>` path for CLI publishing, copies the prepared bundle from `plugins/cli/.build/<NAME>/`, and verifies that `plugin.json` exists at the destination. Local probes still have not proven that raw `_direct` copies are always discovered the same way as `copilot plugin install`.
+> **Workspace local-flow note:** in this repository, treat the built bundle under `plugins/cli/.build/` as the local installable unit and run `copilot plugin install <local_plugin_path>`. If you inspect the cache after install, current local runs may still materialize files under `_direct/<NAME>`, but that is observational storage rather than the supported contract.
 
 ---
 
@@ -225,11 +234,17 @@ pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins 
 # Force remains accepted for compatibility
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Force
 
-# Register a VS Code plugin bundle path
+# Publish a VS Code plugin bundle
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime vscode -Plugins ralph-v2
 
 # Skip WSL installation for CLI publish
 pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -SkipWSL
 ```
 
-The script discovers plugins in `plugins/cli/` and `plugins/vscode/`, builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, then publishes by runtime: CLI bundles are copied directly into `_direct/<name>` and VS Code bundles are registered in `chat.plugins.paths`. See [How to Publish Customizations for Copilot CLI](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md) for the broader publish workflow.
+For local CLI installs from this workspace, treat the built CLI bundle as the handoff point:
+
+```bash
+copilot plugin install <local_plugin_path>
+```
+
+The script discovers plugins in `plugins/cli/` and `plugins/vscode/`, builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, then publishes by runtime: CLI bundles are intended to be installed from that local bundle path with `copilot plugin install <local_plugin_path>`, while VS Code bundles are copied into the Windows user-data `agentPlugins` directory and the published copy is registered in `chat.plugins.paths`. If you inspect the CLI cache after install, current local runtimes may still materialize the payload under `_direct/<name>`. See [How to Publish Customizations for Copilot CLI](../../how-to/copilot/how-to-publish-customizations-for-copilot-cli.md) for the broader publish workflow.

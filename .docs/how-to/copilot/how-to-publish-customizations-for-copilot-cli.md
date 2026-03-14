@@ -22,7 +22,9 @@ Throughout this guide, paths are shown for both platforms:
 | `~/.copilot/`   | `$env:USERPROFILE\.copilot\`   | `$HOME/.copilot/`     |
 | VS Code prompts | `%APPDATA%\Code\User\prompts\` | N/A (VS Code manages) |
 
-> **Tip:** The `--config-dir` flag overrides the entire `~/.copilot/` tree. If you use `copilot --config-dir /path/to/custom`, all discovery paths shift to that directory.
+> **Tip:** The `--config-dir` flag changes the Copilot CLI configuration root, but plugin install storage should still be verified on the target client. In the latest local CLI 1.0.4 check for this workspace, plugin installs triggered through `copilot plugin install` still landed under the default `~/.copilot/installed-plugins/_direct/...` tree rather than an isolated temp config root.
+
+> **Note on plugins:** For local CLI plugins in this workspace, the supported flow is: build the bundle, then run `copilot plugin install <local_plugin_path>`. Treat any resulting `_direct/...` cache path as an implementation detail rather than the publish contract.
 
 ---
 
