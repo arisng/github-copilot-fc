@@ -74,13 +74,13 @@ Install a CLI plugin from a local source directory with the official Copilot CLI
 copilot plugin install ./plugins/cli/<name>
 ```
 
-For workspace publishing, use the runtime-specific publish flow instead of the raw source directory:
+For workspace publishing, build the runtime-specific bundle first, then use that bundle as the local install unit instead of the raw source directory:
 
-- CLI: `publish-plugins.ps1` defaults to beta, building `plugins/cli/.build/<name>-beta/` and copying that bundle directly into `~/.copilot/installed-plugins/_direct/<name>-beta/` on Windows and WSL/Linux. The target is replaced exactly. No `.install/` staging directory is used.
-- VS Code: `publish-plugins.ps1` defaults to beta, building `plugins/vscode/.build/<name>-beta/` and registering that bundle path in `chat.plugins.paths`.
-- Stable publish or promotion: use `-Channel stable` for an explicit stable publish, or `-Promote` to promote the current beta flow to stable. Stable outputs use `plugins/<runtime>/.build/<name>/`, CLI installs to `_direct/<name>/`, and VS Code registration points at `.build/<name>/`.
+- CLI: `publish-plugins.ps1` defaults to beta and builds `plugins/cli/.build/<name>-beta/`. Install the resulting local bundle with `copilot plugin install <local_plugin_path>`.
+- VS Code: `publish-plugins.ps1` defaults to beta, building `plugins/vscode/.build/<name>-beta/`, copying that bundle into VS Code's Windows user-data `agentPlugins` location, and registering the published path in `chat.plugins.paths`. For VS Code Insiders, the user-data root includes `C:\Users\ADMIN\AppData\Roaming\Code - Insiders\agentPlugins`.
+- Stable publish or promotion: use `-Channel stable` for an explicit stable publish, or `-Promote` to promote the current beta flow to stable. Stable outputs use `plugins/<runtime>/.build/<name>/`. For CLI, install the stable local bundle with `copilot plugin install <local_plugin_path>`; for VS Code, the publish flow copies into `agentPlugins\<name>\` before registering that published location.
 
-The CLI **copies** (caches) plugin contents — it does not create a symlink. To pick up local changes after editing, rerun `copilot plugin install` for the official CLI flow or rerun `publish-plugins.ps1` for the workspace publish flow.
+The CLI **copies** (caches) plugin contents — it does not create a symlink. To pick up local changes after editing, rerun `copilot plugin install` for the official CLI flow. If you're using the workspace bundle flow, rebuild with `publish-plugins.ps1` and then rerun `copilot plugin install <local_plugin_path>`.
 
 ## Where Plugins Are Stored
 
@@ -94,7 +94,7 @@ Marketplace cache (reference docs): `~/.copilot/marketplace-cache/`
 
 > **⚠️** These paths are documented as-is from official GitHub docs (March 2026). The inconsistency has not been resolved upstream. Verify against your local installation if exact paths matter.
 
-> **Workspace publish accepted limitation:** this repository's CLI publish script copies bundles directly into `_direct/<NAME>` for stable or `_direct/<NAME>-beta` for beta and verifies the copied payload, but local probes still have not proven that a raw `_direct` copy is always discovered the same way as `copilot plugin install`. Keep the caveat documented, but treat it as an accepted limitation of the workspace publish shortcut rather than an active defect; use `copilot plugin install` when you need the officially validated discovery path.
+> **Workspace publish note:** for local CLI publishing in this repository, treat the built bundle under `plugins/cli/.build/` as the installable unit and run `copilot plugin install <local_plugin_path>`. If you inspect the post-install cache, current local runs may still materialize files under `_direct/<NAME>` or `_direct/<NAME>-beta`, but that storage detail is not the supported contract.
 
 On Windows, `~` resolves to `%USERPROFILE%` (e.g. `C:\Users\<user>\.copilot\...`).
 
@@ -117,8 +117,8 @@ Plugins **supplement** the existing publish-script workflow — they do not repl
 - **Publish scripts** (`scripts/publish/publish-*.ps1`) remain the source of truth for distributing individual artifacts (agents, skills, instructions, hooks) to their standard platform-specific locations.
 - **Plugins** bundle multiple artifacts into a single installable unit for distribution to other users or machines.
 - **Bundling is built into the publish flow**: `publish-plugins.ps1` emits self-contained bundles under `plugins/<runtime>/.build/`, using `<name>-beta` for beta or `<name>` for stable, so both channels can exist side by side.
-- **CLI publish is a direct copy**: the prepared CLI beta bundle is copied straight into Copilot's `_direct/<name>-beta` install root with exact replacement semantics, without `.install/` staging. Explicit stable publish uses `_direct/<name>`.
-- **VS Code publish is registration-only**: the prepared VS Code beta bundle path is written into `chat.plugins.paths` as `.build/<name>-beta`; explicit stable publish registers `.build/<name>`. VS Code does not use the CLI `_direct` install flow.
+- **CLI local install is bundle-first**: the prepared CLI bundle under `plugins/cli/.build/` is the handoff point, and the supported install step is `copilot plugin install <local_plugin_path>`. Current local runtimes may cache the installed payload under `_direct/...`, but that is an implementation detail rather than the publish contract.
+- **VS Code publish copies then registers**: the prepared VS Code bundle is built under `plugins/vscode/.build/`, copied into VS Code's Windows user-data `agentPlugins` directory (for example `C:\Users\ADMIN\AppData\Roaming\Code - Insiders\agentPlugins\`), and `chat.plugins.paths` is updated to point at that published copy. VS Code does not use the CLI `_direct` install flow.
 - **Stable is an explicit promotion path**: use `publish-plugins.ps1 -Promote` after a beta build is ready, or pass `-Channel stable` when you intentionally want a stable publish.
 - **Hook scripts travel with the plugin bundle**: when a plugin declares `hooks`, the build pipeline copies each hook's `hooks/<name>/scripts/` folder into the bundled hook tree so bundled hook manifests can invoke their companion scripts in other workspaces.
 
