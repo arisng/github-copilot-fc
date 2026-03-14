@@ -6,7 +6,8 @@
     Discovers plugin directories under plugins/cli/ and plugins/vscode/, builds a self-contained
     bundle for each, and installs based on the plugin's target runtime:
 
-      - CLI plugins  (plugins/cli/):    copied directly into Copilot CLI's `_direct/<plugin-name>` install roots
+      - CLI plugins  (plugins/cli/):    installed with `copilot plugin install <local-bundle-path>`
+                                        against the prepared workspace bundle
       - VS Code plugins (plugins/vscode/): registered in VS Code's chat.plugins.paths setting
 
     Plugin directory structure:
@@ -16,12 +17,12 @@
         vscode/        -- Plugins targeting VS Code Copilot runtime
           ralph-v2/    -- plugin.json here
 
-        CLI install locations:
-            This publisher copies the prepared runtime bundle from `plugins/cli/.build/<plugin-name>/`
-            directly into `~/.copilot/installed-plugins/_direct/<plugin-name>/` on Windows and WSL/Linux.
-            The destination is replaced exactly on each publish. The payload copy is verified, but
-            raw `_direct` copies are still treated as a best-effort publish path because local probes
-            have not proven that Copilot CLI discovers them the same way as `copilot plugin install`.
+        CLI install flow:
+            This publisher builds the prepared runtime bundle under
+            `plugins/cli/.build/<plugin-name>/`, then invokes
+            `copilot plugin install <local-bundle-path>` on Windows and WSL/Linux.
+            Copilot CLI manages the installed payload in its own cache; treat any
+            resulting on-disk install path as an implementation detail.
 
     VS Code install: adds .build/ path to 'chat.plugins.paths' in user settings.json for
       both VS Code Stable and VS Code Insiders (whichever are present).
@@ -44,13 +45,14 @@
     For CLI plugins only: target OS environment. Valid values: 'windows', 'wsl', 'all'. Default: 'all'.
     - windows: installs CLI plugin on Windows-native Copilot CLI only
     - wsl:     installs CLI plugin inside WSL only
-    - all:     installs on both Windows and WSL
+    - all:     installs on both Windows and WSL when available; missing WSL support is warned and skipped
     Has no effect on VS Code plugins.
     NOTE: -SkipWSL is deprecated; use -Environment windows instead.
 
 .PARAMETER Force
-    Retained for backward compatibility. CLI publishing now performs exact replacement on every
-    publish, so no explicit uninstall step is required. VS Code registration remains idempotent.
+    Retained for backward compatibility. CLI publishing now reruns `copilot plugin install`
+    from the prepared local bundle on every publish, so no explicit uninstall step is required.
+    VS Code registration remains idempotent.
 
 .PARAMETER SkipWSL
     DEPRECATED. Use -Environment windows instead. Kept for backward compatibility.
@@ -58,7 +60,7 @@
 
 .PARAMETER Channel
     Publishing channel: 'beta' (default) or 'stable'.
-    - beta: builds to .build/<name>-beta/, installs to _direct/<name>-beta/ (CLI),
+    - beta: builds to .build/<name>-beta/, installs the beta bundle via `copilot plugin install` (CLI),
             registers .build/<name>-beta in VS Code settings. Does not overwrite stable.
     - stable: standard publish to default locations.
 
@@ -144,7 +146,6 @@ function Test-CopilotPluginDiscovery {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$PluginName,
-        [string]$InstalledPluginsRoot,
         [switch]$UseWSL
     )
 
@@ -173,7 +174,6 @@ function Test-CopilotPluginDiscovery {
         CommandSucceeded = $commandSucceeded
         Detected = $detected
         Output = ($listOutput | Out-String).Trim()
-        InstalledPluginsRoot = $InstalledPluginsRoot
     }
 }
 
@@ -181,75 +181,78 @@ function Install-CopilotPluginBundle {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$BuildPath,
-        [Parameter(Mandatory)][string]$InstalledPluginsRoot,
         [Parameter(Mandatory)][string]$PluginName,
         [switch]$UseWSL
     )
 
-    $destinationPath = if ($UseWSL) {
-        "$InstalledPluginsRoot/_direct/$PluginName"
-    }
-    else {
-        Join-Path (Join-Path $InstalledPluginsRoot '_direct') $PluginName
-    }
-
-    $copySucceeded = if ($UseWSL) {
-        Copy-ToWSL -Source $BuildPath -Destination $destinationPath -Recurse
-    }
-    else {
-        Copy-DirectoryExact -Source $BuildPath -Destination $destinationPath
+    $resolvedBuildPath = [System.IO.Path]::GetFullPath($BuildPath)
+    $pluginJsonPath = Join-Path $resolvedBuildPath 'plugin.json'
+    if (-not (Test-Path $pluginJsonPath -PathType Leaf)) {
+        throw "Built plugin manifest not found: $pluginJsonPath"
     }
 
-    $pluginJsonPath = if ($UseWSL) {
-        "$destinationPath/plugin.json"
+    $installOutput = $null
+    $installException = $null
+    $exitCode = 1
+
+    try {
+        if ($UseWSL) {
+            $wslBuildPath = Convert-ToWSLPath -Path $resolvedBuildPath
+            $installOutput = Invoke-WSLCommand -Command "copilot plugin install '$wslBuildPath' 2>&1" -InitializeNode
+        }
+        else {
+            $installOutput = & copilot plugin install $resolvedBuildPath 2>&1
+        }
+
+        $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
     }
-    else {
-        Join-Path $destinationPath 'plugin.json'
+    catch {
+        $installException = $_
+        if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+            $exitCode = $LASTEXITCODE
+        }
     }
 
-    $destinationVerified = if ($UseWSL) {
-        Test-WSLPathExists -Path $pluginJsonPath
+    $commandSucceeded = $exitCode -eq 0
+    $discovery = $null
+    if ($commandSucceeded) {
+        $discovery = Test-CopilotPluginDiscovery -PluginName $PluginName -UseWSL:$UseWSL
     }
-    else {
-        Test-Path $pluginJsonPath
-    }
-
-    $discovery = Test-CopilotPluginDiscovery -PluginName $PluginName -InstalledPluginsRoot $InstalledPluginsRoot -UseWSL:$UseWSL
 
     return [PSCustomObject]@{
-        CopySucceeded = $copySucceeded
-        DestinationPath = $destinationPath
-        DestinationVerified = $destinationVerified
-        DiscoveryProbeSucceeded = $discovery.CommandSucceeded
-        DiscoveryDetected = $discovery.Detected
-        DiscoveryOutput = $discovery.Output
+        InstallSucceeded = $commandSucceeded
+        InstallSourcePath = if ($UseWSL) { $wslBuildPath } else { $resolvedBuildPath }
+        ExitCode = $exitCode
+        InstallOutput = ($installOutput | Out-String).Trim()
+        InstallException = if ($null -ne $installException) { $installException.ToString() } else { $null }
+        DiscoveryProbeSucceeded = if ($null -ne $discovery) { $discovery.CommandSucceeded } else { $false }
+        DiscoveryDetected = if ($null -ne $discovery) { $discovery.Detected } else { $false }
+        DiscoveryOutput = if ($null -ne $discovery) { $discovery.Output } else { '' }
     }
 }
 
-function Write-CopilotDiscoveryRiskWarning {
+function Write-CopilotPluginVerificationWarning {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$PluginName,
-        [Parameter(Mandatory)][string]$DestinationPath,
         [Parameter(Mandatory)][bool]$DiscoveryProbeSucceeded,
         [Parameter(Mandatory)][bool]$DiscoveryDetected,
         [switch]$UseWSL
     )
 
-    $scopeLabel = if ($UseWSL) { 'WSL' } else { 'Windows' }
-    $probeLabel = if ($DiscoveryProbeSucceeded) {
-        if ($DiscoveryDetected) {
-            'copilot plugin list currently shows the plugin'
-        }
-        else {
-            'copilot plugin list did not show the plugin after the raw copy'
-        }
-    }
-    else {
-        'copilot plugin list could not be verified in this environment'
+    if ($DiscoveryProbeSucceeded -and $DiscoveryDetected) {
+        return
     }
 
-    Write-Warning "$scopeLabel direct-copy publish verified files at '$DestinationPath', but Copilot CLI discovery remains unproven. Local probes have not established that raw _direct copies are equivalent to 'copilot plugin install'; $probeLabel for '$PluginName'."
+    $scopeLabel = if ($UseWSL) { 'WSL' } else { 'Windows' }
+    $message = if ($DiscoveryProbeSucceeded) {
+        "  $scopeLabel install completed, but `copilot plugin list` did not show '$PluginName'."
+    }
+    else {
+        "  $scopeLabel install completed, but `copilot plugin list` could not be verified for '$PluginName' in this environment."
+    }
+
+    Write-Warning $message
 }
 
 function Resolve-VSCodePluginRegistrationPath {
@@ -423,17 +426,15 @@ function Publish-Plugins {
     <#
     .SYNOPSIS
         Discovers workspace plugins, bundles them, and installs based on each plugin's runtime:
-                    - CLI plugins:    copied directly into Copilot CLI `_direct/<plugin-name>` install roots (respects -Environment)
+                    - CLI plugins:    installed with `copilot plugin install <local-bundle-path>` (respects -Environment)
           - VS Code plugins: registered in VS Code's chat.plugins.paths user setting
 
     .DESCRIPTION
         Scans plugins/cli/ and plugins/vscode/ for plugin directories containing plugin.json,
         creates a self-contained .build/ bundle for each (resolving component paths and copying
         artifacts), then installs by runtime:
-                    - cli:    copies the bundle into `~/.copilot/installed-plugins/_direct/<plugin-name>/`
-                                        on Windows and/or WSL per -Environment, verifies the destination payload,
-                                        and warns that Copilot CLI discovery parity with `copilot plugin install`
-                                        is still unproven
+                    - cli:    runs `copilot plugin install <local-bundle-path>` against the
+                              prepared bundle on Windows and/or WSL per -Environment
           - vscode: calls Update-VSCodePluginSettings to register the .build/ path in
                     chat.plugins.paths for all installed VS Code variants (Stable + Insiders)
 
@@ -445,8 +446,8 @@ function Publish-Plugins {
         Filter by runtime ('cli', 'vscode', 'all'). Defaults to outer-scope $Runtime.
 
     .PARAMETER Force
-        Retained for backward compatibility. CLI publishing now replaces the target `_direct`
-        directory exactly on every publish, so no uninstall step is needed.
+        Retained for backward compatibility. CLI publishing now reruns `copilot plugin install`
+        from the prepared bundle on every publish, so no uninstall step is needed.
 
     .EXAMPLE
         Publish-Plugins
@@ -458,7 +459,7 @@ function Publish-Plugins {
 
     .EXAMPLE
         Publish-Plugins -Runtime cli -Environment windows -Force
-        Replaces all CLI plugin payloads under the Windows `_direct` install root.
+        Reinstalls all selected CLI plugins into the Windows Copilot CLI user configuration.
     #>
     [CmdletBinding()]
     param()
@@ -606,44 +607,66 @@ function Publish-Plugins {
             continue
         }
 
-        # --- CLI: Windows direct-copy install ---
+        # --- CLI: Windows official install flow ---
         if ($Environment -eq 'windows' -or $Environment -eq 'all') {
             try {
-                $windowsInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot (Join-Path $env:USERPROFILE '.copilot\installed-plugins') -PluginName $installName
+                $windowsInstall = Install-CopilotPluginBundle -BuildPath $buildPath -PluginName $installName
 
-                if ($windowsInstall.CopySucceeded -and $windowsInstall.DestinationVerified) {
-                    Write-Host "  Copied to: $($windowsInstall.DestinationPath)" -ForegroundColor Green
-                    Write-CopilotDiscoveryRiskWarning -PluginName $installName -DestinationPath $windowsInstall.DestinationPath -DiscoveryProbeSucceeded $windowsInstall.DiscoveryProbeSucceeded -DiscoveryDetected $windowsInstall.DiscoveryDetected
+                if ($windowsInstall.InstallSucceeded) {
+                    Write-Host "  Installed via Copilot CLI from: $($windowsInstall.InstallSourcePath)" -ForegroundColor Green
+                    if ($windowsInstall.DiscoveryProbeSucceeded -and $windowsInstall.DiscoveryDetected) {
+                        Write-Host "  Verified via `copilot plugin list`: $installName" -ForegroundColor DarkGray
+                    }
+                    else {
+                        Write-CopilotPluginVerificationWarning -PluginName $installName -DiscoveryProbeSucceeded $windowsInstall.DiscoveryProbeSucceeded -DiscoveryDetected $windowsInstall.DiscoveryDetected
+                    }
                     $installed++
                 }
                 else {
-                    Write-Error "  Failed to publish direct-copy payload for $installName to $($windowsInstall.DestinationPath)"
+                    $detail = @($windowsInstall.InstallOutput, $windowsInstall.InstallException) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+                    if ($detail) {
+                        Write-Error "  Failed to install $installName via `copilot plugin install` (exit $($windowsInstall.ExitCode)): $detail"
+                    }
+                    else {
+                        Write-Error "  Failed to install $installName via `copilot plugin install` (exit $($windowsInstall.ExitCode))."
+                    }
                     $errors++
                 }
             }
             catch {
-                Write-Error "  Failed to publish $installName to the Windows direct-install root: $_"
+                Write-Error "  Failed to install $installName in the Windows Copilot CLI configuration: $_"
                 $errors++
             }
         }
 
-        # --- CLI: WSL direct-copy install ---
+        # --- CLI: WSL official install flow ---
         if ($wslAvailable -and ($Environment -eq 'wsl' -or $Environment -eq 'all')) {
             try {
-                $wslInstall = Install-CopilotPluginBundle -BuildPath $buildPath -InstalledPluginsRoot "$wslHome/.copilot/installed-plugins" -PluginName $installName -UseWSL
+                $wslInstall = Install-CopilotPluginBundle -BuildPath $buildPath -PluginName $installName -UseWSL
 
-                if ($wslInstall.CopySucceeded -and $wslInstall.DestinationVerified) {
-                    Write-Host "  WSL copied to: $($wslInstall.DestinationPath)" -ForegroundColor Green
-                    Write-CopilotDiscoveryRiskWarning -PluginName $installName -DestinationPath $wslInstall.DestinationPath -DiscoveryProbeSucceeded $wslInstall.DiscoveryProbeSucceeded -DiscoveryDetected $wslInstall.DiscoveryDetected -UseWSL
+                if ($wslInstall.InstallSucceeded) {
+                    Write-Host "  WSL installed via Copilot CLI from: $($wslInstall.InstallSourcePath)" -ForegroundColor Green
+                    if ($wslInstall.DiscoveryProbeSucceeded -and $wslInstall.DiscoveryDetected) {
+                        Write-Host "  WSL verified via `copilot plugin list`: $installName" -ForegroundColor DarkGray
+                    }
+                    else {
+                        Write-CopilotPluginVerificationWarning -PluginName $installName -DiscoveryProbeSucceeded $wslInstall.DiscoveryProbeSucceeded -DiscoveryDetected $wslInstall.DiscoveryDetected -UseWSL
+                    }
                     $installed++
                 }
                 else {
-                    Write-Error "  WSL failed to publish direct-copy payload for $installName to $($wslInstall.DestinationPath)"
+                    $detail = @($wslInstall.InstallOutput, $wslInstall.InstallException) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+                    if ($detail) {
+                        Write-Error "  WSL failed to install $installName via `copilot plugin install` (exit $($wslInstall.ExitCode)): $detail"
+                    }
+                    else {
+                        Write-Error "  WSL failed to install $installName via `copilot plugin install` (exit $($wslInstall.ExitCode))."
+                    }
                     $errors++
                 }
             }
             catch {
-                Write-Error "  WSL failed to publish $installName to the direct-install root: $_"
+                Write-Error "  WSL failed to install $installName in the Copilot CLI configuration: $_"
                 $errors++
             }
         }
