@@ -10,8 +10,91 @@ allowed-tools: Bash(mssql-cli:*), Bash(python3:*), Bash(sqlcmd:*)
 
 **mssql-cli** (Python-based) is deprecated but widely installed. **sqlcmd** (Go-based, [go-sqlcmd](https://github.com/microsoft/go-sqlcmd)) is the maintained successor with near-identical flags. Both are covered here — use whichever is available:
 
+Windows PowerShell:
+
+```powershell
+Get-Command mssql-cli -ErrorAction SilentlyContinue
+Get-Command sqlcmd -ErrorAction SilentlyContinue
+```
+
+WSL/Linux:
+
 ```bash
-which mssql-cli || which sqlcmd
+command -v mssql-cli || command -v sqlcmd
+```
+
+If neither command exists, install **sqlcmd** first. Only install **mssql-cli** when a workflow specifically depends on its interactive meta-commands such as `\dt` or `\d`.
+
+---
+
+## Installation & Verification
+
+### 1. Install `sqlcmd` on Windows
+
+Preferred options for the maintained Go-based `sqlcmd`:
+
+```powershell
+# Windows Package Manager
+winget install sqlcmd
+
+# Chocolatey
+choco install sqlcmd
+```
+
+If package managers are unavailable, download the latest Windows zip or MSI from the `microsoft/go-sqlcmd` releases page and place `sqlcmd.exe` on `PATH`.
+
+Verify installation:
+
+```powershell
+sqlcmd --version
+sqlcmd -?
+```
+
+### 2. Install `sqlcmd` in WSL/Linux
+
+For WSL2 or Linux environments that already use Homebrew, the maintained Go-based `sqlcmd` is the simplest install path:
+
+```bash
+brew install sqlcmd
+```
+
+If you want the Microsoft ODBC-based `sqlcmd`, follow the current Microsoft Learn instructions for your distro and install `mssql-tools18`. The final install and PATH steps are:
+
+```bash
+sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+For Red Hat, SUSE, Ubuntu repo bootstrap, or offline installs, use the current Microsoft Learn `mssql-tools18` instructions for your distro before running the final install step above.
+
+Verify installation:
+
+```bash
+sqlcmd --version
+sqlcmd -?
+```
+
+### 3. Optional: Install legacy `mssql-cli`
+
+Only do this if you need `mssql-cli`-specific interactive commands. Prefer `sqlcmd` for normal query execution and automation.
+
+Windows:
+
+```powershell
+py -m pip install --user mssql-cli
+```
+
+WSL/Linux:
+
+```bash
+python3 -m pip install --user mssql-cli
+```
+
+Verify installation:
+
+```bash
+mssql-cli --version
 ```
 
 ---
@@ -142,7 +225,7 @@ mssql-cli $CONN -Q "SELECT @@VERSION"
 | Timeout | Add `-l 60` |
 | Password with special chars | Wrap in single quotes or use `MSSQL_CLI_PASSWORD` env var |
 | Azure "Login failed" | Use FQDN (`server.database.windows.net`), add `-N -C` |
-| `mssql-cli not found` | Fall back to `sqlcmd`; same flags apply |
+| `mssql-cli not found` | Use `sqlcmd`; if neither binary exists, install `sqlcmd` using the platform steps above |
 
 ---
 
