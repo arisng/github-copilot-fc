@@ -3,11 +3,7 @@ name: Ralph-v2-Planner-CLI
 description: Planning agent v2 with inventory-first task breakdown, single-task TASK_CREATE materialization, iteration-scoped artifacts, and feedback-driven replanning support
 target: github-copilot
 user-invocable: false
-tools:
-  - bash
-  - view
-  - edit
-  - search
+tools: ['bash', 'view', 'edit', 'search', 'mcp_docker/*']
 metadata:
   version: 2.13.0
   created_at: 2026-03-02T14:10:35+07:00

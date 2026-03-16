@@ -38,8 +38,16 @@ Periodically verify against the official documentation to ensure accuracy, as th
 | `disable-model-invocation` | ✅ Supported     | ❌ Not supported | Prevents automatic agent selection by the model. `true` = model cannot auto-select this agent; user can still invoke manually. Direct replacement for `infer: false`                                                                                                                       |
 | `mcp-servers`              | ✅ Supported     | ❌ Not supported | Per-agent MCP server declarations (kebab-case required). `mcpServers` (camelCase) is **silently ignored** — per-agent MCP bundling will be non-functional if camelCase is used                                                                                                             |
 | `target`                   | ✅ Supported     | ❌ Not supported | Pin agent to a specific runtime: `vscode` or `github-copilot`. If omitted, defaults to both. Single-file alternative to the variant directory pattern — useful for simple agents; variant directories are preferred for complex agents with different frontmatter requirements per runtime |
-| `agents`                   | ❌ Not supported | ✅ Supported     | VS Code-only: declare which subagents are available. CLI uses TaskTool auto-delegation instead                                                                                                                                                                                             |
+| `agents`                   | ❌ Not supported | ✅ Supported     | VS Code-only: declare which subagents are available. CLI uses TaskTool auto-delegation instead. Workspace-specific bundle rewriting for beta VS Code plugins is noted below                                                                                                               |
 | `argument-hint`            | ❌ Not supported | ✅ Supported     | VS Code-only: hint text for agent activation argument                                                                                                                                                                                                                                      |
+
+---
+
+## Workspace bundling note for VS Code `agents:`
+
+In this workspace, source VS Code agent files may keep unsuffixed `agents:` values such as `Ralph-v2-Planner-VSCode`. During **beta plugin bundling**, the bundled agent `name:` values and bundled VS Code `agents:` references are rewritten together so the published beta bundle consistently uses `-beta` suffixed agent identities. Stable bundles preserve the original unsuffixed values.
+
+This is a **bundle-time publishing rule**, not a general Copilot CLI schema rule and not a requirement for source `.agent.md` files.
 
 ---
 

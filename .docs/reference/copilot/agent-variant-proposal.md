@@ -8,7 +8,7 @@ This document proposes the workspace directory structure for per-runtime agent v
 
 The runtime-support framework ([runtime-support-framework.md](runtime-support-framework.md)) establishes that **agents are not shareable** across runtimes. A single `.agent.md` file cannot produce identical functional behavior on VS Code and copilot-cli due to three categories of incompatibility (see [Per-Agent Incompatibility Analysis](#per-agent-incompatibility-analysis)). Per-runtime agent variants are therefore required (ISS-003).
 
-Only the `agents/` directory needs restructuring — all other artifact directories (`skills/`, `instructions/`, `hooks/`, `prompts/`, `toolsets/`) are either runtime-agnostic or inherently VS Code-only and require no structural changes (Q-FDB-012).
+Only the `agents/` directory needs restructuring — all other artifact directories (`skills/`, `instructions/`, `hooks/`, `prompts/`, `tools/`) are either runtime-agnostic or have their own runtime-specific structure and do not require the same variant-directory treatment (Q-FDB-012).
 
 ## Proposed Directory Structure
 

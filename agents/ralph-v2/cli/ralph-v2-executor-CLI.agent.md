@@ -3,18 +3,16 @@ name: Ralph-v2-Executor-CLI
 description: Task execution agent v2 with isolated task files, feedback context awareness, and structured report format
 target: github-copilot
 user-invocable: false
-tools:
-  - bash
-  - view
-  - edit
-  - search
+tools: ['bash', 'view', 'edit', 'search', 'mcp_docker/*', 'microsoftdocs/*', 'deepwiki/*', 'aspire/*']
 mcp-servers:
   microsoftdocs:
     type: http
     url: https://learn.microsoft.com/api/mcp
+    tools: ["*"]
   deepwiki:
     type: http
     url: https://mcp.deepwiki.com/mcp
+    tools: ["*"]
 metadata:
   version: 2.13.0
   created_at: 2026-03-02T14:10:35+07:00

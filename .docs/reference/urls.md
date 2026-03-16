@@ -33,3 +33,7 @@ https://simonwillison.net/guides/agentic-engineering-patterns/
 
 https://us7.campaign-archive.com/home/?u=66fdd2122e968863d381a26e1&id=25e58ef874
 https://www.milanjovanovic.tech/blog
+
+## Microsoft Agent Framework
+
+https://devblogs.microsoft.com/agent-framework/

@@ -241,7 +241,7 @@ Both runtimes support restricting which tools an agent can use, but through diff
 VS Code uses `.toolsets.jsonc` files to define named tool collections:
 
 ```jsonc
-// toolsets/workspace-read.toolsets.jsonc
+// tools/vscode/toolsets/workspace-read.toolsets.jsonc
 {
   "tools": ["read/readFile", "search"]
 }
