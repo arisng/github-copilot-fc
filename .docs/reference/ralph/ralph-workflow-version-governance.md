@@ -26,27 +26,27 @@ This reference defines Ralph-v2's two-version governance model so workflow chang
 
 ## Bundle version source
 
-- The published plugin bundle version comes from `x-copilot-fc.bundleVersionOverride` in the source `plugins/<runtime>/ralph-v2/plugin.json` when that override is present.
-- When no override is present, build/publish automation falls back to the canonical Ralph workflow version.
-- The source manifest `version` field should remain aligned to the canonical workflow version for readability and as the documented fallback value; do not repurpose that field as the independent bundle release stream.
+- The published plugin bundle version comes from the source `plugins/<runtime>/ralph-v2/plugin.json` `version` field.
+- That plugin manifest `version` is the shipped plugin release version for the runtime bundle, not a mirror or fallback of the canonical Ralph workflow version.
+- No separate bundle-version override field is part of Ralph version governance.
 
 ## How to bump each version
 
-- Bump the Ralph workflow version (`metadata.version` across the Ralph source agent wrappers, plus the readable source manifest `version`) when the shipped Ralph workflow behavior, orchestration contract, or compatibility expectations change.
-- Bump `x-copilot-fc.bundleVersionOverride` when you need a plugin-only release such as packaging changes, installer/distribution fixes, or plugin metadata changes that do not justify a workflow-version bump.
-- Remove `x-copilot-fc.bundleVersionOverride` when you want plugin bundle versioning to fall back to the workflow version again.
+- Bump the Ralph workflow version (`metadata.version` across the Ralph source agent wrappers) when the shipped Ralph workflow behavior, orchestration contract, or compatibility expectations change.
+- Bump source `plugin.json` `version` when you need a plugin-only release such as packaging changes, installer/distribution fixes, or plugin metadata changes that do not justify a workflow-version bump.
+- If a change affects both contracts, bump workflow version and plugin version intentionally as separate decisions rather than forcing lockstep.
 
 ## Manifest correlation rule
 
-- Source `plugins/cli/ralph-v2/plugin.json` and `plugins/vscode/ralph-v2/plugin.json` `version` values should align with the canonical Ralph workflow version.
-- If a source manifest `version` drifts, build/publish automation emits a warning, the bundle still resolves version from the override-or-fallback rules above, and the drift should be corrected.
-- If `x-copilot-fc.bundleVersionOverride` is present, automation emits a guard warning so operators can see that the published plugin version differs from the workflow version.
-- If the override is present but matches the workflow version, automation warns to remove the override and rely on fallback instead of keeping both versions in lockstep explicitly.
+- Source `plugins/cli/ralph-v2/plugin.json` and `plugins/vscode/ralph-v2/plugin.json` `version` values are the shipped plugin versions for those runtime artifacts.
+- Keep the CLI and VS Code manifest versions aligned when cutting the same Ralph plugin release across runtimes.
+- Those manifest versions may differ from the canonical workflow version without constituting drift, because they represent a separate release stream.
+- Build/publish guidance should surface plugin version and workflow version as distinct values so operators can see both contracts during release handling.
 
 ## Automation rule
 
-- `scripts/publish/build-plugins.ps1` derives the Ralph workflow version from source agent frontmatter and stamps bundled `plugin.json` version from `x-copilot-fc.bundleVersionOverride` when present, otherwise from the canonical workflow version.
-- `scripts/publish/publish-plugins.ps1` performs Ralph-specific preflight reporting so operators can see workflow version, source manifest version, bundle version, and override state before bundle publication.
+- Build/publish workflows should preserve source manifest `version` as the shipped plugin version.
+- Build/publish workflows should derive Ralph workflow version from source agent frontmatter and report it separately as the workflow contract version.
 
 ## Channel orthogonality rule
 
@@ -58,5 +58,5 @@ This reference defines Ralph-v2's two-version governance model so workflow chang
 
 - `agents/ralph-v2/vscode/ralph-v2-orchestrator-VSCode.agent.md` and the sibling Ralph source agent wrappers carry the canonical workflow version in `metadata.version`.
 - `openspec/specs/ralph-v2-orchestration/session/spec.md` defines the normative workflow-version governance requirements and scenarios.
-- `plugins/cli/ralph-v2/plugin.json` and `plugins/vscode/ralph-v2/plugin.json` carry the readable source manifest `version` aligned to workflow version plus the optional `x-copilot-fc.bundleVersionOverride` source-only bundle release override.
-- `scripts/publish/build-plugins.ps1` and `scripts/publish/publish-plugins.ps1` enforce the version propagation path.
+- `plugins/cli/ralph-v2/plugin.json` and `plugins/vscode/ralph-v2/plugin.json` carry plugin release version in their `version` field.
+- Build and publish documentation should present that manifest version as the shipped plugin version and the source agent frontmatter version as the separate workflow contract version.

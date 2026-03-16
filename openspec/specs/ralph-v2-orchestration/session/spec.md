@@ -170,13 +170,13 @@ When routing the PLANNING loop, the Orchestration Role MUST rely on the Progress
 For the `ralph-v2` plugin family, the canonical workflow version MUST be the shared `version` frontmatter value carried by the source Ralph agent wrapper files referenced by the source CLI and VS Code plugin manifests. The canonical workflow version is a workflow contract value, not a channel-specific publish value.
 
 #### SES-029: Ralph Plugin Manifest Correlation
-The source CLI and VS Code `plugin.json` manifests for `ralph-v2` MUST mirror the canonical Ralph workflow version for source readability. The bundled `plugin.json` emitted during build or publish MUST be stamped to the canonical Ralph workflow version before publication so the published plugin manifest and the Ralph workflow contract stay numerically aligned.
+The source CLI and VS Code `plugin.json` manifests for `ralph-v2` MUST use their own `version` field as the shipped plugin version for the corresponding runtime bundle. That plugin version is a release value separate from the canonical Ralph workflow version.
 
 #### SES-030: Ralph Version Drift Handling
-If a source `ralph-v2` plugin manifest version drifts from the canonical Ralph workflow version, build or publish automation MUST detect the drift before bundle publication, MUST stamp the bundled manifest to the canonical workflow version, and SHOULD surface the mismatch to the operator.
+Build or publish automation for `ralph-v2` MUST preserve the source manifest `version` as the shipped plugin version, MUST surface the canonical workflow version separately from source agent wrapper frontmatter, and MUST NOT require or document any separate bundle-version override field as part of Ralph publication.
 
 #### SES-031: Channel Orthogonality for Ralph Versioning
-Beta and stable channel handling for `ralph-v2` MUST remain orthogonal to version governance. Channel-specific behavior MAY rewrite bundle names, install names, file names, or registration paths, but it MUST NOT change, derive, or suffix the canonical Ralph workflow version.
+Beta and stable channel handling for `ralph-v2` MUST remain orthogonal to version governance. Channel-specific behavior MAY rewrite bundle names, install names, file names, or registration paths, but it MUST NOT change, derive, or suffix the canonical Ralph workflow version, and it MUST NOT rewrite plugin semantic version except through an intentional source manifest version change.
 
 ## Scenarios
 
@@ -364,22 +364,25 @@ AND it does NOT inspect unrelated workspace files to infer grounding status
 AND the delegated cycle remains observable because `plan-breakdown` is still incomplete until grounding is ready
 ```
 
-### SC-SES-018: Ralph Bundle Version Is Stamped From The Workflow Contract
+### SC-SES-018: Ralph Bundle Version Ships From The Source Plugin Manifest
 **Validates**: SES-028, SES-029, SES-030
 ```
 GIVEN the source `ralph-v2` agent wrapper files all declare workflow version "2.13.0"
-AND a source `ralph-v2` plugin manifest is stale or missing that version
+AND a source `ralph-v2` plugin manifest declares plugin version "0.1.0"
 WHEN build or publish automation prepares a bundle for publication
 THEN it derives the canonical Ralph workflow version from the source agent wrapper frontmatter
-AND it stamps the bundled `plugin.json` version to "2.13.0" before publication
-AND it surfaces the source-manifest drift to the operator
+AND it ships bundled `plugin.json` version "0.1.0"
+AND it surfaces plugin version "0.1.0" and workflow version "2.13.0" as separate values to the operator
+AND it does not rely on any separate bundle-version override field
 ```
 
 ### SC-SES-019: Ralph Channel Naming Does Not Affect Version Stamping
-**Validates**: SES-028, SES-031
+**Validates**: SES-028, SES-029, SES-031
 ```
 GIVEN the canonical Ralph workflow version is "2.13.0"
+AND the source stable and beta plugin manifests both declare plugin version "0.1.0"
 WHEN the same `ralph-v2` source is bundled for both stable and beta channels
-THEN the stable and beta bundles both retain plugin manifest version "2.13.0"
+THEN the stable and beta bundles both retain plugin manifest version "0.1.0"
+AND the canonical Ralph workflow version remains "2.13.0"
 AND only channel-specific naming surfaces change, such as bundle names, install names, and agent file names
 ```

@@ -19,17 +19,17 @@ This reference answers a specific Ralph-v2 maintenance question: should source a
 1. Every Ralph-v2 source agent wrapper must declare `metadata.version` in YAML frontmatter.
 2. All Ralph-v2 source agent wrappers must carry the same version value.
 3. A Ralph version bump is a workflow-wide change, not an agent-local change.
-4. Source `plugin.json` manifests should normally mirror that same version in their `version` field for readability, but they are not the canonical authority.
-5. Independent plugin bundle releases must use `x-copilot-fc.bundleVersionOverride`; build automation stamps bundled plugin manifests from that override when present and otherwise falls back to the canonical Ralph source-agent version.
-6. If a source `plugin.json` `version` drifts, build automation tolerates it with a warning, but the drift should be corrected instead of treating `version` as a second release stream.
+4. Source `plugin.json` manifests use their own `version` field as the shipped plugin version for each runtime bundle, and that value may intentionally differ from the canonical workflow version.
+5. Build/publish guidance must describe source manifest `version` as the shipped plugin version and `metadata.version` as the separate Ralph workflow contract version.
+6. No separate bundle-version override field is part of Ralph source versioning.
 
 ## Operational maintenance rule
 
 - When Ralph workflow behavior changes enough to require a release bump, update every Ralph-v2 source agent wrapper to the same new version.
 - When only one runtime wrapper or one role-specific agent changes, still keep one shared Ralph version if the change belongs to the same shipped Ralph workflow/product.
 - Choose patch, minor, or major based on the semantic impact of the Ralph release, not on how many agent files changed.
-- If a source plugin manifest needs an independent plugin release, leave `version` aligned to the shared agent-frontmatter version and set `x-copilot-fc.bundleVersionOverride` instead.
-- If a source plugin manifest `version` drifts from the shared agent-frontmatter version, fix the manifest; do not treat that drift as the sanctioned plugin release stream.
+- If a source plugin manifest needs an independent plugin release, bump the manifest `version` directly.
+- If a source plugin manifest `version` differs from the shared agent-frontmatter version, treat that as an intentional separation between plugin release version and workflow contract version unless other release notes say otherwise.
 - Keep beta and stable channel identity orthogonal to versioning. Channel naming may change bundle identity, but it must not create a separate semantic version stream.
 
 ## Why the field remains on every agent file
@@ -43,6 +43,7 @@ This reference answers a specific Ralph-v2 maintenance question: should source a
 - Do not remove `metadata.version` from some Ralph source agents while keeping it on others.
 - Do not maintain separate version numbers for CLI wrappers and VS Code wrappers.
 - Do not let one Ralph agent drift ahead or behind another to record implementation history.
+- Do not describe plugin manifest `version` as a fallback mirror of the workflow version.
 - Do not use beta bundles as a reason to suffix, fork, or independently advance the Ralph semantic version.
 
 ## Relationship to other Ralph version artifacts

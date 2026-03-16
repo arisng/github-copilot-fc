@@ -77,9 +77,9 @@ Public guidance MUST describe these boundaries as settled contract, not as provi
 ## Version Governance Rules
 
 - The canonical Ralph workflow version is the shared `version` frontmatter carried by the source Ralph agent wrapper files.
-- The source CLI and VS Code `plugin.json` `version` fields SHOULD mirror that canonical workflow version for source readability and fallback clarity.
-- Ralph plugin bundle releases MAY declare `x-copilot-fc.bundleVersionOverride` in the source manifest to set the published plugin version independently from the workflow version.
-- Build or publish automation MUST stamp bundled `plugin.json` manifests from `x-copilot-fc.bundleVersionOverride` when present, otherwise from the canonical workflow version before publication.
+- The source CLI and VS Code `plugin.json` `version` fields are the shipped plugin versions for their respective runtime bundles and remain independent from the canonical workflow version.
+- Build or publish guidance MUST describe plugin manifest `version` as the shipped plugin version and wrapper frontmatter `version` as the separate workflow contract version.
+- Separate bundle-version override fields MUST NOT appear in normalized Ralph public summary surfaces.
 - Beta/stable channel handling MAY change bundle names, install names, registration paths, or bundled agent filenames, but MUST NOT change or suffix the canonical Ralph workflow version.
 
 ## Source-First Update Rule
@@ -99,6 +99,6 @@ Use this checklist when touching README or other summary surfaces:
 | Session retrospective artifact | `.ralph-sessions/<SESSION_ID>/session-review.md` |
 | Concurrency source of truth | Orchestration owns the matrix; summary surfaces mirror it without redefining it |
 | Critique-loop terminology | Iteration-scoped wording only |
-| Version governance | Wrapper frontmatter version is canonical; manifests mirror; bundles are stamped |
+| Version governance | Wrapper frontmatter version is canonical workflow version; manifest `version` is shipped plugin version; no override field is documented |
 | Channel behavior | Channel identity is orthogonal to version numbers |
 | Migration language | No temporary or retained-state wording in public summaries |

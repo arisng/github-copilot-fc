@@ -2,7 +2,7 @@
 
 A feedback-driven, multi-agent system with isolated task files, structured iteration loops, live signal injection, and session-scope knowledge management. v1 agents are archived in `agents/.archived/ralph*.agent.md` — do not reference them for new development.
 
-**Current version: v2.13.0**
+**Current workflow version: v2.13.0**
 
 ## Table of Contents
 
@@ -153,11 +153,11 @@ The CLI wrappers are not a literal transcription of the VS Code agent manifests.
 Ralph-v2 now uses a two-version model:
 
 - **Workflow version**: the canonical Ralph workflow version is the shared `metadata.version` frontmatter carried by the source Ralph agent wrapper files.
-- **Plugin bundle version**: source `plugins/<runtime>/ralph-v2/plugin.json` may declare `x-copilot-fc.bundleVersionOverride` to publish a plugin version independent from the workflow version.
-- **Fallback behavior**: when no override is present, build/publish automation falls back to the canonical workflow version for the bundled plugin manifest.
-- **Readable source manifest**: keep the source `plugin.json` `version` aligned to the workflow version; do not drift that field just to publish a bundle-only release.
-- **Bump policy**: bump workflow version for Ralph behavior/contract changes; bump `bundleVersionOverride` for plugin-only packaging/distribution releases.
-- **Guardrails**: build/publish automation warns when source manifest `version` drifts, when an override is active, and when an override is redundantly kept in lockstep with the workflow version.
+- **Plugin version**: the source `plugins/<runtime>/ralph-v2/plugin.json` `version` field is the shipped plugin version for that runtime bundle.
+- **Separation rule**: the plugin manifest `version` and the workflow `metadata.version` are separate version streams and may differ intentionally.
+- **Bump policy**: bump workflow version for Ralph behavior, orchestration, or compatibility-contract changes; bump plugin manifest `version` for packaging, distribution, or plugin-metadata releases that do not change the Ralph workflow contract.
+- **Build/publish reporting**: build and publish guidance should describe plugin manifest `version` as the shipped plugin version and the wrapper `metadata.version` as the separate workflow contract version.
+- **Manifest-only plugin versioning**: Ralph does not use a separate bundle-version override field; the manifest `version` is the plugin version.
 - **Channel orthogonality**: beta and stable may change bundle identity, but they do not suffix or derive the canonical workflow version.
 
 ### Agent Reference
