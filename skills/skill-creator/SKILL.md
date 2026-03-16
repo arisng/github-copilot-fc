@@ -1,7 +1,7 @@
 ---
 name: skill-creator
 description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Skill Creator
@@ -21,6 +21,14 @@ equipped with procedural knowledge that no model can fully possess.
 2. Tool integrations - Instructions for working with specific file formats or APIs
 3. Domain expertise - Company-specific knowledge, schemas, business logic
 4. Bundled resources - Scripts, references, and assets for complex and repetitive tasks
+
+### Two Types of Skills
+
+Understanding which type of skill you're building shapes how you design and test it.
+
+**Capability uplift skills** help Claude do something the base model can't do or can't do reliably — for example, document creation skills that encode techniques producing measurably better output than prompting alone. These skills may become less necessary as models improve; evals tell you when the base model has absorbed that capability.
+
+**Encoded preference skills** document workflows where Claude can already perform each individual step, but the skill sequences them according to your team's specific process — for example, reviewing an NDA against fixed criteria, or drafting a weekly update by pulling from specific data sources. These skills are more durable, but only as valuable as their fidelity to your actual workflow; evals verify that fidelity over time.
 
 ## Core Principles
 
@@ -208,7 +216,8 @@ Skill creation involves these steps:
 3. Initialize the skill (run init_skill.py)
 4. Edit the skill (implement resources and write SKILL.md)
 5. Package the skill (run package_skill.py)
-6. Iterate based on real usage
+6. Test with evals
+7. Iterate based on real usage
 
 Follow these steps in order, skipping only if there is a clear reason why they are not applicable.
 
@@ -298,6 +307,7 @@ Write the YAML frontmatter with `name` and `description`:
   - Include both what the Skill does and specific triggers/contexts for when to use it.
   - Include all "when to use" information here - Not in the body. The body is only loaded after triggering, so "When to Use This Skill" sections in the body are not helpful to Claude.
   - Example description for a `docx` skill: "Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, and text extraction. Use when Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, or any other document tasks"
+  - **Triggering precision**: As skill count grows, description precision becomes critical. Too broad causes false triggers (the skill fires when it shouldn't); too narrow means it never fires. Analyze your description against sample prompts for your intended use cases — both prompts that should trigger the skill and prompts that shouldn't — and refine until false positives and false negatives are minimized.
 
 Do not include any other fields in YAML frontmatter.
 
@@ -313,7 +323,23 @@ Once development of the skill is complete, it can be published to your local env
 powershell -File scripts/publish/publish-skills.ps1 -Skills "skill-name"
 ```
 
-### Step 6: Iterate
+### Step 6: Test with Evals
+
+Evals are structured tests that verify a skill performs as expected. Each eval consists of one or more test prompts (plus any required files), paired with a description of what a good response looks like. Run them after publishing and again whenever models or infrastructure change.
+
+**Two key uses:**
+
+1. **Catch quality regressions** — A skill that worked well last month may behave differently as models evolve. Running evals against a new model gives early signal before it impacts real work.
+2. **Know when a skill is no longer needed** — If the base model passes your evals without the skill loaded, the model has likely internalized the skill's techniques. The skill isn't broken; it's just no longer necessary.
+
+**How skill type affects eval interpretation:**
+
+- **Capability-uplift skills** (adding tools, APIs, or scripts the model can't access otherwise) remain necessary as long as the capability gap exists. Evals confirm the capability still works.
+- **Encoded-preference skills** (style guides, team conventions, domain patterns) are candidates for retirement once the base model reliably matches the preference on its own.
+
+**Writing evals:** Define prompts that represent real usage, include edge cases, and describe what "good" looks like clearly enough that pass/fail is unambiguous. Cover both positive cases (skill should fire and succeed) and negative cases (skill should not fire or gracefully abstain).
+
+### Step 7: Iterate
 
 After testing the skill, users may request improvements. Often this happens right after using the skill, with fresh context of how the skill performed.
 
