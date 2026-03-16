@@ -652,23 +652,9 @@ function Publish-Plugins {
                 $sourceManifest = Get-Content (Join-Path $pluginDir.FullName 'plugin.json') -Raw | ConvertFrom-Json
                 $ralphVersionContract = Get-RalphWorkflowVersionContract -PluginDir $pluginDir.FullName -Manifest $sourceManifest
                 if ($null -ne $ralphVersionContract) {
-                    $sourceManifestVersionDisplay = if ([string]::IsNullOrWhiteSpace($ralphVersionContract.ManifestVersion)) { '<missing>' } else { $ralphVersionContract.ManifestVersion }
                     Write-Host "  Ralph workflow version preflight: $($ralphVersionContract.WorkflowVersion)" -ForegroundColor DarkGray
-                    Write-Host "  Ralph source manifest version preflight: $sourceManifestVersionDisplay" -ForegroundColor DarkGray
+                    Write-Host "  Ralph source manifest version preflight: $($ralphVersionContract.ManifestVersion)" -ForegroundColor DarkGray
                     Write-Host "  Ralph plugin bundle version preflight: $($ralphVersionContract.BundleVersion) ($($ralphVersionContract.BundleVersionSource))" -ForegroundColor DarkGray
-
-                    if (-not $ralphVersionContract.ManifestMatches) {
-                        Write-Warning "  Ralph source manifest version '$sourceManifestVersionDisplay' does not match canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. Keep source manifest version aligned to the workflow version, and use x-copilot-fc.bundleVersionOverride for bundle-only releases."
-                    }
-
-                    if ($ralphVersionContract.UsesBundleVersionOverride) {
-                        if ($ralphVersionContract.BundleVersionMatchesWorkflow) {
-                            Write-Warning "  Ralph bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' matches the workflow version. Remove the override to rely on workflow fallback if lockstep versioning is intentional."
-                        }
-                        else {
-                            Write-Warning "  Ralph bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' is active. Publish/install will use that plugin bundle version while Ralph workflow version remains '$($ralphVersionContract.WorkflowVersion)'."
-                        }
-                    }
                 }
             }
             catch {

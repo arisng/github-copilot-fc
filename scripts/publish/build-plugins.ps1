@@ -358,44 +358,6 @@ function Test-SemanticVersionString {
     return $Version -match '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
 }
 
-function Get-RalphPluginBundleVersionOverride {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][object]$Manifest
-    )
-
-    if ($Manifest.name -ne 'ralph-v2') {
-        return $null
-    }
-
-    $workspaceMetadataProperty = $Manifest.PSObject.Properties['x-copilot-fc']
-    if ($null -eq $workspaceMetadataProperty -or $null -eq $workspaceMetadataProperty.Value) {
-        return $null
-    }
-
-    $workspaceMetadata = $workspaceMetadataProperty.Value
-    if ($workspaceMetadata -is [string] -or $workspaceMetadata -is [System.Array] -or $workspaceMetadata -is [System.ValueType]) {
-        throw "Ralph plugin manifest field 'x-copilot-fc' must be an object when provided."
-    }
-
-    $overrideProperty = $workspaceMetadata.PSObject.Properties['bundleVersionOverride']
-    if ($null -eq $overrideProperty) {
-        return $null
-    }
-
-    $override = [string]$overrideProperty.Value
-    if ([string]::IsNullOrWhiteSpace($override)) {
-        throw "Ralph plugin manifest field 'x-copilot-fc.bundleVersionOverride' must be a non-empty semantic version when provided."
-    }
-
-    $override = $override.Trim()
-    if (-not (Test-SemanticVersionString -Version $override)) {
-        throw "Ralph plugin manifest field 'x-copilot-fc.bundleVersionOverride' must be a semantic version. Received '$override'."
-    }
-
-    return $override
-}
-
 function Get-RalphWorkflowVersionContract {
     [CmdletBinding()]
     param(
@@ -452,19 +414,21 @@ function Get-RalphWorkflowVersionContract {
 
     $workflowVersion = $distinctVersions[0]
     $manifestVersion = if ($Manifest.PSObject.Properties['version']) { [string]$Manifest.version } else { $null }
-    $bundleVersionOverride = Get-RalphPluginBundleVersionOverride -Manifest $Manifest
-    $usesBundleVersionOverride = -not [string]::IsNullOrWhiteSpace($bundleVersionOverride)
-    $bundleVersion = if ($usesBundleVersionOverride) { $bundleVersionOverride } else { $workflowVersion }
+    if ([string]::IsNullOrWhiteSpace($manifestVersion)) {
+        throw "Ralph plugin manifest is missing the 'version' field."
+    }
+
+    $manifestVersion = $manifestVersion.Trim()
+    if (-not (Test-SemanticVersionString -Version $manifestVersion)) {
+        throw "Ralph plugin manifest version must be a semantic version. Received '$manifestVersion'."
+    }
 
     return [PSCustomObject]@{
-        WorkflowVersion            = $workflowVersion
-        ManifestVersion            = $manifestVersion
-        ManifestMatches            = ($manifestVersion -eq $workflowVersion)
-        BundleVersionOverride      = $bundleVersionOverride
-        UsesBundleVersionOverride  = $usesBundleVersionOverride
-        BundleVersion              = $bundleVersion
-        BundleVersionSource        = if ($usesBundleVersionOverride) { 'override' } else { 'workflow-fallback' }
-        BundleVersionMatchesWorkflow = ($bundleVersion -eq $workflowVersion)
+        WorkflowVersion              = $workflowVersion
+        ManifestVersion              = $manifestVersion
+        BundleVersion                = $manifestVersion
+        BundleVersionSource          = 'manifest'
+        BundleVersionMatchesWorkflow = ($manifestVersion -eq $workflowVersion)
     }
 }
 
@@ -1266,25 +1230,8 @@ function Build-PluginBundle {
     }
 
     if ($null -ne $ralphVersionContract) {
-        $sourceManifestVersionDisplay = if ([string]::IsNullOrWhiteSpace($ralphVersionContract.ManifestVersion)) { '<missing>' } else { $ralphVersionContract.ManifestVersion }
-
-        if (-not $ralphVersionContract.ManifestMatches) {
-            Write-Warning "  Source Ralph plugin manifest version '$sourceManifestVersionDisplay' does not match canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. Keep source manifest version aligned to the workflow version for readability/fallback, and use x-copilot-fc.bundleVersionOverride for independent plugin bundle releases."
-        }
-
-        if ($ralphVersionContract.UsesBundleVersionOverride) {
-            if ($ralphVersionContract.BundleVersionMatchesWorkflow) {
-                Write-Warning "  Ralph plugin bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' matches canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. Remove the override to use workflow fallback instead of keeping the versions in lockstep explicitly."
-            }
-            else {
-                Write-Warning "  Ralph plugin bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' is active. The bundled plugin manifest version will differ from canonical workflow version '$($ralphVersionContract.WorkflowVersion)'."
-            }
-        }
-
-        # Ralph workflow version governance is channel-agnostic; beta/stable only affect bundle identity.
-        $cleanManifest['version'] = $ralphVersionContract.BundleVersion
         Write-Host "  Ralph workflow version: $($ralphVersionContract.WorkflowVersion)" -ForegroundColor DarkGray
-        Write-Host "  Ralph bundle version: $($ralphVersionContract.BundleVersion) ($($ralphVersionContract.BundleVersionSource))" -ForegroundColor DarkGray
+        Write-Host "  Ralph plugin manifest version: $($ralphVersionContract.BundleVersion) ($($ralphVersionContract.BundleVersionSource))" -ForegroundColor DarkGray
     }
 
     # Override name for beta channel

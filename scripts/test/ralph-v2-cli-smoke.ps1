@@ -1713,7 +1713,7 @@ try {
         source_manifest = [ordered]@{
             name = $sourceManifest.name
             version = $sourceManifest.version
-            bundle_version_override = if ($versionContract.UsesBundleVersionOverride) { $versionContract.BundleVersionOverride } else { $null }
+            version_source = $versionContract.BundleVersionSource
             workflow_version = $versionContract.WorkflowVersion
         }
         bundle = [ordered]@{
@@ -1809,6 +1809,8 @@ try {
         }
         Set-TestCaseStatus -Id 'orchestrator-invocation' -Status 'skipped' -Details 'Agent invocation was intentionally skipped via -SkipAgentInvocation.'
         foreach ($skippedCaseId in @('orchestrator-session-state', 'planner-artifacts', 'questioner-artifacts', 'executor-artifacts', 'reviewer-artifacts', 'librarian-artifacts')) {
+    Assert-True -Condition ($versionContract.BundleVersionSource -eq 'manifest') -Message "Ralph plugin version source mismatch. Expected 'manifest' but found '$($versionContract.BundleVersionSource)'."
+    Assert-True -Condition ($versionContract.BundleVersion -eq $sourceManifest.version) -Message "Ralph plugin version contract mismatch. Expected source manifest version '$($sourceManifest.version)' but found '$($versionContract.BundleVersion)'."
             Set-TestCaseStatus -Id $skippedCaseId -Status 'skipped' -Details 'Skipped because the live Ralph workflow invocation was disabled.'
         }
     }
