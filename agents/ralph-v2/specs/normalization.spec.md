@@ -77,8 +77,9 @@ Public guidance MUST describe these boundaries as settled contract, not as provi
 ## Version Governance Rules
 
 - The canonical Ralph workflow version is the shared `version` frontmatter carried by the source Ralph agent wrapper files.
-- The source CLI and VS Code `plugin.json` manifests MUST mirror that canonical workflow version for source readability.
-- Build or publish automation MUST stamp bundled `plugin.json` manifests from the canonical workflow version before publication.
+- The source CLI and VS Code `plugin.json` `version` fields SHOULD mirror that canonical workflow version for source readability and fallback clarity.
+- Ralph plugin bundle releases MAY declare `x-copilot-fc.bundleVersionOverride` in the source manifest to set the published plugin version independently from the workflow version.
+- Build or publish automation MUST stamp bundled `plugin.json` manifests from `x-copilot-fc.bundleVersionOverride` when present, otherwise from the canonical workflow version before publication.
 - Beta/stable channel handling MAY change bundle names, install names, registration paths, or bundled agent filenames, but MUST NOT change or suffix the canonical Ralph workflow version.
 
 ## Source-First Update Rule

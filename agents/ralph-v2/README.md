@@ -129,40 +129,62 @@ VS Code publish builds `plugins/vscode/.build/ralph-v2/` and registers that runt
 
 Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should only be used if the required skills have already been published separately.
 
+### Runtime Delegation Mapping
+
+The CLI wrappers are not a literal transcription of the VS Code agent manifests. The Orchestrator delegates through stable aliases (`planner`, `questioner`, `executor`, `reviewer`, `librarian`), determines the active runtime surface (`vscode` vs `cli`), detects stable vs beta from the active plugin/bundle identity or visible bundled agent names, then resolves the alias to the runtime-visible subagent name before invoking it.
+
+| VS Code surface                           | Ralph-v2 CLI expression                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| `execute/*` terminal actions              | `bash`                                                                  |
+| `read/*` + `edit/*` file operations       | `view` + `edit`                                                         |
+| `search`, plus external discovery helpers | `search`, plus configured MCP access when available                     |
+| alias-driven `agents:` / `@AgentName` delegation | alias-driven `task("<resolved AgentName>", "...")` from the Orchestrator only |
+| `vscode/memory`                           | No 1:1 CLI equivalent; persist state in Ralph session artifacts instead |
+
+- `execute/*`, `read/*`, `vscode/memory`, and `agents:` are VS Code-only surfaces; CLI guidance should describe the behavior they represent, not imply a direct tool-name match.
+- VS Code resolves `alias -> @ResolvedAgentName`; CLI resolves `alias -> task("ResolvedAgentName", "...")`.
+- Stable bundles resolve unsuffixed agent names; beta bundles resolve the matching `-beta` runtime-visible names from the same alias table.
+- CLI MCP access comes from the intersection of configured allowlisted server/tool names and any agent-local `mcp-servers:` blocks.
+- In Ralph-v2, Questioner and Executor may bundle remote docs/wiki MCP endpoints (for example Microsoft Learn and DeepWiki). Other optional capabilities such as `mcp_docker/*`, `aspire/*`, and built-in `github/*` are available only when the Copilot CLI environment is configured to expose them.
+- Toolsets remain a VS Code-only composition mechanism; they are not the CLI solution for Ralph wrappers.
+
 ### Version Governance
 
-Ralph-v2 now uses one workflow-version contract across source and published artifacts:
+Ralph-v2 now uses a two-version model:
 
-- The canonical Ralph workflow version is the shared `version` frontmatter carried by the source Ralph agent wrapper files.
-- The source CLI and VS Code `plugin.json` manifests mirror that workflow version for readability.
-- Build and publish automation stamp bundled plugin manifests from the canonical workflow version before publication.
-- Channel naming remains orthogonal to versioning: beta and stable may change bundle identity, but they do not suffix or derive the workflow version.
+- **Workflow version**: the canonical Ralph workflow version is the shared `metadata.version` frontmatter carried by the source Ralph agent wrapper files.
+- **Plugin bundle version**: source `plugins/<runtime>/ralph-v2/plugin.json` may declare `x-copilot-fc.bundleVersionOverride` to publish a plugin version independent from the workflow version.
+- **Fallback behavior**: when no override is present, build/publish automation falls back to the canonical workflow version for the bundled plugin manifest.
+- **Readable source manifest**: keep the source `plugin.json` `version` aligned to the workflow version; do not drift that field just to publish a bundle-only release.
+- **Bump policy**: bump workflow version for Ralph behavior/contract changes; bump `bundleVersionOverride` for plugin-only packaging/distribution releases.
+- **Guardrails**: build/publish automation warns when source manifest `version` drifts, when an override is active, and when an override is redundantly kept in lockstep with the workflow version.
+- **Channel orthogonality**: beta and stable may change bundle identity, but they do not suffix or derive the canonical workflow version.
 
 ### Agent Reference
 
-| Agent            | Role           | Modes                                                                                      | Key Responsibilities                                                                                       |
-| ---------------- | -------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| **Orchestrator** | Routing        | —                                                                                          | State machine transitions, concurrency SSOT, ordered handoffs, `.ralph-sessions/<SESSION_ID>/metadata.yaml` ownership, signal routing |
-| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, TASK_CREATE, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN | Plan creation, validated task inventory, single-task task-file materialization, wave dependency reasoning, critique-loop replanning |
-| **Questioner**   | Discovery      | brainstorm, research, feedback-analysis                                                    | Q&A generation, research, feedback analysis                                                                |
-| **Executor**     | Implementation | —                                                                                          | Task execution, design-time validation (build/lint/tests)                                                  |
-| **Reviewer**     | Quality        | TASK_REVIEW, ITERATION_REVIEW, SESSION_REVIEW, COMMIT, TIMEOUT_FAIL                        | Task review, blocking post-knowledge iteration review, final session retrospective, atomic commits, `## Live Signals` normalization in `progress.md` |
-| **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                    | Knowledge extraction (iteration-scoped), durable staging, wiki promotion (workspace-scoped) |
+| Agent            | Role           | Modes                                                                                                                                        | Key Responsibilities                                                                                                                                 |
+| ---------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Orchestrator** | Routing        | —                                                                                                                                            | State machine transitions, concurrency SSOT, ordered handoffs, `.ralph-sessions/<SESSION_ID>/metadata.yaml` ownership, signal routing                |
+| **Planner**      | Planning       | INITIALIZE, TASK_BREAKDOWN, TASK_CREATE, UPDATE, REBREAKDOWN, SPLIT_TASK, UPDATE_METADATA, REPAIR_STATE, CRITIQUE_TRIAGE, CRITIQUE_BREAKDOWN | Plan creation, validated task inventory, single-task task-file materialization, wave dependency reasoning, critique-loop replanning                  |
+| **Questioner**   | Discovery      | brainstorm, research, feedback-analysis                                                                                                      | Q&A generation, research, feedback analysis                                                                                                          |
+| **Executor**     | Implementation | —                                                                                                                                            | Task execution, design-time validation (build/lint/tests)                                                                                            |
+| **Reviewer**     | Quality        | TASK_REVIEW, ITERATION_REVIEW, SESSION_REVIEW, COMMIT, TIMEOUT_FAIL                                                                          | Task review, blocking post-knowledge iteration review, final session retrospective, atomic commits, `## Live Signals` normalization in `progress.md` |
+| **Librarian**    | Knowledge      | EXTRACT, STAGE, PROMOTE                                                                                                                      | Knowledge extraction (iteration-scoped), durable staging, wiki promotion (workspace-scoped)                                                          |
 
 ### Ownership Model
 
-| Artifact                       | Owner (write)                                      | Notes                                                         |
-| ------------------------------ | -------------------------------------------------- | ------------------------------------------------------------- |
-| `.ralph-sessions/<SESSION_ID>/metadata.yaml` | Planner (init), Orchestrator (transitions)         | Session-level state machine SSOT                              |
-| `iterations/<N>/metadata.yaml` | Planner (init), Reviewer (update)                  | Iteration timing SSOT                                         |
-| `iterations/<N>/plan.md`       | Planner                                            | Mutable plan per iteration                                    |
-| `iterations/<N>/tasks/*.md`    | Planner                                            | One file per task                                             |
-| `iterations/<N>/progress.md`   | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status; Reviewer normalizes the `## Live Signals` section |
-| `iterations/<N>/reports/*`     | Executor, Reviewer                                 | Task and review reports                                       |
-| `iterations/<N>/questions/*`   | Questioner                                         | Per-category Q&A files                                        |
-| `iterations/<N>/knowledge/`    | Librarian (EXTRACT)                                | Iteration-scoped extracted knowledge                          |
-| `knowledge/`                   | Librarian (STAGE, PROMOTE)                         | Session-scope merged knowledge staging and promotion tracking |
-| `signals/`                     | Human (write), Agents (ack), Orchestrator (route)  | Session-level mailbox                                         |
+| Artifact                                     | Owner (write)                                      | Notes                                                                                          |
+| -------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `.ralph-sessions/<SESSION_ID>/metadata.yaml` | Planner (init), Orchestrator (transitions)         | Session-level state machine SSOT                                                               |
+| `iterations/<N>/metadata.yaml`               | Planner (init), Reviewer (update)                  | Iteration timing SSOT                                                                          |
+| `iterations/<N>/plan.md`                     | Planner                                            | Mutable plan per iteration                                                                     |
+| `iterations/<N>/tasks/*.md`                  | Planner                                            | One file per task                                                                              |
+| `iterations/<N>/progress.md`                 | Planner, Questioner, Executor, Reviewer, Librarian | SSOT for all task/planning/knowledge status; Reviewer normalizes the `## Live Signals` section |
+| `iterations/<N>/reports/*`                   | Executor, Reviewer                                 | Task and review reports                                                                        |
+| `iterations/<N>/questions/*`                 | Questioner                                         | Per-category Q&A files                                                                         |
+| `iterations/<N>/knowledge/`                  | Librarian (EXTRACT)                                | Iteration-scoped extracted knowledge                                                           |
+| `knowledge/`                                 | Librarian (STAGE, PROMOTE)                         | Session-scope merged knowledge staging and promotion tracking                                  |
+| `signals/`                                   | Human (write), Agents (ack), Orchestrator (route)  | Session-level mailbox                                                                          |
 
 ---
 
@@ -252,6 +274,8 @@ COMPLETE ─── iteration is closed and waiting for feedback or an explicit f
                           ▼
                           COMPLETE
 ```
+
+Role labels in the state machine are stable delegation aliases; the active wrapper resolves each alias to the current runtime-visible subagent name before invocation.
 
 **Concurrency boundaries:**
 - Orchestration is the source of truth for parallel-safe versus sequential work.

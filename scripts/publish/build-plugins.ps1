@@ -241,6 +241,77 @@ function Get-AgentFrontmatterName {
     return $null
 }
 
+function Get-AgentMarkdownBody {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath
+    )
+
+    if (-not (Test-Path $AgentPath -PathType Leaf)) {
+        return $null
+    }
+
+    $content = Get-Content -Path $AgentPath -Raw
+    if ($content -match '(?s)^---\r?\n.*?\r?\n---\r?\n?(.*)$') {
+        return $Matches[1]
+    }
+
+    return $content
+}
+
+function Get-AgentFrontmatterAgents {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath
+    )
+
+    if (-not (Test-Path $AgentPath -PathType Leaf)) {
+        return @()
+    }
+
+    $content = Get-Content -Path $AgentPath -Raw
+    $lines = $content -split "`r?`n"
+    if ($lines.Count -lt 3 -or $lines[0] -ne '---') {
+        return @()
+    }
+
+    $frontmatterEnd = -1
+    for ($index = 1; $index -lt $lines.Count; $index++) {
+        if ($lines[$index] -eq '---') {
+            $frontmatterEnd = $index
+            break
+        }
+    }
+
+    if ($frontmatterEnd -lt 0) {
+        return @()
+    }
+
+    for ($index = 1; $index -lt $frontmatterEnd; $index++) {
+        if ($lines[$index] -match '^(\s*agents:\s*\[)(.*)(\]\s*)$') {
+            $agentNames = @()
+
+            foreach ($entry in ($Matches[2] -split ',')) {
+                $trimmedEntry = $entry.Trim()
+                if ([string]::IsNullOrWhiteSpace($trimmedEntry)) {
+                    continue
+                }
+
+                if ($trimmedEntry -match '^(["'']?)(.+?)\1$') {
+                    $agentNames += $Matches[2].Trim()
+                }
+                else {
+                    $agentNames += $trimmedEntry
+                }
+            }
+
+            return $agentNames
+        }
+    }
+
+    return @()
+}
+
 function Get-AgentFrontmatterVersion {
     [CmdletBinding()]
     param(
@@ -276,6 +347,53 @@ function Get-AgentFrontmatterVersion {
     }
 
     return $null
+}
+
+function Test-SemanticVersionString {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Version
+    )
+
+    return $Version -match '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
+}
+
+function Get-RalphPluginBundleVersionOverride {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object]$Manifest
+    )
+
+    if ($Manifest.name -ne 'ralph-v2') {
+        return $null
+    }
+
+    $workspaceMetadataProperty = $Manifest.PSObject.Properties['x-copilot-fc']
+    if ($null -eq $workspaceMetadataProperty -or $null -eq $workspaceMetadataProperty.Value) {
+        return $null
+    }
+
+    $workspaceMetadata = $workspaceMetadataProperty.Value
+    if ($workspaceMetadata -is [string] -or $workspaceMetadata -is [System.Array] -or $workspaceMetadata -is [System.ValueType]) {
+        throw "Ralph plugin manifest field 'x-copilot-fc' must be an object when provided."
+    }
+
+    $overrideProperty = $workspaceMetadata.PSObject.Properties['bundleVersionOverride']
+    if ($null -eq $overrideProperty) {
+        return $null
+    }
+
+    $override = [string]$overrideProperty.Value
+    if ([string]::IsNullOrWhiteSpace($override)) {
+        throw "Ralph plugin manifest field 'x-copilot-fc.bundleVersionOverride' must be a non-empty semantic version when provided."
+    }
+
+    $override = $override.Trim()
+    if (-not (Test-SemanticVersionString -Version $override)) {
+        throw "Ralph plugin manifest field 'x-copilot-fc.bundleVersionOverride' must be a semantic version. Received '$override'."
+    }
+
+    return $override
 }
 
 function Get-RalphWorkflowVersionContract {
@@ -334,11 +452,19 @@ function Get-RalphWorkflowVersionContract {
 
     $workflowVersion = $distinctVersions[0]
     $manifestVersion = if ($Manifest.PSObject.Properties['version']) { [string]$Manifest.version } else { $null }
+    $bundleVersionOverride = Get-RalphPluginBundleVersionOverride -Manifest $Manifest
+    $usesBundleVersionOverride = -not [string]::IsNullOrWhiteSpace($bundleVersionOverride)
+    $bundleVersion = if ($usesBundleVersionOverride) { $bundleVersionOverride } else { $workflowVersion }
 
     return [PSCustomObject]@{
-        WorkflowVersion = $workflowVersion
-        ManifestVersion = $manifestVersion
-        ManifestMatches = ($manifestVersion -eq $workflowVersion)
+        WorkflowVersion            = $workflowVersion
+        ManifestVersion            = $manifestVersion
+        ManifestMatches            = ($manifestVersion -eq $workflowVersion)
+        BundleVersionOverride      = $bundleVersionOverride
+        UsesBundleVersionOverride  = $usesBundleVersionOverride
+        BundleVersion              = $bundleVersion
+        BundleVersionSource        = if ($usesBundleVersionOverride) { 'override' } else { 'workflow-fallback' }
+        BundleVersionMatchesWorkflow = ($bundleVersion -eq $workflowVersion)
     }
 }
 
@@ -371,24 +497,66 @@ function Update-AgentFrontmatterNameForChannel {
         return $false
     }
 
+    $updated = $false
     for ($index = 1; $index -lt $frontmatterEnd; $index++) {
         if ($lines[$index] -match '^(name:\s*)(["'']?)(.+?)\2\s*$') {
             $prefix = $Matches[1]
             $quote = $Matches[2]
             $nameValue = $Matches[3].Trim()
 
-            if ($nameValue -match '-beta$') {
-                return $false
+            if ($nameValue -notmatch '-beta$') {
+                $lines[$index] = "$prefix$quote$nameValue-beta$quote"
+                $updated = $true
+            }
+            continue
+        }
+
+        if ($lines[$index] -match '^(\s*agents:\s*\[)(.*)(\]\s*)$') {
+            $prefix = $Matches[1]
+            $suffix = $Matches[3]
+            $updatedAgentNames = @()
+            $agentsUpdated = $false
+
+            foreach ($entry in ($Matches[2] -split ',')) {
+                $trimmedEntry = $entry.Trim()
+                if ([string]::IsNullOrWhiteSpace($trimmedEntry)) {
+                    continue
+                }
+
+                $quote = ''
+                $agentName = $trimmedEntry
+                if ($trimmedEntry -match '^(["'']?)(.+?)\1$') {
+                    $quote = $Matches[1]
+                    $agentName = $Matches[2].Trim()
+                }
+
+                if ($agentName -notmatch '-beta$') {
+                    $agentName = "$agentName-beta"
+                    $agentsUpdated = $true
+                }
+
+                if ($quote) {
+                    $updatedAgentNames += "$quote$agentName$quote"
+                }
+                else {
+                    $updatedAgentNames += $agentName
+                }
             }
 
-            $lines[$index] = "$prefix$quote$nameValue-beta$quote"
-            $updatedContent = [string]::Join("`n", $lines)
-            Set-Content -Path $AgentPath -Value $updatedContent -NoNewline -Encoding UTF8
-            return $true
+            if ($agentsUpdated) {
+                $lines[$index] = "$prefix$($updatedAgentNames -join ', ')$suffix"
+                $updated = $true
+            }
         }
     }
 
-    return $false
+    if (-not $updated) {
+        return $false
+    }
+
+    $updatedContent = [string]::Join("`n", $lines)
+    Set-Content -Path $AgentPath -Value $updatedContent -NoNewline -Encoding UTF8
+    return $true
 }
 
 function Update-BundledAgentFrontmatterNames {
@@ -431,6 +599,7 @@ function Test-AgentChannelContract {
     $errors = @()
     $agentPaths = if ($AgentEntries -is [System.Array]) { $AgentEntries } else { @($AgentEntries) }
     $agentFiles = Get-ChildItem -Path (Join-Path $BuildDir 'agents') -Filter '*.agent.md' -File -ErrorAction SilentlyContinue
+    $bundledAgentNames = @{}
 
     foreach ($agentPath in $agentPaths) {
         $leafName = Split-Path $agentPath -Leaf
@@ -446,8 +615,16 @@ function Test-AgentChannelContract {
     }
 
     foreach ($agentFile in $agentFiles) {
+        $agentFrontmatterName = Get-AgentFrontmatterName -AgentPath $agentFile.FullName
+        if (-not [string]::IsNullOrWhiteSpace($agentFrontmatterName)) {
+            $bundledAgentNames[$agentFrontmatterName] = $true
+        }
+    }
+
+    foreach ($agentFile in $agentFiles) {
         $isBetaAgentName = $agentFile.Name -match '-beta\.agent\.md$'
         $agentFrontmatterName = Get-AgentFrontmatterName -AgentPath $agentFile.FullName
+        $agentFrontmatterAgents = @(Get-AgentFrontmatterAgents -AgentPath $agentFile.FullName)
 
         if ($Channel -eq 'beta' -and -not $isBetaAgentName) {
             $errors += "agents`: agents/$($agentFile.Name) (beta bundle file must end with -beta.agent.md)"
@@ -469,9 +646,406 @@ function Test-AgentChannelContract {
         if ($Channel -eq 'stable' -and $agentFrontmatterName -match '-beta$') {
             $errors += "agents`: agents/$($agentFile.Name) (stable bundle frontmatter name must not end with -beta; found '$agentFrontmatterName')"
         }
+
+        foreach ($agentReference in $agentFrontmatterAgents) {
+            if ($Channel -eq 'beta' -and ($agentReference -notmatch '-beta$' -or $agentReference -match '-beta-beta$')) {
+                $errors += "agents`: agents/$($agentFile.Name) (beta bundle frontmatter agents entry must end with -beta exactly once; found '$agentReference')"
+            }
+
+            if ($Channel -eq 'stable' -and $agentReference -match '-beta$') {
+                $errors += "agents`: agents/$($agentFile.Name) (stable bundle frontmatter agents entry must not end with -beta; found '$agentReference')"
+            }
+
+            if (-not $bundledAgentNames.ContainsKey($agentReference)) {
+                $errors += "agents`: agents/$($agentFile.Name) (frontmatter agents entry '$agentReference' does not match any bundled agent name)"
+            }
+        }
     }
 
     return $errors
+}
+
+function Convert-MarkdownTableLineToCells {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Line
+    )
+
+    $trimmedLine = $Line.Trim()
+    if ($trimmedLine -notmatch '^\|.*\|$') {
+        return @()
+    }
+
+    $cells = @()
+    foreach ($cell in ($trimmedLine.Trim('|') -split '\|')) {
+        $cells += $cell.Trim()
+    }
+
+    return $cells
+}
+
+function Get-RalphSubagentAlias {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($AgentName)) {
+        return $null
+    }
+
+    if ($AgentName -match '^Ralph-v2-(Planner|Questioner|Executor|Reviewer|Librarian)(?:-(?:CLI|VSCode))?(?:-beta)?$') {
+        return $Matches[1].ToLowerInvariant()
+    }
+
+    return $null
+}
+
+function Get-RalphExpectedAliasNameMatrix {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot
+    )
+
+    $requiredAliases = @('planner', 'questioner', 'executor', 'reviewer', 'librarian')
+    $errors = @()
+    $stableNamesByRuntime = @{
+        'vscode' = @{}
+        'cli'    = @{}
+    }
+
+    $runtimeDirs = @{
+        'vscode' = Join-Path (Join-Path (Join-Path $RepoRoot 'agents') 'ralph-v2') 'vscode'
+        'cli'    = Join-Path (Join-Path (Join-Path $RepoRoot 'agents') 'ralph-v2') 'cli'
+    }
+
+    foreach ($runtimeName in $runtimeDirs.Keys) {
+        $runtimeDir = $runtimeDirs[$runtimeName]
+        if (-not (Test-Path $runtimeDir -PathType Container)) {
+            $errors += "Ralph source runtime directory not found: $runtimeDir"
+            continue
+        }
+
+        $sourceAgentFiles = @(Get-ChildItem -Path $runtimeDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue)
+        foreach ($sourceAgentFile in $sourceAgentFiles) {
+            $sourceAgentName = Get-AgentFrontmatterName -AgentPath $sourceAgentFile.FullName
+            if ([string]::IsNullOrWhiteSpace($sourceAgentName) -or $sourceAgentName -match '^Ralph-v2-Orchestrator(?:-(?:CLI|VSCode))?$') {
+                continue
+            }
+
+            $alias = Get-RalphSubagentAlias -AgentName $sourceAgentName
+            if ($null -eq $alias) {
+                continue
+            }
+
+            if ($stableNamesByRuntime[$runtimeName].ContainsKey($alias)) {
+                $errors += "Ralph source runtime '$runtimeName' declares alias '$alias' more than once."
+                continue
+            }
+
+            if ($sourceAgentName -cmatch '-beta$') {
+                $errors += "Ralph source runtime '$runtimeName' agent '$sourceAgentName' must not end with -beta."
+                continue
+            }
+
+            $stableNamesByRuntime[$runtimeName][$alias] = $sourceAgentName
+        }
+
+        foreach ($requiredAlias in $requiredAliases) {
+            if (-not $stableNamesByRuntime[$runtimeName].ContainsKey($requiredAlias)) {
+                $errors += "Ralph source runtime '$runtimeName' is missing alias '$requiredAlias'."
+            }
+        }
+    }
+
+    $rows = @{}
+    if ($errors.Count -eq 0) {
+        foreach ($alias in $requiredAliases) {
+            $vscodeStable = $stableNamesByRuntime['vscode'][$alias]
+            $cliStable = $stableNamesByRuntime['cli'][$alias]
+
+            $rows[$alias] = [ordered]@{
+                'VS Code Stable' = $vscodeStable
+                'VS Code Beta'   = "$vscodeStable-beta"
+                'CLI Stable'     = $cliStable
+                'CLI Beta'       = "$cliStable-beta"
+            }
+        }
+    }
+
+    return [PSCustomObject]@{
+        Errors = $errors
+        Rows   = $rows
+    }
+}
+
+function Get-RalphSubagentAliasTable {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath
+    )
+
+    $errors = @()
+    $rows = @{}
+    $agentDisplayPath = "agents/$([System.IO.Path]::GetFileName($AgentPath))"
+    $body = Get-AgentMarkdownBody -AgentPath $AgentPath
+
+    if ([string]::IsNullOrWhiteSpace($body)) {
+        $errors += "agents`: $agentDisplayPath (missing merged markdown body)"
+        return [PSCustomObject]@{
+            Errors = $errors
+            Rows   = $rows
+        }
+    }
+
+    $lines = $body -split "`r?`n"
+    $sectionIndex = -1
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        if ($lines[$index].Trim() -ceq '## Subagent Alias Table') {
+            $sectionIndex = $index
+            break
+        }
+    }
+
+    if ($sectionIndex -lt 0) {
+        $errors += "agents`: $agentDisplayPath (missing '## Subagent Alias Table' section)"
+        return [PSCustomObject]@{
+            Errors = $errors
+            Rows   = $rows
+        }
+    }
+
+    $lineIndex = $sectionIndex + 1
+    while ($lineIndex -lt $lines.Count -and [string]::IsNullOrWhiteSpace($lines[$lineIndex])) {
+        $lineIndex++
+    }
+
+    if ($lineIndex -ge $lines.Count) {
+        $errors += "agents`: $agentDisplayPath (subagent alias table is missing the table header)"
+        return [PSCustomObject]@{
+            Errors = $errors
+            Rows   = $rows
+        }
+    }
+
+    $expectedHeader = '| Alias | VS Code Stable | VS Code Beta | CLI Stable | CLI Beta |'
+    if ($lines[$lineIndex].Trim() -cne $expectedHeader) {
+        $errors += "agents`: $agentDisplayPath (subagent alias table header must be exactly '$expectedHeader')"
+        return [PSCustomObject]@{
+            Errors = $errors
+            Rows   = $rows
+        }
+    }
+
+    $lineIndex++
+    if ($lineIndex -ge $lines.Count -or $lines[$lineIndex].Trim() -notmatch '^\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|$') {
+        $errors += "agents`: $agentDisplayPath (subagent alias table is missing a valid markdown separator row)"
+        return [PSCustomObject]@{
+            Errors = $errors
+            Rows   = $rows
+        }
+    }
+
+    $lineIndex++
+    while ($lineIndex -lt $lines.Count) {
+        $trimmedLine = $lines[$lineIndex].Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine -notmatch '^\|') {
+            break
+        }
+
+        $cells = @(Convert-MarkdownTableLineToCells -Line $trimmedLine)
+        if ($cells.Count -ne 5) {
+            $errors += "agents`: $agentDisplayPath (subagent alias table row '$trimmedLine' must contain exactly 5 columns)"
+            $lineIndex++
+            continue
+        }
+
+        $alias = $cells[0].ToLowerInvariant()
+        if ([string]::IsNullOrWhiteSpace($alias)) {
+            $errors += "agents`: $agentDisplayPath (subagent alias table contains an empty alias cell)"
+            $lineIndex++
+            continue
+        }
+
+        if ($rows.ContainsKey($alias)) {
+            $errors += "agents`: $agentDisplayPath (subagent alias table declares alias '$alias' more than once)"
+            $lineIndex++
+            continue
+        }
+
+        $rows[$alias] = [ordered]@{
+            'VS Code Stable' = $cells[1]
+            'VS Code Beta'   = $cells[2]
+            'CLI Stable'     = $cells[3]
+            'CLI Beta'       = $cells[4]
+        }
+
+        $lineIndex++
+    }
+
+    if ($rows.Count -eq 0) {
+        $errors += "agents`: $agentDisplayPath (subagent alias table does not contain any alias rows)"
+    }
+
+    return [PSCustomObject]@{
+        Errors = $errors
+        Rows   = $rows
+    }
+}
+
+function Test-RalphNextAgentAliasExamples {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$BuildDir
+    )
+
+    $errors = @()
+    $agentDir = Join-Path $BuildDir 'agents'
+    if (-not (Test-Path $agentDir -PathType Container)) {
+        return $errors
+    }
+
+    $nextAgentRuntimeNamePattern = '(?im)^[^\r\n]*\bnext_agent\b[^\r\n]*\b(Ralph-v2-(?:Planner|Questioner|Executor|Reviewer|Librarian|Orchestrator)(?:-(?:CLI|VSCode))?(?:-beta)?)\b[^\r\n]*$'
+    $agentFiles = @(Get-ChildItem -Path $agentDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue)
+
+    foreach ($agentFile in $agentFiles) {
+        $body = Get-AgentMarkdownBody -AgentPath $agentFile.FullName
+        if ([string]::IsNullOrWhiteSpace($body)) {
+            continue
+        }
+
+        $matches = [regex]::Matches($body, $nextAgentRuntimeNamePattern)
+        foreach ($match in $matches) {
+            $rawRuntimeName = $match.Groups[1].Value
+            $errors += "agents`: agents/$($agentFile.Name) (next_agent examples must use aliases instead of raw runtime name '$rawRuntimeName')"
+        }
+    }
+
+    return @($errors | Select-Object -Unique)
+}
+
+function Test-RalphSubagentAliasContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$BuildDir,
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$PluginName,
+        [ValidateSet('cli', 'vscode')][string]$RuntimeName,
+        [ValidateSet('stable', 'beta')][string]$Channel = 'beta'
+    )
+
+    if ($PluginName -notmatch '^ralph-v2(?:-beta)?$') {
+        return @()
+    }
+
+    $errors = @()
+    $requiredAliases = @('planner', 'questioner', 'executor', 'reviewer', 'librarian')
+    $agentDir = Join-Path $BuildDir 'agents'
+
+    if (-not (Test-Path $agentDir -PathType Container)) {
+        return @("agents`: agents/ (Ralph bundle is missing bundled agent files)")
+    }
+
+    $bundledAgentFiles = @(Get-ChildItem -Path $agentDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue)
+    $orchestratorAgents = @($bundledAgentFiles | Where-Object { $_.Name -match 'orchestrator' })
+    $bundledSubagentNamesByAlias = @{}
+
+    foreach ($bundledAgentFile in $bundledAgentFiles) {
+        $bundledAgentName = Get-AgentFrontmatterName -AgentPath $bundledAgentFile.FullName
+        if ([string]::IsNullOrWhiteSpace($bundledAgentName)) {
+            continue
+        }
+
+        $alias = Get-RalphSubagentAlias -AgentName $bundledAgentName
+        if ($null -eq $alias) {
+            continue
+        }
+
+        if ($bundledSubagentNamesByAlias.ContainsKey($alias)) {
+            $errors += "agents`: agents/$($bundledAgentFile.Name) (Ralph bundle declares alias '$alias' more than once)"
+            continue
+        }
+
+        $bundledSubagentNamesByAlias[$alias] = $bundledAgentName
+    }
+
+    foreach ($requiredAlias in $requiredAliases) {
+        if (-not $bundledSubagentNamesByAlias.ContainsKey($requiredAlias)) {
+            $errors += "agents`: agents/ (Ralph bundle is missing subagent alias '$requiredAlias')"
+        }
+    }
+
+    $unexpectedBundledAliases = @($bundledSubagentNamesByAlias.Keys | Where-Object { $_ -notin $requiredAliases })
+    foreach ($unexpectedAlias in $unexpectedBundledAliases) {
+        $errors += "agents`: agents/ (Ralph bundle contains unexpected subagent alias '$unexpectedAlias')"
+    }
+
+    if ($orchestratorAgents.Count -ne 1) {
+        $errors += "agents`: agents/ (Ralph bundle must contain exactly one orchestrator agent file; found $($orchestratorAgents.Count))"
+    }
+
+    $expectedMatrixResult = Get-RalphExpectedAliasNameMatrix -RepoRoot $RepoRoot
+    $errors += $expectedMatrixResult.Errors
+
+    if ($orchestratorAgents.Count -eq 1) {
+        $aliasTableResult = Get-RalphSubagentAliasTable -AgentPath $orchestratorAgents[0].FullName
+        $errors += $aliasTableResult.Errors
+
+        if ($aliasTableResult.Errors.Count -eq 0) {
+            $unexpectedAliases = @($aliasTableResult.Rows.Keys | Where-Object { $_ -notin $requiredAliases })
+            foreach ($unexpectedAlias in $unexpectedAliases) {
+                $errors += "agents`: agents/$($orchestratorAgents[0].Name) (subagent alias table contains unexpected alias '$unexpectedAlias')"
+            }
+
+            $currentColumnName = switch ($RuntimeName) {
+                'vscode' {
+                    if ($Channel -eq 'beta') { 'VS Code Beta' } else { 'VS Code Stable' }
+                }
+                'cli' {
+                    if ($Channel -eq 'beta') { 'CLI Beta' } else { 'CLI Stable' }
+                }
+            }
+
+            foreach ($requiredAlias in $requiredAliases) {
+                if (-not $aliasTableResult.Rows.ContainsKey($requiredAlias)) {
+                    $errors += "agents`: agents/$($orchestratorAgents[0].Name) (subagent alias table is missing alias '$requiredAlias')"
+                    continue
+                }
+
+                $row = $aliasTableResult.Rows[$requiredAlias]
+                foreach ($stableColumn in @('VS Code Stable', 'CLI Stable')) {
+                    if ($row[$stableColumn] -cmatch '-beta$') {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (table value '$($row[$stableColumn])' in '$stableColumn' must not end with -beta)"
+                    }
+                }
+
+                foreach ($betaColumn in @('VS Code Beta', 'CLI Beta')) {
+                    if ($row[$betaColumn] -cnotmatch '-beta$' -or $row[$betaColumn] -cmatch '-beta-beta$') {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (table value '$($row[$betaColumn])' in '$betaColumn' must end with -beta exactly once)"
+                    }
+                }
+
+                if ($expectedMatrixResult.Errors.Count -eq 0) {
+                    $expectedRow = $expectedMatrixResult.Rows[$requiredAlias]
+                    foreach ($columnName in $expectedRow.Keys) {
+                        if ($row[$columnName] -cne $expectedRow[$columnName]) {
+                            $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$columnName' expected '$($expectedRow[$columnName])' but found '$($row[$columnName])')"
+                        }
+                    }
+                }
+
+                if ($bundledSubagentNamesByAlias.ContainsKey($requiredAlias)) {
+                    $resolvedBundledName = $bundledSubagentNamesByAlias[$requiredAlias]
+                    if ($row[$currentColumnName] -cne $resolvedBundledName) {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$currentColumnName' must resolve to bundled agent name '$resolvedBundledName')"
+                    }
+                }
+            }
+        }
+    }
+
+    $errors += Test-RalphNextAgentAliasExamples -BuildDir $BuildDir
+    return @($errors | Select-Object -Unique)
 }
 
 function Copy-HookSupportAssets {
@@ -692,13 +1266,25 @@ function Build-PluginBundle {
     }
 
     if ($null -ne $ralphVersionContract) {
+        $sourceManifestVersionDisplay = if ([string]::IsNullOrWhiteSpace($ralphVersionContract.ManifestVersion)) { '<missing>' } else { $ralphVersionContract.ManifestVersion }
+
         if (-not $ralphVersionContract.ManifestMatches) {
-            Write-Warning "  Source Ralph plugin manifest version '$($ralphVersionContract.ManifestVersion)' does not match canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. The bundled manifest will be stamped from the canonical workflow version."
+            Write-Warning "  Source Ralph plugin manifest version '$sourceManifestVersionDisplay' does not match canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. Keep source manifest version aligned to the workflow version for readability/fallback, and use x-copilot-fc.bundleVersionOverride for independent plugin bundle releases."
+        }
+
+        if ($ralphVersionContract.UsesBundleVersionOverride) {
+            if ($ralphVersionContract.BundleVersionMatchesWorkflow) {
+                Write-Warning "  Ralph plugin bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' matches canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. Remove the override to use workflow fallback instead of keeping the versions in lockstep explicitly."
+            }
+            else {
+                Write-Warning "  Ralph plugin bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' is active. The bundled plugin manifest version will differ from canonical workflow version '$($ralphVersionContract.WorkflowVersion)'."
+            }
         }
 
         # Ralph workflow version governance is channel-agnostic; beta/stable only affect bundle identity.
-        $cleanManifest['version'] = $ralphVersionContract.WorkflowVersion
+        $cleanManifest['version'] = $ralphVersionContract.BundleVersion
         Write-Host "  Ralph workflow version: $($ralphVersionContract.WorkflowVersion)" -ForegroundColor DarkGray
+        Write-Host "  Ralph bundle version: $($ralphVersionContract.BundleVersion) ($($ralphVersionContract.BundleVersionSource))" -ForegroundColor DarkGray
     }
 
     # Override name for beta channel
@@ -817,6 +1403,7 @@ function Build-PluginBundle {
 
     if ($cleanManifest.Contains('agents')) {
         $validationErrors += Test-AgentChannelContract -BuildDir $buildDir -AgentEntries $cleanManifest['agents'] -Channel $Channel
+        $validationErrors += Test-RalphSubagentAliasContract -BuildDir $buildDir -RepoRoot $repoRoot -PluginName $sourcePluginName -RuntimeName $bundleLayout.RuntimeName -Channel $Channel
     }
 
     if ($validationErrors.Count -gt 0) {

@@ -8,7 +8,8 @@
 
       - CLI plugins  (plugins/cli/):    installed with `copilot plugin install <local-bundle-path>`
                                         against the prepared workspace bundle
-      - VS Code plugins (plugins/vscode/): registered in VS Code's chat.plugins.paths setting
+      - VS Code plugins (plugins/vscode/): copied into VS Code's user-data agentPlugins roots
+                                          and registered in chat.plugins.paths
 
     Plugin directory structure:
       plugins/
@@ -24,12 +25,14 @@
             Copilot CLI manages the installed payload in its own cache; treat any
             resulting on-disk install path as an implementation detail.
 
-    VS Code install: adds .build/ path to 'chat.plugins.paths' in user settings.json for
-      both VS Code Stable and VS Code Insiders (whichever are present).
+    VS Code install: copies the prepared runtime bundle from `plugins/vscode/.build/<plugin-name>/`
+      into each detected VS Code user-data `agentPlugins/<plugin-name>/` root (Stable and/or
+      Insiders), then registers the copied path in that installation's user settings.json.
       See: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
 
     NOTE: The -Environment parameter (windows/wsl/all) applies only to CLI plugins.
-    VS Code plugins are always registered in settings.json regardless of -Environment.
+    VS Code plugins are always published into Windows user-data folders and registered in
+    settings.json regardless of -Environment.
 
 .PARAMETER Plugins
     Array or comma-separated plugin names to install. Supports wildcard patterns.
@@ -52,7 +55,7 @@
 .PARAMETER Force
     Retained for backward compatibility. CLI publishing now reruns `copilot plugin install`
     from the prepared local bundle on every publish, so no explicit uninstall step is required.
-    VS Code registration remains idempotent.
+    VS Code publish + registration remains idempotent.
 
 .PARAMETER SkipWSL
     DEPRECATED. Use -Environment windows instead. Kept for backward compatibility.
@@ -60,8 +63,8 @@
 
 .PARAMETER Channel
     Publishing channel: 'beta' (default) or 'stable'.
-    - beta: builds to .build/<name>-beta/, installs the beta bundle via `copilot plugin install` (CLI),
-            registers .build/<name>-beta in VS Code settings. Does not overwrite stable.
+    - beta: builds to .build/<name>-beta/, installs the beta bundle via `copilot plugin install`
+            for CLI, copies to agentPlugins/<name>-beta/ for VS Code, and does not overwrite stable.
     - stable: standard publish to default locations.
 
 .PARAMETER Promote
@@ -140,6 +143,34 @@ function Copy-DirectoryExact {
 
     Copy-Item -Path $Source -Destination $Destination -Recurse -Force
     return (Test-Path $Destination)
+}
+
+function Get-VSCodeInstallationLocations {
+    [CmdletBinding()]
+    param()
+
+    $locations = @(
+        [PSCustomObject]@{
+            Label = 'VS Code Stable'
+            AppDataRoot = Join-Path $env:APPDATA 'Code'
+            SettingsPath = Join-Path $env:APPDATA 'Code\User\settings.json'
+            AgentPluginsRoot = Join-Path $env:APPDATA 'Code\agentPlugins'
+        },
+        [PSCustomObject]@{
+            Label = 'VS Code Insiders'
+            AppDataRoot = Join-Path $env:APPDATA 'Code - Insiders'
+            SettingsPath = Join-Path $env:APPDATA 'Code - Insiders\User\settings.json'
+            AgentPluginsRoot = Join-Path $env:APPDATA 'Code - Insiders\agentPlugins'
+        }
+    )
+
+    return @(
+        $locations | Where-Object {
+            (Test-Path $_.AppDataRoot -PathType Container) -or
+            (Test-Path $_.SettingsPath -PathType Leaf) -or
+            (Test-Path $_.AgentPluginsRoot -PathType Container)
+        }
+    )
 }
 
 function Test-CopilotPluginDiscovery {
@@ -256,106 +287,141 @@ function Write-CopilotPluginVerificationWarning {
 }
 
 function Resolve-VSCodePluginRegistrationPath {
-        [CmdletBinding()]
-        param(
-            [Parameter(Mandatory)][string]$PluginPath,
-            [Parameter(Mandatory)][string]$PluginName
-        )
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginPath,
+        [Parameter(Mandatory)][string]$PluginName
+    )
 
-        $resolvedPath = [System.IO.Path]::GetFullPath($PluginPath)
+    $resolvedPath = [System.IO.Path]::GetFullPath($PluginPath)
+    $leaf = Split-Path $resolvedPath -Leaf
 
-        if ((Split-Path $resolvedPath -Leaf) -ieq '.build') {
-            $pluginDir = Split-Path $resolvedPath -Parent
-            $runtimeDir = Split-Path $pluginDir -Parent
-            if ((Split-Path $pluginDir -Leaf) -ieq $PluginName -and (Split-Path $runtimeDir -Leaf) -ieq 'vscode') {
-                return (Join-Path (Join-Path $runtimeDir '.build') $PluginName)
-            }
-        }
-
-        return $resolvedPath
+    if ($leaf -ieq '.build' -or $leaf -ieq '.build-beta' -or $leaf -ieq 'agentPlugins') {
+        return [System.IO.Path]::GetFullPath((Join-Path $resolvedPath $PluginName))
     }
 
-    function Get-VSCodePluginRegistrationIdentity {
-        [CmdletBinding()]
-        param(
-            [Parameter(Mandatory)][string]$PluginPath
-        )
+    return $resolvedPath
+}
 
-        $resolvedPath = [System.IO.Path]::GetFullPath($PluginPath)
-        $bundleRoot = Split-Path $resolvedPath -Parent
-        $bundleFolderName = Split-Path $bundleRoot -Leaf
-        $runtimeRoot = Split-Path $bundleRoot -Parent
+function Get-VSCodePluginRegistrationIdentity {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginPath
+    )
 
-        if (($bundleFolderName -ieq '.build' -or $bundleFolderName -ieq '.build-beta') -and (Split-Path $runtimeRoot -Leaf) -ieq 'vscode') {
-            $effectivePluginName = if ($bundleFolderName -ieq '.build-beta') {
-                "$(Split-Path $resolvedPath -Leaf)-beta"
-            }
-            else {
-                Split-Path $resolvedPath -Leaf
-            }
+    $resolvedPath = [System.IO.Path]::GetFullPath($PluginPath)
+    $containerPath = Split-Path $resolvedPath -Parent
+    $containerName = Split-Path $containerPath -Leaf
+    $pluginFolderName = Split-Path $resolvedPath -Leaf
+    $rootPath = if ([string]::IsNullOrWhiteSpace($containerPath)) { $null } else { Split-Path $containerPath -Parent }
 
-            return [PSCustomObject]@{
-                ResolvedPath = $resolvedPath
-                RuntimeRoot = [System.IO.Path]::GetFullPath($runtimeRoot)
-                SourcePluginName = Split-Path $resolvedPath -Leaf
-                EffectivePluginName = $effectivePluginName
-            }
+    if (($containerName -ieq '.build' -or $containerName -ieq '.build-beta') -and (Split-Path $rootPath -Leaf) -ieq 'vscode') {
+        $effectivePluginName = if ($containerName -ieq '.build-beta' -and $pluginFolderName -notmatch '-beta$') {
+            "$pluginFolderName-beta"
+        }
+        else {
+            $pluginFolderName
         }
 
         return [PSCustomObject]@{
             ResolvedPath = $resolvedPath
-            RuntimeRoot = $null
-            SourcePluginName = $null
-            EffectivePluginName = $null
+            RegistrationRoot = [System.IO.Path]::GetFullPath($containerPath)
+            SourcePluginName = $pluginFolderName
+            EffectivePluginName = $effectivePluginName
+            RegistrationType = 'workspace-build'
         }
     }
 
-    function Update-VSCodePluginSettings {
-        <#
-        .SYNOPSIS
-            Registers a plugin bundle path in VS Code's chat.plugins.paths setting.
+    if ($containerName -ieq 'agentPlugins') {
+        return [PSCustomObject]@{
+            ResolvedPath = $resolvedPath
+            RegistrationRoot = [System.IO.Path]::GetFullPath($containerPath)
+            SourcePluginName = $pluginFolderName
+            EffectivePluginName = $pluginFolderName
+            RegistrationType = 'vscode-agentPlugins'
+        }
+    }
 
-        .DESCRIPTION
-            Reads the VS Code user settings.json (for both Stable and Insiders installations),
-            adds or updates the specified plugin path under 'chat.plugins.paths', and writes
-            the result back. JSONC comments in settings.json are stripped during parsing;
-            the file is rewritten as plain JSON.
+    return [PSCustomObject]@{
+        ResolvedPath = $resolvedPath
+        RegistrationRoot = if ([string]::IsNullOrWhiteSpace($containerPath)) { $null } else { [System.IO.Path]::GetFullPath($containerPath) }
+        SourcePluginName = $pluginFolderName
+        EffectivePluginName = $pluginFolderName
+        RegistrationType = 'path'
+    }
+}
 
-            Supports: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
+function Update-VSCodePluginSettings {
+    <#
+    .SYNOPSIS
+        Publishes VS Code plugin bundles into user-data agentPlugins roots and registers them.
 
-        .PARAMETER PluginPath
-            Absolute path to the plugin's .build/ directory to register.
+    .DESCRIPTION
+        For each detected VS Code installation (Stable and/or Insiders), copies the specified
+        plugin bundle into that installation's user-data `agentPlugins/<plugin-name>/` folder,
+        then adds or updates the copied path under `chat.plugins.paths` in the matching
+        user settings.json file. JSONC comments in settings.json are stripped during parsing;
+        the file is rewritten as plain JSON.
 
-        .PARAMETER PluginName
-            Display name for log messages.
+        Supports: https://code.visualstudio.com/docs/copilot/customization/agent-plugins
 
-        .PARAMETER Enabled
-            Whether to enable the plugin. Defaults to $true.
+    .PARAMETER PluginPath
+        Absolute path to the built plugin bundle directory to publish.
 
-        .OUTPUTS
-            [int] Number of VS Code settings files updated (0 if no VS Code installations found).
-        #>
-        [CmdletBinding()]
-        param(
-            [Parameter(Mandatory)][string]$PluginPath,
-            [Parameter(Mandatory)][string]$PluginName,
-            [bool]$Enabled = $true
-        )
+    .PARAMETER PluginName
+        Display name for log messages and the published bundle directory name.
 
-        $settingsLocations = @(
-            @{ Label = 'VS Code Stable';   Path = "$env:APPDATA\Code\User\settings.json" },
-            @{ Label = 'VS Code Insiders'; Path = "$env:APPDATA\Code - Insiders\User\settings.json" }
-        )
+    .PARAMETER Enabled
+        Whether to enable the plugin. Defaults to $true.
 
-        $canonicalPluginPath = Resolve-VSCodePluginRegistrationPath -PluginPath $PluginPath -PluginName $PluginName
-    $canonicalRegistration = Get-VSCodePluginRegistrationIdentity -PluginPath $canonicalPluginPath
-        $updated = 0
+    .OUTPUTS
+        [pscustomobject] Publish + registration summary for the detected VS Code installations.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginPath,
+        [Parameter(Mandatory)][string]$PluginName,
+        [bool]$Enabled = $true
+    )
 
-        foreach ($loc in $settingsLocations) {
-            $settingsPath = $loc.Path
-            if (-not (Test-Path $settingsPath)) { continue }
+    $installLocations = @(Get-VSCodeInstallationLocations)
+    $result = [PSCustomObject]@{
+        LocationsDiscovered = $installLocations.Count
+        Published = 0
+        Registered = 0
+        Errors = 0
+    }
 
-            $rawContent = Get-Content $settingsPath -Raw
+    foreach ($loc in $installLocations) {
+        $publishedPluginPath = Join-Path $loc.AgentPluginsRoot $PluginName
+        $canonicalPluginPath = Resolve-VSCodePluginRegistrationPath -PluginPath $publishedPluginPath -PluginName $PluginName
+        $canonicalRegistration = Get-VSCodePluginRegistrationIdentity -PluginPath $canonicalPluginPath
+
+        try {
+            New-Item -Path $loc.AgentPluginsRoot -ItemType Directory -Force | Out-Null
+            $copySucceeded = Copy-DirectoryExact -Source $PluginPath -Destination $canonicalPluginPath
+            $pluginJsonPath = Join-Path $canonicalPluginPath 'plugin.json'
+            if (-not $copySucceeded -or -not (Test-Path $pluginJsonPath -PathType Leaf)) {
+                Write-Error "  Failed to publish $PluginName to $($loc.Label) agentPlugins root: $canonicalPluginPath"
+                $result.Errors++
+                continue
+            }
+
+            Write-Host "  Published to $($loc.Label): $PluginName" -ForegroundColor Green
+            Write-Host "    Path: $canonicalPluginPath" -ForegroundColor DarkGray
+            $result.Published++
+        }
+        catch {
+            Write-Error "  Failed to copy $PluginName into $($loc.Label) agentPlugins root: $_"
+            $result.Errors++
+            continue
+        }
+
+        $settingsDir = Split-Path $loc.SettingsPath -Parent
+        New-Item -Path $settingsDir -ItemType Directory -Force | Out-Null
+
+        if (Test-Path $loc.SettingsPath -PathType Leaf) {
+            $rawContent = Get-Content $loc.SettingsPath -Raw
 
             # Strip JSONC comments for parsing:
             #   - Full-line comments: lines whose non-whitespace content starts with //
@@ -371,55 +437,59 @@ function Resolve-VSCodePluginRegistrationPath {
                 $settings = $jsonText | ConvertFrom-Json
             }
             catch {
-                Write-Warning "  Could not parse $($loc.Label) settings.json — skipping: $_"
+                Write-Warning "  Could not parse $($loc.Label) settings.json — skipping registration: $_"
+                $result.Errors++
                 continue
             }
-
-            # Get or create chat.plugins.paths as a PSCustomObject (VS Code expects an object, not array)
-            $pathsProperty = $settings.PSObject.Properties['chat.plugins.paths']
-            if ($null -ne $pathsProperty -and $pathsProperty.Value -is [PSCustomObject]) {
-                $pathsObj = $pathsProperty.Value
-            }
-            else {
-                $pathsObj = [PSCustomObject]@{}
-            }
-
-            $stalePathEntries = @()
-            foreach ($property in @($pathsObj.PSObject.Properties)) {
-                $normalizedEntryPath = Resolve-VSCodePluginRegistrationPath -PluginPath $property.Name -PluginName $PluginName
-                $entryRegistration = Get-VSCodePluginRegistrationIdentity -PluginPath $property.Name
-                $isSamePluginRegistration =
-                    $null -ne $canonicalRegistration.RuntimeRoot -and
-                    $null -ne $entryRegistration.RuntimeRoot -and
-                    $entryRegistration.RuntimeRoot -ieq $canonicalRegistration.RuntimeRoot -and
-                    $entryRegistration.EffectivePluginName -ieq $canonicalRegistration.EffectivePluginName
-
-                if (($normalizedEntryPath -ieq $canonicalPluginPath -or $isSamePluginRegistration) -and $property.Name -cne $canonicalPluginPath) {
-                    $stalePathEntries += $property.Name
-                }
-            }
-
-            foreach ($stalePath in $stalePathEntries) {
-                $pathsObj.PSObject.Properties.Remove($stalePath)
-            }
-
-            # Add/update the plugin path entry. Use -InputObject (not pipeline) to safely handle
-            # property names that contain special characters like backslashes and colons.
-            Add-Member -InputObject $pathsObj -NotePropertyName $canonicalPluginPath -NotePropertyValue $Enabled -Force
-
-            # Assign back (handles the case where chat.plugins.paths was missing or wrong type)
-            Add-Member -InputObject $settings -NotePropertyName 'chat.plugins.paths' -NotePropertyValue $pathsObj -Force
-
-            # Write back as clean JSON (JSONC comments are not preserved after rewrite)
-            $newContent = $settings | ConvertTo-Json -Depth 20
-            Set-Content -Path $settingsPath -Value $newContent -Encoding UTF8
-
-            Write-Host "  Registered in $($loc.Label): $PluginName" -ForegroundColor Green
-            Write-Host "    Path: $canonicalPluginPath" -ForegroundColor DarkGray
-            $updated++
+        }
+        else {
+            $settings = [PSCustomObject]@{}
         }
 
-    return $updated
+        # Get or create chat.plugins.paths as a PSCustomObject (VS Code expects an object, not array)
+        $pathsProperty = $settings.PSObject.Properties['chat.plugins.paths']
+        if ($null -ne $pathsProperty -and $pathsProperty.Value -is [PSCustomObject]) {
+            $pathsObj = $pathsProperty.Value
+        }
+        else {
+            $pathsObj = [PSCustomObject]@{}
+        }
+
+        $stalePathEntries = @()
+        foreach ($property in @($pathsObj.PSObject.Properties)) {
+            $normalizedEntryPath = Resolve-VSCodePluginRegistrationPath -PluginPath $property.Name -PluginName $PluginName
+            $entryRegistration = Get-VSCodePluginRegistrationIdentity -PluginPath $property.Name
+            $isSamePluginRegistration =
+                -not [string]::IsNullOrWhiteSpace($canonicalRegistration.EffectivePluginName) -and
+                -not [string]::IsNullOrWhiteSpace($entryRegistration.EffectivePluginName) -and
+                $entryRegistration.EffectivePluginName -ieq $canonicalRegistration.EffectivePluginName
+
+            if (($normalizedEntryPath -ieq $canonicalPluginPath -or $isSamePluginRegistration) -and $property.Name -cne $canonicalPluginPath) {
+                $stalePathEntries += $property.Name
+            }
+        }
+
+        foreach ($stalePath in $stalePathEntries) {
+            $pathsObj.PSObject.Properties.Remove($stalePath)
+        }
+
+        # Add/update the plugin path entry. Use -InputObject (not pipeline) to safely handle
+        # property names that contain special characters like backslashes and colons.
+        Add-Member -InputObject $pathsObj -NotePropertyName $canonicalPluginPath -NotePropertyValue $Enabled -Force
+
+        # Assign back (handles the case where chat.plugins.paths was missing or wrong type)
+        Add-Member -InputObject $settings -NotePropertyName 'chat.plugins.paths' -NotePropertyValue $pathsObj -Force
+
+        # Write back as clean JSON (JSONC comments are not preserved after rewrite)
+        $newContent = $settings | ConvertTo-Json -Depth 20
+        Set-Content -Path $loc.SettingsPath -Value $newContent -Encoding UTF8
+
+        Write-Host "  Registered in $($loc.Label): $PluginName" -ForegroundColor Green
+        Write-Host "    Settings: $($loc.SettingsPath)" -ForegroundColor DarkGray
+        $result.Registered++
+    }
+
+    return $result
 }
 
 function Publish-Plugins {
@@ -427,7 +497,8 @@ function Publish-Plugins {
     .SYNOPSIS
         Discovers workspace plugins, bundles them, and installs based on each plugin's runtime:
                     - CLI plugins:    installed with `copilot plugin install <local-bundle-path>` (respects -Environment)
-          - VS Code plugins: registered in VS Code's chat.plugins.paths user setting
+          - VS Code plugins: copied into VS Code user-data agentPlugins roots and registered
+                            in the matching chat.plugins.paths user setting
 
     .DESCRIPTION
         Scans plugins/cli/ and plugins/vscode/ for plugin directories containing plugin.json,
@@ -435,8 +506,9 @@ function Publish-Plugins {
         artifacts), then installs by runtime:
                     - cli:    runs `copilot plugin install <local-bundle-path>` against the
                               prepared bundle on Windows and/or WSL per -Environment
-          - vscode: calls Update-VSCodePluginSettings to register the .build/ path in
-                    chat.plugins.paths for all installed VS Code variants (Stable + Insiders)
+          - vscode: copies each bundle into the detected VS Code user-data agentPlugins roots
+                    (Stable + Insiders), then registers the copied path in the matching
+                    chat.plugins.paths setting
 
     .PARAMETER Plugins
         Array of plugin names to install. Supports comma-separated values and
@@ -455,7 +527,8 @@ function Publish-Plugins {
 
     .EXAMPLE
         Publish-Plugins -Plugins ralph-v2 -Runtime vscode
-        Registers only the 'ralph-v2' VS Code plugin in settings.json.
+        Publishes only the 'ralph-v2' VS Code plugin into VS Code agentPlugins roots and
+        registers the copied bundle paths in settings.json.
 
     .EXAMPLE
         Publish-Plugins -Runtime cli -Environment windows -Force
@@ -534,7 +607,8 @@ function Publish-Plugins {
 
     Initialize-PluginBundleOutput -SelectedPluginDirs ($pluginEntries | ForEach-Object { $_.Dir }) -AllPluginDirs ($allPluginEntries | ForEach-Object { $_.Dir }) -Channel $effectiveChannel
 
-    # Pre-check WSL availability once (only needed for CLI plugins)
+    # Pre-check WSL availability once (only needed for CLI plugins).
+    # -Environment all remains best-effort for WSL so Windows-only hosts can still publish.
     $wslAvailable = $false
     $wslHome = $null
     $needsWsl = ($pluginEntries | Where-Object { $_.Runtime -eq 'cli' }).Count -gt 0 -and
@@ -548,12 +622,17 @@ function Publish-Plugins {
                 Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
             }
             else {
-                $msg = if ($Environment -eq 'wsl') { "WSL not available" } else { "WSL not available, skipping WSL installs" }
-                Write-Host $msg -ForegroundColor Yellow
+                if ($Environment -eq 'wsl') {
+                    throw "WSL not available"
+                }
+                Write-Host "WSL not available, skipping WSL installs for -Environment all" -ForegroundColor Yellow
             }
         }
         else {
-            Write-Host "WSL helpers not found, skipping WSL publishing" -ForegroundColor Yellow
+            if ($Environment -eq 'wsl') {
+                throw "WSL helpers not found, cannot publish CLI plugins to WSL"
+            }
+            Write-Host "WSL helpers not found, skipping WSL publishing for -Environment all" -ForegroundColor Yellow
         }
     }
 
@@ -573,8 +652,23 @@ function Publish-Plugins {
                 $sourceManifest = Get-Content (Join-Path $pluginDir.FullName 'plugin.json') -Raw | ConvertFrom-Json
                 $ralphVersionContract = Get-RalphWorkflowVersionContract -PluginDir $pluginDir.FullName -Manifest $sourceManifest
                 if ($null -ne $ralphVersionContract) {
-                    $alignmentLabel = if ($ralphVersionContract.ManifestMatches) { 'source manifest aligned' } else { 'bundle will be stamped from canonical workflow version' }
-                    Write-Host "  Ralph workflow version preflight: $($ralphVersionContract.WorkflowVersion) ($alignmentLabel)" -ForegroundColor DarkGray
+                    $sourceManifestVersionDisplay = if ([string]::IsNullOrWhiteSpace($ralphVersionContract.ManifestVersion)) { '<missing>' } else { $ralphVersionContract.ManifestVersion }
+                    Write-Host "  Ralph workflow version preflight: $($ralphVersionContract.WorkflowVersion)" -ForegroundColor DarkGray
+                    Write-Host "  Ralph source manifest version preflight: $sourceManifestVersionDisplay" -ForegroundColor DarkGray
+                    Write-Host "  Ralph plugin bundle version preflight: $($ralphVersionContract.BundleVersion) ($($ralphVersionContract.BundleVersionSource))" -ForegroundColor DarkGray
+
+                    if (-not $ralphVersionContract.ManifestMatches) {
+                        Write-Warning "  Ralph source manifest version '$sourceManifestVersionDisplay' does not match canonical workflow version '$($ralphVersionContract.WorkflowVersion)'. Keep source manifest version aligned to the workflow version, and use x-copilot-fc.bundleVersionOverride for bundle-only releases."
+                    }
+
+                    if ($ralphVersionContract.UsesBundleVersionOverride) {
+                        if ($ralphVersionContract.BundleVersionMatchesWorkflow) {
+                            Write-Warning "  Ralph bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' matches the workflow version. Remove the override to rely on workflow fallback if lockstep versioning is intentional."
+                        }
+                        else {
+                            Write-Warning "  Ralph bundleVersionOverride '$($ralphVersionContract.BundleVersionOverride)' is active. Publish/install will use that plugin bundle version while Ralph workflow version remains '$($ralphVersionContract.WorkflowVersion)'."
+                        }
+                    }
                 }
             }
             catch {
@@ -595,15 +689,20 @@ function Publish-Plugins {
         # For beta channel, the install name is suffixed
         $installName = if ($effectiveChannel -eq 'beta') { "$pluginName-beta" } else { $pluginName }
 
-        # --- VS Code: register in settings.json ---
+        # --- VS Code: publish into user-data agentPlugins + register in settings.json ---
         if ($pluginRuntime -eq 'vscode') {
-            $registered = Update-VSCodePluginSettings -PluginPath $buildPath -PluginName $installName
-            if ($registered -gt 0) {
+            $vsCodePublish = Update-VSCodePluginSettings -PluginPath $buildPath -PluginName $installName
+            if ($vsCodePublish.Registered -gt 0) {
                 $installed++
             }
-            else {
-                Write-Warning "  No VS Code installations found — $pluginName not registered"
+            elseif ($vsCodePublish.LocationsDiscovered -eq 0) {
+                Write-Warning "  No VS Code installations found — $pluginName not published"
             }
+            else {
+                Write-Error "  Failed to publish/register $pluginName for detected VS Code installations"
+            }
+
+            $errors += $vsCodePublish.Errors
             continue
         }
 

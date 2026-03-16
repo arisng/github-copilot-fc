@@ -2,6 +2,9 @@
   "name": "ralph-v2",
   "description": "Ralph v2 multi-agent orchestration system for structured AI-driven software development — CLI runtime",
   "version": "2.13.0",
+  "x-copilot-fc": {
+    "bundleVersionOverride": "0.1.0"
+  },
   "runtime": "github-copilot-cli",
   "agents": [
     "../../../agents/ralph-v2/cli/ralph-v2-orchestrator-CLI.agent.md",

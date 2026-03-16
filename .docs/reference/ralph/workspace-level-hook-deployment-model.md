@@ -6,7 +6,7 @@ category: reference
 
 ## Summary
 
-VS Code Copilot hooks should be deployed to `.github/hooks/` (workspace-level) rather than `~/.copilot/hooks/` (user-level). Workspace-level deployment is a default VS Code search path, while user-level is not - user-level requires explicit `chat.hookFilesLocations` settings customization and is best reserved for intentionally shared cross-workspace hooks.
+VS Code Copilot hooks should be deployed to `.github/hooks/` (repo-scoped, historically called workspace-level) rather than `~/.copilot/hooks/` (user-level). Repo-scoped deployment is a default VS Code search path, while user-level is not - user-level requires explicit `chat.hookFilesLocations` settings customization and is best reserved for intentionally shared cross-workspace hooks.
 
 ## Why Workspace-Level Is Default
 
@@ -42,3 +42,8 @@ The `-Scope user-level` mode performs four user-level operations: Windows `~/.co
 ## Key Constraint
 
 Hook manifest `command` values use workspace-relative paths (for example, `hooks/ralph-tool-logger/scripts/ralph-tool-logger.sh`). These paths only resolve correctly when the manifest is discovered from the workspace that contains the scripts. The publish script therefore keeps repo-scoped manifests unchanged, but rewrites user-level published copies to full paths under `~/.copilot/hooks/`.
+
+## Related references
+
+- [Copilot Hook Discovery and Publishing Model](../copilot/copilot-hook-discovery-and-publishing-model.md)
+- [How to Publish Hooks](../../how-to/ralph/how-to-publish-hooks.md)

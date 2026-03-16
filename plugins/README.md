@@ -138,11 +138,11 @@ Copilot does not have a native concept of instruction embedding, so this is impl
    <!-- EMBED: ralph-v2-executor.instructions.md -->
    ```
 
-2. **`Merge-AgentInstructions`** — During `Build-PluginBundle`, this function scans `plugins/<runtime>/.build/<name>-beta/agents/` for EMBED markers during the default beta flow (or `.build/<name>/agents/` for stable) and resolves them:
-   - Reads the referenced file from `instructions/`
-   - Strips the instruction file's YAML frontmatter and first H1 header
-   - Replaces the marker line with the stripped content
-   - Preserves the agent's own YAML frontmatter verbatim (including `mcp-servers:`)
+2. **Bundle copy + `Merge-AgentInstructions`** — During `Build-PluginBundle`, the copy step first creates the runtime bundle under `plugins/<runtime>/.build/<name>-beta/` for beta (or `.build/<name>/` for stable). For beta bundles, that copy step also rewrites bundled agent identity to stay channel-consistent: bundled agent filenames get `-beta`, bundled `name:` values get `-beta`, and bundled VS Code `agents:` references are rewritten to the matching beta-suffixed subagent names. `Merge-AgentInstructions` then scans `plugins/<runtime>/.build/<name>-beta/agents/` for EMBED markers during the default beta flow (or `.build/<name>/agents/` for stable) and resolves them:
+    - Reads the referenced file from `instructions/`
+    - Strips the instruction file's YAML frontmatter and first H1 header
+    - Replaces the marker line with the stripped content
+    - Preserves the already-bundled YAML frontmatter as-is during merge (including `mcp-servers:` and any beta-channel `name:` / VS Code `agents:` rewrites applied earlier)
 
 3. **Validation** — After merging, the function:
    - Checks the merged body length is ≤ 30,000 characters (copilot-cli limit — applies to markdown body only, not YAML frontmatter)
@@ -151,7 +151,7 @@ Copilot does not have a native concept of instruction embedding, so this is impl
 ### Build pipeline flow
 
 ```
-Copy (source → plugins/<runtime>/.build/<name>-beta/ by default) → Merge (resolve EMBED markers) → Bundle hook scripts when present → Validate (paths + char limits)
+Copy (source → plugins/<runtime>/.build/<name>-beta/ by default; beta also rewrites bundled agent filenames plus bundled `name:` / VS Code `agents:` identity) → Merge (resolve EMBED markers) → Bundle hook scripts when present → Validate (paths + char limits)
 ```
 
 ### Instruction file sizing
