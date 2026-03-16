@@ -1,10 +1,7 @@
 {
   "name": "ralph-v2",
   "description": "Ralph v2 multi-agent orchestration system for structured AI-driven software development — VS Code runtime",
-  "version": "2.13.0",
-  "x-copilot-fc": {
-    "bundleVersionOverride": "0.1.0"
-  },
+  "version": "0.1.0",
   "runtime": "github-copilot-vscode",
   "agents": [
     "../../../agents/ralph-v2/vscode/ralph-v2-orchestrator-VSCode.agent.md",
