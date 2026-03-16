@@ -1,6 +1,6 @@
 # Issue Metadata Index
 
-**Generated:** 2026-03-15 16:14:58
+**Generated:** 2026-03-16 08:05:30Z
 
 **Statistics:**
 - Total Issues: 14
@@ -19,7 +19,7 @@
 | 260314_subagent-alias-table-for-ralph-v2.md | 2026-03-14 | Task | Proposed | High | YAML |
 | 260315_design-workflow-to-track-copilot-release-issues-via-github-query.md | 2026-03-15 | Task | Draft | Medium | YAML |
 | 260315_document-copilot-cli-agent-tooling-routing-research-in-docs-wiki.md | 2026-03-15 | Task | Draft | Medium | YAML |
-| 260315_plugin-version-vs-agent-versioning.md | 2026-03-15 | Task | Draft | Medium | YAML |
+| 260315_plugin-version-vs-agent-versioning.md | 2026-03-15 | Task | Completed | Medium | YAML |
 | 260315_ralph-v2-cli-test-plan.md | 2026-03-15 | Feature Plan | Draft | High | YAML |
 | 260315_simplify-tools-inventory.md | 2026-03-15 | Feature Plan | Proposed | Medium | YAML |
 | 260401_googleworkspace-cli-agent-skill-proposal.md | 2026-04-01 | RFC | Open for Comment | High | YAML |
