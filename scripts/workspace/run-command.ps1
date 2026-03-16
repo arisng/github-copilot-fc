@@ -34,6 +34,7 @@ function Invoke-CopilotWorkspaceCommand {
         'prompts:publish'      = 'pwsh -NoProfile -File scripts/publish/publish-prompts.ps1'
         'skills:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-skills.ps1'
         'toolsets:publish'     = 'pwsh -NoProfile -File scripts/publish/publish-toolsets.ps1'
+        'tests:ralph-cli-smoke' = 'pwsh -NoProfile -File scripts/test/ralph-v2-cli-smoke.ps1'
         'issues:reindex'       = 'pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1'
         'workspace:list-skills' = 'Get-ChildItem -Path skills -Directory | Select-Object Name'
         'workspace:status'      = "Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"

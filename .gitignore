@@ -2,3 +2,5 @@
 .ralph-sessions/*
 */**/.build/
 */**/.install/
+scripts/test/.artifacts/
+todos.db
