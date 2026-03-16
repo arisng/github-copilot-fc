@@ -9,7 +9,7 @@ metadata:
 ---
 Publish the toolsets named `{arguments}` to VS Code user toolsets directories.
 
-Use the workspace publish script to copy the toolset files from the project's toolsets/ folder to VS Code's and VS Code Insiders' user toolsets directories.
+Use the workspace publish script to copy the toolset files from the project's `tools/vscode/toolsets/` folder to VS Code's and VS Code Insiders' user toolsets directories.
 
 Run the following command in the terminal:
 ```

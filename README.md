@@ -10,7 +10,7 @@ Use this repository to create, validate, and distribute:
 - Custom Instructions (`instructions/*.instructions.md`)
 - Prompt files (`prompts/*.prompt.md`)
 - Skills (`skills/<skill-name>/SKILL.md`)
-- Toolsets (`toolsets/*.toolsets.jsonc`)
+- Tools inventory (`tools/`)
 
 The repository is operationally script-driven: VS Code tasks are convenience wrappers around `scripts/`.
 
@@ -30,7 +30,7 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 - `prompts/`: reusable prompt files for workflow automation.
 - `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
 - `skills/`: skill factory source; publish from here to personal skill folders.
-- `toolsets/`: chat toolset definitions and index.
+- `tools/`: cross-runtime tools inventory, tool docs, and VS Code toolsets under `tools/vscode/toolsets/`.
 - `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
 - `scripts/`: automation entry points:
  	- `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
@@ -51,7 +51,7 @@ Archived locations that should not be used as authoring templates:
 
 ## Quickstart
 
-1. Edit or add artifacts in `plugins/`, `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, or `toolsets/`.
+1. Edit or add artifacts in `plugins/`, `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, or `tools/`.
 2. Validate changes locally in the workspace.
 3. Publish with scripts under `scripts/publish/`.
 
@@ -103,7 +103,7 @@ Publish scripts are the canonical distribution path:
 
 Publish destination behavior:
 
-- Agents, instructions, prompts, and toolsets are copied to VS Code user prompts paths:
+- Agents, instructions, prompts, and VS Code toolsets are copied to VS Code user prompts paths:
  	- `%APPDATA%/Code/User/prompts`
  	- `%APPDATA%/Code - Insiders/User/prompts`
 - Hooks are copied to workspace `.github/hooks/` for VS Code agent hook discovery.
@@ -159,7 +159,8 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 - Instruction naming: `instructions/<name>.instructions.md`
 - Prompt naming: `prompts/<name>.prompt.md`
 - Skill folder requirement: `skills/<name>/SKILL.md`
-- Toolset naming: `toolsets/<name>.toolsets.jsonc`
+- Tools inventory root: `tools/`
+- VS Code toolset naming: `tools/vscode/toolsets/<name>.toolsets.jsonc`
 - Use forward slashes in markdown links.
 
 ## OpenSpec Specifications
@@ -184,7 +185,7 @@ Behavioral specifications for the Ralph v2 multi-agent system live under `opensp
 - Workspace authoring rules: `.github/copilot-instructions.md`
 - Git scope governance: `.github/git-scope-constitution.md`, `.github/git-scope-inventory.md`
 - Skills-specific guidance: `skills/README.md`
-- Toolset registry: `toolsets/index.md`
+- Tools inventory: `tools/inventory.md`
 - Ralph v2 system docs: `agents/ralph-v2/README.md`
 - OpenSpec configuration: `openspec/config.yaml`
 

@@ -8,6 +8,8 @@ Custom toolsets allow users to define collections of tools that can be reference
 
 Toolsets are defined in JSONC configuration files and can include built-in tools, MCP server tools, and extension-contributed tools.
 
+In this workspace, the VS Code toolset files are stored under `tools/vscode/toolsets/`.
+
 ## Configuration File Structure
 
 Toolsets are defined in `.toolsets.jsonc` files with the following structure:

@@ -17,7 +17,7 @@ This repository is a **customization factory** for GitHub Copilot customizations
 | `prompts/`            | Prompt Templates      | `.prompt.md` files                 |
 | `skills/`             | Skill Libraries       | `SKILL.md` + supporting scripts    |
 | `scripts/`            | Automation            | `.ps1`, `.py` scripts              |
-| `toolsets/`           | Tool Configurations   | `.toolsets.jsonc` files            |
+| `tools/`              | Tools Inventory       | `inventory.md`, runtime toolsets   |
 | `plugins/`            | Copilot CLI Plugins   | `plugin.json` + local components   |
 | `copilot-sdk/`        | SDK Documentation     | `.md` docs                         |
 | `prompt-engineering/` | PE Research           | `.md`, `.json` docs                |
@@ -43,7 +43,7 @@ Changes to GitHub Copilot customization artifact files — the most-used commit 
 - `memory`: Copilot memory files (`.copilot/memories/`)
 - `plugin`: Copilot plugin definition and assets (`plugins/**/plugin.json`)
 - `prompt`: Copilot prompt files (`prompts/**/*.prompt.md`)
-- `toolset`: Copilot toolset configuration files (`toolsets/**/*.toolsets.jsonc`)
+- `toolset`: Copilot tool inventory and runtime toolset files (`tools/**`)
 - `hook`: Copilot hook lifecycle configurations (`hooks/`)
 
 ### `agent`
@@ -164,7 +164,7 @@ These two commit types often apply to the same files. Use this guide to choose:
 
 ## Scope Selection Guidelines
 
-1. **Match the artifact directory first**: File in `skills/` → `skill`, file in `plugins/` → `plugin`, file in `agents/` → `custom-agent` or `agent`, file in `prompts/` → `prompt`, file in `toolsets/` → `toolset`.
+1. **Match the artifact directory first**: File in `skills/` → `skill`, file in `plugins/` → `plugin`, file in `agents/` → `custom-agent` or `agent`, file in `prompts/` → `prompt`, file in `tools/` → `toolset`.
 
 2. **Choose commit type by intent**:
    - `copilot` → GitHub Copilot customization artifact lifecycle (most common type)

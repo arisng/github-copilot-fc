@@ -3,7 +3,7 @@
 Use this file for in-repo authoring of Copilot artifacts (not external publishing docs).
 
 ## Big picture
-- This workspace is a **customization factory**: `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, `toolsets/`, `plugins/`, plus publish/automation scripts in `scripts/`.
+- This workspace is a **customization factory**: `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, `tools/`, `plugins/`, plus publish/automation scripts in `scripts/`.
 - Authoring is workspace-first by design (see `README.md` and `skills/README.md`): artifacts are created here, then published to personal folders (`~/.copilot/`, `~/.codex/`, `%APPDATA%/Code*/User/prompts`) via publish scripts.
 - `.docs/` is the workspace wiki, organized using the **Diátaxis framework** (tutorials, how-to, reference, explanation), with domain sub-folders (copilot, openspec, ralph, blazor-agui). Must use skills `diataxis` and `diataxis-categorizer` for maintenaning this wiki.
 - `.archived/` content is deprecated/superseded; do not use archived files as references/templates for new work.
@@ -15,7 +15,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - **Instructions** (`*.instructions.md`) define policy/workflows using `description` + `applyTo` frontmatter; they prescribe which skills to invoke.
 - **Skills** are folder-based (`skills/<name>/SKILL.md`), with optional `scripts/`, `references/`, and `assets/` subdirectories; `name` and `description` in SKILL.md frontmatter drive discovery. Keep SKILL.md lean — offload detailed docs to `references/`.
 - **Agent Hook files** (`*.hooks.json`): lifecycle hooks authored in `hooks/`, published to `.github/hooks/`. Support cross-runtime scripts (`.ps1` for Windows, `.sh` for Bash/WSL).
-- **Toolsets** (`*.toolsets.jsonc`): reusable MCP tool configurations for agents and instructions; see `toolsets/index.md` for the full registry.
+- **Tools inventory** (`tools/`): cross-runtime tool inventory plus the active VS Code `tools/vscode/toolsets/` folder. CLI and GitHub.com tool mappings are documented in `tools/inventory.md` and applied in runtime-specific agent/docs authoring rather than separate workspace toolset folders.
 - **Prompts** (`*.prompt.md`): user-facing workflow shortcuts (git, changelog, Ralph orchestration, plugin creation).
 - **Plugins** (`plugins/<runtime>/<name>/plugin.json`): self-contained CLI bundles of agents + skills + hooks; installed via `copilot plugin install`. Only 6 official component fields: `agents`, `skills`, `commands`, `hooks`, `mcpServers`, `lspServers` — the `instructions` field does NOT exist in plugin.json.
 - **OpenSpec Specs** follow the SDD convention in `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`. Specs are runtime-agnostic (shared across VS Code, CLI, and Cloud), unlike agent files which are runtime-specific. 8 domains: session, signals, orchestration, planning, discovery, execution, review, knowledge.
@@ -34,7 +34,8 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Custom Instructions: `instructions/<name>.instructions.md`
 - Agent-specific private instructions: `agents/<name>/instructions/*.instructions.md` (tightly coupled to that agent workflow)
 - Custom Prompts: `prompts/*.prompt.md`
-- Custom Toolsets: `toolsets/*.toolsets.jsonc`
+- Tools inventory root: `tools/`
+- VS Code Toolsets: `tools/vscode/toolsets/*.toolsets.jsonc`
 - Plugins: `plugins/<runtime>/<name>/plugin.json` (runtime = `cli` or `vscode`)
 - OpenSpec Specs: `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`
 - Skills: `skills/<name>/SKILL.md` with optional `scripts/`, `references/`, `assets/`

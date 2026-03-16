@@ -99,6 +99,8 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 | VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.toolsets.jsonc` | Direct file copy                                                                  |
 | copilot-cli        | ❌ N/A                                                     | No `.toolsets.jsonc` discovery; CLI uses `tools:` frontmatter and `--tools` flags |
 
+**Workspace source:** VS Code toolsets live under `tools/vscode/toolsets/`. Cross-runtime tool mapping lives in `tools/inventory.md`. The workspace no longer keeps `tools/cli/toolsets/` or `tools/github-copilot/toolsets/` directories because copilot-cli and GitHub.com do not consume a native workspace toolset file format.
+
 **Script:** `scripts/publish/publish-toolsets.ps1` — targets VS Code only. Toolsets have no file-format equivalent in copilot-cli. CLI tool filtering is achieved through agent frontmatter `tools:` array and CLI flags.
 
 ## Shareability Assessment

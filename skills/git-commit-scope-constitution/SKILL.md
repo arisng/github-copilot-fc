@@ -155,7 +155,7 @@ Top-level structure:
 - prompts/         → Prompt templates
 - skills/          → Claude skills
 - scripts/         → Automation scripts
-- toolsets/        → Tool configurations
+- tools/           → Tools inventory and VS Code runtime toolsets
 - .docs/           → Documentation
 
 Derived scope patterns:

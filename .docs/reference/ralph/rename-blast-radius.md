@@ -35,7 +35,7 @@ State machine state names, mode parameter values, and cross-references are confi
 | Hook scripts | `scripts/hooks/*.ps1`, `*.sh`, `*.py` | Read `metadata.yaml` fields (status, session_id), not mode names |
 | Publish scripts | `scripts/publish/*.ps1` | Operate on file paths, not agent content |
 | Workspace scripts | `scripts/workspace/*.ps1` | Command dispatch, not agent semantics |
-| Toolsets | `toolsets/*.jsonc` | Tool configurations, no agent state references |
+| Toolsets | `tools/**/*.jsonc`, `tools/inventory.md` | Tools inventory and VS Code runtime toolset configurations, no agent state references |
 | Instructions | `instructions/*.instructions.md` | Language/framework guidelines, no Ralph state refs |
 
 ### Verification Command

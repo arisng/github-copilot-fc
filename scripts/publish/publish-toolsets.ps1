@@ -12,7 +12,7 @@ function Publish-ToolsetsToVSCode {
         Publishes toolsets from the workspace to VS Code user toolsets directories.
 
     .DESCRIPTION
-        Copies toolsets from the workspace toolsets/ folder to VS Code's and VS Code Insiders'
+        Copies toolsets from the workspace tools/vscode/toolsets/ folder to VS Code's and VS Code Insiders'
         user toolsets directories for global availability.
 
     .PARAMETER Toolsets
@@ -29,7 +29,7 @@ function Publish-ToolsetsToVSCode {
 
     Write-Host "Publishing toolsets to VS Code..." -ForegroundColor Cyan
 
-    $projectToolsetsPath = Join-Path $PSScriptRoot "..\..\toolsets"
+    $projectToolsetsPath = Join-Path $PSScriptRoot "..\..\tools\vscode\toolsets"
     $vscodeToolsetsPaths = @(
         (Join-Path $env:APPDATA "Code\User\prompts"),
         (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
