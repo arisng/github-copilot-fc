@@ -13,4 +13,6 @@ Instructions:
 4. Self-critique the generated issue for clarity, completeness, and relevance to the user's input.
 5. Finally return an executive summary along with the file path of the created markdown issue.
 
-Remember to follow the `md-issue-creator` guidelines to create a valid defined template and useful markdown issue.
+Notes:
+- Remember to follow the `md-issue-creator` guidelines to create a valid defined template and useful markdown issue.
+- DO NOT resolve the issue yourself; the goal is to create a well-structured issue for human review and action.
