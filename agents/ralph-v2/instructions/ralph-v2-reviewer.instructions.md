@@ -1,6 +1,5 @@
 ---
 description: Platform-agnostic quality assurance workflow, review modes, commit workflow, signals, and contract for the Ralph-v2 Reviewer subagent
-applyTo: ".ralph-sessions/**"
 ---
 
 # Ralph-v2-Reviewer
@@ -581,6 +580,9 @@ AI coding skill tool; pre-installed; no browser binaries or Node.js package requ
 ```
 
 ### Output (TASK_REVIEW)
+
+When setting `next_agent`, return only a canonical lowercase alias (`planner`, `questioner`, `executor`, `reviewer`, or `librarian`). The Orchestrator resolves that alias through its `## Subagent Alias Table`.
+
 ```json
 {
   "status": "completed",
@@ -600,7 +602,7 @@ AI coding skill tool; pre-installed; no browser binaries or Node.js package requ
   },
   "report_path": "string",
   "feedback": "string - Rework guidance if Failed",
-  "next_agent": "string",
+  "next_agent": "planner | questioner | executor | reviewer | librarian | null - Canonical lowercase subagent alias for the next handoff. The Orchestrator resolves it via the ## Subagent Alias Table.",
   "message_to_next": "string"
 }
 ```

@@ -1,6 +1,5 @@
 ---
 description: Platform-agnostic knowledge management workflow, extract/stage/promote/commit modes, merge algorithm, signals, and contract for the Ralph-v2 Librarian subagent
-applyTo: ".ralph-sessions/**"
 ---
 
 # Ralph-v2-Librarian - Workspace Wiki Management Subagent
@@ -204,6 +203,9 @@ Poll signals/inputs/
 ```
 
 ### Output (EXTRACT / STAGE / PROMOTE)
+
+When setting `next_agent`, return only a canonical lowercase alias (`planner`, `questioner`, `executor`, `reviewer`, or `librarian`). The Orchestrator resolves that alias through its `## Subagent Alias Table`.
+
 ```json
 {
   "status": "completed | blocked",
@@ -220,7 +222,7 @@ Poll signals/inputs/
   "promotion_conflicts": ["string (PROMOTE)"],
   "files_created": ["string"],
   "files_updated": ["string"],
-  "next_agent": "string | null",
+  "next_agent": "planner | questioner | executor | reviewer | librarian | null - Canonical lowercase subagent alias for the next handoff. The Orchestrator resolves it via the ## Subagent Alias Table.",
   "message_to_next": "string | null"
 }
 ```

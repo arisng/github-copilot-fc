@@ -3,13 +3,7 @@ name: Ralph-v2-Orchestrator-CLI
 description: Orchestration agent v2 with structured feedback loops, isolated task files, and REPLANNING state for iteration support
 target: github-copilot
 disable-model-invocation: true
-agents: ['Ralph-v2-Planner-CLI', 'Ralph-v2-Questioner-CLI', 'Ralph-v2-Executor-CLI', 'Ralph-v2-Reviewer-CLI', 'Ralph-v2-Librarian-CLI']
-tools:
-  - bash
-  - view
-  - edit
-  - search
-  - task
+tools: ['bash', 'view', 'edit', 'search', 'task', 'mcp_docker/sequentialthinking']
 metadata:
   version: 2.13.0
   created_at: 2026-03-02T14:10:35+07:00
@@ -23,18 +17,22 @@ metadata:
 
 ## CLI Platform Notes
 
-- **Shell**: `bash` for terminal commands (shell execution, git operations, build/test commands)
-- **File ops**: `view` for reading files, `edit` for modifying files, `create` for new files
-- **Search**: `bash` with `grep`, `find`, `cat` for codebase exploration
-- **MCP tools**: Docker MCP gateway (via `~/.copilot/mcp-config.json`): Sequential Thinking, Brave Search (web_search + summarizer), Fetch, Context7, DuckDuckGo
-- **No persistent memory**: copilot-cli has no built-in memory tool; use session files for context persistence
-- **Subagent delegation**: Use `task("Ralph-v2-Planner-CLI", "...")`, `task("Ralph-v2-Questioner-CLI", "...")`, `task("Ralph-v2-Executor-CLI", "...")`, `task("Ralph-v2-Reviewer-CLI", "...")`, `task("Ralph-v2-Librarian-CLI", "...")` to delegate to subagents
-- **No `@AgentName` syntax**: CLI uses `task()` function calls instead of VS Code's `@SubAgent` mentions
+- **Built-ins**: `bash` runs commands, `view` reads files, `edit` updates files, and `search` handles repository lookups
+- **Delegation**: route through stable aliases (`planner`, `questioner`, `executor`, `reviewer`, `librarian`), resolve the alias through the orchestrator alias table for runtime `cli`, then call `task("<resolved runtime-visible name>", "...")`
+- **CLI routing**: Copilot CLI does not use VS Code `agents:` frontmatter or `@AgentName` mentions for subagent wiring
+- **Channel detection**: determine stable vs beta from the active plugin/bundle identity or the visible bundled agent names; beta bundles resolve the matching `-beta` runtime-visible names
+- **Optional MCP**: `mcp_docker/sequentialthinking` is allowlisted when the global `mcp_docker` server is configured
+- **State handling**: keep durable orchestration state in Ralph session files rather than relying on editor memory features
 
 ### Delegation Examples
 
-```
-task("Ralph-v2-Planner-CLI", "SESSION_PATH: .ralph-sessions/YYMMDD-HHMMSS/ MODE: INITIALIZE")
-task("Ralph-v2-Executor-CLI", "SESSION_PATH: .ralph-sessions/YYMMDD-HHMMSS/ TASK_ID: task-1 ATTEMPT_NUMBER: 1 ITERATION: 1")
-task("Ralph-v2-Reviewer-CLI", "SESSION_PATH: .ralph-sessions/YYMMDD-HHMMSS/ MODE: TASK_REVIEW TASK_ID: task-1 ITERATION: 1")
+```text
+resolvedPlanner = resolve_alias("planner")   # Ralph-v2-Planner-CLI or Ralph-v2-Planner-CLI-beta
+task(resolvedPlanner, "SESSION_PATH: .ralph-sessions/<id>/ MODE: INITIALIZE")
+
+resolvedExecutor = resolve_alias("executor") # Ralph-v2-Executor-CLI or Ralph-v2-Executor-CLI-beta
+task(resolvedExecutor, "SESSION_PATH: .ralph-sessions/<id>/ TASK_ID: task-1 ATTEMPT_NUMBER: 1 ITERATION: 1")
+
+resolvedReviewer = resolve_alias("reviewer") # Ralph-v2-Reviewer-CLI or Ralph-v2-Reviewer-CLI-beta
+task(resolvedReviewer, "SESSION_PATH: .ralph-sessions/<id>/ MODE: TASK_REVIEW TASK_ID: task-1 ITERATION: 1")
 ```

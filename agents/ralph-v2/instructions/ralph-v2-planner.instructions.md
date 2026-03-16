@@ -1,6 +1,5 @@
 ---
 description: Platform-agnostic planning workflow, modes, templates, artifacts, signals, and contract for the Ralph-v2 Planner subagent
-applyTo: ".ralph-sessions/**"
 ---
 
 # Ralph-v2-Planner - Planning Agent with Isolated Tasks
@@ -224,7 +223,7 @@ If grounding is insufficient:
 - Do NOT create or modify task files.
 - Leave `plan-breakdown` incomplete; the observable next step must live in `plan-brainstorm` or `plan-research` plus the delegated questions artifact.
 - Return a delegation payload with: `delegation_category`, `delegation_cycle`, `brainstorm_needed`, `research_needed`, `delegation_mode`, `grounding_request_source: Planner`, `question_artifact_path`, `progress_entry_updated`, `grounding_ready: false`, and `planner_resume_mode: TASK_BREAKDOWN`.
-- Set `next_action: delegate-grounding`, `next_agent: Ralph-v2-Questioner`, and `message_to_next` to the same fields so the Orchestrator can invoke a single Discovery Role step without inspecting workspace content.
+- Set `next_action: delegate-grounding`, `next_agent: questioner`, and `message_to_next` to the same fields so the Orchestrator can invoke a single Discovery Role step without inspecting workspace content. The Orchestrator resolves `questioner` through its `## Subagent Alias Table`; never emit a runtime-visible agent name in `next_agent`.
 
 # Step 0.75: Plan ownership pre-check
 Read `iterations/<ITERATION>/plan.md` and verify it already exists.
@@ -520,6 +519,9 @@ If INFO: Append to context and continue
 ```
 
 ### Output
+
+When setting `next_agent`, return only a canonical lowercase alias (`planner`, `questioner`, `executor`, `reviewer`, or `librarian`). The Orchestrator resolves that alias through its `## Subagent Alias Table`.
+
 ```json
 {
   "status": "completed | blocked",
@@ -540,7 +542,7 @@ If INFO: Append to context and continue
   "grounding_ready": "boolean | null",
   "planner_resume_mode": "TASK_BREAKDOWN | null",
   "next_action": "string",
-  "next_agent": "string - Which subagent to invoke next. Null if none.",
+  "next_agent": "planner | questioner | executor | reviewer | librarian | null - Canonical lowercase subagent alias for the next handoff. The Orchestrator resolves it via the ## Subagent Alias Table.",
   "message_to_next": "string - Context to forward to next subagent. Null if none."
 }
 ```

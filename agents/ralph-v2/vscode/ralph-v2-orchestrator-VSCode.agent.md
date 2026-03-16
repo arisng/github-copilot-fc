@@ -26,4 +26,15 @@ metadata:
 - **Diagnostics**: `read/problems` for compile/lint errors
 - **Terminal context**: `read/terminalSelection`, `read/terminalLastCommand`
 - **MCP tools**: `mcp_docker/sequentialthinking` for complex reasoning
-- **Subagent delegation**: Use `agents:` frontmatter key — invoke subagents via `@Ralph-v2-Planner`, `@Ralph-v2-Questioner`, `@Ralph-v2-Executor`, `@Ralph-v2-Reviewer`, `@Ralph-v2-Librarian`
+- **Subagent delegation**: route through stable aliases (`planner`, `questioner`, `executor`, `reviewer`, `librarian`), resolve the alias through the orchestrator alias table for runtime `vscode`, then mention the resolved runtime-visible name with `@<AgentName>`
+- **Channel detection**: determine stable vs beta from the active plugin/bundle identity or the visible bundled agent names in `agents:`; beta bundles resolve the matching `-beta` runtime-visible names
+
+### Delegation Examples
+
+```text
+resolve_alias("planner") -> Ralph-v2-Planner-VSCode | Ralph-v2-Planner-VSCode-beta
+@<resolved planner name> SESSION_PATH: .ralph-sessions/<id>/ MODE: INITIALIZE
+
+resolve_alias("reviewer") -> Ralph-v2-Reviewer-VSCode | Ralph-v2-Reviewer-VSCode-beta
+@<resolved reviewer name> SESSION_PATH: .ralph-sessions/<id>/ MODE: TASK_REVIEW TASK_ID: task-1 ITERATION: 1
+```

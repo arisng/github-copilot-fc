@@ -1,6 +1,5 @@
 ---
 description: Platform-agnostic Q&A discovery workflow, modes, question templates, signals, and contract for the Ralph-v2 Questioner subagent
-applyTo: ".ralph-sessions/**"
 ---
 
 # Ralph-v2-Questioner - Q&A Discovery with Feedback Analysis
@@ -286,6 +285,9 @@ Poll signals/inputs/
 ```
 
 ### Output
+
+When setting `next_agent`, return only a canonical lowercase alias (`planner`, `questioner`, `executor`, `reviewer`, or `librarian`). The Orchestrator resolves that alias through its `## Subagent Alias Table`.
+
 ```json
 {
   "status": "completed | blocked",
@@ -305,7 +307,7 @@ Poll signals/inputs/
   "research_needed": "boolean | null",
   "grounding_ready": "boolean | null",
   "planner_resume_mode": "TASK_BREAKDOWN | null",
-  "next_agent": "string | null",
+  "next_agent": "planner | questioner | executor | reviewer | librarian | null - Canonical lowercase subagent alias for the next handoff. The Orchestrator resolves it via the ## Subagent Alias Table.",
   "message_to_next": "string | null"
 }
 ```

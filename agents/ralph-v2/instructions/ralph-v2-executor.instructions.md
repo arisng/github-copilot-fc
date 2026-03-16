@@ -1,6 +1,5 @@
 ---
 description: Platform-agnostic task execution workflow, rules, artifacts, signals, and contract for the Ralph-v2 Executor subagent
-applyTo: ".ralph-sessions/**"
 ---
 
 # Ralph-v2-Executor - Task Execution with Feedback Context
@@ -238,6 +237,9 @@ Decision criteria:
 ```
 
 ### Output
+
+When setting `next_agent`, return only a canonical lowercase alias (`planner`, `questioner`, `executor`, `reviewer`, or `librarian`). The Orchestrator resolves that alias through its `## Subagent Alias Table`.
+
 ```json
 {
   "status": "completed | failed | blocked",
@@ -255,7 +257,7 @@ Decision criteria:
   "feedback_addressed": ["string - Feedback issue IDs addressed"],
   "discovered_tasks": ["string"],
   "blockers": ["string"],
-  "next_agent": "string - Which subagent should the Orchestrator invoke next (e.g., 'Ralph-v2-Reviewer'). Null if no follow-up needed.",
+  "next_agent": "planner | questioner | executor | reviewer | librarian | null - Canonical lowercase subagent alias for the next handoff (for example, `reviewer`). The Orchestrator resolves it via the ## Subagent Alias Table.",
   "message_to_next": "string - Context/message to forward to the next subagent. Includes implementation notes or review hints. Null if no follow-up needed."
 }
 ```
