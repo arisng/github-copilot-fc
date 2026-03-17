@@ -1,280 +1,128 @@
-# BlazorBlueprint Common Patterns & Multi-Component Examples
+# BlazorBlueprint Common Patterns
 
-This guide shows real-world patterns for using multiple BlazorBlueprint components together.
+Load this file after the relevant component reference when you need conventions, composition guidance, or a good default implementation pattern.
 
-**Source:** https://blazorblueprintui.com/llms/patterns.txt
+**Sources:**
+- https://blazorblueprintui.com/llms/patterns.txt
+- https://blazorblueprintui.com/llms/services.txt
+- https://blazorblueprintui.com/llms/blueprints.txt
 
----
+## TOC
+- [Naming and composition conventions](#naming-and-composition-conventions)
+- [Controlled vs uncontrolled state](#controlled-vs-uncontrolled-state)
+- [EditForm and validation pattern](#editform-and-validation-pattern)
+- [Root layout providers](#root-layout-providers)
+- [Dashboard and app shell pattern](#dashboard-and-app-shell-pattern)
+- [Loading empty and error states](#loading-empty-and-error-states)
+- [Blueprint-first acceleration](#blueprint-first-acceleration)
 
-## Form with Validation
+## Naming and composition conventions
 
-Combine Field, Label, Input, and error handling for accessible forms:
+Current upstream docs use official `Bb*` component names.
+
+Compound components rely heavily on cascading context, so prefer the documented parent/child composition instead of flattening everything into one tag. Examples:
+- `BbTabs` + `BbTabsList` + `BbTabsTrigger` + `BbTabsContent`
+- `BbDialog` + `BbDialogTrigger` + `BbDialogContent`
+- `BbSelect` + `BbSelectTrigger` + `BbSelectContent`
+- `BbDataTable` + `BbDataTableColumn`
+
+## Controlled vs uncontrolled state
+
+Many components support both `Value` / `Open` and `DefaultValue` / `DefaultOpen` patterns.
+
+Use controlled state when the page logic needs to own it:
 
 ```razor
-@using BlazorBlueprint.Components
+<BbDialog @bind-Open="isOpen">
+    ...
+</BbDialog>
+```
 
-<EditForm Model="@model" OnValidSubmit="@HandleSubmit">
+Use uncontrolled state when the component can manage itself:
+
+```razor
+<BbTabs DefaultValue="overview">
+    ...
+</BbTabs>
+```
+
+`OnValueChange` is notification-only; it does not mean you own the state.
+
+## EditForm and validation pattern
+
+Prefer `EditForm` + `BbField` + `ValidationMessage` for hand-authored forms:
+
+```razor
+<EditForm Model="@model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
-    
-    <Field>
-        <FieldLabel>Email</FieldLabel>
-        <FieldContent>
-            <Input @bind-Value="model.Email" Type="email" Placeholder="name@example.com" />
-        </FieldContent>
-        <FieldDescription>We'll never share your email with anyone else.</FieldDescription>
-        <FieldError>
+
+    <BbField>
+        <BbFieldLabel>Email</BbFieldLabel>
+        <BbFieldContent>
+            <BbInput @bind-Value="model.Email"
+                     ValueExpression="@(() => model.Email)" />
+        </BbFieldContent>
+        <BbFieldError>
             <ValidationMessage For="@(() => model.Email)" />
-        </FieldError>
-    </Field>
-    
-    <Field>
-        <FieldLabel>Password</FieldLabel>
-        <FieldContent>
-            <Input @bind-Value="model.Password" Type="password" />
-        </FieldContent>
-        <FieldDescription>Must be at least 8 characters long.</FieldDescription>
-        <FieldError>
-            <ValidationMessage For="@(() => model.Password)" />
-        </FieldError>
-    </Field>
-    
-    <div class="flex items-center space-x-2">
-        <Checkbox Id="remember" @bind-Checked="model.RememberMe" />
-        <Label For="remember">Remember me</Label>
-    </div>
-    
-    <Button Type="submit" Class="w-full">Sign In</Button>
+        </BbFieldError>
+    </BbField>
+
+    <BbButton type="submit">Save</BbButton>
 </EditForm>
-
-@code {
-    private LoginModel model = new();
-    
-    private async Task HandleSubmit()
-    {
-        // Handle form submission
-    }
-    
-    public class LoginModel
-    {
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
-        
-        [Required]
-        [MinLength(8)]
-        public string Password { get; set; } = "";
-        
-        public bool RememberMe { get; set; }
-    }
-}
 ```
 
----
+Good default rules:
+- Use `ValueExpression` when the control participates in form validation.
+- Prefer `BbInputField<TValue>` only when typed parsing or formatting is needed.
+- Use `BbFormWizard` or `BbDynamicForm` only when the flow actually benefits from the abstraction.
 
-## Dialog with Form
+## Root layout providers
 
-Use Dialog to create modal forms for editing or creating data:
+The common root pattern is:
 
 ```razor
-@using BlazorBlueprint.Components
-
-<Dialog>
-    <DialogTrigger>Edit Profile</DialogTrigger>
-    <DialogContent>
-        <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription>
-                Make changes to your profile here. Click save when you're done.
-            </DialogDescription>
-        </DialogHeader>
-        
-        <div class="space-y-4 py-4">
-            <Field>
-                <FieldLabel>Name</FieldLabel>
-                <FieldContent>
-                    <Input @bind-Value="name" Placeholder="John Doe" />
-                </FieldContent>
-            </Field>
-            
-            <Field>
-                <FieldLabel>Email</FieldLabel>
-                <FieldContent>
-                    <Input @bind-Value="email" Type="email" Placeholder="john@example.com" />
-                </FieldContent>
-            </Field>
-            
-            <Field>
-                <FieldLabel>Bio</FieldLabel>
-                <FieldContent>
-                    <Textarea @bind-Value="bio" Placeholder="Tell us about yourself..." />
-                </FieldContent>
-                <FieldDescription>Brief description for your profile.</FieldDescription>
-            </Field>
-        </div>
-        
-        <DialogFooter>
-            <DialogClose>Cancel</DialogClose>
-            <Button OnClick="SaveProfile">Save Changes</Button>
-        </DialogFooter>
-    </DialogContent>
-</Dialog>
-
-@code {
-    private string name = "John Doe";
-    private string email = "john@example.com";
-    private string bio = "";
-    
-    private async Task SaveProfile()
-    {
-        // Save profile changes
-        await Task.CompletedTask;
-    }
-}
+<BbPortalHost />
+<BbToastProvider />
+<BbDialogProvider />
 ```
 
----
+Why:
+- overlays need the portal host
+- app-wide notifications need the toast provider
+- service-driven confirm / prompt / custom dialogs need the dialog provider
 
-## Data Table with Sorting and Pagination
+## Dashboard and app shell pattern
 
-Build powerful data tables with sorting, filtering, and pagination - see full example at source URL.
+A strong default for authenticated apps is:
+- `BbSidebarProvider` + `BbSidebar` + `BbSidebarInset`
+- `BbBreadcrumb` in the header
+- `BbCard` for page regions
+- `BbChartContainer` or `BbCard` for charts
+- `BbDataTable` or `BbDataView` for the main data surface
 
----
+This pattern aligns with the current dashboard, apps, sidebar, and data blueprints.
 
-## Sidebar Navigation
+## Loading empty and error states
 
-Create a responsive sidebar with collapsible menus and keyboard shortcuts - see full example at source URL.
+Prefer this sequence for async content:
+- `BbSkeleton` while loading
+- `BbEmpty` when the result is empty
+- `BbAlert` when the operation failed or requires immediate attention
+- toast via `ToastService` for transient success/failure feedback
 
-**Note:** Sidebar supports keyboard shortcuts - press `Ctrl/Cmd+B` to toggle!
+This is usually better than overloading dialogs for status communication.
 
----
+## Blueprint-first acceleration
 
-## Command Palette
+The current docs include 60 blueprints across auth, sidebar, apps, dashboard, forms, navigation, data, marketing, and ecommerce.
 
-Build a searchable command palette for quick actions - see full example at source URL.
+Blueprint guidance:
+- Start from a blueprint when you need a production-shaped composition quickly.
+- Prefer blueprint code for app shells, auth pages, dashboard cards, or composite data screens.
+- Then simplify the copied result to the smallest version your app actually needs.
 
----
-
-## Settings Page with Tabs and Forms
-
-Organize complex settings using Tabs, Cards, and Forms - see full example at source URL.
-
----
-
-## Confirmation Dialog
-
-Create reusable confirmation dialogs for destructive actions:
-
-```razor
-@using BlazorBlueprint.Components
-
-<Dialog @bind-Open="isOpen">
-    <DialogContent>
-        <DialogHeader>
-            <DialogTitle>Are you absolutely sure?</DialogTitle>
-            <DialogDescription>
-                This action cannot be undone. This will permanently delete your
-                account and remove your data from our servers.
-            </DialogDescription>
-        </DialogHeader>
-        
-        <div class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 my-4">
-            <div class="flex items-start space-x-2">
-                <LucideIcon Name="alert-triangle" Size="20" Class="text-destructive mt-0.5" />
-                <div>
-                    <p class="font-medium text-destructive">Warning</p>
-                    <p class="text-sm text-muted-foreground">
-                        All of your data will be permanently deleted.
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        <DialogFooter>
-            <DialogClose>Cancel</DialogClose>
-            <Button Variant="destructive" OnClick="ConfirmDelete">
-                Delete Account
-            </Button>
-        </DialogFooter>
-    </DialogContent>
-</Dialog>
-
-<Button Variant="destructive" OnClick="() => isOpen = true">
-    Delete Account
-</Button>
-
-@code {
-    private bool isOpen = false;
-    
-    private async Task ConfirmDelete()
-    {
-        // Handle deletion
-        isOpen = false;
-    }
-}
-```
-
----
-
-## Multi-Select with Popover
-
-Create a multi-select dropdown using Popover and Checkbox - see full example at source URL.
-
----
-
-## AsChild Pattern
-
-The `AsChild` pattern allows trigger and close components to pass their behavior to a child component instead of rendering their own button element.
-
-### Basic AsChild Usage
-
-```razor
-@using BlazorBlueprint.Components
-
-@* Use Button as DialogTrigger *@
-<Dialog>
-    <DialogTrigger AsChild>
-        <Button Variant="ButtonVariant.Destructive">Delete Account</Button>
-    </DialogTrigger>
-    <DialogContent>
-        <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-        </DialogHeader>
-        <DialogFooter>
-            <DialogClose AsChild>
-                <Button Variant="ButtonVariant.Outline">Cancel</Button>
-            </DialogClose>
-            <Button Variant="ButtonVariant.Destructive">Delete</Button>
-        </DialogFooter>
-    </DialogContent>
-</Dialog>
-```
-
-### DropdownMenu with Button Trigger
-
-```razor
-<DropdownMenu>
-    <DropdownMenuTrigger AsChild>
-        <Button Variant="ButtonVariant.Outline">
-            Actions
-            <LucideIcon Name="chevron-down" Size="16" />
-        </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent>
-        <DropdownMenuItem>Edit</DropdownMenuItem>
-        <DropdownMenuItem>Delete</DropdownMenuItem>
-    </DropdownMenuContent>
-</DropdownMenu>
-```
-
-### Components Supporting AsChild
-
-The following components support the `AsChild` parameter:
-- `DialogTrigger` / `DialogClose`
-- `DropdownMenuTrigger`
-- `PopoverTrigger`
-- `SheetTrigger` / `SheetClose`
-- `TooltipTrigger`
-- `HoverCardTrigger`
-- `CollapsibleTrigger`
-
-When `AsChild` is true, the trigger passes a `TriggerContext` to child components via `CascadingValue`. The `Button` component automatically consumes this context and applies the appropriate click handlers, aria attributes, and keyboard handling.
+High-value blueprint categories for AI work:
+- `blueprints/sidebar.txt` for application shells
+- `blueprints/apps.txt` for rich end-to-end compositions
+- `blueprints/dashboard.txt` and `blueprints/data.txt` for analytics and CRUD pages
+- `blueprints/forms.txt` for onboarding, profile, and checkout flows

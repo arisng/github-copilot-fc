@@ -1,377 +1,153 @@
 # Form Components Reference
 
-Comprehensive reference for all 26 form components in BlazorBlueprint.
+Concise routing for the current BlazorBlueprint form layer. Use this to choose the right component family quickly instead of memorizing the full catalog.
 
-**Source Component Docs:** https://blazorblueprintui.com/llms/components/
+**Sources:** https://blazorblueprintui.com/llms/components/ and https://blazorblueprintui.com/llms/patterns.txt
 
----
+## TOC
+- [Choose the right family](#choose-the-right-family)
+- [Core form scaffold](#core-form-scaffold)
+- [Text and typed input](#text-and-typed-input)
+- [Selection controls](#selection-controls)
+- [Date time and structured entry](#date-time-and-structured-entry)
+- [Rich media and advanced input](#rich-media-and-advanced-input)
+- [Generated and multi-step forms](#generated-and-multi-step-forms)
+- [Reference example](#reference-example)
 
-## Button
+## Choose the right family
 
-Interactive button with multiple visual variants, sizes, and states.
+| Need | Prefer | Notes |
+| --- | --- | --- |
+| Plain text input | `BbInput`, `BbTextarea`, `BbInputGroup` | Fastest path for most fields. |
+| Typed parsing / formatting | `BbInputField<TValue>`, `BbNumericInput`, `BbCurrencyInput`, `BbMaskedInput` | Use when string-only binding is not enough. |
+| Single choice | `BbSelect`, `BbNativeSelect`, `BbRadioGroup`, `BbCombobox` | `BbCombobox` is best when search matters. |
+| Multiple choice | `BbMultiSelect`, `BbCheckboxGroup`, `BbTagInput`, `BbToggleGroup` | Pick based on whether the values come from a fixed set or free-form entry. |
+| Boolean / toggled state | `BbCheckbox`, `BbSwitch`, `BbToggle` | `BbSwitch` reads best for settings. |
+| Date or time | `BbCalendar`, `BbDatePicker`, `BbDateRangePicker`, `BbTimePicker` | `BbDateRangePicker` is the dashboard/reporting choice. |
+| OTP / short structured entry | `BbInputOTP` | Best for verification flows. |
+| Uploads or rich editing | `BbFileUpload`, `BbRichTextEditor`, `BbMarkdownEditor`, `BbColorPicker`, `BbRating` | Use only when plain inputs are too limited. |
+| Reusable form layout | `BbField`, `BbFormSection`, `BbFormField*` helpers | Best for consistent labels, descriptions, and validation output. |
+| Wizard or generated form | `BbFormWizard`, `BbDynamicForm` | Use for multi-step or schema-driven UI. |
+| Compound action buttons | `BbButton`, `BbButtonGroup`, `BbSplitButton` | Action surfaces, not data-entry controls. |
 
-**Source:** https://blazorblueprintui.com/llms/components/button.txt
+## Core form scaffold
 
-### Variants
-- `Default` - Primary action button
-- `Destructive` - Dangerous actions (red)
-- `Outline` - Secondary action with border
-- `Secondary` - Less prominent actions
-- `Ghost` - Minimal styling
-- `Link` - Link-styled button
-
-### Sizes
-- `Small` - Compact (h-9)
-- `Default` - Standard (h-10)
-- `Large` - Larger (h-11)
-- `Icon`, `IconSmall`, `IconLarge` - Square icon buttons
-
-### Example
+Start with `BbField` when you want a predictable accessible layout:
 
 ```razor
-<Button Variant="ButtonVariant.Default">Click me</Button>
-<Button Variant="ButtonVariant.Destructive">Delete</Button>
-<Button Size="ButtonSize.Icon" AriaLabel="Add">
-    <LucideIcon Name="plus" Size="20" />
-</Button>
+<BbField>
+    <BbFieldLabel>Email</BbFieldLabel>
+    <BbFieldContent>
+        <BbInput @bind-Value="model.Email"
+                 ValueExpression="@(() => model.Email)" />
+    </BbFieldContent>
+    <BbFieldDescription>We only use this for account messages.</BbFieldDescription>
+    <BbFieldError>
+        <ValidationMessage For="@(() => model.Email)" />
+    </BbFieldError>
+</BbField>
 ```
 
-### Key Parameters
-- `Variant`, `Size`, `Type` (Button/Submit/Reset)
-- `Disabled`, `OnClick`, `AriaLabel`
-- `Icon`, `IconPosition` (Start/End)
+Use the `BbFormField*` wrappers when you want this structure pre-bundled for a specific input type.
 
----
+## Text and typed input
 
-## Input Components
+### `BbInput` vs `BbInputField<TValue>`
+- `BbInput` is the default for plain string entry.
+- `BbInputField<TValue>` is the general typed input when you need parsing, formatting, debounce control, or custom validation for non-string values.
 
-### Input
-Text input fields (text, email, password, etc.)
+`BbInputField<TValue>` is especially useful for dates, decimals, and typed business values:
 
 ```razor
-<Input @bind-Value="value" Type="email" Placeholder="name@example.com" />
+<BbInputField TValue="decimal"
+              @bind-Value="model.Budget"
+              Format="N2"
+              Validation="@(value => value >= 0)" />
 ```
 
-### Input Group
-Enhanced inputs with icons/buttons/addons
+Prefer specialized typed inputs when they match the domain more directly:
+- `BbNumericInput` for increment/decrement numeric editing
+- `BbCurrencyInput` for localized money entry
+- `BbMaskedInput` for phone, card, ID, and other format-constrained text
+- `BbInputOTP` for verification code entry
+
+## Selection controls
+
+Selection routing:
+- Use `BbSelect` for standard styled dropdown selection.
+- Use `BbNativeSelect` when browser-native behavior is enough or desirable.
+- Use `BbCombobox` when the option list needs search or async filtering.
+- Use `BbMultiSelect` for fixed-option multi-pick.
+- Use `BbTagInput` when users create their own values.
+- Use `BbCheckboxGroup` or `BbRadioGroup` when visible options improve comprehension.
+
+`BbCombobox` is especially important in the current docs because it supports external filtering:
 
 ```razor
-<InputGroup>
-    <InputGroupInput Placeholder="Search..." />
-    <InputGroupAddon Align="InlineEnd">
-        <InputGroupButton>
-            <LucideIcon Name="search" Size="16" />
-        </InputGroupButton>
-    </InputGroupAddon>
-</InputGroup>
+<BbCombobox TValue="int"
+            Options="@countryOptions"
+            @bind-Value="selectedCountryId"
+            @bind-SearchQuery="searchQuery"
+            SearchQueryChanged="LoadCountriesAsync"
+            MatchTriggerWidth />
 ```
 
-### Textarea
-Multi-line text input with auto-sizing
+## Date time and structured entry
+
+Use:
+- `BbCalendar` for inline calendar UI
+- `BbDatePicker` for a single-date field with overlay calendar
+- `BbDateRangePicker` for reporting, analytics, and filter bars
+- `BbTimePicker` for time-only entry
+
+For structured short values, `BbMaskedInput` and `BbInputOTP` are the main tools.
+
+## Rich media and advanced input
+
+High-value components in this group:
+- `BbFileUpload` for drag/drop or previewable uploads
+- `BbRichTextEditor` and `BbMarkdownEditor` for authored content
+- `BbColorPicker` for theme/editor workflows
+- `BbRating` for feedback and review flows
+
+These are powerful but heavier than basic inputs, so use them only when the workflow clearly benefits.
+
+## Generated and multi-step forms
+
+Use these only when the workflow justifies the added abstraction:
+- `BbDynamicForm` for schema/config-driven forms
+- `BbFormWizard` for step-based onboarding or checkout
+- `BbFormSection` for grouping long forms into readable regions
+
+If the form is mostly static, plain `EditForm` + `BbField` remains easier for AI to generate and maintain.
+
+## Reference example
 
 ```razor
-<Textarea @bind-Value="bio" Rows="4" Placeholder="Tell us about yourself..." />
-```
-
-### Masked Input
-Structured formats (phone, SSN, credit card, date)
-
-```razor
-<MaskedInput @bind-Value="phone" Mask="(999) 999-9999" />
-<MaskedInput @bind-Value="ssn" Mask="999-99-9999" />
-<MaskedInput @bind-Value="card" Mask="9999 9999 9999 9999" />
-```
-
-**Mask Patterns:**
-- `9` = digit
-- `A` = letter
-- `*` = alphanumeric
-
-### Numeric Input
-Generic numeric input with increment/decrement
-
-```razor
-<NumericInput @bind-Value="quantity" Min="0" Max="100" Step="1" />
-```
-
-### Currency Input
-Locale-aware currency input with 40+ currencies
-
-```razor
-<CurrencyInput @bind-Value="amount" Currency="USD" />
-<CurrencyInput @bind-Value="amount" Currency="EUR" />
-```
-
-### Input OTP
-One-time password input with individual digit boxes
-
-```razor
-<InputOTP @bind-Value="otp" Length="6" />
-```
-
----
-
-## Selection Components
-
-### Checkbox
-Binary selection with indeterminate state
-
-```razor
-<Checkbox Id="terms" @bind-Checked="accepted" />
-<Label For="terms">Accept terms</Label>
-```
-
-### Radio Group
-Mutually exclusive selections
-
-```razor
-<RadioGroup @bind-Value="selectedOption">
-    <RadioGroupItem Value="option1" Id="opt1" />
-    <Label For="opt1">Option 1</Label>
-    
-    <RadioGroupItem Value="option2" Id="opt2" />
-    <Label For="opt2">Option 2</Label>
-</RadioGroup>
-```
-
-### Switch
-Toggle for binary on/off states
-
-```razor
-<Switch @bind-Checked="isEnabled" />
-<Label>Enable notifications</Label>
-```
-
-### Select
-Dropdown selection with groups
-
-```razor
-<Select @bind-Value="selected">
-    <SelectTrigger>
-        <SelectValue Placeholder="Choose option" />
-    </SelectTrigger>
-    <SelectContent>
-        <SelectItem Value="option1">Option 1</SelectItem>
-        <SelectItem Value="option2">Option 2</SelectItem>
-    </SelectContent>
-</Select>
-```
-
-### MultiSelect
-Searchable multi-select with tags and Select All
-
-```razor
-<MultiSelect @bind-Values="selectedItems" Placeholder="Select frameworks...">
-    <MultiSelectItem Value="react">React</MultiSelectItem>
-    <MultiSelectItem Value="vue">Vue</MultiSelectItem>
-    <MultiSelectItem Value="angular">Angular</MultiSelectItem>
-</MultiSelect>
-```
-
-### Native Select
-Browser-native select element
-
-```razor
-<NativeSelect @bind-Value="selected">
-    <option value="">Choose...</option>
-    <option value="1">Option 1</option>
-    <option value="2">Option 2</option>
-</NativeSelect>
-```
-
----
-
-## Date & Time Components
-
-### Calendar
-Interactive calendar with full keyboard navigation
-
-```razor
-<Calendar @bind-SelectedDate="date" MinDate="DateTime.Today" />
-```
-
-### Date Picker
-Date picker with popover calendar
-
-```razor
-<DatePicker @bind-Date="selectedDate" Placeholder="Pick a date" />
-```
-
-### Date Range Picker
-Date range selection with preset ranges
-
-```razor
-<DateRangePicker @bind-StartDate="start" @bind-EndDate="end">
-    <DateRangePreset Label="Last 7 days" Days="7" />
-    <DateRangePreset Label="Last 30 days" Days="30" />
-    <DateRangePreset Label="This month" IsCurrentMonth="true" />
-</DateRangePicker>
-```
-
-### Time Picker
-Time selection with 12/24-hour format
-
-```razor
-<TimePicker @bind-Time="time" Format="12" ShowSeconds="false" />
-```
-
----
-
-## Slider Components
-
-### Slider
-Range input for selecting numeric values
-
-```razor
-<Slider @bind-Value="volume" Min="0" Max="100" Step="1" />
-```
-
-### Range Slider
-Dual-handle slider for value ranges
-
-```razor
-<RangeSlider @bind-MinValue="min" @bind-MaxValue="max" Min="0" Max="100" />
-```
-
----
-
-## Advanced Input Components
-
-### Rich Text Editor
-WYSIWYG editor built on Quill.js v2
-
-```razor
-<RichTextEditor @bind-Html="content" />
-```
-
-### Color Picker
-Visual color selection with hex/RGB input
-
-```razor
-<ColorPicker @bind-Color="selectedColor" ShowAlpha="true" />
-```
-
-### File Upload
-Drag-and-drop file upload with previews
-
-```razor
-<FileUpload 
-    @bind-Files="uploadedFiles"
-    Accept="image/*"
-    MaxSize="5242880"
-    Multiple="true" />
-```
-
-### Rating
-Star rating with half-value and custom icons
-
-```razor
-<Rating @bind-Value="rating" Max="5" AllowHalf="true" />
-<Rating @bind-Value="rating" Icon="Heart" />
-<Rating @bind-Value="rating" Icon="ThumbsUp" />
-```
-
----
-
-## Form Layout Components
-
-### Label
-Accessible label for form controls
-
-```razor
-<Label For="email">Email Address</Label>
-<Input Id="email" @bind-Value="email" Type="email" />
-```
-
-### Field
-Combines labels, controls, help text, error messages
-
-```razor
-<Field>
-    <FieldLabel>Email</FieldLabel>
-    <FieldContent>
-        <Input @bind-Value="email" Type="email" />
-    </FieldContent>
-    <FieldDescription>We'll never share your email.</FieldDescription>
-    <FieldError>
-        <ValidationMessage For="@(() => email)" />
-    </FieldError>
-</Field>
-```
-
-### Button Group
-Visually groups related buttons
-
-```razor
-<ButtonGroup>
-    <Button>Left</Button>
-    <Button>Center</Button>
-    <Button>Right</Button>
-</ButtonGroup>
-```
-
-### Toggle
-Two-state button for toggleable options
-
-```razor
-<Toggle @bind-Pressed="isBold" AriaLabel="Toggle bold">
-    <LucideIcon Name="bold" Size="16" />
-</Toggle>
-```
-
----
-
-## Form Best Practices
-
-### Accessible Forms
-
-Always use Field component for proper structure:
-
-```razor
-<Field>
-    <FieldLabel>Required field</FieldLabel>
-    <FieldContent>
-        <Input @bind-Value="value" Required="true" />
-    </FieldContent>
-    <FieldDescription>Help text here</FieldDescription>
-    <FieldError>
-        <ValidationMessage For="@(() => value)" />
-    </FieldError>
-</Field>
-```
-
-### Loading States
-
-```razor
-<Button Disabled="@isSubmitting">
-    @if (isSubmitting)
-    {
-        <LucideIcon Name="loader-2" Size="16" Class="animate-spin" />
-        <span>Submitting...</span>
-    }
-    else
-    {
-        <span>Submit</span>
-    }
-</Button>
-```
-
-### Form Validation
-
-```razor
-<EditForm Model="@model" OnValidSubmit="@HandleSubmit">
+<EditForm Model="@model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
-    
-    <Field>
-        <FieldLabel>Email</FieldLabel>
-        <FieldContent>
-            <Input @bind-Value="model.Email" Type="email" />
-        </FieldContent>
-        <FieldError>
-            <ValidationMessage For="@(() => model.Email)" />
-        </FieldError>
-    </Field>
-    
-    <Button Type="ButtonType.Submit">Submit</Button>
+
+    <BbField>
+        <BbFieldLabel>Name</BbFieldLabel>
+        <BbFieldContent>
+            <BbInput @bind-Value="model.Name"
+                     ValueExpression="@(() => model.Name)"
+                     Placeholder="Acme Corp" />
+        </BbFieldContent>
+        <BbFieldError>
+            <ValidationMessage For="@(() => model.Name)" />
+        </BbFieldError>
+    </BbField>
+
+    <BbField>
+        <BbFieldLabel>Tags</BbFieldLabel>
+        <BbFieldContent>
+            <BbTagInput @bind-Tags="model.Tags"
+                        TagsExpression="@(() => model.Tags)"
+                        Placeholder="Add tag..." />
+        </BbFieldContent>
+    </BbField>
+
+    <BbButton type="submit">Save</BbButton>
 </EditForm>
 ```

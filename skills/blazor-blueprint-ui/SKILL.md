@@ -1,166 +1,146 @@
 ---
 name: blazor-blueprint-ui
-description: Comprehensive Blazor component library based on shadcn/ui design with 88 components (15 headless Primitives, 73 pre-styled Components), 1,640+ Lucide icons, and chart library. Use when building Blazor web applications that need UI components like forms (buttons, inputs, date pickers, tables), navigation (tabs, menus, sidebars), overlays (dialogs, sheets, tooltips, popovers), displays (avatars, badges, alerts, skeletons), charts (bar, line, area, pie, radar, radial), or when working with shadcn/ui-style Blazor components. Supports both controlled/uncontrolled state patterns, composition-based component structure, and dark mode.
-metadata: 
-  version: 1.0.0
-  authors: arisng
-  homepage: https://blazorblueprintui.com
+description: Build and customize .NET 8+ Blazor UIs with BlazorBlueprint. Use when choosing between BlazorBlueprint.Components and BlazorBlueprint.Primitives, wiring setup and providers, using ToastService/DialogService/localization, selecting icon packs, applying shadcn-ui-style theming, or copying and adapting BlazorBlueprint blueprints.
 ---
 
 # BlazorBlueprint UI
 
-Build modern Blazor web applications using the BlazorBlueprint component library based on shadcn/ui design.
+Build modern Blazor web applications using the current BlazorBlueprint component library.
 
-**Repository:** https://github.com/blazorblueprintui/ui  
-**Documentation:** https://blazorblueprintui.com  
-**Original Source:** https://blazorblueprintui.com/llms/index.txt
+**Repository:** https://github.com/blazorblueprintui/ui
+**Documentation:** https://blazorblueprintui.com
+**Original Source:** https://blazorblueprintui.com/llms.txt
+**Full Bundle:** https://blazorblueprintui.com/llms/llms-full.txt
+
+Examples in the refreshed references use the official upstream `Bb*` naming.
 
 ## Package Overview
 
-Three packages available:
+Core packages:
 
-- **BlazorBlueprint.Components** - Pre-styled components with shadcn/ui design (Recommended)
-- **BlazorBlueprint.Primitives** - Headless components for custom styling
-- **BlazorBlueprint.Icons** - 1,640+ Lucide icons
+- **BlazorBlueprint.Components** - Styled component library; includes primitives
+- **BlazorBlueprint.Primitives** - Headless accessibility and behavior layer
+- **BlazorBlueprint.Icons.Lucide** - Lucide icon pack
+- **BlazorBlueprint.Icons.Heroicons** - Heroicons pack
+- **BlazorBlueprint.Icons.Feather** - Feather icon pack
 
 ## Quick Navigation
 
 ### Setup & Installation
 Read [references/setup.md](references/setup.md) for:
-- Package installation (NuGet)
-- Quick start configuration (3 steps)
-- Theming and customization (shadcn/ui compatible)
-- Dark mode setup
-- Hosting model differences
-- Troubleshooting
+- NuGet installation and service registration
+- CSS, imports, and provider setup
+- `BbPortalHost`, `BbToastProvider`, and `BbDialogProvider`
+- Theme variables and dark mode
+- Verification and troubleshooting
 
 ### Icons
-Read [references/icons.md](references/icons.md) for:
-- LucideIcon component usage
-- 1,640+ available icons
-- Icon styling and theming
-- Accessibility best practices
-- Common use cases (buttons, navigation, menus, status messages)
+Read [references/icons.md](references/icons.md) for icon component usage and styling guidance.
 
 ### Common Patterns
 Read [references/patterns.md](references/patterns.md) for:
-- Form with validation
-- Dialog with form
-- Data table with sorting/pagination
-- Sidebar navigation
-- Command palette
-- Settings page with tabs
-- Confirmation dialogs
-- AsChild pattern
+- controlled vs uncontrolled state
+- `EditForm` + `BbField` conventions
+- root provider patterns
+- dashboard / app shell defaults
+- blueprint-first acceleration
 
 ## Component Categories
 
-### Form Components (26)
-Read [references/components-forms.md](references/components-forms.md) for comprehensive details on:
+### Form Components
+Read [references/components-forms.md](references/components-forms.md) for:
+- text, typed, and structured inputs
+- selection controls and searchable selection
+- date/time and OTP flows
+- uploads, editors, and advanced inputs
+- form sections, wizards, and dynamic forms
 
-**Basic Inputs:** Button, Input, Textarea, Label, Field, Button Group  
-**Selection:** Checkbox, Radio Group, Switch, Select, MultiSelect, Native Select  
-**Advanced Inputs:** Masked Input, Numeric Input, Currency Input, Input OTP, Color Picker, File Upload, Rating, Rich Text Editor  
-**Date/Time:** Calendar, Date Picker, Date Range Picker, Time Picker  
-**Sliders:** Slider, Range Slider  
-**Other:** Toggle, Input Group
+### Layout & Navigation Components
+Read [references/components-layout.md](references/components-layout.md) for:
+- sidebars, responsive nav, navigation menus, and breadcrumbs
+- cards, tabs, accordions, and collapsible content
+- resizable work areas, scroll areas, separators, and aspect-ratio containers
+- routing guidance for shells vs display/data surfaces
 
-### Layout & Navigation Components (19)
-Read [references/components-layout.md](references/components-layout.md) for comprehensive details on:
+### Overlay Components
+Read [references/components-overlays.md](references/components-overlays.md) for:
+- dialogs, alert dialogs, sheets, drawers, and popovers
+- menus, tooltips, hover cards, and command surfaces
+- `DialogService` and `ToastService` usage
+- provider and portal requirements
 
-**Navigation:** Navigation Menu, Sidebar, Responsive Nav, Breadcrumb, Pagination  
-**Layout:** Card, Accordion, Tabs, Collapsible, Separator, Scroll Area, Aspect Ratio, Resizable  
-**Display:** Carousel, Item, Toggle Group, Typography  
-**Form Layout:** Field
+### Display & Data Components
+Read [references/components-display-data.md](references/components-display-data.md) for:
+- alerts, badges, avatars, shortcuts, loading states, and empty states
+- items, timelines, typography, and carousel-style presentation
+- `BbDataTable`, `BbDataGrid`, and `BbDataView` routing
+- dashboard/data-screen guidance
 
-### Overlay Components (12)
-Read [references/components-overlays.md](references/components-overlays.md) for comprehensive details on:
-
-**Modals:** Dialog, Alert Dialog, Sheet, Drawer  
-**Floating:** Popover, Tooltip, Hover Card  
-**Menus:** Dropdown Menu, Context Menu, Menubar, Combobox, Command  
-**Notifications:** Toast
-
-**All overlay components require `<PortalHost />` in your layout.**
-
-### Display Components (11)
-Read [references/components-overlays.md](references/components-overlays.md) for comprehensive details on:
-
-**Identity:** Avatar, Badge  
-**Feedback:** Alert, Skeleton, Progress, Spinner, Empty  
-**Data:** Data Table, Select  
-**Other:** Kbd
-
-### Chart Components (6)
-Read [references/components-charts.md](references/components-charts.md) for comprehensive details on:
-
-BarChart, LineChart, AreaChart, PieChart, RadarChart, RadialChart
-
-Built on Blazor-ApexCharts with dark mode support and theme integration.
+### Chart Components
+Read [references/components-charts.md](references/components-charts.md) for:
+- the current Apache ECharts-based chart stack
+- `BbChart` composite charts and `ChartConfig`
+- dedicated bar, line, area, pie, radial bar, gauge, radar, and scatter charts
+- `BbChartContainer` and chart theming
 
 ## Key Architecture Patterns
 
-### State Management
+### Controlled vs uncontrolled state
 
-**Uncontrolled (default):**
+**Uncontrolled:**
 ```razor
-<Tabs DefaultValue="tab1">...</Tabs>
+<BbTabs DefaultValue="overview">...</BbTabs>
 ```
 
 **Controlled:**
 ```razor
-<Tabs @bind-Value="currentTab">...</Tabs>
+<BbTabs @bind-Value="currentTab">...</BbTabs>
 ```
 
-### Composition Pattern
+### Composition pattern
 
 ```razor
-<Card>
-    <CardHeader><CardTitle>Title</CardTitle></CardHeader>
-    <CardContent>Content</CardContent>
-    <CardFooter>Actions</CardFooter>
-</Card>
+<BbCard>
+    <BbCardHeader><BbCardTitle>Title</BbCardTitle></BbCardHeader>
+    <BbCardContent>Content</BbCardContent>
+    <BbCardFooter>Actions</BbCardFooter>
+</BbCard>
 ```
 
-### AsChild Pattern
-
-Allows trigger components to pass behavior to child elements:
+### AsChild pattern
 
 ```razor
-<Dialog>
-    <DialogTrigger AsChild>
-        <Button Variant="destructive">Delete</Button>
-    </DialogTrigger>
-    <DialogContent>...</DialogContent>
-</Dialog>
+<BbDialog>
+    <BbDialogTrigger AsChild>
+        <BbButton Variant="ButtonVariant.Destructive">Delete</BbButton>
+    </BbDialogTrigger>
+    <BbDialogContent>...</BbDialogContent>
+</BbDialog>
 ```
 
-### Portal Pattern
+### Portal and provider pattern
 
-Overlay components render via portals for proper z-index stacking. Requires `<PortalHost />` in layout.
+Overlay components render through `BbPortalHost`. App-wide toasts and service-driven dialogs also need `BbToastProvider` and `BbDialogProvider` in the root layout.
 
 ## Workflow
 
-1. **Read setup.md** - Install packages and configure your project
-2. **Choose component category** - Forms, Layout, Overlays, Display, or Charts
-3. **Read component reference** - Get details, examples, and best practices
-4. **Implement with composition** - Use ChildContent and nested components
-5. **Style with Tailwind** - Add custom classes via `Class` parameter
-6. **Test dark mode** - Ensure `.dark` class toggles properly
+1. **Read setup.md** for installation and providers.
+2. **Pick a category**: forms, layout/navigation, overlays, display/data, or charts.
+3. **Load patterns.md** when composing multiple surfaces together.
+4. **Use blueprints** when you need a production-shaped screen quickly.
+5. **Style through theme variables** and validate dark mode.
 
 ## When to Load References
 
-- **setup.md:** First time setup, theming issues, dark mode configuration
-- **icons.md:** Using icons, icon styling, accessibility for icon-only buttons
-- **patterns.md:** Multi-component workflows, complex forms, data tables, navigation patterns
-- **components-forms.md:** Building forms, input validation, date/time selection, file uploads
-- **components-layout.md:** Page layouts, navigation, cards, tabs, sidebars, responsive design
-- **components-overlays.md:** Modals, dropdowns, tooltips, notifications, command palettes
-- **components-charts.md:** Data visualization, dashboards, reports
+- **setup.md:** first-time setup, providers, theming, dark mode, icons import questions
+- **components-forms.md:** editing flows, validation, selection, wizards, schema-driven forms
+- **components-layout.md:** shells, responsive navigation, cards, tabs, resizable work areas
+- **components-overlays.md:** dialogs, menus, tooltips, command palettes, toasts
+- **components-display-data.md:** alerts, status display, tables, grids, data views, empty/loading states
+- **components-charts.md:** dashboards, KPI visuals, mixed/composite chart composition
+- **patterns.md:** cross-component conventions and blueprint-first workflows
 
-## Primitives (Advanced Users)
+## Blueprints and Primitives
 
-15 headless primitive components available for full styling control. See original source URLs for primitive documentation:
-https://blazorblueprintui.com/llms/primitives/
-
-Most users should use pre-styled Components instead.
+- **Blueprints** provide ready-to-copy compositions for auth, sidebar shells, dashboards, forms, data screens, marketing, and ecommerce.
+- **Primitives** are the headless layer for advanced users who want BlazorBlueprint behavior without the styled component surface.

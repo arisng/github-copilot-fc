@@ -1,403 +1,118 @@
 # Layout & Navigation Components Reference
 
-Reference for all layout and navigation components in BlazorBlueprint.
+Use this file for shells, page structure, and navigation. Display-heavy and data-heavy components now live in `components-display-data.md`.
 
-**Source Component Docs:** https://blazorblueprintui.com/llms/components/
+**Sources:** https://blazorblueprintui.com/llms/components/sidebar.txt and https://blazorblueprintui.com/llms/components/
 
----
+## TOC
+- [Choose the right layout tool](#choose-the-right-layout-tool)
+- [App shell and navigation](#app-shell-and-navigation)
+- [Page structure and containers](#page-structure-and-containers)
+- [High-value example](#high-value-example)
+- [Routing notes](#routing-notes)
 
-## Navigation Components
+## Choose the right layout tool
 
-### Navigation Menu
-Horizontal navigation with dropdown menus for site-wide navigation. Includes ResponsiveNav components for mobile.
+| Need | Prefer | Notes |
+| --- | --- | --- |
+| Full application shell | `BbSidebarProvider`, `BbSidebar`, `BbSidebarInset` | Best default for dashboards and authenticated apps. |
+| Lightweight top navigation | `BbNavigationMenu`, `BbResponsiveNav` | Use `BbResponsiveNav` when mobile disclosure is central. |
+| In-page hierarchy / location | `BbBreadcrumb` | Pair with headers and page actions. |
+| Section switching | `BbTabs`, `BbAccordion`, `BbCollapsible` | `BbTabs` for peer views, `BbAccordion` for expandable content sets. |
+| Card-like grouping | `BbCard` | Default building block for pages, forms, and dashboard panels. |
+| Resizable work areas | `BbResizablePanelGroup` | Great for IDE, mail, and analytics layouts. |
+| Managed scrolling | `BbScrollArea` | Use inside fixed-height panels or drawers. |
+| Media aspect lock | `BbAspectRatio` | Keeps images/video placeholders stable. |
+| Visual separation | `BbSeparator` | Cheap structure signal for headers, toolbars, and menus. |
+| Paging long datasets | `BbPagination` | Usually paired with `BbDataTable`, `BbDataView`, or server-driven pages. |
+
+## App shell and navigation
+
+`BbSidebar` is the most important current navigation surface:
+- Desktop sidebar + mobile sheet behavior are built into the same system.
+- `BbSidebarProvider` manages state, keyboard shortcut support, and cookie persistence.
+- Visual variants include sidebar, floating, and inset styles.
+- Collapsed icon mode, tooltips, badges, and submenu structures are first-class.
+
+`BbNavigationMenu` is the right fit for top-site navigation with dropdown content.
+
+`BbResponsiveNav` is the simpler route when you mainly need a mobile menu trigger and content region instead of the full sidebar model.
+
+## Page structure and containers
+
+Common structure patterns:
+- `BbCard` for most bounded content regions
+- `BbTabs` for peer-level panels such as settings pages
+- `BbAccordion` for FAQ or grouped settings content
+- `BbCollapsible` for optional inline expansion
+- `BbResizablePanelGroup` for multi-pane workspaces
+- `BbScrollArea` for fixed-height panel interiors
+
+Keep layout responsibilities here; do not route tables, alerts, timelines, or empty states into this file.
+
+## High-value example
 
 ```razor
-<NavigationMenu>
-    <NavigationMenuItem>
-        <NavigationMenuTrigger>Products</NavigationMenuTrigger>
-        <NavigationMenuContent>
-            <NavigationMenuLink Href="/products/item1">Item 1</NavigationMenuLink>
-            <NavigationMenuLink Href="/products/item2">Item 2</NavigationMenuLink>
-        </NavigationMenuContent>
-    </NavigationMenuItem>
-    <NavigationMenuItem>
-        <NavigationMenuLink Href="/about">About</NavigationMenuLink>
-    </NavigationMenuItem>
-</NavigationMenu>
-```
-
-**Features:** Dropdown menus, opt-in keyboard navigation (`EnableKeyboardNavigation="true"`), auto-close on navigation
-
-### Sidebar
-Responsive navigation sidebar with collapsible menus and keyboard shortcuts (Ctrl/Cmd+B)
-
-```razor
-<SidebarProvider>
-    <Sidebar>
-        <SidebarHeader>
-            <SidebarHeaderContent>
-                <div class="flex items-center space-x-2">
-                    <LucideIcon Name="zap" Size="20" />
-                    <span class="font-bold">My App</span>
+<BbSidebarProvider>
+    <BbSidebar>
+        <BbSidebarHeader>
+            <BbSidebarHeaderContent>
+                <div class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    A
                 </div>
-            </SidebarHeaderContent>
-        </SidebarHeader>
-        
-        <SidebarContent>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton Href="/">
-                        <LucideIcon Name="home" Size="16" />
-                        <span>Dashboard</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarContent>
-        
-        <SidebarFooter>
-            <!-- User menu -->
-        </SidebarFooter>
-    </Sidebar>
-    
-    <SidebarInset>
-        <main>@Body</main>
-    </SidebarInset>
-</SidebarProvider>
-```
+                <BbSidebarHeaderInfo>
+                    <span class="truncate font-semibold">Acme</span>
+                    <span class="truncate text-xs text-muted-foreground">Workspace</span>
+                </BbSidebarHeaderInfo>
+            </BbSidebarHeaderContent>
+        </BbSidebarHeader>
 
-### Responsive Nav
-Mobile-friendly navigation with hamburger trigger and Sheet-based mobile content
+        <BbSidebarContent>
+            <BbSidebarGroup>
+                <BbSidebarGroupLabel>Platform</BbSidebarGroupLabel>
+                <BbSidebarGroupContent>
+                    <BbSidebarMenu>
+                        <BbSidebarMenuItem>
+                            <BbSidebarMenuButton Href="/dashboard" Tooltip="Dashboard">
+                                <LucideIcon Name="home" />
+                                <span>Dashboard</span>
+                            </BbSidebarMenuButton>
+                        </BbSidebarMenuItem>
+                    </BbSidebarMenu>
+                </BbSidebarGroupContent>
+            </BbSidebarGroup>
+        </BbSidebarContent>
 
-```razor
-<ResponsiveNavProvider>
-    <ResponsiveNavTrigger />
-    <ResponsiveNavContent>
-        <!-- Mobile navigation content -->
-    </ResponsiveNavContent>
-</ResponsiveNavProvider>
-```
+        <BbSidebarRail />
+    </BbSidebar>
 
-### Breadcrumb
-Navigation trail showing hierarchical location
-
-```razor
-<Breadcrumb>
-    <BreadcrumbList>
-        <BreadcrumbItem>
-            <BreadcrumbLink Href="/">Home</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-            <BreadcrumbLink Href="/products">Products</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-            <BreadcrumbPage>Current Page</BreadcrumbPage>
-        </BreadcrumbItem>
-    </BreadcrumbList>
-</Breadcrumb>
-```
-
-### Pagination
-Page navigation with previous/next controls and state management
-
-```razor
-<Pagination State="@paginationState">
-    <div class="flex w-full items-center justify-between py-4">
-        <PaginationInfo />
-        
-        <PaginationContent>
-            <PaginationItem><PaginationFirst /></PaginationItem>
-            <PaginationItem><PaginationPrevious ShowText="false" /></PaginationItem>
-            <PaginationItem><PaginationPageDisplay /></PaginationItem>
-            <PaginationItem><PaginationNext ShowText="false" /></PaginationItem>
-            <PaginationItem><PaginationLast /></PaginationItem>
-        </PaginationContent>
-        
-        <PaginationPageSizeSelector />
-    </div>
-</Pagination>
-```
-
----
-
-## Layout Components
-
-### Card
-Container component with header, body, and footer sections
-
-```razor
-<Card>
-    <CardHeader>
-        <CardTitle>Card Title</CardTitle>
-        <CardDescription>Card description</CardDescription>
-    </CardHeader>
-    <CardContent>
-        <!-- Card content -->
-    </CardContent>
-    <CardFooter>
-        <Button>Action</Button>
-    </CardFooter>
-</Card>
-```
-
-### Accordion
-Collapsible content sections with smooth animations
-
-```razor
-<Accordion Type="AccordionType.Single" Collapsible="true">
-    <AccordionItem Value="item1">
-        <AccordionTrigger>Section 1</AccordionTrigger>
-        <AccordionContent>
-            Content for section 1
-        </AccordionContent>
-    </AccordionItem>
-    <AccordionItem Value="item2">
-        <AccordionTrigger>Section 2</AccordionTrigger>
-        <AccordionContent>
-            Content for section 2
-        </AccordionContent>
-    </AccordionItem>
-</Accordion>
-```
-
-### Tabs
-Tabbed interface for organizing related content
-
-```razor
-<Tabs DefaultValue="tab1">
-    <TabsList>
-        <TabsTrigger Value="tab1">Tab 1</TabsTrigger>
-        <TabsTrigger Value="tab2">Tab 2</TabsTrigger>
-    </TabsList>
-    
-    <TabsContent Value="tab1">
-        Content for tab 1
-    </TabsContent>
-    <TabsContent Value="tab2">
-        Content for tab 2
-    </TabsContent>
-</Tabs>
-```
-
-### Collapsible
-Expandable content area with trigger control
-
-```razor
-<Collapsible>
-    <CollapsibleTrigger AsChild>
-        <Button>
-            <LucideIcon Name="chevron-down" Size="16" />
-            Toggle Content
-        </Button>
-    </CollapsibleTrigger>
-    <CollapsibleContent>
-        <!-- Hidden content -->
-    </CollapsibleContent>
-</Collapsible>
-```
-
-### Separator
-Visual divider for content sections
-
-```razor
-<Separator Orientation="horizontal" />
-<Separator Orientation="vertical" Class="h-6" />
-```
-
-### Scroll Area
-Custom scrollable area with styled scrollbars
-
-```razor
-<ScrollArea Class="h-96 w-full">
-    <!-- Scrollable content -->
-</ScrollArea>
-```
-
-### Aspect Ratio
-Container that maintains specified aspect ratio (16:9, 4:3, 1:1, etc.)
-
-```razor
-<AspectRatio Ratio="16/9">
-    <img src="image.jpg" alt="Image" class="object-cover" />
-</AspectRatio>
-```
-
-### Resizable
-Resizable panel layout with draggable handles and min/max constraints
-
-```razor
-<ResizablePanelGroup Orientation="horizontal">
-    <ResizablePanel DefaultSize="50" MinSize="30">
-        Left panel
-    </ResizablePanel>
-    <ResizableHandle />
-    <ResizablePanel DefaultSize="50" MinSize="30">
-        Right panel
-    </ResizablePanel>
-</ResizablePanelGroup>
-```
-
----
-
-## Display Components
-
-### Carousel
-Slideshow component for cycling through content
-
-```razor
-<Carousel>
-    <CarouselContent>
-        <CarouselItem>Slide 1</CarouselItem>
-        <CarouselItem>Slide 2</CarouselItem>
-        <CarouselItem>Slide 3</CarouselItem>
-    </CarouselContent>
-    <CarouselPrevious />
-    <CarouselNext />
-</Carousel>
-```
-
-### Item
-Flexible list item component with media (avatar/icon), content, and action areas
-
-```razor
-<Item>
-    <ItemMedia>
-        <Avatar>
-            <AvatarImage Src="user.jpg" />
-            <AvatarFallback>JD</AvatarFallback>
-        </Avatar>
-    </ItemMedia>
-    <ItemContent>
-        <ItemTitle>John Doe</ItemTitle>
-        <ItemDescription>Software Engineer</ItemDescription>
-    </ItemContent>
-    <ItemAction>
-        <Button Size="icon" Variant="ghost">
-            <LucideIcon Name="more-horizontal" Size="16" />
-        </Button>
-    </ItemAction>
-</Item>
-```
-
-### Toggle Group
-Group of toggles with single or multiple selection
-
-```razor
-<ToggleGroup Type="single" @bind-Value="alignment">
-    <ToggleGroupItem Value="left" AriaLabel="Align left">
-        <LucideIcon Name="align-left" Size="16" />
-    </ToggleGroupItem>
-    <ToggleGroupItem Value="center" AriaLabel="Align center">
-        <LucideIcon Name="align-center" Size="16" />
-    </ToggleGroupItem>
-    <ToggleGroupItem Value="right" AriaLabel="Align right">
-        <LucideIcon Name="align-right" Size="16" />
-    </ToggleGroupItem>
-</ToggleGroup>
-```
-
-### Typography
-Pre-styled typography components for consistent text rendering
-
-```razor
-<TypographyH1>Heading 1</TypographyH1>
-<TypographyH2>Heading 2</TypographyH2>
-<TypographyH3>Heading 3</TypographyH3>
-<TypographyH4>Heading 4</TypographyH4>
-<TypographyP>Paragraph text</TypographyP>
-<TypographyLead>Lead text</TypographyLead>
-<TypographyLarge>Large text</TypographyLarge>
-<TypographySmall>Small text</TypographySmall>
-<TypographyMuted>Muted text</TypographyMuted>
-<TypographyBlockquote>Quote text</TypographyBlockquote>
-<TypographyInlineCode>code</TypographyInlineCode>
-```
-
----
-
-## Field Component
-
-Combines labels, controls, help text, and error messages for accessible forms
-
-```razor
-<Field>
-    <FieldLabel>Email Address</FieldLabel>
-    <FieldContent>
-        <Input @bind-Value="email" Type="email" />
-    </FieldContent>
-    <FieldDescription>
-        We'll never share your email with anyone else.
-    </FieldDescription>
-    <FieldError>
-        <ValidationMessage For="@(() => email)" />
-    </FieldError>
-</Field>
-```
-
----
-
-## Layout Best Practices
-
-### Responsive Sidebar Navigation
-
-Use SidebarProvider for full sidebar functionality:
-
-```razor
-<SidebarProvider>
-    <Sidebar>
-        <!-- Sidebar content -->
-    </Sidebar>
-    <SidebarInset>
+    <BbSidebarInset>
         <header class="flex h-16 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
-            <Separator Orientation="vertical" Class="h-6" />
-            <h1>@pageTitle</h1>
+            <BbSidebarTrigger />
+            <BbBreadcrumb>
+                <BbBreadcrumbList>
+                    <BbBreadcrumbItem>
+                        <BbBreadcrumbPage>Dashboard</BbBreadcrumbPage>
+                    </BbBreadcrumbItem>
+                </BbBreadcrumbList>
+            </BbBreadcrumb>
         </header>
-        <main class="flex-1 p-6">
-            @Body
+
+        <main class="p-6">
+            <BbCard>
+                <BbCardHeader>
+                    <BbCardTitle>Overview</BbCardTitle>
+                </BbCardHeader>
+                <BbCardContent>...</BbCardContent>
+            </BbCard>
         </main>
-    </SidebarInset>
-</SidebarProvider>
+    </BbSidebarInset>
+</BbSidebarProvider>
 ```
 
-### Card Composition
+## Routing notes
 
-```razor
-<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-    <Card>
-        <CardHeader>
-            <CardTitle>Revenue</CardTitle>
-            <CardDescription>This month</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <p class="text-2xl font-bold">$45,231</p>
-        </CardContent>
-    </Card>
-    <!-- More cards -->
-</div>
-```
-
-### Tabbed Settings Page
-
-```razor
-<Tabs DefaultValue="profile">
-    <TabsList>
-        <TabsTrigger Value="profile">Profile</TabsTrigger>
-        <TabsTrigger Value="account">Account</TabsTrigger>
-        <TabsTrigger Value="notifications">Notifications</TabsTrigger>
-    </TabsList>
-    
-    <TabsContent Value="profile">
-        <Card>
-            <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <!-- Profile form -->
-            </CardContent>
-        </Card>
-    </TabsContent>
-    <!-- Other tab contents -->  
-</Tabs>
-```
+- For charts, load `components-charts.md`.
+- For alerts, badges, timelines, tables, and empty states, load `components-display-data.md`.
+- For dialogs, menus, and tooltips, load `components-overlays.md`.
+- For input-heavy pages, pair this file with `components-forms.md`.

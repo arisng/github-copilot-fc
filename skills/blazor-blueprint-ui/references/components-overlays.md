@@ -1,487 +1,137 @@
-# Overlay & Display Components Reference
+# Overlay Components Reference
 
-Reference for overlay and display components in BlazorBlueprint.
+Use this file for floating, blocking, and transient surfaces. This is now overlay-only; display and data components moved to `components-display-data.md`.
 
-**Source Component Docs:** https://blazorblueprintui.com/llms/components/
+**Sources:**
+- https://blazorblueprintui.com/llms/components/
+- https://blazorblueprintui.com/llms/components/command.txt
+- https://blazorblueprintui.com/llms/components/combobox.txt
+- https://blazorblueprintui.com/llms/components/toast.txt
+- https://blazorblueprintui.com/llms/services.txt
 
----
+## TOC
+- [Overlay prerequisites](#overlay-prerequisites)
+- [Choose the right overlay](#choose-the-right-overlay)
+- [Declarative vs service-driven dialogs](#declarative-vs-service-driven-dialogs)
+- [Search and action surfaces](#search-and-action-surfaces)
+- [Reference examples](#reference-examples)
 
-## Overlay Components
+## Overlay prerequisites
 
-All overlay components require `<PortalHost />` in your layout.
+Root layout requirements:
+- `<BbPortalHost />` is required for floating and modal content.
+- `<BbToastProvider />` is required for `ToastService` / toast notifications.
+- `<BbDialogProvider />` is required for `DialogService`.
 
-### Dialog
-Modal dialog with backdrop, focus management, and composition-based structure
+Use `AsChild` whenever you want a styled trigger such as `BbButton` to own the rendered element.
 
-```razor
-<Dialog>
-    <DialogTrigger>Open Dialog</DialogTrigger>
-    <DialogContent>
-        <DialogHeader>
-            <DialogTitle>Dialog Title</DialogTitle>
-            <DialogDescription>Dialog description</DialogDescription>
-        </DialogHeader>
-        <p>Dialog content</p>
-        <DialogFooter>
-            <DialogClose>Cancel</DialogClose>
-            <Button>Confirm</Button>
-        </DialogFooter>
-    </DialogContent>
-</Dialog>
-```
+## Choose the right overlay
 
-**Features:** Backdrop overlay, focus trap, escape key to close, controlled/uncontrolled modes
+| Need | Prefer | Notes |
+| --- | --- | --- |
+| Standard modal workflow | `BbDialog` | Best for forms and medium-complexity modal content. |
+| Non-dismissable destructive confirmation | `BbAlertDialog` | Prefer this over a custom dialog for high-risk actions. |
+| Slide-over panel | `BbSheet` | Best for edit panels and side inspectors. |
+| Mobile-first bottom or edge panel | `BbDrawer` | Good for touch-centric interactions. |
+| Anchored content / mini form | `BbPopover` | Small floating content tied to a trigger. |
+| Tiny explanatory hint | `BbTooltip` | Keep content short. |
+| Rich preview on hover | `BbHoverCard` | Better than a tooltip when content has structure. |
+| Triggered action list | `BbDropdownMenu`, `BbContextMenu`, `BbMenubar` | Pick based on trigger style and platform convention. |
+| Command palette / searchable action list | `BbCommand`, `BbCommandDialog` | `BbCommandDialog` is the current best route for Ctrl/Cmd+K palettes. |
+| Searchable single selection | `BbCombobox` | Selection control, not a general command surface. |
+| Temporary notification | `ToastService` + `BbToastProvider` | Prefer service-driven calls for app feedback. |
 
-### Alert Dialog
-Modal dialog requiring user acknowledgement, cannot be dismissed by clicking outside
+## Declarative vs service-driven dialogs
 
-```razor
-<AlertDialog>
-    <AlertDialogTrigger AsChild>
-        <Button Variant="destructive">Delete Account</Button>
-    </AlertDialogTrigger>
-    <AlertDialogContent>
-        <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action cannot be undone.
-            </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction>Delete</AlertDialogAction>
-        </AlertDialogFooter>
-    </AlertDialogContent>
-</AlertDialog>
-```
+Use declarative components when the dialog content belongs in the current page component.
 
-### Sheet
-Side panel that slides in from viewport edges with overlay
+Use `DialogService` when the action is global, reusable, or triggered from command handlers / services:
 
 ```razor
-<Sheet>
-    <SheetTrigger>Open Sheet</SheetTrigger>
-    <SheetContent Side="right">
-        <SheetHeader>
-            <SheetTitle>Sheet Title</SheetTitle>
-            <SheetDescription>Sheet description</SheetDescription>
-        </SheetHeader>
-        <!-- Sheet content -->
-        <SheetFooter>
-            <SheetClose>Close</SheetClose>
-        </SheetFooter>
-    </SheetContent>
-</Sheet>
-```
+@inject DialogService DialogService
+@inject ToastService ToastService
 
-**Sides:** `left`, `right`, `top`, `bottom`
-
-### Drawer
-Mobile-friendly panel sliding from screen edge (similar to Sheet)
-
-```razor
-<Drawer>
-    <DrawerTrigger>Open Drawer</DrawerTrigger>
-    <DrawerContent>
-        <DrawerHeader>
-            <DrawerTitle>Drawer Title</DrawerTitle>
-        </DrawerHeader>
-        <!-- Drawer content -->
-    </DrawerContent>
-</Drawer>
-```
-
-### Popover
-Floating panel for additional content and actions
-
-```razor
-<Popover>
-    <PopoverTrigger AsChild>
-        <Button Variant="outline">Open Popover</Button>
-    </PopoverTrigger>
-    <PopoverContent>
-        <div class="space-y-2">
-            <h4 class="font-medium">Popover Title</h4>
-            <p class="text-sm">Popover content goes here</p>
-        </div>
-    </PopoverContent>
-</Popover>
-```
-
-### Tooltip
-Brief informational popup on hover or focus
-
-```razor
-<Tooltip>
-    <TooltipTrigger AsChild>
-        <Button Size="icon">
-            <LucideIcon Name="info" Size="16" />
-        </Button>
-    </TooltipTrigger>
-    <TooltipContent>
-        <p>Additional information</p>
-    </TooltipContent>
-</Tooltip>
-```
-
-### Hover Card
-Rich preview card on hover with delay control
-
-```razor
-<HoverCard>
-    <HoverCardTrigger>
-        <span class="underline">Hover me</span>
-    </HoverCardTrigger>
-    <HoverCardContent>
-        <div class="flex space-x-4">
-            <Avatar>
-                <AvatarImage Src="user.jpg" />
-                <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-            <div>
-                <h4 class="font-semibold">John Doe</h4>
-                <p class="text-sm">Software Engineer</p>
-            </div>
-        </div>
-    </HoverCardContent>
-</HoverCard>
-```
-
-### Dropdown Menu
-Context menu with items, separators, keyboard shortcuts, nested submenus
-
-```razor
-<DropdownMenu>
-    <DropdownMenuTrigger AsChild>
-        <Button Variant="outline">
-            Actions
-            <LucideIcon Name="chevron-down" Size="16" />
-        </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent>
-        <DropdownMenuItem>
-            <LucideIcon Name="edit" Size="16" />
-            Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-            <LucideIcon Name="copy" Size="16" />
-            Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-            <LucideIcon Name="trash" Size="16" />
-            Delete
-        </DropdownMenuItem>
-    </DropdownMenuContent>
-</DropdownMenu>
-```
-
-### Context Menu
-Right-click menu with customizable items and shortcuts
-
-```razor
-<ContextMenu>
-    <ContextMenuTrigger>
-        <div class="border p-8 text-center">
-            Right-click me
-        </div>
-    </ContextMenuTrigger>
-    <ContextMenuContent>
-        <ContextMenuItem>Edit</ContextMenuItem>
-        <ContextMenuItem>Copy</ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem>Delete</ContextMenuItem>
-    </ContextMenuContent>
-</ContextMenu>
-```
-
-### Menubar
-Desktop application-style menu bar with dropdown menus
-
-```razor
-<Menubar>
-    <MenubarMenu>
-        <MenubarTrigger>File</MenubarTrigger>
-        <MenubarContent>
-            <MenubarItem>New <MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
-            <MenubarItem>Open <MenubarShortcut>⌘O</MenubarShortcut></MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem>Exit</MenubarItem>
-        </MenubarContent>
-    </MenubarMenu>
-    <MenubarMenu>
-        <MenubarTrigger>Edit</MenubarTrigger>
-        <MenubarContent>
-            <MenubarItem>Undo</MenubarItem>
-            <MenubarItem>Redo</MenubarItem>
-        </MenubarContent>
-    </MenubarMenu>
-</Menubar>
-```
-
-### Combobox
-Autocomplete input with searchable dropdown
-
-```razor
-<Combobox @bind-Value="selected" Placeholder="Search...">
-    <ComboboxTrigger>
-        <ComboboxValue Placeholder="Select option" />
-    </ComboboxTrigger>
-    <ComboboxContent>
-        <ComboboxInput Placeholder="Search..." />
-        <ComboboxList>
-            <ComboboxEmpty>No results found.</ComboboxEmpty>
-            <ComboboxItem Value="option1">Option 1</ComboboxItem>
-            <ComboboxItem Value="option2">Option 2</ComboboxItem>
-            <ComboboxItem Value="option3">Option 3</ComboboxItem>
-        </ComboboxList>
-    </ComboboxContent>
-</Combobox>
-```
-
-### Command
-Command palette for quick actions with keyboard shortcuts and virtualized groups
-
-```razor
-<Dialog>
-    <DialogTrigger AsChild>
-        <Button Variant="outline">
-            <LucideIcon Name="search" Size="16" />
-            Search commands... <kbd>⌘K</kbd>
-        </Button>
-    </DialogTrigger>
-    <DialogContent Class="p-0">
-        <Command>
-            <CommandInput Placeholder="Type a command or search..." />
-            <CommandList>
-                <CommandEmpty>No results found.</CommandEmpty>
-                
-                <CommandGroup Heading="Suggestions">
-                    <CommandItem>
-                        <LucideIcon Name="home" Size="16" />
-                        Dashboard
-                    </CommandItem>
-                    <CommandItem>
-                        <LucideIcon Name="folder" Size="16" />
-                        Projects
-                    </CommandItem>
-                </CommandGroup>
-                
-                <CommandSeparator />
-                
-                <CommandGroup Heading="Actions">
-                    <CommandItem>
-                        <LucideIcon Name="plus" Size="16" />
-                        Create Project <kbd>⌘N</kbd>
-                    </CommandItem>
-                </CommandGroup>
-            </CommandList>
-        </Command>
-    </DialogContent>
-</Dialog>
-```
-
-### Toast
-Temporary notification messages with service-based API
-
-```razor
-@inject IToastService ToastService
-
-<Button OnClick="ShowToast">Show Toast</Button>
+<BbButton Variant="ButtonVariant.Destructive" OnClick="DeleteAsync">
+    Delete item
+</BbButton>
 
 @code {
-    private void ShowToast()
+    private async Task DeleteAsync()
     {
-        ToastService.Show("Success!", "Your changes have been saved.", ToastVariant.Success);
+        var confirmed = await DialogService.Confirm(
+            "Delete item",
+            "This action cannot be undone.");
+
+        if (!confirmed)
+            return;
+
+        ToastService.Success("Item deleted.", "Success");
     }
 }
 ```
 
-**Variants:** `Default`, `Success`, `Error`, `Warning`, `Info`  
-**Positions:** `TopLeft`, `TopCenter`, `TopRight`, `BottomLeft`, `BottomCenter`, `BottomRight`
+## Search and action surfaces
 
----
+`BbCommand` and `BbCommandDialog` are current high-value primitives for AI-generated UX:
+- grouped actions
+- keyboard navigation
+- shortcut hints
+- optional dialog wrapper with built-in shortcut handling
 
-## Display Components
+`BbCombobox` should be chosen only when the user is selecting a value, not invoking arbitrary commands. It supports external async filtering via `SearchQuery` / `SearchQueryChanged`.
 
-### Avatar
-User profile image with fallback support
+## Reference examples
+
+### Declarative confirmation
 
 ```razor
-<Avatar>
-    <AvatarImage Src="user.jpg" Alt="John Doe" />
-    <AvatarFallback>JD</AvatarFallback>
-</Avatar>
+<BbAlertDialog>
+    <BbAlertDialogTrigger AsChild>
+        <BbButton Variant="ButtonVariant.Destructive">Delete account</BbButton>
+    </BbAlertDialogTrigger>
+    <BbAlertDialogContent>
+        <BbAlertDialogHeader>
+            <BbAlertDialogTitle>Are you absolutely sure?</BbAlertDialogTitle>
+            <BbAlertDialogDescription>
+                This action cannot be undone.
+            </BbAlertDialogDescription>
+        </BbAlertDialogHeader>
+        <BbAlertDialogFooter>
+            <BbAlertDialogCancel>Cancel</BbAlertDialogCancel>
+            <BbAlertDialogAction>Delete</BbAlertDialogAction>
+        </BbAlertDialogFooter>
+    </BbAlertDialogContent>
+</BbAlertDialog>
 ```
 
-### Badge
-Label component for displaying status, categories, metadata
+### Command palette
 
 ```razor
-<Badge>Default</Badge>
-<Badge Variant="secondary">Secondary</Badge>
-<Badge Variant="destructive">Destructive</Badge>
-<Badge Variant="outline">Outline</Badge>
+<BbCommandDialog Shortcut="Ctrl+K" @bind-Open="isOpen">
+    <BbCommandInput Placeholder="Type a command or search..." />
+    <BbCommandList>
+        <BbCommandEmpty>No results found.</BbCommandEmpty>
+        <BbCommandGroup Heading="Actions">
+            <BbCommandItem Value="new-project">New project</BbCommandItem>
+            <BbCommandItem Value="open-settings">Open settings</BbCommandItem>
+        </BbCommandGroup>
+    </BbCommandList>
+</BbCommandDialog>
 ```
 
-### Alert
-Callout component for important messages with semantic variants
+### Toast feedback
 
 ```razor
-<Alert Variant="default">
-    <AlertTitle>
-        <LucideIcon Name="info" Size="16" />
-        Info
-    </AlertTitle>
-    <AlertDescription>
-        This is an informational message.
-    </AlertDescription>
-</Alert>
+@inject ToastService ToastService
 
-<Alert Variant="success">
-    <AlertTitle>Success</AlertTitle>
-    <AlertDescription>Your changes have been saved.</AlertDescription>
-</Alert>
-
-<Alert Variant="warning">
-    <AlertTitle>Warning</AlertTitle>
-    <AlertDescription>This action cannot be undone.</AlertDescription>
-</Alert>
-
-<Alert Variant="danger">
-    <AlertTitle>Error</AlertTitle>
-    <AlertDescription>Something went wrong.</AlertDescription>
-</Alert>
-```
-
-**Variants:** `Default`, `Success`, `Info`, `Warning`, `Danger`
-
-### Skeleton
-Animated loading placeholder for content and images
-
-```razor
-<div class="space-y-2">
-    <Skeleton Class="h-4 w-[250px]" />
-    <Skeleton Class="h-4 w-[200px]" />
-    <Skeleton Class="h-32 w-full" />
-</div>
-```
-
-### Progress
-Progress bar showing completion percentage
-
-```razor
-<Progress Value="@progress" Max="100" />
+<BbButton OnClick="ShowSavedToast">
+    Save
+</BbButton>
 
 @code {
-    private int progress = 65;
+    private void ShowSavedToast()
+    {
+        ToastService.Success("Saved changes.", "Success");
+    }
 }
-```
-
-### Spinner
-Loading spinner for indeterminate operations
-
-```razor
-<Spinner Size="default" />
-<Spinner Size="small" />
-<Spinner Size="large" />
-```
-
-### Empty
-Empty state placeholder with icon, title, description, and action slots
-
-```razor
-<Empty Size="Default">
-    <EmptyIcon>
-        <LucideIcon Name="inbox" Size="48" />
-    </EmptyIcon>
-    <EmptyTitle>No items found</EmptyTitle>
-    <EmptyDescription>
-        Get started by creating your first item.
-    </EmptyDescription>
-    <EmptyAction>
-        <Button>Create Item</Button>
-    </EmptyAction>
-</Empty>
-```
-
-**Sizes:** `Small`, `Default`, `Large`
-
-### Kbd
-Keyboard shortcut display component
-
-```razor
-<p>Press <Kbd>⌘</Kbd> + <Kbd>K</Kbd> to open command palette</p>
-<p>Save with <Kbd>Ctrl</Kbd> + <Kbd>S</Kbd></p>
-```
-
-### Data Table
-Powerful table with sorting, filtering, pagination, row selection - see components-forms.md
-
----
-
-## Overlay Best Practices
-
-### AsChild Pattern
-
-Use `AsChild` with styled Button components as triggers:
-
-```razor
-<Dialog>
-    <DialogTrigger AsChild>
-        <Button Variant="destructive">Delete</Button>
-    </DialogTrigger>
-    <DialogContent>
-        <!-- Dialog content -->
-    </DialogContent>
-</Dialog>
-```
-
-### Confirmation Dialogs
-
-```razor
-<AlertDialog>
-    <AlertDialogTrigger AsChild>
-        <Button Variant="destructive">Delete Account</Button>
-    </AlertDialogTrigger>
-    <AlertDialogContent>
-        <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action cannot be undone.
-            </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction>Delete</AlertDialogAction>
-        </AlertDialogFooter>
-    </AlertDialogContent>
-</AlertDialog>
-```
-
-### Context-Aware Menus
-
-```razor
-<DropdownMenu>
-    <DropdownMenuTrigger AsChild>
-        <Button Size="icon" Variant="ghost">
-            <LucideIcon Name="more-horizontal" Size="16" />
-        </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent>
-        <DropdownMenuItem OnClick="Edit">
-            <LucideIcon Name="edit" Size="16" />
-            Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem OnClick="Duplicate">
-            <LucideIcon Name="copy" Size="16" />
-            Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem OnClick="Delete" Class="text-destructive">
-            <LucideIcon Name="trash" Size="16" />
-            Delete
-        </DropdownMenuItem>
-    </DropdownMenuContent>
-</DropdownMenu>
 ```

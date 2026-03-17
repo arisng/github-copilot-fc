@@ -1,418 +1,150 @@
 # BlazorBlueprint Setup & Installation Guide
 
-This guide covers everything you need to get BlazorBlueprint up and running in your Blazor application.
+Use this file first. It reflects the current v3 docs and official `Bb*` naming.
 
-**Source:** https://blazorblueprintui.com/llms/setup.txt
+**Sources:**
+- https://blazorblueprintui.com/llms/setup.txt
+- https://blazorblueprintui.com/llms/index.txt
+- https://blazorblueprintui.com/llms/services.txt
 
----
+## TOC
+- [Install packages](#install-packages)
+- [Register services](#register-services)
+- [Add imports and CSS](#add-imports-and-css)
+- [Configure layout providers](#configure-layout-providers)
+- [Theme and dark mode](#theme-and-dark-mode)
+- [Verify the install](#verify-the-install)
+- [Troubleshooting](#troubleshooting)
 
-## Package Installation
+## Install packages
 
-BlazorBlueprint is available via NuGet. Install the packages you need:
-
-### Styled Components (Recommended for Most Projects)
+Start with the styled component package unless you explicitly want a headless-only build:
 
 ```bash
 dotnet add package BlazorBlueprint.Components
 ```
 
-This package automatically includes:
-- `BlazorBlueprint.Primitives` - Headless primitives providing behavior and accessibility
-- Pre-built CSS - No Tailwind setup required!
+Notes:
+- `BlazorBlueprint.Components` already includes the primitives layer.
+- No Tailwind build step is required in the consuming app.
+- Use `BlazorBlueprint.Primitives` only when you want to supply all styling yourself.
 
-### Headless Primitives (For Custom Styling)
-
-```bash
-dotnet add package BlazorBlueprint.Primitives
-```
-
-Use this when you want complete control over styling and want to build your own design system.
-
-### Icons Package (Optional)
+Optional icon packages:
 
 ```bash
-dotnet add package BlazorBlueprint.Icons
+dotnet add package BlazorBlueprint.Icons.Lucide
+dotnet add package BlazorBlueprint.Icons.Heroicons
+dotnet add package BlazorBlueprint.Icons.Feather
 ```
 
-Provides access to 1,640+ Lucide icons as Blazor components.
+## Register services
 
----
+Register the library in `Program.cs`:
 
-## Quick Start Configuration
+```csharp
+builder.Services.AddBlazorBlueprintComponents();
+```
 
-### Step 1: Add Using Directives
+Use this instead only for primitive-only scenarios:
 
-Add the necessary using directives to your `_Imports.razor`:
+```csharp
+builder.Services.AddBlazorBlueprintPrimitives();
+```
+
+Important service implications:
+- `AddBlazorBlueprintComponents()` registers the primitive services plus `ToastService` and `DialogService`.
+- You do **not** call both registration methods.
+- Localization overrides can be supplied through the optional callback overload of `AddBlazorBlueprintComponents(...)`.
+
+## Add imports and CSS
+
+`_Imports.razor`:
 
 ```razor
-@* For styled components *@
 @using BlazorBlueprint.Components
-
-@* If using icons *@
-@using BlazorBlueprint.Icons
-
-@* If using primitives directly (advanced) *@
 @using BlazorBlueprint.Primitives
+@using BlazorBlueprint.Icons.Lucide.Components
 ```
 
-### Step 2: Add PortalHost to Layout
+Add the stylesheet to `App.razor` (Blazor Web App) or `_Host.cshtml` (older Blazor Server hosting):
 
-For overlay components (Dialog, Sheet, Popover, Tooltip, HoverCard, Select, Combobox) to work correctly, add `<PortalHost />` to your root layout file (e.g., `MainLayout.razor`):
+```html
+<link rel="stylesheet" href="_content/BlazorBlueprint.Components/blazorblueprint.css" />
+```
+
+If you maintain a custom theme file, load it **before** `blazorblueprint.css` so the CSS variables already exist.
+
+## Configure layout providers
+
+Minimal root layout:
 
 ```razor
 @inherits LayoutComponentBase
 
-<div class="min-h-screen bg-background">
-    <nav class="border-b">
-        <!-- Your navigation -->
-    </nav>
-    
-    <main class="container mx-auto p-4">
-        @Body
-    </main>
+<div class="min-h-screen">
+    @Body
 </div>
 
-@* IMPORTANT: Add PortalHost at the end of your layout *@
-<PortalHost />
+<BbPortalHost />
+<BbToastProvider />
+<BbDialogProvider />
 ```
 
-**Why PortalHost?** Overlay components render their content in a portal to ensure proper z-index stacking and positioning above other page elements.
+Provider rules:
+- `BbPortalHost` is required for overlay content such as `BbDialog`, `BbSheet`, `BbPopover`, `BbTooltip`, `BbDropdownMenu`, `BbHoverCard`, `BbContextMenu`, and similar floating UI.
+- `BbToastProvider` is required when using `ToastService` or toast notifications.
+- `BbDialogProvider` is required when using `DialogService` for programmatic alert / confirm / prompt dialogs.
+- Keep these near the end of the root layout so they are always present.
 
-### Step 3: Add CSS to App.razor
+## Theme and dark mode
 
-Add the BlazorBlueprint CSS to your `App.razor` (or `index.html` for WebAssembly):
+BlazorBlueprint follows the shadcn/ui-style CSS variable model.
+
+High-value variables:
+- Base UI: `--background`, `--foreground`, `--primary`, `--secondary`, `--accent`, `--muted`, `--border`, `--input`, `--ring`, `--radius`
+- Sidebar: `--sidebar-background`, `--sidebar-foreground`, `--sidebar-primary`, `--sidebar-border`, `--sidebar-ring`
+- Charts: `--chart-1` through `--chart-5`
+
+Dark mode is activated by applying `.dark` to `<html>`. The library will automatically consume the dark variables from your theme.
+
+## Verify the install
+
+A small smoke test page is usually enough:
 
 ```razor
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <base href="/" />
-    
-    @* 1. Your custom theme (defines CSS variables) - OPTIONAL *@
-    <link rel="stylesheet" href="styles/theme.css" />
-    
-    @* 2. Pre-built BlazorBlueprint styles (included in NuGet package) - REQUIRED *@
-    <link rel="stylesheet" href="_content/BlazorBlueprint.Components/blazorblueprint.css" />
-    
-    <HeadOutlet @rendermode="InteractiveServer" />
-</head>
-<body>
-    <Routes @rendermode="InteractiveServer" />
-    <script src="_framework/blazor.web.js"></script>
-</body>
-</html>
+@page "/bpui-test"
+
+<BbButton>Styled button</BbButton>
+
+<BbDialog>
+    <BbDialogTrigger AsChild>
+        <BbButton Variant="ButtonVariant.Outline">Open dialog</BbButton>
+    </BbDialogTrigger>
+    <BbDialogContent>
+        <BbDialogHeader>
+            <BbDialogTitle>BlazorBlueprint is wired up</BbDialogTitle>
+            <BbDialogDescription>
+                If this dialog opens and is styled correctly, setup is working.
+            </BbDialogDescription>
+        </BbDialogHeader>
+    </BbDialogContent>
+</BbDialog>
 ```
-
-**Important Order:** Load your custom theme CSS **before** `blazorblueprint.css` to ensure CSS variables are defined when BlazorBlueprint references them.
-
----
-
-## Theming & Customization
-
-BlazorBlueprint is **100% compatible with shadcn/ui themes**. You can use any theme from [shadcn/ui](https://ui.shadcn.com/themes) or [tweakcn.com](https://tweakcn.com).
-
-### Creating a Custom Theme
-
-1. **Create `wwwroot/styles/theme.css`** in your Blazor project
-
-2. **Add your theme variables** inside `:root` (light mode) and `.dark` (dark mode) selectors:
-
-```css
-@layer base {
-  :root {
-    /* Light mode colors */
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.1450 0 0);
-    
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.1450 0 0);
-    
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.1450 0 0);
-    
-    --primary: oklch(0.2050 0 0);
-    --primary-foreground: oklch(0.9850 0 0);
-    
-    --secondary: oklch(0.9650 0 0);
-    --secondary-foreground: oklch(0.2050 0 0);
-    
-    --muted: oklch(0.9650 0 0);
-    --muted-foreground: oklch(0.4550 0 0);
-    
-    --accent: oklch(0.9650 0 0);
-    --accent-foreground: oklch(0.2050 0 0);
-    
-    --destructive: oklch(0.5768 0.2007 27.3242);
-    --destructive-foreground: oklch(0.9850 0 0);
-    
-    --border: oklch(0.9218 0 0);
-    --input: oklch(0.9218 0 0);
-    --ring: oklch(0.2050 0 0);
-    
-    --radius: 0.5rem;
-  }
-  
-  .dark {
-    /* Dark mode colors */
-    --background: oklch(0.1450 0 0);
-    --foreground: oklch(0.9850 0 0);
-    
-    --card: oklch(0.1450 0 0);
-    --card-foreground: oklch(0.9850 0 0);
-    
-    --popover: oklch(0.1450 0 0);
-    --popover-foreground: oklch(0.9850 0 0);
-    
-    --primary: oklch(0.9220 0 0);
-    --primary-foreground: oklch(0.2050 0 0);
-    
-    --secondary: oklch(0.2422 0 0);
-    --secondary-foreground: oklch(0.9850 0 0);
-    
-    --muted: oklch(0.2422 0 0);
-    --muted-foreground: oklch(0.6595 0 0);
-    
-    --accent: oklch(0.2422 0 0);
-    --accent-foreground: oklch(0.9850 0 0);
-    
-    --destructive: oklch(0.5527 0.2318 27.9964);
-    --destructive-foreground: oklch(0.9850 0 0);
-    
-    --border: oklch(0.2422 0 0);
-    --input: oklch(0.2422 0 0);
-    --ring: oklch(0.8475 0 0);
-  }
-}
-```
-
-3. **Reference it in App.razor** (as shown in Step 3 above)
-
-### Using Themes from shadcn/ui or tweakcn
-
-1. Visit [shadcn/ui themes](https://ui.shadcn.com/themes) or [tweakcn.com](https://tweakcn.com)
-2. Customize your theme using the visual editor
-3. Copy the generated CSS variables
-4. Paste them into `wwwroot/styles/theme.css`
-5. Done! BlazorBlueprint will automatically use your theme
-
-### Available Theme Variables
-
-**Colors:**
-- `--background`, `--foreground` - Base background and text colors
-- `--card`, `--card-foreground` - Card component colors
-- `--popover`, `--popover-foreground` - Popover/dropdown colors
-- `--primary`, `--primary-foreground` - Primary action colors
-- `--secondary`, `--secondary-foreground` - Secondary action colors
-- `--muted`, `--muted-foreground` - Muted/subtle colors
-- `--accent`, `--accent-foreground` - Accent colors
-- `--destructive`, `--destructive-foreground` - Destructive action colors
-- `--border` - Border colors
-- `--input` - Input border colors
-- `--ring` - Focus ring colors
-
-**Layout:**
-- `--radius` - Border radius for components (e.g., 0.5rem, 0.75rem)
-
-**Sidebar (if using Sidebar component):**
-- `--sidebar-background`, `--sidebar-foreground`
-- `--sidebar-primary`, `--sidebar-primary-foreground`
-- `--sidebar-accent`, `--sidebar-accent-foreground`
-- `--sidebar-border`, `--sidebar-ring`
-
-**Charts (if using chart components):**
-- `--chart-1` through `--chart-5` - Chart color palette
-
-**Typography (optional, for font customization):**
-- `--font-sans` - Sans-serif font family
-- `--font-serif` - Serif font family
-- `--font-mono` - Monospace font family
-- `--tracking-normal` - Base letter-spacing (other tracking values are calculated relative to this)
-
----
-
-## Dark Mode Setup
-
-BlazorBlueprint automatically supports dark mode by applying the `.dark` class to the `<html>` element.
-
-### Option 1: Manual Toggle
-
-```razor
-@code {
-    private bool isDarkMode = false;
-    
-    protected override void OnInitialized()
-    {
-        // Check user preference from localStorage or cookie
-        isDarkMode = GetUserPreference();
-    }
-    
-    private void ToggleDarkMode()
-    {
-        isDarkMode = !isDarkMode;
-        
-        // Apply .dark class to <html> element
-        if (isDarkMode)
-        {
-            JSRuntime.InvokeVoidAsync("document.documentElement.classList.add", "dark");
-        }
-        else
-        {
-            JSRuntime.InvokeVoidAsync("document.documentElement.classList.remove", "dark");
-        }
-        
-        // Save preference
-        SaveUserPreference(isDarkMode);
-    }
-}
-
-<Button OnClick="ToggleDarkMode">
-    @(isDarkMode ? "Light Mode" : "Dark Mode")
-</Button>
-```
-
-### Option 2: System Preference Detection
-
-```javascript
-// Add to your App.razor or index.html
-<script>
-    // Detect system preference on initial load
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-    }
-    
-    // Listen for system preference changes
-    window.matchMedia('(prefers-color-scheme: dark)')
-        .addEventListener('change', (e) => {
-            if (e.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        });
-</script>
-```
-
----
-
-## Hosting Model Differences
-
-### Blazor Server (.NET 8+)
-
-Use `@rendermode="InteractiveServer"` for components that need interactivity:
-
-```razor
-@page "/example"
-@rendermode InteractiveServer
-
-<Button OnClick="HandleClick">Click me</Button>
-
-@code {
-    private void HandleClick()
-    {
-        // Handle click
-    }
-}
-```
-
-### Blazor WebAssembly
-
-Use `@rendermode="InteractiveWebAssembly"`:
-
-```razor
-@page "/example"
-@rendermode InteractiveWebAssembly
-
-<Button OnClick="HandleClick">Click me</Button>
-```
-
-### Static SSR (Server-Side Rendering)
-
-For static pages without interactivity, no render mode is needed:
-
-```razor
-@page "/about"
-
-<Card>
-    <CardHeader>
-        <CardTitle>About Us</CardTitle>
-    </CardHeader>
-    <CardContent>
-        Static content renders without JavaScript
-    </CardContent>
-</Card>
-```
-
----
-
-## Verification
-
-After setup, verify everything works by creating a test page:
-
-```razor
-@page "/test"
-@using BlazorBlueprint.Components
-
-<div class="p-8 space-y-4">
-    <h1 class="text-2xl font-bold">BlazorBlueprint Test Page</h1>
-    
-    <Button Variant="default">Default Button</Button>
-    <Button Variant="destructive">Destructive Button</Button>
-    <Button Variant="outline">Outline Button</Button>
-    
-    <Dialog>
-        <DialogTrigger>Open Dialog</DialogTrigger>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Test Dialog</DialogTitle>
-                <DialogDescription>
-                    If you can see this, BlazorBlueprint is working correctly!
-                </DialogDescription>
-            </DialogHeader>
-        </DialogContent>
-    </Dialog>
-</div>
-```
-
-If buttons render with proper styling and the dialog opens when clicked, your setup is complete!
-
----
 
 ## Troubleshooting
 
-### Components have no styling
+### Components render with no styling
+- Confirm the CSS link points to `_content/BlazorBlueprint.Components/blazorblueprint.css`.
+- Confirm your theme file loads before the library stylesheet.
 
-**Problem:** Components render but have no visual styling
+### Dialogs, popovers, or tooltips never appear
+- Confirm `<BbPortalHost />` exists in the root layout.
+- Confirm the page is interactive when the component requires JS interop.
 
-**Solution:**
-1. Verify `blazorblueprint.css` is loaded in App.razor
-2. Check browser DevTools → Network tab to ensure CSS file loads successfully
-3. Ensure the CSS link is correct: `_content/BlazorBlueprint.Components/blazorblueprint.css`
+### Toasts or programmatic dialogs do nothing
+- Confirm `AddBlazorBlueprintComponents()` is registered.
+- Confirm `<BbToastProvider />` and/or `<BbDialogProvider />` are present in the layout.
 
-### Dialog/Popover/Tooltip doesn't appear
-
-**Problem:** Overlay components don't render or appear
-
-**Solution:**
-1. Ensure `<PortalHost />` is added to your layout
-2. Check that PortalHost is outside any conditional rendering blocks
-3. Verify the component has an interactive render mode (not static SSR)
-
-### Dark mode doesn't work
-
-**Problem:** Components don't switch to dark theme
-
-**Solution:**
-1. Verify `.dark` class is applied to `<html>` element (check with browser DevTools)
-2. Ensure your theme.css includes `.dark` selector with dark mode variables
-3. Check that theme.css is loaded before blazorblueprint.css
-
-### Icons don't display
-
-**Problem:** LucideIcon components don't render
-
-**Solution:**
-1. Verify BlazorBlueprint.Icons package is installed
-2. Add `@using BlazorBlueprint.Icons` to _Imports.razor
-3. Check icon name is correct (use kebab-case, e.g., "chevron-down" not "ChevronDown")
+### Dark mode does not apply
+- Confirm the `.dark` class is toggled on `<html>`.
+- Confirm your dark theme variables exist in the custom theme CSS.
