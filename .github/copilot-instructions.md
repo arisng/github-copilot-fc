@@ -50,6 +50,13 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Plugin publishing builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, embeds instructions via marker resolution, validates 30K body limit, then publishes by runtime: CLI bundles are installed from the resulting local bundle with `copilot plugin install <local_plugin_path>` (treat `_direct/...` only as an observed cache location), while VS Code bundles are registered in `chat.plugins.paths`.
 - Hooks are authored in `hooks/` and published to `.github/hooks/` via `scripts/publish/publish-hooks.ps1`.
 
+### Wiki lookup
+- Start at `.docs/index.md` before reading individual wiki pages.
+- Choose the Diátaxis category by intent: `tutorials` to learn, `how-to` to accomplish, `reference` to look up, `explanation` to understand.
+- Narrow into a domain folder when present (`copilot`, `ralph`, `openspec`, `blazor-agui`, `codex`).
+- Prefer targeted reads of likely files over broad directory scans.
+- Treat `.archived/` as non-authoritative unless explicitly asked to inspect deprecated material.
+
 ### Other workflows
 - Treat scripts as primary workflow entry points; VS Code tasks are optional wrappers over the same scripts.
 - Workspace command dispatcher is `scripts/workspace/run-command.ps1`, with built-in command mapping (no external manifest required). Key commands: `agents:publish`, `skills:publish`, `hooks:publish`, `instructions:publish`, `prompts:publish`, `toolsets:publish`, `issues:reindex`.
