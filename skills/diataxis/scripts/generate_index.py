@@ -3,7 +3,7 @@
 Script to generate index.md for Diátaxis-organized documentation.
 
 Scans the specified docs root (default .docs) for subfolders: tutorials, how-to, reference, explanation.
-Supports nested sub-category folders (e.g., reference/ralph/, how-to/copilot/).
+Recursively renders nested sub-category folders (e.g., reference/ralph/, how-to/copilot/cli/).
 Extracts titles from .md files and generates an index.md file with links organized by category
 and sub-category.
 """
@@ -27,6 +27,54 @@ def get_title(filepath):
         return os.path.basename(filepath).replace('.md', '').replace('-', ' ').title()
 
 
+def has_visible_content(directory):
+    """Return True when the directory contains visible files or subdirectories."""
+    for entry in directory.iterdir():
+        if entry.name == '.gitkeep':
+            return True
+        if not entry.name.startswith('.'):
+            return True
+    return False
+
+
+def render_directory(directory, docs_root, heading_level):
+    """Render a directory and any nested subdirectories recursively."""
+    direct_files = sorted(
+        f for f in directory.iterdir()
+        if f.is_file() and f.suffix == '.md'
+    )
+    child_dirs = sorted(
+        d for d in directory.iterdir()
+        if d.is_dir() and not d.name.startswith('.')
+    )
+    visible_children = [d for d in child_dirs if has_visible_content(d)]
+    has_keep_marker = any(entry.name == '.gitkeep' for entry in directory.iterdir())
+
+    if not direct_files and not visible_children and not has_keep_marker:
+        return ""
+
+    heading = directory.name.replace('-', ' ').title()
+    content = f"{'#' * heading_level} {heading}\n\n"
+
+    for file in direct_files:
+        title = get_title(str(file))
+        link = f"{directory.relative_to(docs_root).as_posix()}/{file.name}"
+        content += f"- [{title}]({link})\n"
+
+    if direct_files and visible_children:
+        content += "\n"
+
+    if not direct_files and not visible_children:
+        content += "- _No documents yet._\n\n"
+
+    for child_dir in visible_children:
+        child_content = render_directory(child_dir, docs_root, heading_level + 1)
+        if child_content:
+            content += child_content
+
+    return content
+
+
 def main(docs_root='.docs'):
     """Generate the index.md file."""
     categories = {
@@ -42,57 +90,46 @@ This index links Diátaxis-organized documentation for the workspace.
 
 """
 
+    docs_root_path = Path(docs_root)
+
     for folder, section in categories.items():
-        cat_path = Path(docs_root) / folder
+        cat_path = docs_root_path / folder
         if not cat_path.is_dir():
             continue
 
-        # Collect root-level files (not in sub-categories)
-        root_files = sorted(f.name for f in cat_path.iterdir()
-                            if f.is_file() and f.suffix == '.md')
+        root_files = sorted(
+            f for f in cat_path.iterdir()
+            if f.is_file() and f.suffix == '.md'
+        )
+        subdirs = sorted(
+            d for d in cat_path.iterdir()
+            if d.is_dir() and not d.name.startswith('.')
+        )
+        visible_subdirs = [d for d in subdirs if has_visible_content(d)]
 
-        # Collect sub-category folders
-        subcats = sorted(d.name for d in cat_path.iterdir()
-                         if d.is_dir() and not d.name.startswith('.'))
-
-        if not root_files and not subcats:
+        if not root_files and not visible_subdirs:
             continue
 
         index_content += f"## {section}\n\n"
 
-        # Root-level files first
         for file in root_files:
-            filepath = cat_path / file
-            title = get_title(str(filepath))
-            link = f"{folder}/{file}"
+            title = get_title(str(file))
+            link = f"{folder}/{file.name}"
             index_content += f"- [{title}]({link})\n"
 
-        if root_files and subcats:
+        if root_files and visible_subdirs:
             index_content += "\n"
 
-        # Sub-category sections
-        for subcat in subcats:
-            subcat_path = cat_path / subcat
-            subcat_files = sorted(f.name for f in subcat_path.iterdir()
-                                  if f.is_file() and f.suffix == '.md')
-            if not subcat_files:
-                continue
+        for subdir in visible_subdirs:
+            index_content += render_directory(subdir, docs_root_path, 3)
+            if not index_content.endswith("\n\n"):
+                index_content += "\n"
 
-            subcat_title = subcat.replace('-', ' ').title()
-            index_content += f"### {subcat_title}\n\n"
-
-            for file in subcat_files:
-                filepath = subcat_path / file
-                title = get_title(str(filepath))
-                link = f"{folder}/{subcat}/{file}"
-                index_content += f"- [{title}]({link})\n"
-
-            index_content += "\n"
-
-        if not subcats:
+        if not root_files:
             index_content += "\n"
 
     index_path = os.path.join(docs_root, 'index.md')
+    index_content = index_content.rstrip() + "\n"
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_content)
     print(f"Generated {index_path}")

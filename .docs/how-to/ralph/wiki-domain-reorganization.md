@@ -34,7 +34,7 @@ Apply the domain categorizer heuristic to all files in the wiki:
 
 ```json
 [
-  {"source": "reference/copilot-cli-help.md", "target": "reference/copilot/copilot-cli-help.md", "reason": "domain: copilot"},
+  {"source": "reference/copilot-cli-help.md", "target": "reference/copilot/cli/copilot-cli-help.md", "reason": "runtime: cli"},
   {"source": "reference/self-critique-checklist.md", "target": "reference/ralph/self-critique-checklist.md", "reason": "domain: ralph"}
 ]
 ```
@@ -79,7 +79,7 @@ If the wiki uses an automated index generator:
 ## Reference
 
 ### Copilot
-- [Copilot CLI Help](reference/copilot/copilot-cli-help.md)
+- [Copilot CLI Help](reference/copilot/cli/copilot-cli-help.md)
 
 ### Ralph
 - [Self-Critique Checklist](reference/ralph/self-critique-checklist.md)

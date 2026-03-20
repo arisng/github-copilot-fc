@@ -45,5 +45,5 @@ Hook manifest `command` values use workspace-relative paths (for example, `hooks
 
 ## Related references
 
-- [Copilot Hook Discovery and Publishing Model](../copilot/copilot-hook-discovery-and-publishing-model.md)
+- [Copilot Hook Discovery and Publishing Model](../copilot/shared/copilot-hook-discovery-and-publishing-model.md)
 - [How to Publish Hooks](../../how-to/ralph/how-to-publish-hooks.md)

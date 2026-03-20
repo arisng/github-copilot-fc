@@ -4,7 +4,31 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ## Tutorials
 
-- [Getting started with Copilot FC](tutorials/getting-started-with-copilot-fc.md)
+### Copilot
+
+#### Cli
+
+- _No documents yet._
+
+#### Github Mobile
+
+- _No documents yet._
+
+#### Github Web
+
+- _No documents yet._
+
+#### Sdk
+
+- _No documents yet._
+
+#### Shared
+
+- [Getting started with Copilot FC](tutorials/copilot/shared/getting-started-with-copilot-fc.md)
+#### Vscode
+
+- _No documents yet._
+
 
 ## How-to Guides
 
@@ -16,16 +40,35 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Copilot
 
-- [Create Trimmed Cli Embed Instruction Variant](how-to/copilot/create-trimmed-cli-embed-instruction-variant.md)
-- [How To Add Multi Runtime Support To Publish Scripts](how-to/copilot/how-to-add-multi-runtime-support-to-publish-scripts.md)
-- [How to Configure VS Code to Auto-Approve Terminal Commands with Dynamic Arguments](how-to/copilot/how-to-configure-vscode-terminal-autoapprove.md)
-- [How To Create Cli Agent Variants](how-to/copilot/how-to-create-cli-agent-variants.md)
-- [How to Create a CLI Plugin](how-to/copilot/how-to-create-cli-plugin.md)
-- [How To Create Markdown Issues](how-to/copilot/how-to-create-markdown-issues.md)
-- [How To Extract Shared Instructions From Agents](how-to/copilot/how-to-extract-shared-instructions-from-agents.md)
-- [How to Publish Copilot Customizations for Copilot CLI](how-to/copilot/how-to-publish-customizations-for-copilot-cli.md)
-- [How to use Copilot FC commands](how-to/copilot/how-to-use-copilot-fc-commands.md)
-- [Smoke Test Publish Scripts](how-to/copilot/smoke-test-publish-scripts.md)
+#### Cli
+
+- [Create Trimmed Cli Embed Instruction Variant](how-to/copilot/cli/create-trimmed-cli-embed-instruction-variant.md)
+- [How To Create Cli Agent Variants](how-to/copilot/cli/how-to-create-cli-agent-variants.md)
+- [How to Create a CLI Plugin](how-to/copilot/cli/how-to-create-cli-plugin.md)
+- [How to implement custom slash commands in Copilot CLI](how-to/copilot/cli/how-to-implement-custom-slash-commands-in-copilot-cli.md)
+- [How to Publish Copilot Customizations for Copilot CLI](how-to/copilot/cli/how-to-publish-customizations-for-copilot-cli.md)
+#### Github Mobile
+
+- _No documents yet._
+
+#### Github Web
+
+- _No documents yet._
+
+#### Sdk
+
+- _No documents yet._
+
+#### Shared
+
+- [How To Add Multi Runtime Support To Publish Scripts](how-to/copilot/shared/how-to-add-multi-runtime-support-to-publish-scripts.md)
+- [How To Create Markdown Issues](how-to/copilot/shared/how-to-create-markdown-issues.md)
+- [How To Extract Shared Instructions From Agents](how-to/copilot/shared/how-to-extract-shared-instructions-from-agents.md)
+- [How to use Copilot FC commands](how-to/copilot/shared/how-to-use-copilot-fc-commands.md)
+- [Smoke Test Publish Scripts](how-to/copilot/shared/smoke-test-publish-scripts.md)
+#### Vscode
+
+- [How to Configure VS Code to Auto-Approve Terminal Commands with Dynamic Arguments](how-to/copilot/vscode/how-to-configure-vscode-terminal-autoapprove.md)
 
 ### Openspec
 
@@ -52,30 +95,48 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Copilot
 
-- [Agent Variant Directory Convention](reference/copilot/agent-variant-directory-convention.md)
-- [Agent Variant Directory Structure Proposal](reference/copilot/agent-variant-proposal.md)
-- [Cli Agent 30K Character Limit](reference/copilot/cli-agent-30k-character-limit.md)
-- [Cli Agent Directory Path Convention](reference/copilot/cli-agent-directory-path-convention.md)
-- [Cli Agent Infer Retirement](reference/copilot/cli-agent-infer-retirement.md)
-- [Cli Agent Valid Tool Aliases](reference/copilot/cli-agent-valid-tool-aliases.md)
-- [CLI Plugin Reference](reference/copilot/cli-plugin-reference.md)
-- [Copilot Cli Agent Frontmatter Schema](reference/copilot/copilot-cli-agent-frontmatter-schema.md)
-- [Copilot-CLI Customization Support Matrix](reference/copilot/copilot-cli-customization-matrix.md)
-- [GitHub Copilot CLI - An AI-powered coding assistant](reference/copilot/copilot-cli-help.md)
-- [Glossary of GitHub Copilot Products](reference/copilot/copilot-ecosystem.md)
-- [Copilot FC Workspace Command Reference](reference/copilot/copilot-fc-reference.md)
-- [Copilot Hook Discovery And Publishing Model](reference/copilot/copilot-hook-discovery-and-publishing-model.md)
-- [Custom Toolsets Reference for GitHub Copilot VS Code](reference/copilot/copilot-vscode-custom-toolset.md)
-- [GitHub Copilot VS Code Prompt Files (.prompt.md) Reference](reference/copilot/copilot-vscode-prompt-files.md)
-- [Embed Marker Specification](reference/copilot/embed-marker-specification.md)
-- [Fleet and Task Subagent Dispatch](reference/copilot/fleet-and-task-subagent-dispatch.md)
-- [Fleet VS Code Generic Orchestrator Reference](reference/copilot/fleet-vscode-generic-orchestrator.md)
-- [Publish Script Parameter Naming](reference/copilot/publish-script-parameter-naming.md)
-- [Regex Replace Script Block Pattern](reference/copilot/regex-replace-script-block-pattern.md)
-- [Runtime Aware Publish Agents Design](reference/copilot/runtime-aware-publish-agents-design.md)
-- [Runtime Support Framework](reference/copilot/runtime-support-framework.md)
-- [Three Layer Skill Artifact Architecture](reference/copilot/three-layer-skill-artifact-architecture.md)
-- [Wsl Helpers Api Reference](reference/copilot/wsl-helpers-api-reference.md)
+#### Cli
+
+- [Cli Agent 30K Character Limit](reference/copilot/cli/cli-agent-30k-character-limit.md)
+- [Cli Agent Directory Path Convention](reference/copilot/cli/cli-agent-directory-path-convention.md)
+- [Cli Agent Infer Retirement](reference/copilot/cli/cli-agent-infer-retirement.md)
+- [Cli Agent Valid Tool Aliases](reference/copilot/cli/cli-agent-valid-tool-aliases.md)
+- [CLI Plugin Reference](reference/copilot/cli/cli-plugin-reference.md)
+- [Copilot Cli Agent Frontmatter Schema](reference/copilot/cli/copilot-cli-agent-frontmatter-schema.md)
+- [Copilot-CLI Customization Support Matrix](reference/copilot/cli/copilot-cli-customization-matrix.md)
+- [GitHub Copilot CLI - An AI-powered coding assistant](reference/copilot/cli/copilot-cli-help.md)
+- [Fleet and Task Subagent Dispatch Reference in Copilot CLI](reference/copilot/cli/fleet-and-task-subagent-dispatch.md)
+#### Github Mobile
+
+- _No documents yet._
+
+#### Github Web
+
+- _No documents yet._
+
+#### Sdk
+
+- _No documents yet._
+
+#### Shared
+
+- [Agent Variant Directory Convention](reference/copilot/shared/agent-variant-directory-convention.md)
+- [Agent Variant Directory Structure Proposal](reference/copilot/shared/agent-variant-proposal.md)
+- [Glossary of GitHub Copilot Products](reference/copilot/shared/copilot-ecosystem.md)
+- [Copilot FC Workspace Command Reference](reference/copilot/shared/copilot-fc-reference.md)
+- [Copilot Hook Discovery And Publishing Model](reference/copilot/shared/copilot-hook-discovery-and-publishing-model.md)
+- [Embed Marker Specification](reference/copilot/shared/embed-marker-specification.md)
+- [Publish Script Parameter Naming](reference/copilot/shared/publish-script-parameter-naming.md)
+- [Regex Replace Script Block Pattern](reference/copilot/shared/regex-replace-script-block-pattern.md)
+- [Runtime Aware Publish Agents Design](reference/copilot/shared/runtime-aware-publish-agents-design.md)
+- [Runtime Support Framework](reference/copilot/shared/runtime-support-framework.md)
+- [Three Layer Skill Artifact Architecture](reference/copilot/shared/three-layer-skill-artifact-architecture.md)
+- [Wsl Helpers Api Reference](reference/copilot/shared/wsl-helpers-api-reference.md)
+#### Vscode
+
+- [Custom Toolsets Reference for GitHub Copilot VS Code](reference/copilot/vscode/copilot-vscode-custom-toolset.md)
+- [GitHub Copilot VS Code Prompt Files (.prompt.md) Reference](reference/copilot/vscode/copilot-vscode-prompt-files.md)
+- [Fleet In VS Code As A Generic Orchestrator Reference](reference/copilot/vscode/fleet-vscode-generic-orchestrator.md)
 
 ### Openspec
 
@@ -133,26 +194,42 @@ This index links Diátaxis-organized documentation for the workspace.
 
 ### Copilot
 
-- [About Beta Plugin Identity For Parallel Installs](explanation/copilot/about-beta-plugin-identity-for-parallel-installs.md)
-- [About CLI Plugins](explanation/copilot/about-cli-plugins.md)
-- [About Copilot FC workspace commands](explanation/copilot/about-copilot-fc.md)
-- [About Module Boundary Loading For Powershell Publish Helpers](explanation/copilot/about-module-boundary-loading-for-powershell-publish-helpers.md)
-- [Build Time Instruction Embedding Architecture](explanation/copilot/build-time-instruction-embedding-architecture.md)
-- [Research: Claude Code Hooks - Comprehensive Analysis](explanation/copilot/claude-code-hooks-analysis.md)
-- [Claude Code Skills Activation Research: Hierarchical Agent Activation for GitHub Copilot](explanation/copilot/claude-skills-activation-research.md)
-- [Ralph-v2 Tool Compatibility Analysis for Copilot CLI](explanation/copilot/copilot-cli-ralph-v2-tool-compatibility.md)
-- [Copilot CLI vs VS Code: Customization Model Differences](explanation/copilot/copilot-cli-vs-vscode-customization.md)
-- [Mental Model: GitHub Copilot SDK Communication with CLI in ACP Server Mode](explanation/copilot/copilot-sdk-acp-mental-model.md)
-- [Copilot VS Code Hook-like Capabilities: Solutions Analysis](explanation/copilot/copilot-vscode-hooks-solutions.md)
-- [Understanding Copilot VS Code Custom Instructions Injection](explanation/copilot/copilot-vscode-instructions-injection.md)
-- [Fleet Mode as Prompt Injection](explanation/copilot/fleet-mode-as-prompt-injection.md)
-- [Fleet Orchestration: CLI vs VS Code Comparative Analysis](explanation/copilot/fleet-cli-vs-vscode-comparison.md)
-- [Framework First Multi Runtime Planning](explanation/copilot/framework-first-multi-runtime-planning.md)
-- [Infer Key Retirement And Migration](explanation/copilot/infer-key-retirement-and-migration.md)
-- [Orchestrator Core Appendix Split Rationale](explanation/copilot/orchestrator-core-appendix-split-rationale.md)
-- [Portable Vs Workspace Enforcement Layering](explanation/copilot/portable-vs-workspace-enforcement-layering.md)
-- [Shared Instruction Pattern Trade Offs](explanation/copilot/shared-instruction-pattern-trade-offs.md)
-- [Wsl Publish Shell Bootstrap Lessons](explanation/copilot/wsl-publish-shell-bootstrap-lessons.md)
+#### Cli
+
+- [About Beta Plugin Identity For Parallel Installs](explanation/copilot/cli/about-beta-plugin-identity-for-parallel-installs.md)
+- [About CLI Plugins](explanation/copilot/cli/about-cli-plugins.md)
+- [Ralph-v2 Tool Compatibility Analysis for Copilot CLI](explanation/copilot/cli/copilot-cli-ralph-v2-tool-compatibility.md)
+- [Fleet Mode as Prompt Injection in Copilot CLI](explanation/copilot/cli/fleet-mode-as-prompt-injection.md)
+#### Github Mobile
+
+- _No documents yet._
+
+#### Github Web
+
+- _No documents yet._
+
+#### Sdk
+
+- [Mental Model: GitHub Copilot SDK Communication with CLI in ACP Server Mode](explanation/copilot/sdk/copilot-sdk-acp-mental-model.md)
+#### Shared
+
+- [About Copilot FC workspace commands](explanation/copilot/shared/about-copilot-fc.md)
+- [About Module Boundary Loading For Powershell Publish Helpers](explanation/copilot/shared/about-module-boundary-loading-for-powershell-publish-helpers.md)
+- [Build Time Instruction Embedding Architecture](explanation/copilot/shared/build-time-instruction-embedding-architecture.md)
+- [Copilot CLI vs VS Code: Customization Model Differences](explanation/copilot/shared/copilot-cli-vs-vscode-customization.md)
+- [Fleet Orchestration: CLI `/fleet` vs VS Code `fleet.prompt.md`](explanation/copilot/shared/fleet-cli-vs-vscode-comparison.md)
+- [Framework First Multi Runtime Planning](explanation/copilot/shared/framework-first-multi-runtime-planning.md)
+- [Infer Key Retirement And Migration](explanation/copilot/shared/infer-key-retirement-and-migration.md)
+- [Portable Vs Workspace Enforcement Layering](explanation/copilot/shared/portable-vs-workspace-enforcement-layering.md)
+- [Shared Instruction Pattern Trade Offs](explanation/copilot/shared/shared-instruction-pattern-trade-offs.md)
+- [Wsl Publish Shell Bootstrap Lessons](explanation/copilot/shared/wsl-publish-shell-bootstrap-lessons.md)
+#### Vscode
+
+- [Research: Claude Code Hooks - Comprehensive Analysis](explanation/copilot/vscode/claude-code-hooks-analysis.md)
+- [Claude Code Skills Activation Research: Hierarchical Agent Activation for GitHub Copilot](explanation/copilot/vscode/claude-skills-activation-research.md)
+- [Copilot VS Code Hook-like Capabilities: Solutions Analysis](explanation/copilot/vscode/copilot-vscode-hooks-solutions.md)
+- [Understanding Copilot VS Code Custom Instructions Injection](explanation/copilot/vscode/copilot-vscode-instructions-injection.md)
+- [Orchestrator Core Appendix Split Rationale](explanation/copilot/vscode/orchestrator-core-appendix-split-rationale.md)
 
 ### Openspec
 
@@ -166,4 +243,3 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph V1 State Machine](explanation/ralph/ralph-v1-state-machine.md)
 - [Self Critique Extension Rationale](explanation/ralph/self-critique-extension-rationale.md)
 - [V2.10.0 Knowledge Pipeline Refactor](explanation/ralph/v2.10.0-knowledge-pipeline-refactor.md)
-
