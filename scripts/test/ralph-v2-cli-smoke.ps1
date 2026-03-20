@@ -496,6 +496,114 @@ function Get-OrchestratorAgentNameFromBundle {
     return (Get-BundledAgentNameMap -BuildDir $BuildDir -PluginName $PluginName).orchestrator
 }
 
+function Test-SubagentNameResolution {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$BuildDir,
+        [Parameter(Mandatory)][string]$PluginName
+    )
+
+    $agentDir = Join-Path $BuildDir 'agents'
+    if (-not (Test-Path $agentDir -PathType Container)) {
+        return [PSCustomObject]@{
+            passed         = $false
+            plugin_name    = $PluginName
+            agents         = @()
+            message        = "Built bundle agents directory not found: $agentDir"
+        }
+    }
+
+    $agentFiles = @(Get-ChildItem -Path $agentDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    $results = New-Object System.Collections.Generic.List[object]
+    $allPassed = $true
+
+    foreach ($agentFile in $agentFiles) {
+        $content = Get-Content -Path $agentFile.FullName -Raw -ErrorAction SilentlyContinue
+        $frontmatter = $null
+        if ($content -match '(?s)^---\r?\n(.+?)\r?\n---') {
+            $frontmatter = $Matches[1]
+        }
+
+        $isOrchestrator = $agentFile.Name -match 'orchestrator'
+
+        # Extract name: field
+        $nameValue = $null
+        if ($frontmatter -and ($frontmatter -match '(?m)^name:\s*(.+?)[\r\n]')) {
+            $nameValue = $Matches[1].Trim()
+        }
+
+        # Extract disable-model-invocation: field
+        $disableModelInvocation = $false
+        if ($frontmatter -and ($frontmatter -match '(?im)^disable-model-invocation:\s*(true|false)')) {
+            $disableModelInvocation = $Matches[1].Trim().ToLowerInvariant() -eq 'true'
+        }
+
+        # Extract model: field (informational; absence is a warning, not a failure)
+        $modelValue = $null
+        if ($frontmatter -and ($frontmatter -match '(?m)^model:\s*(.+?)[\r\n]')) {
+            $modelValue = $Matches[1].Trim()
+        }
+
+        # name: must be present and match the bundled file stem
+        $expectedNameStem = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileNameWithoutExtension($agentFile.Name))
+        $nameMatchesFileStem = (-not [string]::IsNullOrWhiteSpace($nameValue)) -and ($nameValue -eq $expectedNameStem)
+
+        # orchestrator must have disable-model-invocation: true; subagents must NOT
+        $disableModelInvocationOk = if ($isOrchestrator) { $disableModelInvocation } else { -not $disableModelInvocation }
+
+        $agentPassed = $nameMatchesFileStem -and $disableModelInvocationOk
+        if (-not $agentPassed) { $allPassed = $false }
+
+        $role = if ($isOrchestrator) { 'orchestrator' } else { 'subagent' }
+        $icon = if ($agentPassed) { 'PASS' } else { 'FAIL' }
+        $modelNote = if (-not [string]::IsNullOrWhiteSpace($modelValue)) { "'$modelValue'" } else { 'absent (warn)' }
+
+        Write-Host "  [$icon][$role] $($agentFile.Name): name='$nameValue' disable-model-invocation=$disableModelInvocation model=$modelNote"
+        if (-not $nameMatchesFileStem) {
+            Write-Host "    Expected name: '$expectedNameStem'"
+        }
+        if (-not $disableModelInvocationOk) {
+            $expected = if ($isOrchestrator) { 'true' } else { 'false/absent' }
+            Write-Host "    Expected disable-model-invocation: $expected"
+        }
+        if ([string]::IsNullOrWhiteSpace($modelValue) -and -not $isOrchestrator) {
+            Write-Host "    WARN: No model: frontmatter in subagent '$($agentFile.Name)' — will fall back to session model."
+        }
+
+        $results.Add([PSCustomObject]@{
+            file                         = $agentFile.Name
+            is_orchestrator              = [bool]$isOrchestrator
+            name                         = $nameValue
+            name_matches_file_stem       = [bool]$nameMatchesFileStem
+            disable_model_invocation     = [bool]$disableModelInvocation
+            disable_model_invocation_ok  = [bool]$disableModelInvocationOk
+            model                        = $modelValue
+            model_present                = (-not [string]::IsNullOrWhiteSpace($modelValue))
+            passed                       = [bool]$agentPassed
+        })
+    }
+
+    $agentCount = @($agentFiles).Count
+    $passCount = @($results | Where-Object { $_.passed }).Count
+    $failCount = @($results | Where-Object { -not $_.passed }).Count
+    $modelMissingCount = @($results | Where-Object { -not $_.is_orchestrator -and -not $_.model_present }).Count
+    $summary = "Checked $agentCount bundled agent(s): $passCount passed, $failCount failed."
+    if ($modelMissingCount -gt 0) {
+        $summary += " $modelMissingCount subagent(s) missing model: frontmatter (will use session model)."
+    }
+
+    return [PSCustomObject]@{
+        passed              = [bool]$allPassed
+        plugin_name         = $PluginName
+        agents              = @($results.ToArray())
+        agent_count         = $agentCount
+        pass_count          = $passCount
+        fail_count          = $failCount
+        model_missing_count = $modelMissingCount
+        message             = $summary
+    }
+}
+
 function New-SmokeTestCases {
     [CmdletBinding()]
     param()
@@ -529,6 +637,14 @@ function New-SmokeTestCases {
             id = 'verify-plugin-discovery'
             bucket = 'install'
             checkpoint = 'Verify plugin discovery via copilot plugin list and installed manifest detection'
+            status = 'pending'
+            details = 'Pending execution.'
+            evidence = @()
+        }
+        'subagent-name-resolution' = [ordered]@{
+            id = 'subagent-name-resolution'
+            bucket = 'install'
+            checkpoint = 'Verify bundled subagent name: frontmatter values match bundled file stems and task() dispatch expectations'
             status = 'pending'
             details = 'Pending execution.'
             evidence = @()
@@ -1063,23 +1179,26 @@ function Get-RalphSubagentProvenance {
                 }
             }
         )
-        $observed = (@($taskToolMatches).Count -ge 1) -or (@($customAgentMatches).Count -ge 1)
+        $taskToolCount = @($taskToolMatches).Count
+        $customAgentCount = @($customAgentMatches).Count
+        $sessionReferenceCount = @($sessionReferenceMatches).Count
+        $observed = ($taskToolCount -ge 1) -or ($customAgentCount -ge 1)
 
         $provenance.Add([PSCustomObject]@{
                 id = $role.id
                 label = $role.label
                 agent_name = $role.agent_name
                 observed = [bool]$observed
-                task_tool_invocation_count = @($taskToolMatches).Count
-                custom_agent_invocation_count = @($customAgentMatches).Count
-                session_reference_count = @($sessionReferenceMatches).Count
+                task_tool_invocation_count = $taskToolCount
+                custom_agent_invocation_count = $customAgentCount
+                session_reference_count = $sessionReferenceCount
                 matched_files = @($matchedFiles)
                 sample_matches = @($sampleMatches)
                 evidence_paths = @()
                 notes = $(if ($observed) {
                         Join-DetailSentences -Parts @(
-                            "Observed custom agent '$($role.agent_name)' in Copilot CLI logs ($(@($taskToolMatches).Count) task-tool line(s), $(@($customAgentMatches).Count) custom-agent line(s)).",
-                            $(if (@($sessionReferenceMatches).Count -ge 1) { "$(@($sessionReferenceMatches).Count) matched line(s) referenced session '$SessionId'." } else { "Matched lines did not echo session '$SessionId', so the proof relies on the current run's isolated log directory." })
+                            "Observed custom agent '$($role.agent_name)' in Copilot CLI logs ($taskToolCount task-tool line(s), $customAgentCount custom-agent line(s)).",
+                            $(if ($sessionReferenceCount -ge 1) { "$sessionReferenceCount matched line(s) referenced session '$SessionId'." } else { "Matched lines did not echo session '$SessionId', so the proof relies on the current run's isolated log directory." })
                         )
                     }
                     else {
@@ -1617,6 +1736,7 @@ $smokeOutputPath = $null
 $gitCommand = $null
 $logDirectorySnapshotPath = $null
 $sessionSnapshotRoot = $null
+$nameResolutionResult = $null
 
 try {
     $script:summary.stage = 'preflight'
@@ -1693,6 +1813,8 @@ try {
     $sourceManifest = Get-JsonFileContent -Path (Join-Path $sourcePluginDir 'plugin.json')
     $versionContract = Get-RalphWorkflowVersionContract -PluginDir $sourcePluginDir -Manifest $sourceManifest
     Assert-True -Condition ($null -ne $versionContract) -Message 'Failed to resolve the Ralph workflow version contract.'
+    Assert-True -Condition ($versionContract.BundleVersionSource -eq 'manifest') -Message "Ralph plugin version source mismatch. Expected 'manifest' but found '$($versionContract.BundleVersionSource)'."
+    Assert-True -Condition ($versionContract.BundleVersion -eq $sourceManifest.version) -Message "Ralph plugin version contract mismatch. Expected source manifest version '$($sourceManifest.version)' but found '$($versionContract.BundleVersion)'."
 
     Initialize-PluginBundleOutput -SelectedPluginDirs @($sourcePluginDirItem) -AllPluginDirs @($sourcePluginDirItem) -Channel $Channel
     $buildDir = Build-PluginBundle -PluginDir $sourcePluginDir -Channel $Channel
@@ -1708,6 +1830,27 @@ try {
     Assert-True -Condition ($buildManifest.version -eq $versionContract.BundleVersion) -Message "Built plugin version mismatch. Expected '$($versionContract.BundleVersion)' but found '$($buildManifest.version)'."
     Assert-True -Condition ($buildManifest.runtime -eq 'github-copilot-cli') -Message "Built plugin runtime mismatch. Expected 'github-copilot-cli' but found '$($buildManifest.runtime)'."
     Assert-True -Condition (Test-Path (Join-Path $buildDir 'README.md') -PathType Leaf) -Message "Built Ralph bundle is missing README.md: $buildDir"
+
+    # Check model: frontmatter in non-orchestrator (subagent) files; warn when absent, do not fail the build.
+    $agentBuildDir = Join-Path $buildDir 'agents'
+    $subagentModelCheck = New-Object System.Collections.Generic.List[object]
+    if (Test-Path $agentBuildDir -PathType Container) {
+        foreach ($agentFile in @(Get-ChildItem -Path $agentBuildDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
+            if ($agentFile.Name -match 'orchestrator') { continue }
+            $agentContent = Get-Content -Path $agentFile.FullName -Raw -ErrorAction SilentlyContinue
+            $agentFrontmatter = $null
+            if ($agentContent -match '(?s)^---\r?\n(.+?)\r?\n---') { $agentFrontmatter = $Matches[1] }
+            $agentModelValue = $null
+            if ($agentFrontmatter -and ($agentFrontmatter -match '(?m)^model:\s*(.+?)[\r\n]')) { $agentModelValue = $Matches[1].Trim() }
+            if ([string]::IsNullOrWhiteSpace($agentModelValue)) {
+                Write-Host "WARN: Subagent '$($agentFile.Name)' has no model: frontmatter — will fall back to session model."
+            }
+            $subagentModelCheck.Add([PSCustomObject]@{ file = $agentFile.Name; model = $agentModelValue; model_present = (-not [string]::IsNullOrWhiteSpace($agentModelValue)) })
+        }
+    }
+    $subagentModelCount = Get-CollectionCount -Value $subagentModelCheck
+    $subagentModelPresentCount = @($subagentModelCheck | Where-Object { $_.model_present }).Count
+    $subagentModelMissingCount = @($subagentModelCheck | Where-Object { -not $_.model_present }).Count
 
     $script:summary.build = [ordered]@{
         source_manifest = [ordered]@{
@@ -1731,9 +1874,11 @@ try {
                 librarian = $bundledAgentNames.librarian
             }
         }
+        subagent_model_check = @($subagentModelCheck.ToArray())
         copilot_version = $versionResult.StdOut
     }
-    Set-TestCaseStatus -Id 'build-cli-bundle' -Status 'passed' -Details ("Built bundle '{0}' version '{1}' at {2} and resolved orchestrator agent '{3}'." -f $buildManifest.name, $buildManifest.version, $buildDir, $orchestratorAgentName)
+    $modelCheckNote = if ($subagentModelMissingCount -gt 0) { " $subagentModelMissingCount/$subagentModelCount subagent(s) missing model: frontmatter (will use session model)." } else { " All $subagentModelCount subagent(s) have model: frontmatter." }
+    Set-TestCaseStatus -Id 'build-cli-bundle' -Status 'passed' -Details ("Built bundle '{0}' version '{1}' at {2} and resolved orchestrator agent '{3}'.{4}" -f $buildManifest.name, $buildManifest.version, $buildDir, $orchestratorAgentName, $modelCheckNote)
 
     $script:summary.stage = 'installing'
 
@@ -1789,6 +1934,17 @@ try {
     }
     Set-TestCaseStatus -Id 'verify-plugin-discovery' -Status 'passed' -Details ("Plugin list contained '{0}' and the installed manifest was verified at {1}." -f $buildManifest.name, $preferredInstalledManifest.Path)
 
+    $script:currentCheckpointId = 'subagent-name-resolution'
+    Write-Host "Validating bundled subagent name: frontmatter and disable-model-invocation flags..."
+    $nameResolutionResult = Test-SubagentNameResolution -BuildDir $buildDir -PluginName $buildManifest.name
+    $script:summary.install.subagent_name_resolution = $nameResolutionResult
+    if ($nameResolutionResult.passed) {
+        Set-TestCaseStatus -Id 'subagent-name-resolution' -Status 'passed' -Details $nameResolutionResult.message
+    }
+    else {
+        Set-TestCaseStatus -Id 'subagent-name-resolution' -Status 'failed' -Details $nameResolutionResult.message
+    }
+
     $script:summary.stage = 'agent_invocation'
     $script:currentCheckpointId = 'orchestrator-invocation'
 
@@ -1809,8 +1965,6 @@ try {
         }
         Set-TestCaseStatus -Id 'orchestrator-invocation' -Status 'skipped' -Details 'Agent invocation was intentionally skipped via -SkipAgentInvocation.'
         foreach ($skippedCaseId in @('orchestrator-session-state', 'planner-artifacts', 'questioner-artifacts', 'executor-artifacts', 'reviewer-artifacts', 'librarian-artifacts')) {
-    Assert-True -Condition ($versionContract.BundleVersionSource -eq 'manifest') -Message "Ralph plugin version source mismatch. Expected 'manifest' but found '$($versionContract.BundleVersionSource)'."
-    Assert-True -Condition ($versionContract.BundleVersion -eq $sourceManifest.version) -Message "Ralph plugin version contract mismatch. Expected source manifest version '$($sourceManifest.version)' but found '$($versionContract.BundleVersion)'."
             Set-TestCaseStatus -Id $skippedCaseId -Status 'skipped' -Details 'Skipped because the live Ralph workflow invocation was disabled.'
         }
     }
@@ -2532,6 +2686,13 @@ finally {
             Write-JsonArtifact -Path $installSummaryEvidencePath -InputObject $script:summary.install
             Add-EvidenceArtifact -Artifacts $evidenceArtifacts -Category 'discovery' -Description 'Structured install and discovery summary' -Path $installSummaryEvidencePath
             Add-TestCaseEvidence -Id 'verify-plugin-discovery' -EvidencePaths @($installSummaryEvidencePath)
+        }
+
+        if ($null -ne $nameResolutionResult) {
+            $nameResolutionEvidencePath = Join-Path $reportEvidenceDirectory 'subagent-name-resolution.json'
+            Write-JsonArtifact -Path $nameResolutionEvidencePath -InputObject $nameResolutionResult
+            Add-EvidenceArtifact -Artifacts $evidenceArtifacts -Category 'install' -Description 'Bundled subagent name: frontmatter and disable-model-invocation flag validation result' -Path $nameResolutionEvidencePath -Kind 'json'
+            Add-TestCaseEvidence -Id 'subagent-name-resolution' -EvidencePaths @($nameResolutionEvidencePath)
         }
 
         if ($null -ne $script:summary.agent_invocation) {

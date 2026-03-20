@@ -712,7 +712,15 @@ function Get-RalphExpectedAliasNameMatrix {
                 continue
             }
 
-            $stableNamesByRuntime[$runtimeName][$alias] = $sourceAgentName
+            if ($runtimeName -eq 'cli') {
+                # CLI task() dispatch uses plugin-qualified format: ralph-v2/<file-stem>
+                # Store the file stem (not the frontmatter name) so the expected matrix
+                # can be computed as "ralph-v2/<stem>" / "ralph-v2-beta/<stem>-beta"
+                $fileStem = [System.IO.Path]::GetFileNameWithoutExtension($sourceAgentFile.Name) -replace '\.agent$', ''
+                $stableNamesByRuntime[$runtimeName][$alias] = $fileStem
+            } else {
+                $stableNamesByRuntime[$runtimeName][$alias] = $sourceAgentName
+            }
         }
 
         foreach ($requiredAlias in $requiredAliases) {
@@ -726,13 +734,13 @@ function Get-RalphExpectedAliasNameMatrix {
     if ($errors.Count -eq 0) {
         foreach ($alias in $requiredAliases) {
             $vscodeStable = $stableNamesByRuntime['vscode'][$alias]
-            $cliStable = $stableNamesByRuntime['cli'][$alias]
+            $cliFileStem  = $stableNamesByRuntime['cli'][$alias]
 
             $rows[$alias] = [ordered]@{
                 'VS Code Stable' = $vscodeStable
                 'VS Code Beta'   = "$vscodeStable-beta"
-                'CLI Stable'     = $cliStable
-                'CLI Beta'       = "$cliStable-beta"
+                'CLI Stable'     = "ralph-v2/$cliFileStem"
+                'CLI Beta'       = "ralph-v2-beta/$cliFileStem-beta"
             }
         }
     }
@@ -930,7 +938,13 @@ function Test-RalphSubagentAliasContract {
             continue
         }
 
-        $bundledSubagentNamesByAlias[$alias] = $bundledAgentName
+        if ($RuntimeName -eq 'cli') {
+            # CLI task() dispatch uses plugin-qualified format: <plugin-name>/<file-stem>
+            $fileStem = [System.IO.Path]::GetFileNameWithoutExtension($bundledAgentFile.Name) -replace '\.agent$', ''
+            $bundledSubagentNamesByAlias[$alias] = "$PluginName/$fileStem"
+        } else {
+            $bundledSubagentNamesByAlias[$alias] = $bundledAgentName
+        }
     }
 
     foreach ($requiredAlias in $requiredAliases) {
@@ -1350,7 +1364,7 @@ function Build-PluginBundle {
 
     if ($cleanManifest.Contains('agents')) {
         $validationErrors += Test-AgentChannelContract -BuildDir $buildDir -AgentEntries $cleanManifest['agents'] -Channel $Channel
-        $validationErrors += Test-RalphSubagentAliasContract -BuildDir $buildDir -RepoRoot $repoRoot -PluginName $sourcePluginName -RuntimeName $bundleLayout.RuntimeName -Channel $Channel
+        $validationErrors += Test-RalphSubagentAliasContract -BuildDir $buildDir -RepoRoot $repoRoot -PluginName $pluginName -RuntimeName $bundleLayout.RuntimeName -Channel $Channel
     }
 
     if ($validationErrors.Count -gt 0) {
