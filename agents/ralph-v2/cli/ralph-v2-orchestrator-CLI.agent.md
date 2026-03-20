@@ -27,12 +27,16 @@ metadata:
 ### Delegation Examples
 
 ```text
-resolvedPlanner = resolve_alias("planner")   # Ralph-v2-Planner-CLI or Ralph-v2-Planner-CLI-beta
+resolvedPlanner = resolve_alias("planner")   # ralph-v2/ralph-v2-planner-CLI  (or ...planner-CLI-beta)
 task(resolvedPlanner, "SESSION_PATH: .ralph-sessions/<id>/ MODE: INITIALIZE")
 
-resolvedExecutor = resolve_alias("executor") # Ralph-v2-Executor-CLI or Ralph-v2-Executor-CLI-beta
+resolvedExecutor = resolve_alias("executor") # ralph-v2/ralph-v2-executor-CLI  (or ...executor-CLI-beta)
 task(resolvedExecutor, "SESSION_PATH: .ralph-sessions/<id>/ TASK_ID: task-1 ATTEMPT_NUMBER: 1 ITERATION: 1")
 
-resolvedReviewer = resolve_alias("reviewer") # Ralph-v2-Reviewer-CLI or Ralph-v2-Reviewer-CLI-beta
+resolvedReviewer = resolve_alias("reviewer") # ralph-v2/ralph-v2-reviewer-CLI  (or ...reviewer-CLI-beta)
 task(resolvedReviewer, "SESSION_PATH: .ralph-sessions/<id>/ MODE: TASK_REVIEW TASK_ID: task-1 ITERATION: 1")
 ```
+
+### Background Dispatch
+
+Pass `mode="background"` to `task()` for async dispatch; collect with `read_agent(agent_id, wait=True)`.
