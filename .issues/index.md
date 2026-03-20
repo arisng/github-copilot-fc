@@ -1,10 +1,10 @@
 # Issue Metadata Index
 
-**Generated:** 2026-03-16 08:05:30Z
+**Generated:** 2026-03-20 11:45:08
 
 **Statistics:**
-- Total Issues: 14
-- YAML Format: 14
+- Total Issues: 15
+- YAML Format: 15
 - Legacy Format: 0
 
 | File | Date | Type | Status | Severity | Format |
@@ -22,4 +22,5 @@
 | 260315_plugin-version-vs-agent-versioning.md | 2026-03-15 | Task | Completed | Medium | YAML |
 | 260315_ralph-v2-cli-test-plan.md | 2026-03-15 | Feature Plan | Draft | High | YAML |
 | 260315_simplify-tools-inventory.md | 2026-03-15 | Feature Plan | Proposed | Medium | YAML |
+| 260320_research-copilot-cli-session-topology-and-orchestration-layer.md | 2026-03-20 | Task | Draft | High | YAML |
 | 260401_googleworkspace-cli-agent-skill-proposal.md | 2026-04-01 | RFC | Open for Comment | High | YAML |
