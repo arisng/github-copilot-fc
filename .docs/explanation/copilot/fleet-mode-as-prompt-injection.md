@@ -1,4 +1,4 @@
-# Fleet Mode as Prompt Injection
+# Fleet Mode as Prompt Injection in Copilot CLI
 
 > **Conceptual explanation** of why fleet mode is a prompt engineering pattern, not a new session type or runtime feature.
 

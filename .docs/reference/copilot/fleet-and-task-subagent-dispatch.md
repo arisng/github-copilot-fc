@@ -1,4 +1,4 @@
-# Fleet and Task Subagent Dispatch Reference
+# Fleet and Task Subagent Dispatch Reference in Copilot CLI
 
 **Version:** Copilot CLI v1.0.2  
 **Sources:** `index.js`, `sdk/index.d.ts`, `definitions/*.agent.yaml`
