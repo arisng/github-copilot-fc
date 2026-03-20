@@ -11,9 +11,6 @@
     "../../../agents/ralph-v2/cli/ralph-v2-reviewer-CLI.agent.md",
     "../../../agents/ralph-v2/cli/ralph-v2-librarian-CLI.agent.md"
   ],
-  "hooks": [
-    "../../../hooks/ralph-tool-logger/ralph-tool-logger.hooks.json"
-  ],
   "skills": [
     "../../../skills/git-atomic-commit",
     "../../../skills/diataxis",
