@@ -13,7 +13,7 @@ promoted_at: "2026-03-01T12:43:56+07:00"
 
 ## Overview
 
-The Diátaxis framework organizes documentation into four top-level categories: **tutorials**, **how-to**, **reference**, and **explanation**. Within each category, a domain-based sub-category heuristic determines whether a file should be placed in a sub-folder (e.g., `reference/ralph/`) or remain at the category root.
+The Diátaxis framework organizes documentation into four top-level categories: **tutorials**, **how-to**, **reference**, and **explanation**. Within each category, a domain-based sub-category heuristic determines whether a file should be placed in a sub-folder (e.g., `reference/ralph/`) or remain at the category root. Copilot docs use an additional runtime layer under `copilot/` for `sdk`, `cli`, `vscode`, `github-web`, `github-mobile`, and `shared`.
 
 This heuristic is implemented in the `diataxis-categorizer` skill, which supplements the existing `diataxis` skill (responsible for top-level classification).
 
@@ -56,6 +56,7 @@ A file stays at the category root when:
 
 - **Naming**: `<category>/<domain>/filename.md` using lowercase kebab-case domain names
 - **Known domains**: `ralph`, `copilot`, `sdk`, `blazor`, `blazor-agui` (extensible — new domains emerge naturally as files accumulate)
+- **Copilot runtime buckets**: `sdk`, `cli`, `vscode`, `github-web`, `github-mobile`, `shared` when the top-level domain is `copilot`
 - **Cross-domain files**: Stay at category root (e.g., `reference/urls.md`)
 
 ## Research Staging Convention
@@ -75,4 +76,4 @@ For retroactive reorganization of an existing wiki:
 3. **Generate manifest** — a JSON list of proposed moves with source, target, and reason
 4. **Human review** — review the manifest before execution
 5. **Execute** approved moves (create sub-folders, move files, update cross-references)
-6. **Regenerate index** with nested sub-category sections
+6. **Regenerate index** with nested sub-category sections, including the Copilot runtime buckets when present

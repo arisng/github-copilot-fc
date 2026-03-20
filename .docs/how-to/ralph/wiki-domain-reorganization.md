@@ -13,7 +13,7 @@ promoted_at: "2026-03-01T12:43:56+07:00"
 
 ## Goal
 
-Retroactively reorganize a flat Diátaxis wiki into domain-based sub-category folders (e.g., `reference/ralph/`, `reference/copilot/`) using a measured, script-assisted workflow that minimizes broken links and ensures human oversight.
+Retroactively reorganize a flat Diátaxis wiki into domain-based sub-category folders (e.g., `reference/ralph/`, `reference/copilot/shared/`, `reference/copilot/cli/`) using a measured, script-assisted workflow that minimizes broken links and ensures human oversight.
 
 ## When to Use
 
@@ -29,7 +29,7 @@ Apply the domain categorizer heuristic to all files in the wiki:
 
 1. For each file, extract the primary domain keyword (filename prefix, frontmatter, H1 title, or body content scan)
 2. Group files by domain within each Diátaxis category
-3. Apply the ≥3-file threshold — only propose a sub-category when 3 or more files share a domain
+3. Apply the ≥3-file threshold — only propose a sub-category when 3 or more files share a domain, except for the explicit Copilot runtime buckets (`sdk`, `cli`, `vscode`, `github-web`, `github-mobile`, `shared`)
 4. Generate a JSON manifest of proposed moves:
 
 ```json
