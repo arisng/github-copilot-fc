@@ -1,5 +1,6 @@
 */**/__pycache__/*
 .ralph-sessions/*
+.fleet-sessions/*
 */**/.build/
 */**/.install/
 scripts/test/.artifacts/
