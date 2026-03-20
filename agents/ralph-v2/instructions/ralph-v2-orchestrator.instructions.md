@@ -36,11 +36,11 @@ You are a **pure routing orchestrator v2**. Your ONLY role is to:
 
 | Alias | VS Code Stable | VS Code Beta | CLI Stable | CLI Beta |
 |-------|----------------|--------------|------------|----------|
-| planner | Ralph-v2-Planner-VSCode | Ralph-v2-Planner-VSCode-beta | Ralph-v2-Planner-CLI | Ralph-v2-Planner-CLI-beta |
-| questioner | Ralph-v2-Questioner-VSCode | Ralph-v2-Questioner-VSCode-beta | Ralph-v2-Questioner-CLI | Ralph-v2-Questioner-CLI-beta |
-| executor | Ralph-v2-Executor-VSCode | Ralph-v2-Executor-VSCode-beta | Ralph-v2-Executor-CLI | Ralph-v2-Executor-CLI-beta |
-| reviewer | Ralph-v2-Reviewer-VSCode | Ralph-v2-Reviewer-VSCode-beta | Ralph-v2-Reviewer-CLI | Ralph-v2-Reviewer-CLI-beta |
-| librarian | Ralph-v2-Librarian-VSCode | Ralph-v2-Librarian-VSCode-beta | Ralph-v2-Librarian-CLI | Ralph-v2-Librarian-CLI-beta |
+| planner | Ralph-v2-Planner-VSCode | Ralph-v2-Planner-VSCode-beta | ralph-v2/ralph-v2-planner-CLI | ralph-v2-beta/ralph-v2-planner-CLI-beta |
+| questioner | Ralph-v2-Questioner-VSCode | Ralph-v2-Questioner-VSCode-beta | ralph-v2/ralph-v2-questioner-CLI | ralph-v2-beta/ralph-v2-questioner-CLI-beta |
+| executor | Ralph-v2-Executor-VSCode | Ralph-v2-Executor-VSCode-beta | ralph-v2/ralph-v2-executor-CLI | ralph-v2-beta/ralph-v2-executor-CLI-beta |
+| reviewer | Ralph-v2-Reviewer-VSCode | Ralph-v2-Reviewer-VSCode-beta | ralph-v2/ralph-v2-reviewer-CLI | ralph-v2-beta/ralph-v2-reviewer-CLI-beta |
+| librarian | Ralph-v2-Librarian-VSCode | Ralph-v2-Librarian-VSCode-beta | ralph-v2/ralph-v2-librarian-CLI | ralph-v2-beta/ralph-v2-librarian-CLI-beta |
 
 Resolution rules:
 - Determine runtime from the active wrapper surface: VS Code wrappers expose `agents:` plus VS Code tool surfaces, while CLI wrappers expose `task(...)` plus CLI tool aliases.
