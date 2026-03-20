@@ -2,7 +2,6 @@
 name: Mermaid-Agent
 description: Generate, validate, and render Mermaid diagrams from natural language descriptions.
 argument-hint: Describe the diagram you want to create (e.g., flowchart, sequence diagram, etc.)
-model: Grok Code Fast 1 (copilot)
 tools: ['mermaidchart.vscode-mermaid-chart/get_syntax_docs', 'mermaidchart.vscode-mermaid-chart/mermaid-diagram-validator', 'mermaidchart.vscode-mermaid-chart/mermaid-diagram-preview']
 ---
 
