@@ -225,9 +225,6 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Wsl Publish Shell Bootstrap Lessons](explanation/copilot/shared/wsl-publish-shell-bootstrap-lessons.md)
 #### Vscode
 
-- [Research: Claude Code Hooks - Comprehensive Analysis](explanation/copilot/vscode/claude-code-hooks-analysis.md)
-- [Claude Code Skills Activation Research: Hierarchical Agent Activation for GitHub Copilot](explanation/copilot/vscode/claude-skills-activation-research.md)
-- [Copilot VS Code Hook-like Capabilities: Solutions Analysis](explanation/copilot/vscode/copilot-vscode-hooks-solutions.md)
 - [Understanding Copilot VS Code Custom Instructions Injection](explanation/copilot/vscode/copilot-vscode-instructions-injection.md)
 - [Orchestrator Core Appendix Split Rationale](explanation/copilot/vscode/orchestrator-core-appendix-split-rationale.md)
 
