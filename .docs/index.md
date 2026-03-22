@@ -105,6 +105,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Copilot Cli Agent Frontmatter Schema](reference/copilot/cli/copilot-cli-agent-frontmatter-schema.md)
 - [Copilot-CLI Customization Support Matrix](reference/copilot/cli/copilot-cli-customization-matrix.md)
 - [GitHub Copilot CLI - An AI-powered coding assistant](reference/copilot/cli/copilot-cli-help.md)
+- [Copilot CLI Session State Schema Reference](reference/copilot/cli/copilot-cli-session-state-schema.md)
 - [Fleet and Task Subagent Dispatch Reference in Copilot CLI](reference/copilot/cli/fleet-and-task-subagent-dispatch.md)
 #### Github Mobile
 
@@ -199,6 +200,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [About Beta Plugin Identity For Parallel Installs](explanation/copilot/cli/about-beta-plugin-identity-for-parallel-installs.md)
 - [About CLI Plugins](explanation/copilot/cli/about-cli-plugins.md)
 - [Ralph-v2 Tool Compatibility Analysis for Copilot CLI](explanation/copilot/cli/copilot-cli-ralph-v2-tool-compatibility.md)
+- [Copilot CLI Session Topology and Orchestration Layer](explanation/copilot/cli/copilot-cli-session-topology.md)
 - [Fleet Mode as Prompt Injection in Copilot CLI](explanation/copilot/cli/fleet-mode-as-prompt-injection.md)
 #### Github Mobile
 
