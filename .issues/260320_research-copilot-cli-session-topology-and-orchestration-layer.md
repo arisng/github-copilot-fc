@@ -2,7 +2,8 @@
 date: 2026-03-20
 type: Task
 severity: High
-status: Draft
+status: Done
+completed_at: 2026-03-26
 ---
 
 # Task: Reverse engineer Copilot CLI session topology and orchestration layer
@@ -34,19 +35,33 @@ Current working hypotheses to validate:
 - What evidence exists in official Copilot CLI documentation, repository sources, or runtime artifacts that confirms or refines the current mental model?
 
 ## Tasks
-- [ ] Collect authoritative documentation or source references that describe Copilot CLI session persistence and orchestration behavior.
-- [ ] Inspect representative session-state folders and identify recurring files, naming conventions, and lifecycle markers.
-- [ ] Map each `/session` metadata field to the underlying artifact or runtime concept where possible.
-- [ ] Distinguish stable conventions from speculative inferences so the final write-up separates fact from hypothesis.
-- [ ] Draft a concise anatomy diagram or table that shows the relationship between human working directory, Copilot CLI workspace, session state, logs, and checkpoints.
-- [ ] Record any operational implications for session resume, debugging, and long-running orchestration flows.
+- [x] Collect authoritative documentation or source references that describe Copilot CLI session persistence and orchestration behavior.
+- [x] Inspect representative session-state folders and identify recurring files, naming conventions, and lifecycle markers.
+- [x] Map each `/session` metadata field to the underlying artifact or runtime concept where possible.
+- [x] Distinguish stable conventions from speculative inferences so the final write-up separates fact from hypothesis.
+- [x] Draft a concise anatomy diagram or table that shows the relationship between human working directory, Copilot CLI workspace, session state, logs, and checkpoints.
+- [x] Record any operational implications for session resume, debugging, and long-running orchestration flows.
 
 ## Acceptance Criteria
-- [ ] The repository contains a clear markdown note that explains the session topology and the orchestration model in plain language.
-- [ ] The note distinguishes confirmed behavior from assumptions or reverse-engineered hypotheses.
-- [ ] The note includes references to authoritative sources or runtime artifacts used during the investigation.
-- [ ] The note captures the practical implications for session resume, persistence, and artifact discovery.
-- [ ] The issue remains scoped to analysis and documentation, without implementing product changes.
+- [x] The repository contains a clear markdown note that explains the session topology and the orchestration model in plain language.
+- [x] The note distinguishes confirmed behavior from assumptions or reverse-engineered hypotheses.
+- [x] The note includes references to authoritative sources or runtime artifacts used during the investigation.
+- [x] The note captures the practical implications for session resume, persistence, and artifact discovery.
+- [x] The issue remains scoped to analysis and documentation, without implementing product changes.
+
+## Outcome
+
+Research completed and documented in the workspace wiki:
+
+- **Explanation doc**: [Copilot CLI Session Topology and Orchestration Layer](../.docs/explanation/copilot/cli/copilot-cli-session-topology.md) — mental model, lifecycle, orchestration topology, Ralph-v2 implications
+- **Reference doc**: [Copilot CLI Session State Schema Reference](../.docs/reference/copilot/cli/copilot-cli-session-state-schema.md) — full field-level schema for all session artifacts with evidence tier tags
+
+### Key findings
+- Session topology confirmed: `~/.copilot/session-state/<uuid>/` with `workspace.yaml`, `events.jsonl`, `checkpoints/`, `files/`, `rewind-snapshots/`, `inuse.<pid>.lock`
+- `session-store.db` is a global catalog (officially documented); per-session `session.db` exists but is undocumented
+- `/session` field mapping fully reverse-engineered against filesystem artifacts
+- **Critical implication for Ralph-v2**: `.ralph-sessions/` creates a redundant orchestration layer; the correct approach uses `~/.copilot/session-state/<uuid>/files/` natively
+- Three-tier evidence model applied throughout: `[official]` / `[empirical]` / `[hypothesized]`
 
 ## References
 - Copilot CLI `/session` metadata snapshot as following:
