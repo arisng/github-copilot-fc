@@ -80,6 +80,7 @@ A 2-3 hour online workshop on **Agentic Engineering** (AI-assisted software deve
 - https://simonwillison.net/guides/agentic-engineering-patterns/
 - https://github.com/github/copilot-cli-for-beginners
 - https://towardsdatascience.com/claude-skills-and-subagents-escaping-the-prompt-engineering-hamster-wheel/
+- https://developers.openai.com/blog/skills-shell-tips
 
 ## 7. Acceptance Criteria
 
