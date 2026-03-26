@@ -63,7 +63,7 @@ function Publish-Instructions {
     }
 
     # Get and filter instruction files
-    $instructionFiles = Get-ChildItem -Path $projectInstructionsPath -Filter "*.instructions.md"
+    $instructionFiles = Get-ChildItem -Path $projectInstructionsPath -Filter "*.instructions.md" | Where-Object { $_.FullName -notlike "*\.archived\*" }
     if ($Instructions) {
         $instrList = @()
         foreach ($item in $Instructions) {
@@ -72,6 +72,12 @@ function Publish-Instructions {
         $instructionFiles = $instructionFiles | Where-Object {
             $base = $_.Name -replace '\.instructions\.md$',''
             $instrList | Where-Object { $base -like $_ } | Select-Object -First 1
+        }
+        if ($instructionFiles.Count -eq 0) {
+            Write-Host "Warning: No instructions found matching: $($instrList -join ', ')" -ForegroundColor Yellow
+            Get-ChildItem -Path $projectInstructionsPath -Filter "*.instructions.md" | Where-Object { $_.FullName -notlike "*\.archived\*" } |
+                ForEach-Object { Write-Host "  - $($_.Name -replace '\.instructions\.md$')" }
+            return
         }
         if ($instructionFiles.Count -eq 0) {
             Write-Host "Warning: No instructions found matching: $($instrList -join ', ')" -ForegroundColor Yellow

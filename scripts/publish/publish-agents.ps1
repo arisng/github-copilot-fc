@@ -108,8 +108,8 @@ function Get-AgentFiles {
 
     if ($publishVSCode) {
         # VS Code variant agents: agents/*/vscode/*.agent.md
-        # Skip directories marked as plugin-managed (.plugin-managed marker file present)
-        $vscodeVariantDirs = Get-ChildItem -Path $ProjectAgentsPath -Directory | ForEach-Object {
+        # Exclude .archived directories and plugin-managed dirs
+        $vscodeVariantDirs = Get-ChildItem -Path $ProjectAgentsPath -Directory | Where-Object { $_.Name -ne '.archived' } | ForEach-Object {
             $vscodeDir = Join-Path $_.FullName 'vscode'
             if (Test-Path $vscodeDir) {
                 $markerFile = Join-Path $vscodeDir '.plugin-managed'
@@ -143,8 +143,8 @@ function Get-AgentFiles {
 
     if ($publishCLI) {
         # CLI variant agents: agents/*/cli/*.agent.md
-        # Skip directories marked as plugin-managed (.plugin-managed marker file present)
-        $cliVariantDirs = Get-ChildItem -Path $ProjectAgentsPath -Directory | ForEach-Object {
+        # Exclude .archived directories and plugin-managed dirs
+        $cliVariantDirs = Get-ChildItem -Path $ProjectAgentsPath -Directory | Where-Object { $_.Name -ne '.archived' } | ForEach-Object {
             $cliDir = Join-Path $_.FullName 'cli'
             if (Test-Path $cliDir) {
                 $markerFile = Join-Path $cliDir '.plugin-managed'

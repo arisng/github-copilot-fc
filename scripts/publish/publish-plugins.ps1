@@ -555,7 +555,7 @@ function Publish-Plugins {
     foreach ($runtimeDir in $runtimeDirs) {
         $runtimeName = $runtimeDir.Name
         Get-ChildItem -Path $runtimeDir.FullName -Directory | Where-Object {
-            Test-Path (Join-Path $_.FullName "plugin.json")
+            $_.FullName -notlike "*\.archived\*" -and Test-Path (Join-Path $_.FullName "plugin.json")
         } | ForEach-Object {
             $pluginEntries += [PSCustomObject]@{ Dir = $_; Runtime = $runtimeName }
         }

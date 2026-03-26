@@ -55,8 +55,8 @@ function Publish-PromptsToVSCode {
         }
     }
 
-    # Get prompt files to publish
-    $promptFiles = Get-ChildItem -Path $projectPromptsPath -Filter "*.prompt.md"
+    # Get prompt files to publish (skip archived prompts)
+    $promptFiles = Get-ChildItem -Path $projectPromptsPath -Filter "*.prompt.md" | Where-Object { $_.FullName -notlike "*\.archived\*" }
     $promptNames = $Prompts -split ' ' | Where-Object { $_.Trim() }
     if ($promptNames) {
         $promptFiles = $promptFiles | Where-Object {

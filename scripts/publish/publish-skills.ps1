@@ -144,8 +144,8 @@ function Publish-SkillsToPersonal {
         }
     }
 
-    # Get skills to publish
-    $skillDirs = Get-ChildItem -Path $projectSkillsPath -Directory
+    # Get skills to publish (skip archived skills folder)
+    $skillDirs = Get-ChildItem -Path $projectSkillsPath -Directory | Where-Object { $_.Name -ne '.archived' }
     if ($Skills) {
         # normalize comma-separated input and allow patterns
         $skillList = @()
@@ -160,7 +160,7 @@ function Publish-SkillsToPersonal {
         if ($skillDirs.Count -eq 0) {
             Write-Host "Warning: No skills found matching: $($skillList -join ', ')" -ForegroundColor Yellow
             Write-Host "Available skills:" -ForegroundColor Cyan
-            Get-ChildItem -Path $projectSkillsPath -Directory | ForEach-Object { Write-Host "  - $($_.Name)" }
+            Get-ChildItem -Path $projectSkillsPath -Directory | Where-Object { $_.Name -ne '.archived' } | ForEach-Object { Write-Host "  - $($_.Name)" }
             return
         }
     }
