@@ -35,7 +35,7 @@ A 2-3 hour online workshop on **Agentic Engineering** (AI-assisted software deve
 - Total: 2-3 hours
 - Format: Online meeting (video conference + shared IDE/session)
 
-## 5. Agenda
+## 5. Draft Agenda
 
 1. **Welcome & context (15 min)**
    - Introductions
@@ -81,6 +81,8 @@ A 2-3 hour online workshop on **Agentic Engineering** (AI-assisted software deve
 - https://github.com/github/copilot-cli-for-beginners
 - https://towardsdatascience.com/claude-skills-and-subagents-escaping-the-prompt-engineering-hamster-wheel/
 - https://developers.openai.com/blog/skills-shell-tips
+- https://www.anthropic.com/engineering/harness-design-long-running-apps
+- https://github.com/badlogic/pi-mono
 
 ## 7. Acceptance Criteria
 
