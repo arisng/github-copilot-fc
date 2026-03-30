@@ -81,6 +81,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Keep automation callable from both Windows and Linux/WSL terminals; avoid assumptions tied to VS Code APIs.
 
 ## Common pitfalls
+- **Legacy Windows PowerShell vs pwsh**: Never use the `powershell` command (Windows PowerShell 5.1) to run workspace scripts. The scripts rely on modern PowerShell 7+ features (like `&&` and `||` pipeline chain operators). Always invoke scripts using `pwsh`.
 - **Regex backreference corruption**: PowerShell's `-replace` operator interprets `$0`, `$&`, `$+` as regex tokens. Use `[Regex]::Replace($input, $pattern, { param($m) $literal })` with a script block evaluator for dynamic replacements.
 - **VS Code prompts directory collision**: instructions and toolsets both publish to `%APPDATA%/Code*/User/prompts` — naming must avoid conflicts.
 - **CLI instructions not concatenated**: `publish-instructions.ps1` intentionally excludes CLI instruction concatenation due to context overload risk.
