@@ -162,8 +162,8 @@ def main():
     output_lines.append(f"- YAML Format: {yaml_count}")
     output_lines.append(f"- Legacy Format: {legacy_count}")
     output_lines.append("")
-    output_lines.append("| File | Date | Type | Status | Severity | Format |")
-    output_lines.append("|------|------|------|--------|----------|--------|")
+    output_lines.append("| # | Status | Type | File   | Date   | Severity | Format |")
+    output_lines.append("|---|--------|------|--------|--------|----------|--------|")
 
     # Sort by date descending
     def sort_key(item):
@@ -173,8 +173,8 @@ def main():
         except (ValueError, TypeError):
             return datetime.min
 
-    for item in sorted(report, key=sort_key, reverse=True):
-        output_lines.append(f"| {item['file']} | {item['date']} | {item['type']} | {item['status']} | {item['severity']} | {item['format']} |")
+    for index, item in enumerate(sorted(report, key=sort_key, reverse=True), start=1):
+        output_lines.append(f"| {index} | {item['status']} | {item['type']} | {item['file']} | {item['date']} | {item['severity']} | {item['format']} |")
 
     # Output to index.md
     output_path = issues_path / "index.md"
