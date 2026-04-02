@@ -1,8 +1,10 @@
 ---
-name: fleet
+name: kimi-fleet
 description: Multi-iteration parallel subagent orchestrator for Kimi Code CLI with streamlined observability, automated documentation, and atomic commits. Use when orchestrating complex work across multiple subagents, enabling parallel execution, or when explicitly requesting fleet mode with '/flow:fleet'. Integrates diataxis documentation and git-atomic-commit workflow.
 type: flow
-version: 2.0.0
+metadata: 
+  author: arisng
+  version: 0.1.0
 ---
 
 # Fleet Flow Skill
