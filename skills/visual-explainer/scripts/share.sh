@@ -24,9 +24,9 @@ if [ ! -f "$HTML_FILE" ]; then
     exit 1
 fi
 
-# Find vercel-deploy skill
+# Find deploy-to-vercel skill
 VERCEL_SCRIPT=""
-for dir in ~/.pi/agent/skills/vercel-deploy/scripts /mnt/skills/user/vercel-deploy/scripts; do
+for dir in ~/.copilot/skills/deploy-to-vercel/resources /mnt/skills/user/deploy-to-vercel/resources ~/.pi/agent/skills/vercel-deploy/scripts /mnt/skills/user/vercel-deploy/scripts; do
     if [ -f "$dir/deploy.sh" ]; then
         VERCEL_SCRIPT="$dir/deploy.sh"
         break
@@ -34,8 +34,8 @@ for dir in ~/.pi/agent/skills/vercel-deploy/scripts /mnt/skills/user/vercel-depl
 done
 
 if [ -z "$VERCEL_SCRIPT" ]; then
-    echo -e "${RED}Error: vercel-deploy skill not found${NC}" >&2
-    echo "Install it with: pi install npm:vercel-deploy" >&2
+    echo -e "${RED}Error: deploy-to-vercel skill not found${NC}" >&2
+    echo "Install it with: npx skills add https://github.com/vercel-labs/agent-skills --skill deploy-to-vercel" >&2
     exit 1
 fi
 
@@ -48,7 +48,7 @@ cp "$HTML_FILE" "$TEMP_DIR/index.html"
 
 echo -e "${CYAN}Sharing $(basename "$HTML_FILE")...${NC}" >&2
 
-# Deploy via vercel-deploy skill
+# Deploy via deploy-to-vercel skill
 # Temporarily disable errexit to capture deployment errors
 set +e
 RESULT=$(bash "$VERCEL_SCRIPT" "$TEMP_DIR" 2>&1)
@@ -78,5 +78,5 @@ echo -e "${GREEN}Live URL:  ${PREVIEW_URL}${NC}" >&2
 echo -e "${CYAN}Claim URL: ${CLAIM_URL}${NC}" >&2
 echo "" >&2
 
-# Output JSON for programmatic use (extract from vercel-deploy output)
+# Output JSON for programmatic use (extract from deploy-to-vercel output)
 echo "$RESULT" | grep -E '^\{' | head -1

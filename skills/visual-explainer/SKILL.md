@@ -48,7 +48,7 @@ Detailed prompt templates are available in `{skills_source}/visual-explainer/com
 | `plan-review` | Compare a plan against the codebase with risk assessment |
 | `project-recap` | Mental model snapshot for context-switching back to a project |
 | `fact-check` | Verify accuracy of a document against actual code |
-| `share` | Deploy an HTML page to Vercel via `vercel-deploy` skill |
+| `share` | Deploy an HTML page to Vercel via `deploy-to-vercel` skill |
 
 ## Workflow
 
@@ -401,6 +401,71 @@ Every diagram is a single self-contained `.html` file. No external assets except
 
 Share visual explainer pages instantly via Vercel. No account or authentication required.
 
+### Ad-hoc Shipping to Vercel
+
+Use ad-hoc shipping when the goal is immediate distribution of a single HTML artifact, not long-lived application hosting.
+
+This workflow is intentionally:
+- **Artifact-first**: ships one generated HTML file as `index.html`.
+- **Zero-friction**: returns a live URL immediately without requiring pre-authenticated Vercel login.
+- **Claimable**: includes a claim URL so ownership can be moved to a Vercel account later.
+- **Ephemeral by default**: best for previews, reviews, and collaboration handoffs rather than durable production hosting.
+
+Choose this path for rapid sharing (design review links, PR context, stakeholder walkthroughs). Use formal deployment flows for stable production endpoints, private access controls, or compliance-bound content.
+
+### First-Time Setup (Required)
+
+Before first use, confirm all prerequisites below:
+
+1. **Runtime shell support**
+  - Run sharing from a Bash-capable environment (`bash`).
+  - Required shell tools must exist: `mktemp`, `cp`, `grep`, `head`, `basename`, and `bash` itself.
+
+2. **Visual Explainer skill availability**
+  - Ensure this skill is installed/published to the active skill directory so `scripts/share.sh` can be invoked from `{{skill_dir}}`.
+  - In this repository, first-time publish can be done with:
+    ```bash
+    pwsh -NoProfile -File scripts/publish/publish-skills.ps1 -Skills "visual-explainer"
+    ```
+
+3. **deploy-to-vercel skill installed**
+  - Install once if missing:
+    ```bash
+    npx skills add https://github.com/vercel-labs/agent-skills --skill deploy-to-vercel
+    ```
+  - The share script expects `deploy.sh` at one of these locations:
+    - `~/.copilot/skills/deploy-to-vercel/resources/deploy.sh`
+    - `/mnt/skills/user/deploy-to-vercel/resources/deploy.sh`
+    - legacy fallback: `~/.pi/agent/skills/vercel-deploy/scripts/deploy.sh`
+    - legacy fallback: `/mnt/skills/user/vercel-deploy/scripts/deploy.sh`
+
+4. **Network egress**
+  - Outbound internet access to Vercel is required for deployment.
+
+5. **Input file readiness**
+  - The source HTML file must already exist and be readable.
+
+### First-Time Validation Checklist
+
+Run this once before the first share:
+
+```bash
+# 1) Confirm script exists
+test -f "{{skill_dir}}/scripts/share.sh" && echo "visual-explainer: OK"
+
+# 2) Confirm deploy-to-vercel bridge exists
+test -f ~/.copilot/skills/deploy-to-vercel/resources/deploy.sh || test -f /mnt/skills/user/deploy-to-vercel/resources/deploy.sh || test -f ~/.pi/agent/skills/vercel-deploy/scripts/deploy.sh || test -f /mnt/skills/user/vercel-deploy/scripts/deploy.sh
+
+# 3) Dry run with a small HTML file
+printf '<!doctype html><html><body>hello</body></html>' > /tmp/ve-smoke.html
+bash {{skill_dir}}/scripts/share.sh /tmp/ve-smoke.html
+```
+
+Success criteria:
+- Command exits successfully.
+- Output shows both `Live URL` and `Claim URL`.
+- The live URL opens in a browser.
+
 **Usage:**
 ```bash
 bash {{skill_dir}}/scripts/share.sh <html-file>
@@ -418,16 +483,23 @@ bash {{skill_dir}}/scripts/share.sh ~/.agent/diagrams/my-diagram.html
 
 **How it works:**
 1. Copies HTML file to temp directory as `index.html`
-2. Deploys via the vercel-deploy skill (zero-auth claimable deployment)
+2. Deploys via the deploy-to-vercel skill (zero-auth claimable deployment)
 3. URL is live immediately — works in any browser
+4. Emits JSON for programmatic capture when available from `deploy-to-vercel`
 
 **Requirements:**
-- vercel-deploy skill (should be pre-installed; if not: `pi install npm:vercel-deploy`)
+- Bash-capable environment and standard Unix utilities (`mktemp`, `cp`, `grep`, `head`)
+- Installed visual-explainer skill (for `scripts/share.sh`)
+- deploy-to-vercel skill (if missing: `npx skills add https://github.com/vercel-labs/agent-skills --skill deploy-to-vercel`)
+- Outbound network access to Vercel
+- Existing local HTML file to publish
 
 **Notes:**
 - Deployments are public — anyone with the URL can view
 - Preview deployments have configurable retention (default: 30 days)
 - Claim URL lets you transfer the deployment to your Vercel account
+- Each share creates a new deployment URL
+- Promotion path: use ad-hoc URL for review, then move to formal project deployment when persistence/governance is required
 
 See `./commands/share.md` for the `/share` command template.
 
