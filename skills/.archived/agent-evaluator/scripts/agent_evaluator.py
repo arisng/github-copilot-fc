@@ -69,9 +69,9 @@ class AgentEvaluator:
                 "priority": "high",
                 "relevance_score": 0
             },
-            "PM-Changelog": {
-                "description": "Generates monthly changelog summaries for non-tech stakeholders from weekly raw changelogs",
-                "keywords": ["changelog", "release", "summary", "monthly", "stakeholder", "communication", "generate monthly summary", "generate monthly changelog"],
+            "Release-Notes-Writer": {
+                "description": "Generates monthly release notes for non-technical stakeholders and SaaS end users from weekly raw changelogs",
+                "keywords": ["changelog", "release notes", "release", "summary", "monthly", "stakeholder", "customer", "end user", "communication", "generate monthly summary", "generate monthly changelog"],
                 "file_patterns": ["CHANGELOG*", "**/changelogs/**", "**/releases/**"],
                 "intent_patterns": [r"\b(create|generate|write)\b.*\b(changelog|release notes)\b", r"\b(monthly|summary)\b.*\b(stakeholder|communication)\b"],
                 "priority": "medium",

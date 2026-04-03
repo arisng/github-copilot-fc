@@ -173,25 +173,25 @@ This file contains test cases for the AgentEvaluator class. Test cases are organ
 	- Meta-Agent should be activated (YES)
 	- Should have keyword matches > 0
 
-### PM-Changelog Keyword - Changelog
+### Release-Notes-Writer Keyword - Changelog
 - **Description**: Test activation for changelog keyword
 - **Input**: `"generate changelog"`
 - **Expected**:
-	- PM-Changelog should be activated (YES)
+	- Release-Notes-Writer should be activated (YES)
 	- Should have keyword matches > 0
 
-### PM-Changelog Keyword - Generate Monthly Summary
+### Release-Notes-Writer Keyword - Generate Monthly Summary
 - **Description**: Test activation for generate monthly summary phrase
 - **Input**: `"generate monthly summary"`
 - **Expected**:
-	- PM-Changelog should be activated (YES)
+	- Release-Notes-Writer should be activated (YES)
 	- Should have keyword matches > 0
 
-### PM-Changelog Keyword - Generate Monthly Changelog
+### Release-Notes-Writer Keyword - Generate Monthly Changelog
 - **Description**: Test activation for generate monthly changelog phrase
 - **Input**: `"generate monthly changelog"`
 - **Expected**:
-	- PM-Changelog should be activated (YES)
+	- Release-Notes-Writer should be activated (YES)
 	- Should have keyword matches > 0
 
 ### Intent Pattern Activation
