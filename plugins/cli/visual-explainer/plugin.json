@@ -1,0 +1,10 @@
+{
+  "name": "visual-explainer",
+  "description": "Polished visual explanation workflows for diagrams, reviews, and recaps — CLI runtime",
+  "version": "0.1.0",
+  "runtime": "github-copilot-cli",
+  "skills": [
+    "../../../skills/visual-explainer"
+  ],
+  "commands": "commands/"
+}
