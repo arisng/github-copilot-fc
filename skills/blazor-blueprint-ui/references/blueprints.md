@@ -33,11 +33,12 @@ The upstream docs currently list 60 blueprints across 10 categories:
 
 ## Recommended workflow
 
-1. Finish library setup first.
+1. Finish library setup first using [setup.md](setup.md).
 2. Pick the closest category.
 3. Copy the Razor example from the upstream blueprint file.
 4. Replace placeholder data, routes, and actions.
 5. Re-theme with your app's CSS variables/utilities instead of rewriting the structure from scratch.
+6. Cross-check [patterns.md](patterns.md) when the blueprint combines shells, forms, overlays, and data surfaces.
 
 ## Upstream blueprint files
 

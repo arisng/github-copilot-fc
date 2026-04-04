@@ -1,6 +1,9 @@
 ---
 name: blazor-blueprint-ui
 description: Build and customize .NET 8+ Blazor UIs with BlazorBlueprint. Use when choosing between BlazorBlueprint.Components and BlazorBlueprint.Primitives, wiring setup and providers, using ToastService/DialogService/localization, selecting icon packs, applying shadcn-ui-style theming, or copying and adapting BlazorBlueprint blueprints.
+metadata: 
+    version: 0.1.0
+    author: arisng
 ---
 
 # BlazorBlueprint UI
@@ -34,8 +37,30 @@ Read [references/setup.md](references/setup.md) for:
 - Theme variables and dark mode
 - Verification and troubleshooting
 
+### Services & Localization
+Read [references/services.md](references/services.md) for:
+- `AddBlazorBlueprintComponents()` vs `AddBlazorBlueprintPrimitives()`
+- `ToastService` and `DialogService`
+- provider requirements and programmatic dialog usage
+
+Read [references/localization.md](references/localization.md) for:
+- `IBbLocalizer` and startup string overrides
+- `IStringLocalizer` integration patterns
+- culture-sensitive component text and formatting
+
 ### Icons
 Read [references/icons.md](references/icons.md) for icon component usage and styling guidance.
+
+### Blueprints & Primitives
+Read [references/blueprints.md](references/blueprints.md) for:
+- category routing across auth, sidebar, apps, dashboards, forms, data, marketing, and ecommerce
+- the upstream blueprint catalog and per-category files
+- copy/adapt workflow for production-shaped screens
+
+Read [references/primitives.md](references/primitives.md) for:
+- when to stay on `BlazorBlueprint.Components`
+- when to switch to `BlazorBlueprint.Primitives`
+- headless behavior and custom design-system guidance
 
 ### Common Patterns
 Read [references/patterns.md](references/patterns.md) for:
@@ -125,14 +150,19 @@ Overlay components render through `BbPortalHost`. App-wide toasts and service-dr
 ## Workflow
 
 1. **Read setup.md** for installation and providers.
-2. **Pick a category**: forms, layout/navigation, overlays, display/data, or charts.
-3. **Load patterns.md** when composing multiple surfaces together.
-4. **Use blueprints** when you need a production-shaped screen quickly.
-5. **Style through theme variables** and validate dark mode.
+2. **Choose components vs primitives** before building custom shells or behavior-heavy surfaces.
+3. **Pick a category**: forms, layout/navigation, overlays, display/data, or charts.
+4. **Load patterns.md** when composing multiple surfaces together.
+5. **Load blueprints.md** when you need a production-shaped screen quickly.
+6. **Style through theme variables** and validate dark mode.
 
 ## When to Load References
 
 - **setup.md:** first-time setup, providers, theming, dark mode, icons import questions
+- **services.md:** DI registration differences, `ToastService`, `DialogService`, provider requirements
+- **localization.md:** label overrides, `IBbLocalizer` customization, culture-sensitive component text
+- **blueprints.md:** rapid auth, sidebar, dashboard, data, marketing, or ecommerce screen scaffolding
+- **primitives.md:** headless composition, custom design systems, or behavior-only reuse
 - **components-forms.md:** editing flows, validation, selection, wizards, schema-driven forms
 - **components-layout.md:** shells, responsive navigation, cards, tabs, resizable work areas
 - **components-overlays.md:** dialogs, menus, tooltips, command palettes, toasts
@@ -142,5 +172,5 @@ Overlay components render through `BbPortalHost`. App-wide toasts and service-dr
 
 ## Blueprints and Primitives
 
-- **Blueprints** provide ready-to-copy compositions for auth, sidebar shells, dashboards, forms, data screens, marketing, and ecommerce.
-- **Primitives** are the headless layer for advanced users who want BlazorBlueprint behavior without the styled component surface.
+- **Blueprints** provide ready-to-copy compositions for auth, sidebar shells, dashboards, forms, data screens, marketing, and ecommerce. Read [references/blueprints.md](references/blueprints.md) for category routing and upstream blueprint entry points.
+- **Primitives** are the headless layer for advanced users who want BlazorBlueprint behavior without the styled component surface. Read [references/primitives.md](references/primitives.md) when markup ownership matters more than the default component styling.
