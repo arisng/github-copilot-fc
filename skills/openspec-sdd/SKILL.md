@@ -9,303 +9,225 @@ description: >-
   Triggers: "openspec", "spec-driven", "SDD", "write specs", "propose a change",
   "delta spec", "archive change", "opsx", "/opsx:", "GIVEN/WHEN/THEN scenarios",
   "requirements specification", "change proposal", "brownfield specs", "verify implementation".
+metadata: 
+    version: 0.2.0
+    author: arisng
 ---
 
 # OpenSpec Spec-Driven Development
 
-Spec-driven development (SDD) with OpenSpec: specify what to build before writing code, track changes as structured proposals, keep specs as living documentation.
+Specify what to build before writing code. Track changes as structured proposals. Keep specs as living documentation.
 
-**Principle**: Fluid, iterative, brownfield-first. Artifacts are enablers, not gates.
-
+**Principle**: Fluid, iterative, brownfield-first. Artifacts are enablers, not gates.  
 **Source**: <https://github.com/Fission-AI/OpenSpec>
 
 ## Prerequisites
 
 - Node.js >= 20.19.0
 - `npm install -g @fission-ai/openspec@latest`
-- Verify installation: `openspec --version` (if not found → `npm install -g @fission-ai/openspec@latest`)
-- Initialize: `openspec init --tools github-copilot` (creates `.github/skills/` and `.github/prompts/`)
+- Initialize: `openspec init --tools github-copilot` (creates `openspec/` + `.github/` integration)
 
 ## Directory Structure
 
 ```
-project-root/
-├── .github/
-│   ├── skills/openspec-*/SKILL.md   # Copilot skill files (auto-generated)
-│   └── prompts/opsx-*.prompt.md     # Copilot slash commands (auto-generated)
-└── openspec/
-    ├── config.yaml                  # Project context, schema, artifact rules
-    ├── specs/<workflow>/<domain>/spec.md  # Preferred for shared workspaces with multiple systems
-    │                                      # specs/<domain>/spec.md is acceptable only for one top-level system
-    ├── changes/<change-name>/       # Active change proposals
-    │   ├── .openspec.yaml           # Metadata (schema, created date)
-    │   ├── proposal.md              # Why, what changes, capabilities, impact
-    │   ├── specs/<workflow>/<domain>/spec.md  # Delta specs (ADDED/MODIFIED/REMOVED/RENAMED)
-    │   ├── design.md                # Technical approach, architecture decisions
-    │   └── tasks.md                 # Implementation checklist
-    └── changes/archive/             # Completed changes (YYYY-MM-DD-<name>/)
+openspec/
+├── config.yaml                                      # Project context + artifact rules
+├── specs/<product-ns>/<domain>/spec.md              # Current-state specs (multi-system)
+│   # OR specs/<domain>/spec.md                      # (single-system repos)
+├── changes/<change-name>/                           # Active change proposals
+│   ├── .openspec.yaml
+│   ├── proposal.md
+│   ├── specs/<product-ns>/<domain>/spec.md          # Delta specs (ADDED/MODIFIED/REMOVED/RENAMED)
+│   ├── design.md
+│   └── tasks.md
+└── changes/archive/YYYY-MM-DD-<name>/               # Completed changes
 ```
 
-For a single-system repository, `openspec/specs/<domain>/spec.md` is fine. For a repository that hosts multiple workflows or products, group domains under a stable namespace such as `openspec/specs/<workflow>/<domain>/spec.md` to avoid collisions and make cross-workflow ownership explicit.
+> **`<product-ns>` vs `<domain>`**: `<product-ns>` (product namespace) is a stable folder that groups related domains under one system or product area — e.g. `ordering/`, `billing/`, `auth/`. `<domain>` is a single capability within that area — e.g. `payments/`, `invoices/`, `sessions/`. Use `<product-ns>/<domain>/` in repos that host multiple distinct systems; use `<domain>/` alone in single-system repos.
+> This directory path segment is **unrelated** to the SDD process steps below.
 
-## Core Workflow
-
-Default `core` profile — 4 commands for end-to-end flow:
+## SDD Process
 
 ```
-/opsx:explore  →  Think, investigate, clarify (no artifacts, no code)
+/opsx:explore  →  Think, investigate, clarify (no code, no artifacts)
 /opsx:propose  →  Create change + all planning artifacts in one step
 /opsx:apply    →  Implement tasks from tasks.md checklist
 /opsx:archive  →  Validate, merge delta specs, move to archive
 ```
 
-**Typical flow**: `propose` → `apply` → `archive`.
-Use `explore` before `propose` when the problem is unclear.
+**Typical flow**: `propose` → `apply` → `archive`.  
+Use `explore` first when the problem has hidden design gaps or ambiguities.
+
+## Child Skills
+
+`openspec-sdd` is an entry-point/routing skill. Each phase of the SDD process is implemented by a dedicated **child skill** that carries the focused instructions for that step only.
+
+### Why separate skills, not one bundle?
+
+- **CLI-generated and CLI-owned** — `openspec init --tools github-copilot` and `openspec update` write these skill files to `.github/skills/`. This is confirmed: running `openspec update --force` regenerates all four child skill files at the same timestamp as their matching `.github/prompts/opsx-*.prompt.md` files. Because the CLI owns these files, merging child skill content into a hand-authored parent skill would create a drift problem every time `openspec update` runs.
+- **Context efficiency** — A developer running `/opsx:apply` doesn't need the explore or propose rules in their context window. Loading only the relevant child skill keeps token overhead low.
+- **Independent triggering** — Each child skill has its own `description` frontmatter with specific trigger phrases, so it can fire directly without routing through the parent.
+
+### What `openspec update` generates for GitHub Copilot
+
+For each workflow in your active config, the CLI generates **two files** under `.github/`:
+
+| File type | Path | Purpose |
+|---|---|---|
+| Skill | `.github/skills/openspec-<workflow>/SKILL.md` | Loaded by Copilot automatically via skills discovery |
+| Prompt | `.github/prompts/opsx-<workflow>.prompt.md` | Invokable via `/opsx:<workflow>` slash command |
+
+Both files are stamped with `generatedBy: "<version>"` metadata and share an identical write timestamp after each `openspec update` run. The active workflow list is controlled by the `workflows` key in global config (see [Profile vs Custom Profile](#profile-vs-custom-profile) below).
+
+### Currently generated child skills (this repo)
+
+```bash
+openspec config list  # profile: custom, delivery: both, workflows: propose/explore/apply/archive
+```
+
+| Child skill | Location | Phase |
+|---|---|---|
+| `openspec-explore` | `.github/skills/openspec-explore/` | Explore |
+| `openspec-propose` | `.github/skills/openspec-propose/` | Propose |
+| `openspec-apply-change` | `.github/skills/openspec-apply-change/` | Apply |
+| `openspec-archive-change` | `.github/skills/openspec-archive-change/` | Archive |
+
+### Profile vs Custom Profile
+
+OpenSpec has two profiles, configured globally via `openspec config profile`:
+
+**`core`** — Opinionated preset. Generates the four base workflows (explore, propose, apply, archive) with a fixed, non-configurable setup. No `openspec config set` needed.
+
+**`custom`** — Unlocks three configurable settings:
+
+| Setting | Values | Effect |
+|---|---|---|
+| `delivery` | `both` \| `prompts` \| `skills` | What `openspec update` generates — both skill + prompt files, prompts only, or skills only |
+| `workflows` | Array of workflow names | Which workflows to include; controls how many skill/prompt pairs are generated |
+| `featureFlags` | Object | Feature-specific toggles |
+
+**Concrete example — this repo's config** (`C:\Users\ADMIN\AppData\Roaming\openspec\config.json`):
+```json
+{
+  "profile": "custom",
+  "delivery": "both",
+  "workflows": ["explore", "propose", "apply", "archive"]
+}
+```
+Result: 4 skill files + 4 prompt files generated (identical to `core` output, but each setting is now explicit and editable).
+
+**Concrete example — prompts-only delivery** (for a team that doesn't use Copilot skills routing):
+```json
+{
+  "profile": "custom",
+  "delivery": "prompts",
+  "workflows": ["explore", "propose", "apply", "archive"]
+}
+```
+Result: only `.github/prompts/opsx-*.prompt.md` files generated; no `.github/skills/` files written.
+
+To switch and regenerate: `openspec config profile` (interactive) → `openspec update`.
+
+### Role of `openspec-sdd` (this skill)
+
+`openspec-sdd` covers everything the child skills don't: initialization, brownfield adoption, the mutation rule, the decision table, config, profile setup, and the overall mental model. It also serves as the landing skill when the user's intent spans multiple phases or doesn't map cleanly to a single child skill command.
 
 ## AI Coding Agent Adaptation
 
-The `/opsx:*` names are workflow aliases, not a required user interface. If the environment cannot invoke slash prompts directly, execute the equivalent OpenSpec workflow through skills or CLI steps instead of stopping at "run `/opsx:*`".
+When slash prompts aren't available, use skill files or CLI steps directly:
 
-| Alias | AI-agent equivalent |
-|---|---|
-| `/opsx:explore` | Use `.github/skills/openspec-explore/SKILL.md` behavior or follow the explore rules directly |
-| `/opsx:propose` | Use `.github/skills/openspec-propose/SKILL.md` or run `openspec new change`, `openspec status`, and `openspec instructions` to create artifacts |
-| `/opsx:apply` | Use `.github/skills/openspec-apply-change/SKILL.md` or run `openspec instructions apply --change <name> --json` and implement tasks |
-| `/opsx:archive` | Use `.github/skills/openspec-archive-change/SKILL.md` or run the archive workflow with validation and sync checks |
-
-When operating as an AI coding agent, read [references/ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md) before changing anything under `openspec/`.
-
-### Custom Profile Commands
-
-Enable: `openspec config profile` → select custom → `openspec update`.
-
-| Command | Purpose |
-|---|---|
-| `/opsx:new` | Scaffold change directory only (no artifacts) |
-| `/opsx:continue` | Create next artifact based on dependency graph |
-| `/opsx:ff` | Fast-forward: generate all planning artifacts at once |
-| `/opsx:verify` | Validate implementation against specs (3 dimensions) |
-| `/opsx:sync` | Merge delta specs into main specs without archiving |
-| `/opsx:bulk-archive` | Archive multiple completed changes with conflict detection |
-| `/opsx:onboard` | Guided walkthrough for new users |
-
-> **Skill generation**: When the custom profile is enabled, `openspec update` generates a dedicated skill file (`.github/skills/openspec-<command>/SKILL.md`) and prompt file (`.github/prompts/opsx-<command>.prompt.md`) for each custom command, enabling the same skill-first routing pattern used by core commands.
-
-## Spec Format
-
-Specs in `openspec/specs/<workflow>/<domain>/spec.md` or, for single-system repositories, `openspec/specs/<domain>/spec.md`:
-
-```markdown
-# <Domain> Specification
-
-## Purpose
-High-level description of this capability.
-
-## Requirements
-
-### Requirement: <Name>
-The system SHALL/MUST/SHOULD/MAY <behavior statement>.
-
-#### Scenario: <Scenario Name>
-- **GIVEN** <precondition>
-- **WHEN** <action>
-- **THEN** <expected outcome>
-- **AND** <additional outcome>
-```
-
-**Rules**: RFC 2119 keywords for obligation. GIVEN/WHEN/THEN for scenarios. Externally observable behavior only — implementation details go in `design.md`.
-
-## Change Artifacts
-
-For detailed templates of each artifact, see [references/artifact-templates.md](references/artifact-templates.md).
-
-**Summary of artifacts in each change folder:**
-
-| Artifact | Purpose | Key content |
+| Alias | Skill file | CLI equivalent |
 |---|---|---|
-| `proposal.md` | Why + what | Why, what changes, capabilities (new + modified), impact |
-| `specs/<workflow>/<domain>/spec.md` | Delta specs | ADDED/MODIFIED/REMOVED/RENAMED requirements |
-| `design.md` | How | Technical approach, architecture decisions, file changes |
-| `tasks.md` | Checklist | Phased tasks with `- [ ]` / `- [x]` checkboxes |
+| `/opsx:explore` | `openspec-explore/SKILL.md` | `openspec list --json`, read files, no artifacts |
+| `/opsx:propose` | `openspec-propose/SKILL.md` | `openspec new change <name>` + `openspec instructions` |
+| `/opsx:apply` | `openspec-apply-change/SKILL.md` | `openspec status --change "<name>" --json` → implement tasks |
+| `/opsx:archive` | `openspec-archive-change/SKILL.md` | `openspec archive <name> -y` |
 
-**Delta merge order during archive**: RENAMED → REMOVED → MODIFIED → ADDED.
+Read [references/ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md) before modifying anything under `openspec/`.
 
 ## Config
 
-`openspec/config.yaml`:
-
 ```yaml
+# openspec/config.yaml
 schema: spec-driven
-
 context: |
-  Tech stack: TypeScript, React, Node.js
-  Testing: Vitest for unit tests
-
+  Tech stack: Node.js 22, Express 5
+  Tests: Vitest + supertest
 rules:
-  proposal:
-    - Include rollback plan for risky changes
   specs:
     - Use GIVEN/WHEN/THEN for all scenarios
   tasks:
     - Each task must be independently verifiable
 ```
 
-- `schema`: Default workflow schema
-- `context`: Project background injected into all artifacts (max 50KB, keep concise)
-- `rules`: Per-artifact generation constraints
+`context` is injected into all generated artifacts (keep concise, max 50 KB).
 
 ## Agent Decision Guide
 
-### Situation → Action
-
 | Situation | Action |
 |---|---|
-| Problem is unclear or complex | `/opsx:explore` — think, investigate, clarify. Never write code. |
-| Ready to plan + implement a feature | `/opsx:propose` → `/opsx:apply` → `/opsx:archive` |
-| Need granular artifact control | `/opsx:new` → `/opsx:continue` (repeat) → `/opsx:apply` |
-| Multiple small changes to batch | `/opsx:propose` each → `/opsx:bulk-archive` |
+| Problem unclear or complex | `/opsx:explore` — clarify first, never write code |
+| Ready to plan + implement | `/opsx:propose` → `/opsx:apply` → `/opsx:archive` |
+| Granular artifact control needed | `/opsx:new` → `/opsx:continue` (repeat) → `/opsx:apply` |
+| Multiple small changes | `/opsx:propose` each → `/opsx:bulk-archive` |
 | Implementation done, need validation | `/opsx:verify` |
 | Specs changed mid-implementation | `/opsx:sync` then continue `/opsx:apply` |
-| New contributor needs orientation | `/opsx:onboard` |
-| Existing codebase, no specs yet | See [Brownfield Adoption](#brownfield-adoption) |
-| Change should be abandoned | Delete the change folder from `openspec/changes/` |
-| Tasks need revision mid-implementation | Edit `tasks.md` directly, then continue `/opsx:apply` |
-| Multiple changes touch same spec domain | `/opsx:bulk-archive` handles conflict detection automatically |
+| New contributor onboarding | `/opsx:onboard` |
+| Existing codebase, no specs yet | [Brownfield Adoption](#brownfield-adoption) |
+| Change should be abandoned | Delete folder from `openspec/changes/` |
+| Multiple changes touch same domain | `/opsx:bulk-archive` (conflict detection built-in) |
 
-### /opsx:explore — Rules
+For detailed per-command behavioral rules (explore/apply/verify/archive), see [references/command-rules.md](references/command-rules.md).
 
-- Act as thinking partner: ask questions, challenge assumptions, compare options
-- Investigate codebase: read files, search code, map architecture
-- Check existing state: `openspec list --json`, read existing artifacts
-- Visualize with ASCII diagrams when helpful
-- Surface risks and unknowns
-- Offer to capture insights into artifacts — but never auto-capture
-- **Never write code or implement features during explore**
-- When insights crystallize → suggest `/opsx:propose`
+## Spec Format
 
-### /opsx:apply — Implementation Workflow
+Requirements use RFC 2119 keywords (SHALL/MUST/SHOULD/MAY). Scenarios use GIVEN/WHEN/THEN. No implementation details in specs — those go in `design.md`.
 
-1. Run `openspec status --change "<name>" --json` to check artifact state
-2. Read `tasks.md` — identify incomplete tasks (`- [ ]`)
-3. For each task:
-   - Reference delta specs for behavioral requirements (primary: what to implement)
-   - Consult `design.md` for technical guidance (secondary: how to implement)
-   - Implement the code change
-   - Mark task `- [x]` in `tasks.md`
-4. After all tasks complete → `/opsx:verify` (if available) → `/opsx:archive`
-5. If interrupted, `/opsx:apply` resumes from where it left off
+See [references/spec-format.md](references/spec-format.md) for the full template, delta spec marker usage (ADDED/MODIFIED/REMOVED/RENAMED), and RFC 2119 guidance.
 
-### /opsx:verify — Three Dimensions
+**Delta merge order during archive**: RENAMED → REMOVED → MODIFIED → ADDED.
 
-| Dimension | Checks |
+## Change Artifacts
+
+| Artifact | Purpose |
 |---|---|
-| **Completeness** | All tasks in tasks.md done? All requirements implemented? All scenarios covered? |
-| **Correctness** | Implementation matches spec intent? Edge cases handled? Error states align? |
-| **Coherence** | Design decisions reflected in code structure? Naming consistent with design.md? |
+| `proposal.md` | Why + what changes + impact + rollback |
+| `specs/<domain>/spec.md` | Delta specs — behavioral changes only |
+| `design.md` | Technical approach, architecture decisions, file changes |
+| `tasks.md` | Phased checklist with `- [ ]` / `- [x]` checkboxes |
 
-Issues reported as CRITICAL (blocks archive), WARNING (highlight), or SUGGESTION.
-
-### /opsx:archive — Step by Step
-
-1. Validates task completion in `tasks.md` (incomplete tasks prompt confirmation)
-2. Validates delta spec structure (invalid markers block archive)
-3. Merges delta specs: RENAMED → REMOVED → MODIFIED → ADDED
-4. Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
-
-Use `--no-validate` to skip validation. Use `-y` to skip confirmation prompts.
+For detailed templates, see [references/artifact-templates.md](references/artifact-templates.md).
 
 ## Brownfield Adoption
 
-Introduce OpenSpec to an existing codebase with no specs:
-
-### Step 1: Initialize
-
-```bash
-openspec init --tools github-copilot
-```
-
-Creates `openspec/` structure + Copilot integration files in `.github/`.
-If `openspec/` already exists, enters extend mode (adds tools without recreating).
-
-### Step 2: Configure project context
-
-Edit `openspec/config.yaml` with tech stack, conventions, constraints:
-
-```yaml
-schema: spec-driven
-context: |
-  Existing Express.js API with PostgreSQL.
-  Authentication via JWT tokens.
-  All endpoints under /api/v2/.
-```
-
-### Step 3: Explore and document existing behavior
-
-```
-/opsx:explore
-```
-
-Investigate the existing codebase. Map current architecture, identify domains, surface undocumented behaviors. Use this to understand what specs are needed.
-
-### Step 4: Write initial specs incrementally
-
-For each domain identified during exploration, create specs describing **current** behavior:
-
-```bash
-# Create spec file manually
-# Single-system repo:    mkdir -p openspec/specs/auth
-# Multi-workflow repo:   mkdir -p openspec/specs/<workflow>/auth
-# Then write the spec capturing existing behavior
-```
-
-Write specs for what the system **does today**, not what it should do. Use `/opsx:propose` for any **new** changes on top.
-
-This manual creation step is the main exception to the "change specs through change proposals" rule. It is for first-time baseline capture of current behavior, not routine edits to established specs.
-
-### Step 5: Evolve with changes
-
-From this point, all new features and modifications follow the standard workflow:
-`/opsx:propose` → `/opsx:apply` → `/opsx:archive`
-
-Each archived change automatically merges delta specs into the main specs, keeping documentation evergreen.
+1. `openspec init --tools github-copilot` — creates `openspec/` + `.github/` integration files
+2. Edit `openspec/config.yaml` with tech stack and conventions
+3. `/opsx:explore` — map current architecture, identify spec domains
+4. Create `openspec/specs/<domain>/spec.md` for each domain, describing **current** behavior  
+   *(baseline capture — the only time direct spec edits are permitted)*
+5. All future changes: `/opsx:propose` → `/opsx:apply` → `/opsx:archive`
 
 ## Current-Spec Mutation Rule
 
-After a domain has been established, treat `openspec/specs/**` as protocol-governed current-state artifacts.
+`openspec/specs/**` is protocol-governed. Do not directly edit main specs for new, changed, renamed, or removed behavior.
 
-- Do not directly edit `openspec/specs/**` for new behavior, changed behavior, renamed requirements, or removed requirements.
-- Stage those changes in `openspec/changes/<change-name>/specs/**` first.
-- Update main specs only through the sync or archive step.
-- Treat `openspec/config.yaml` as protocol-governed too; change it deliberately when project-wide rules or context change.
-- Use direct edits to current specs only for explicit brownfield baseline capture or a user-approved repair of previously corrupted synced content.
+- Stage all behavior changes in `openspec/changes/<name>/specs/**` first
+- Merge into main specs only via `sync` or `archive`
+- Exception: brownfield baseline capture (Step 4 above) and user-approved repair of corrupted content
 
-For the full mutation policy and enforcement details, see [references/ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md).
+Full policy: [references/ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md)
 
 ## CLI Quick Reference
 
-For full CLI details and flags, see [references/cli-reference.md](references/cli-reference.md).
+Key commands: `openspec init`, `openspec new change <name>`, `openspec status --change "<name>" --json`, `openspec validate --all`, `openspec archive <name> -y`
 
-| Command | Purpose |
-|---|---|
-| `openspec init [--tools github-copilot]` | Initialize project + Copilot integration |
-| `openspec update [--force]` | Regenerate Copilot skill/prompt files |
-| `openspec list [--specs\|--changes] [--json]` | List specs or active changes |
-| `openspec show <item> [--json]` | Display specific change or spec |
-| `openspec status --change "<name>" [--json]` | Artifact completion status for a change |
-| `openspec instructions <artifact> [--json]` | Get enriched instructions for next artifact |
-| `openspec validate [<id>] [--all]` | Validate changes/specs structure |
-| `openspec archive [change-name] [-y]` | Archive completed change |
-| `openspec config list` | Show current configuration |
-| `openspec config profile [preset]` | Set workflow profile (core/custom) |
+Full command reference and flags: [references/cli-reference.md](references/cli-reference.md)
 
 ## Spec Quality Checklist
 
-Before finalizing any spec artifact:
-
-- [ ] Every requirement uses RFC 2119 keywords (SHALL/MUST/SHOULD/MAY)
-- [ ] Every requirement has at least one scenario
-- [ ] Scenarios use GIVEN/WHEN/THEN format with bold keywords
-- [ ] No implementation details in specs (those go in design.md)
+- [ ] Requirements use RFC 2119 keywords (SHALL/MUST/SHOULD/MAY)
+- [ ] Every requirement has at least one GIVEN/WHEN/THEN scenario
+- [ ] No implementation details in specs (those go in `design.md`)
 - [ ] Delta specs use correct markers (ADDED/MODIFIED/REMOVED/RENAMED)
 - [ ] REMOVED requirements include deprecation reason
 - [ ] RENAMED requirements include FROM:/TO: mapping
@@ -314,7 +236,17 @@ Before finalizing any spec artifact:
 
 | Failure | Action |
 |---|---|
-| `openspec` not found | Install: `npm install -g @fission-ai/openspec@latest` |
-| `validate` fails | Read `--json` output → fix CRITICAL issues first, then WARNINGs → re-validate |
-| `archive` fails | Check: (a) incomplete tasks in `tasks.md`, (b) invalid delta spec markers, (c) use `--skip-specs` for non-spec changes |
-| `validate --strict` fails on warnings | Resolve all WARNINGs or downgrade to non-strict if acceptable |
+| `openspec` not found | `npm install -g @fission-ai/openspec@latest` |
+| `validate` fails | Fix CRITICAL issues first, then WARNINGs → re-validate |
+| `archive` fails | Check: incomplete tasks, invalid delta markers, or use `--skip-specs` |
+| `validate --strict` fails | Resolve all WARNINGs or downgrade to non-strict |
+
+## References
+
+- [ai-coding-agent-workflow.md](references/ai-coding-agent-workflow.md) — mutation policy, agent safety rules
+- [artifact-templates.md](references/artifact-templates.md) — full templates for all 4 change artifacts
+- [cli-reference.md](references/cli-reference.md) — complete CLI commands and flags
+- [command-rules.md](references/command-rules.md) — per-command rules for explore/apply/verify/archive
+- [spec-format.md](references/spec-format.md) — spec template, delta markers, RFC 2119 guide
+- [e2e-simulation.md](references/e2e-simulation.md) — annotated end-to-end workflow example (rate limiting on a SaaS API)
+
