@@ -1,0 +1,23 @@
+{
+  "name": "ralph-v2-cli",
+  "description": "Ralph-v2 CLI-native orchestration system — 7-state machine, fleet SQL-todo coordination, eval-driven iteration, Copilot session-native artifact storage",
+  "version": "0.1.0",
+  "runtime": "github-copilot-cli",
+  "agents": [
+    "../../../agents/ralph-v2-cli/ralph-v2-orchestrator-cli.agent.md",
+    "../../../agents/ralph-v2-cli/ralph-v2-planner-cli.agent.md",
+    "../../../agents/ralph-v2-cli/ralph-v2-executor-cli.agent.md",
+    "../../../agents/ralph-v2-cli/ralph-v2-reviewer-cli.agent.md",
+    "../../../agents/ralph-v2-cli/ralph-v2-questioner-cli.agent.md",
+    "../../../agents/ralph-v2-cli/ralph-v2-librarian-cli.agent.md"
+  ],
+  "skills": [
+    "../../../skills/git-atomic-commit",
+    "../../../skills/diataxis",
+    "../../../skills/diataxis-categorizer",
+    "../../../skills/ralph-session-ops-reference",
+    "../../../skills/ralph-feedback-batch-protocol",
+    "../../../skills/ralph-planning-artifact-templates",
+    "../../../skills/ralph-knowledge-merge-and-promotion"
+  ]
+}
