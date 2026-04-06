@@ -1,0 +1,10 @@
+# Plugin-Managed Marker
+
+Agents in this directory are managed and distributed via the Ralph-v2-cli CLI plugin.
+
+**Do NOT publish these agents directly via publish-agents.ps1.**
+
+To publish Ralph-v2-cli CLI agents, use the plugin publisher:
+```
+pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+```
