@@ -139,7 +139,7 @@ function Merge-AgentInstructions {
         $requiredMarkers = @(
             @{ Name = 'Persona';          Pattern = '<persona>' },
             @{ Name = 'Rules';            Pattern = '<rules>' },
-            @{ Name = 'Signal Protocol';  Pattern = 'Poll-Signals|Live Signals' },
+            @{ Name = 'Dispatch';         Pattern = 'Poll-Signals|Live Signals|<aliases>' },
             @{ Name = 'Contract';         Pattern = '<contract>' },
             @{ Name = 'Workflow';         Pattern = 'Workflow|Modes of Operation' }
         )
@@ -365,7 +365,7 @@ function Get-RalphWorkflowVersionContract {
         [Parameter(Mandatory)][object]$Manifest
     )
 
-    if ($Manifest.name -ne 'ralph-v2') {
+    if ($Manifest.name -notin @('ralph-v2', 'ralph-v2-cli')) {
         return $null
     }
 
@@ -673,74 +673,50 @@ function Get-RalphExpectedAliasNameMatrix {
 
     $requiredAliases = @('planner', 'questioner', 'executor', 'reviewer', 'librarian')
     $errors = @()
-    $stableNamesByRuntime = @{
-        'vscode' = @{}
-        'cli'    = @{}
+    $stableNames = @{}
+
+    $vscodeDir = Join-Path (Join-Path (Join-Path $RepoRoot 'agents') 'ralph-v2') 'vscode'
+    if (-not (Test-Path $vscodeDir -PathType Container)) {
+        $errors += "Ralph source vscode directory not found: $vscodeDir"
+        return [PSCustomObject]@{ Errors = $errors; Rows = @{} }
     }
 
-    $runtimeDirs = @{
-        'vscode' = Join-Path (Join-Path (Join-Path $RepoRoot 'agents') 'ralph-v2') 'vscode'
-        'cli'    = Join-Path (Join-Path (Join-Path $RepoRoot 'agents') 'ralph-v2') 'cli'
-    }
-
-    foreach ($runtimeName in $runtimeDirs.Keys) {
-        $runtimeDir = $runtimeDirs[$runtimeName]
-        if (-not (Test-Path $runtimeDir -PathType Container)) {
-            $errors += "Ralph source runtime directory not found: $runtimeDir"
+    $sourceAgentFiles = @(Get-ChildItem -Path $vscodeDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue)
+    foreach ($sourceAgentFile in $sourceAgentFiles) {
+        $sourceAgentName = Get-AgentFrontmatterName -AgentPath $sourceAgentFile.FullName
+        if ([string]::IsNullOrWhiteSpace($sourceAgentName) -or $sourceAgentName -match '^Ralph-v2-Orchestrator(?:-(?:CLI|VSCode))?$') {
             continue
         }
 
-        $sourceAgentFiles = @(Get-ChildItem -Path $runtimeDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue)
-        foreach ($sourceAgentFile in $sourceAgentFiles) {
-            $sourceAgentName = Get-AgentFrontmatterName -AgentPath $sourceAgentFile.FullName
-            if ([string]::IsNullOrWhiteSpace($sourceAgentName) -or $sourceAgentName -match '^Ralph-v2-Orchestrator(?:-(?:CLI|VSCode))?$') {
-                continue
-            }
+        $alias = Get-RalphSubagentAlias -AgentName $sourceAgentName
+        if ($null -eq $alias) { continue }
 
-            $alias = Get-RalphSubagentAlias -AgentName $sourceAgentName
-            if ($null -eq $alias) {
-                continue
-            }
-
-            if ($stableNamesByRuntime[$runtimeName].ContainsKey($alias)) {
-                $errors += "Ralph source runtime '$runtimeName' declares alias '$alias' more than once."
-                continue
-            }
-
-            if ($sourceAgentName -cmatch '-beta$') {
-                $errors += "Ralph source runtime '$runtimeName' agent '$sourceAgentName' must not end with -beta."
-                continue
-            }
-
-            if ($runtimeName -eq 'cli') {
-                # CLI task() dispatch uses plugin-qualified format: ralph-v2/<file-stem>
-                # Store the file stem (not the frontmatter name) so the expected matrix
-                # can be computed as "ralph-v2/<stem>" / "ralph-v2-beta/<stem>-beta"
-                $fileStem = [System.IO.Path]::GetFileNameWithoutExtension($sourceAgentFile.Name) -replace '\.agent$', ''
-                $stableNamesByRuntime[$runtimeName][$alias] = $fileStem
-            } else {
-                $stableNamesByRuntime[$runtimeName][$alias] = $sourceAgentName
-            }
+        if ($stableNames.ContainsKey($alias)) {
+            $errors += "Ralph source vscode declares alias '$alias' more than once."
+            continue
         }
 
-        foreach ($requiredAlias in $requiredAliases) {
-            if (-not $stableNamesByRuntime[$runtimeName].ContainsKey($requiredAlias)) {
-                $errors += "Ralph source runtime '$runtimeName' is missing alias '$requiredAlias'."
-            }
+        if ($sourceAgentName -cmatch '-beta$') {
+            $errors += "Ralph source vscode agent '$sourceAgentName' must not end with -beta."
+            continue
+        }
+
+        $stableNames[$alias] = $sourceAgentName
+    }
+
+    foreach ($requiredAlias in $requiredAliases) {
+        if (-not $stableNames.ContainsKey($requiredAlias)) {
+            $errors += "Ralph source vscode is missing alias '$requiredAlias'."
         }
     }
 
     $rows = @{}
     if ($errors.Count -eq 0) {
         foreach ($alias in $requiredAliases) {
-            $vscodeStable = $stableNamesByRuntime['vscode'][$alias]
-            $cliFileStem  = $stableNamesByRuntime['cli'][$alias]
-
+            $vscodeStable = $stableNames[$alias]
             $rows[$alias] = [ordered]@{
                 'VS Code Stable' = $vscodeStable
                 'VS Code Beta'   = "$vscodeStable-beta"
-                'CLI Stable'     = "ralph-v2/$cliFileStem"
-                'CLI Beta'       = "ralph-v2-beta/$cliFileStem-beta"
             }
         }
     }
@@ -800,7 +776,7 @@ function Get-RalphSubagentAliasTable {
         }
     }
 
-    $expectedHeader = '| Alias | VS Code Stable | VS Code Beta | CLI Stable | CLI Beta |'
+    $expectedHeader = '| Alias | VS Code Stable | VS Code Beta |'
     if ($lines[$lineIndex].Trim() -cne $expectedHeader) {
         $errors += "agents`: $agentDisplayPath (subagent alias table header must be exactly '$expectedHeader')"
         return [PSCustomObject]@{
@@ -810,7 +786,7 @@ function Get-RalphSubagentAliasTable {
     }
 
     $lineIndex++
-    if ($lineIndex -ge $lines.Count -or $lines[$lineIndex].Trim() -notmatch '^\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|$') {
+    if ($lineIndex -ge $lines.Count -or $lines[$lineIndex].Trim() -notmatch '^\|\s*-+\s*\|\s*-+\s*\|\s*-+\s*\|$') {
         $errors += "agents`: $agentDisplayPath (subagent alias table is missing a valid markdown separator row)"
         return [PSCustomObject]@{
             Errors = $errors
@@ -826,8 +802,8 @@ function Get-RalphSubagentAliasTable {
         }
 
         $cells = @(Convert-MarkdownTableLineToCells -Line $trimmedLine)
-        if ($cells.Count -ne 5) {
-            $errors += "agents`: $agentDisplayPath (subagent alias table row '$trimmedLine' must contain exactly 5 columns)"
+        if ($cells.Count -ne 3) {
+            $errors += "agents`: $agentDisplayPath (subagent alias table row '$trimmedLine' must contain exactly 3 columns)"
             $lineIndex++
             continue
         }
@@ -848,8 +824,6 @@ function Get-RalphSubagentAliasTable {
         $rows[$alias] = [ordered]@{
             'VS Code Stable' = $cells[1]
             'VS Code Beta'   = $cells[2]
-            'CLI Stable'     = $cells[3]
-            'CLI Beta'       = $cells[4]
         }
 
         $lineIndex++
@@ -896,6 +870,172 @@ function Test-RalphNextAgentAliasExamples {
     return @($errors | Select-Object -Unique)
 }
 
+function Get-RalphNativeSubagentAliasTable {
+    <#
+    .SYNOPSIS
+        Parses the CLI-only 2-column alias table from a ralph-v2-cli orchestrator agent.
+
+    .DESCRIPTION
+        Like Get-RalphSubagentAliasTable but expects the simpler format:
+        | Alias | CLI Resolution |
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$AgentPath
+    )
+
+    $errors = @()
+    $rows = @{}
+    $agentDisplayPath = "agents/$([System.IO.Path]::GetFileName($AgentPath))"
+    $body = Get-AgentMarkdownBody -AgentPath $AgentPath
+
+    if ([string]::IsNullOrWhiteSpace($body)) {
+        $errors += "agents`: $agentDisplayPath (missing merged markdown body)"
+        return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+    }
+
+    $lines = $body -split "`r?`n"
+    $sectionIndex = -1
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        if ($lines[$index].Trim() -ceq '## Subagent Alias Table') {
+            $sectionIndex = $index
+            break
+        }
+    }
+
+    if ($sectionIndex -lt 0) {
+        $errors += "agents`: $agentDisplayPath (missing '## Subagent Alias Table' section)"
+        return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+    }
+
+    $lineIndex = $sectionIndex + 1
+    while ($lineIndex -lt $lines.Count -and [string]::IsNullOrWhiteSpace($lines[$lineIndex])) {
+        $lineIndex++
+    }
+
+    if ($lineIndex -ge $lines.Count) {
+        $errors += "agents`: $agentDisplayPath (subagent alias table is missing the table header)"
+        return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+    }
+
+    $expectedHeader = '| Alias | CLI Resolution |'
+    if ($lines[$lineIndex].Trim() -cne $expectedHeader) {
+        $errors += "agents`: $agentDisplayPath (native subagent alias table header must be exactly '$expectedHeader')"
+        return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+    }
+
+    $lineIndex++
+    if ($lineIndex -ge $lines.Count -or $lines[$lineIndex].Trim() -notmatch '^\|\s*-+\s*\|\s*-+\s*\|$') {
+        $errors += "agents`: $agentDisplayPath (native subagent alias table is missing a valid markdown separator row)"
+        return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+    }
+
+    $lineIndex++
+    while ($lineIndex -lt $lines.Count) {
+        $trimmedLine = $lines[$lineIndex].Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine -notmatch '^\|') {
+            break
+        }
+
+        $cells = @(Convert-MarkdownTableLineToCells -Line $trimmedLine)
+        if ($cells.Count -ne 2) {
+            $errors += "agents`: $agentDisplayPath (native subagent alias table row '$trimmedLine' must contain exactly 2 columns)"
+            $lineIndex++
+            continue
+        }
+
+        $alias = $cells[0].ToLowerInvariant()
+        if ([string]::IsNullOrWhiteSpace($alias)) {
+            $errors += "agents`: $agentDisplayPath (native subagent alias table contains an empty alias cell)"
+            $lineIndex++
+            continue
+        }
+
+        if ($rows.ContainsKey($alias)) {
+            $errors += "agents`: $agentDisplayPath (native subagent alias table declares alias '$alias' more than once)"
+            $lineIndex++
+            continue
+        }
+
+        $rows[$alias] = [ordered]@{
+            'CLI Resolution' = $cells[1]
+        }
+
+        $lineIndex++
+    }
+
+    if ($rows.Count -eq 0) {
+        $errors += "agents`: $agentDisplayPath (native subagent alias table does not contain any alias rows)"
+    }
+
+    return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+}
+
+function Get-RalphNativeExpectedAliasMatrix {
+    <#
+    .SYNOPSIS
+        Builds expected alias resolution values for ralph-v2-cli from source agents.
+
+    .DESCRIPTION
+        Scans agents/ralph-v2-cli/ for source agent files and builds the expected
+        CLI Resolution values using plugin-qualified names (ralph-v2-cli/<frontmatter-name>).
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot
+    )
+
+    $requiredAliases = @('planner', 'questioner', 'executor', 'reviewer', 'librarian')
+    $errors = @()
+    $rows = @{}
+
+    $sourceDir = Join-Path (Join-Path $RepoRoot 'agents') 'ralph-v2-cli'
+    if (-not (Test-Path $sourceDir -PathType Container)) {
+        $errors += "Ralph native source directory not found: $sourceDir"
+        return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+    }
+
+    $sourceAgentFiles = @(Get-ChildItem -Path $sourceDir -Filter '*.agent.md' -File -ErrorAction SilentlyContinue)
+    $namesByAlias = @{}
+
+    foreach ($sourceAgentFile in $sourceAgentFiles) {
+        $sourceAgentName = Get-AgentFrontmatterName -AgentPath $sourceAgentFile.FullName
+        if ([string]::IsNullOrWhiteSpace($sourceAgentName) -or $sourceAgentName -match '^Ralph-v2-Orchestrator') {
+            continue
+        }
+
+        $alias = Get-RalphSubagentAlias -AgentName $sourceAgentName
+        if ($null -eq $alias) {
+            continue
+        }
+
+        if ($namesByAlias.ContainsKey($alias)) {
+            $errors += "Ralph native source declares alias '$alias' more than once."
+            continue
+        }
+
+        # CLI Resolution uses plugin-qualified format: ralph-v2-cli/<file-stem>
+        $fileStem = [System.IO.Path]::GetFileNameWithoutExtension($sourceAgentFile.Name) -replace '\.agent$', ''
+        $namesByAlias[$alias] = "ralph-v2-cli/$fileStem"
+    }
+
+    foreach ($requiredAlias in $requiredAliases) {
+        if (-not $namesByAlias.ContainsKey($requiredAlias)) {
+            $errors += "Ralph native source is missing alias '$requiredAlias'."
+        }
+    }
+
+    if ($errors.Count -eq 0) {
+        foreach ($alias in $requiredAliases) {
+            $rows[$alias] = [ordered]@{
+                'CLI Resolution' = $namesByAlias[$alias]
+            }
+        }
+    }
+
+    return [PSCustomObject]@{ Errors = $errors; Rows = $rows }
+}
+
 function Test-RalphSubagentAliasContract {
     [CmdletBinding()]
     param(
@@ -906,9 +1046,11 @@ function Test-RalphSubagentAliasContract {
         [ValidateSet('stable', 'beta')][string]$Channel = 'beta'
     )
 
-    if ($PluginName -notmatch '^ralph-v2(?:-beta)?$') {
+    if ($PluginName -notmatch '^ralph-v2(?:-cli)?(?:-beta)?$') {
         return @()
     }
+
+    $isNativePlugin = ($PluginName -match '^ralph-v2-cli(?:-beta)?$')
 
     $errors = @()
     $requiredAliases = @('planner', 'questioner', 'executor', 'reviewer', 'librarian')
@@ -962,11 +1104,19 @@ function Test-RalphSubagentAliasContract {
         $errors += "agents`: agents/ (Ralph bundle must contain exactly one orchestrator agent file; found $($orchestratorAgents.Count))"
     }
 
-    $expectedMatrixResult = Get-RalphExpectedAliasNameMatrix -RepoRoot $RepoRoot
+    $expectedMatrixResult = if ($isNativePlugin) {
+        Get-RalphNativeExpectedAliasMatrix -RepoRoot $RepoRoot
+    } else {
+        Get-RalphExpectedAliasNameMatrix -RepoRoot $RepoRoot
+    }
     $errors += $expectedMatrixResult.Errors
 
     if ($orchestratorAgents.Count -eq 1) {
-        $aliasTableResult = Get-RalphSubagentAliasTable -AgentPath $orchestratorAgents[0].FullName
+        $aliasTableResult = if ($isNativePlugin) {
+            Get-RalphNativeSubagentAliasTable -AgentPath $orchestratorAgents[0].FullName
+        } else {
+            Get-RalphSubagentAliasTable -AgentPath $orchestratorAgents[0].FullName
+        }
         $errors += $aliasTableResult.Errors
 
         if ($aliasTableResult.Errors.Count -eq 0) {
@@ -975,47 +1125,72 @@ function Test-RalphSubagentAliasContract {
                 $errors += "agents`: agents/$($orchestratorAgents[0].Name) (subagent alias table contains unexpected alias '$unexpectedAlias')"
             }
 
-            $currentColumnName = switch ($RuntimeName) {
-                'vscode' {
-                    if ($Channel -eq 'beta') { 'VS Code Beta' } else { 'VS Code Stable' }
-                }
-                'cli' {
-                    if ($Channel -eq 'beta') { 'CLI Beta' } else { 'CLI Stable' }
-                }
-            }
+            if ($isNativePlugin) {
+                # Native plugin: single CLI Resolution column
+                $currentColumnName = 'CLI Resolution'
 
-            foreach ($requiredAlias in $requiredAliases) {
-                if (-not $aliasTableResult.Rows.ContainsKey($requiredAlias)) {
-                    $errors += "agents`: agents/$($orchestratorAgents[0].Name) (subagent alias table is missing alias '$requiredAlias')"
-                    continue
-                }
-
-                $row = $aliasTableResult.Rows[$requiredAlias]
-                foreach ($stableColumn in @('VS Code Stable', 'CLI Stable')) {
-                    if ($row[$stableColumn] -cmatch '-beta$') {
-                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (table value '$($row[$stableColumn])' in '$stableColumn' must not end with -beta)"
+                foreach ($requiredAlias in $requiredAliases) {
+                    if (-not $aliasTableResult.Rows.ContainsKey($requiredAlias)) {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (subagent alias table is missing alias '$requiredAlias')"
+                        continue
                     }
-                }
 
-                foreach ($betaColumn in @('VS Code Beta', 'CLI Beta')) {
-                    if ($row[$betaColumn] -cnotmatch '-beta$' -or $row[$betaColumn] -cmatch '-beta-beta$') {
-                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (table value '$($row[$betaColumn])' in '$betaColumn' must end with -beta exactly once)"
+                    $row = $aliasTableResult.Rows[$requiredAlias]
+
+                    if ($expectedMatrixResult.Errors.Count -eq 0) {
+                        $expectedRow = $expectedMatrixResult.Rows[$requiredAlias]
+                        if ($row['CLI Resolution'] -cne $expectedRow['CLI Resolution']) {
+                            $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column 'CLI Resolution' expected '$($expectedRow['CLI Resolution'])' but found '$($row['CLI Resolution'])')"
+                        }
                     }
-                }
 
-                if ($expectedMatrixResult.Errors.Count -eq 0) {
-                    $expectedRow = $expectedMatrixResult.Rows[$requiredAlias]
-                    foreach ($columnName in $expectedRow.Keys) {
-                        if ($row[$columnName] -cne $expectedRow[$columnName]) {
-                            $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$columnName' expected '$($expectedRow[$columnName])' but found '$($row[$columnName])')"
+                    if ($bundledSubagentNamesByAlias.ContainsKey($requiredAlias)) {
+                        $resolvedBundledName = $bundledSubagentNamesByAlias[$requiredAlias]
+                        $tableValue = $row[$currentColumnName]
+
+                        # Native alias table stores stable names; derive expected beta name
+                        if ($Channel -eq 'beta' -and $tableValue -match '^([^/]+)/(.+)$') {
+                            $tableValue = "$($Matches[1])-beta/$($Matches[2])-beta"
+                        }
+
+                        if ($tableValue -cne $resolvedBundledName) {
+                            $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$currentColumnName' expected '$tableValue' but got bundled name '$resolvedBundledName')"
                         }
                     }
                 }
+            } else {
+                # Original plugin: vscode-only 2-column alias table (VS Code Stable + VS Code Beta)
+                $currentColumnName = if ($Channel -eq 'beta') { 'VS Code Beta' } else { 'VS Code Stable' }
 
-                if ($bundledSubagentNamesByAlias.ContainsKey($requiredAlias)) {
-                    $resolvedBundledName = $bundledSubagentNamesByAlias[$requiredAlias]
-                    if ($row[$currentColumnName] -cne $resolvedBundledName) {
-                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$currentColumnName' must resolve to bundled agent name '$resolvedBundledName')"
+                foreach ($requiredAlias in $requiredAliases) {
+                    if (-not $aliasTableResult.Rows.ContainsKey($requiredAlias)) {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (subagent alias table is missing alias '$requiredAlias')"
+                        continue
+                    }
+
+                    $row = $aliasTableResult.Rows[$requiredAlias]
+                    if ($row['VS Code Stable'] -cmatch '-beta$') {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (table value '$($row['VS Code Stable'])' in 'VS Code Stable' must not end with -beta)"
+                    }
+
+                    if ($row['VS Code Beta'] -cnotmatch '-beta$' -or $row['VS Code Beta'] -cmatch '-beta-beta$') {
+                        $errors += "agents`: agents/$($orchestratorAgents[0].Name) (table value '$($row['VS Code Beta'])' in 'VS Code Beta' must end with -beta exactly once)"
+                    }
+
+                    if ($expectedMatrixResult.Errors.Count -eq 0) {
+                        $expectedRow = $expectedMatrixResult.Rows[$requiredAlias]
+                        foreach ($columnName in $expectedRow.Keys) {
+                            if ($row[$columnName] -cne $expectedRow[$columnName]) {
+                                $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$columnName' expected '$($expectedRow[$columnName])' but found '$($row[$columnName])')"
+                            }
+                        }
+                    }
+
+                    if ($bundledSubagentNamesByAlias.ContainsKey($requiredAlias)) {
+                        $resolvedBundledName = $bundledSubagentNamesByAlias[$requiredAlias]
+                        if ($row[$currentColumnName] -cne $resolvedBundledName) {
+                            $errors += "agents`: agents/$($orchestratorAgents[0].Name) (alias '$requiredAlias' column '$currentColumnName' must resolve to bundled agent name '$resolvedBundledName')"
+                        }
                     }
                 }
             }
@@ -1330,20 +1505,45 @@ function Build-PluginBundle {
     # Write cleaned manifest
     $cleanManifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $buildDir "plugin.json") -Encoding UTF8
 
-    # Merge agent instructions (embed instruction content into agent bodies)
+    # Merge agent instructions (embed instruction content into agent bodies, if EMBED markers exist)
     if ($cleanManifest.Contains('agents')) {
         $agentBuildDir = Join-Path $buildDir "agents"
-        $instructionsDir = Join-Path $repoRoot "agents/ralph-v2/instructions"
+
+        # Look for instructions/ directory adjacent to the source agent files.
+        # Each agent entry in the manifest points to a relative path from plugin dir;
+        # the instructions dir is expected to be a sibling of the agent files.
+        $instructionsDir = $null
+        foreach ($agentEntry in @($manifest.agents)) {
+            $agentSourcePath = Join-Path $PluginDir $agentEntry
+            $agentSourceDir = Split-Path (Resolve-Path $agentSourcePath -ErrorAction SilentlyContinue).Path -Parent
+            $candidateDir = Join-Path $agentSourceDir 'instructions'
+            if (Test-Path $candidateDir -PathType Container) {
+                $instructionsDir = $candidateDir
+                break
+            }
+        }
 
         # VS Code has no CLI-style 30K body limit; allow large merged bodies
         $maxChars = if ($bundleLayout.RuntimeName -eq 'cli') { 30000 } else { [int]::MaxValue }
 
-        if (Test-Path $agentBuildDir) {
+        if ($null -ne $instructionsDir -and (Test-Path $agentBuildDir)) {
             $mergeResult = Merge-AgentInstructions -AgentDir $agentBuildDir -InstructionsDir $instructionsDir -MaxChars $maxChars
             if ($mergeResult.Errors -gt 0) {
                 Write-Warning "  Agent instruction merge had $($mergeResult.Errors) error(s)"
             }
-            Write-Host "  Merged instructions: $($mergeResult.Merged) agent(s), $($mergeResult.Skipped) skipped, $($mergeResult.Errors) error(s)" -ForegroundColor DarkGray
+            if ($mergeResult.Merged -gt 0) {
+                Write-Host "  Merged instructions: $($mergeResult.Merged) agent(s), $($mergeResult.Skipped) skipped, $($mergeResult.Errors) error(s)" -ForegroundColor DarkGray
+            }
+        } elseif (Test-Path $agentBuildDir) {
+            # Validate body size even when no EMBED merging occurs (agents are self-contained)
+            $agentFiles = Get-ChildItem -Path $agentBuildDir -Filter '*.agent.md' -Recurse -ErrorAction SilentlyContinue
+            foreach ($agentFile in $agentFiles) {
+                $body = Get-AgentMarkdownBody -AgentPath $agentFile.FullName
+                if ($null -ne $body -and $body.Length -gt $maxChars) {
+                    Write-Error "  Agent body exceeds $maxChars chars ($($body.Length)): $($agentFile.Name)"
+                    $validationErrors += "agents`: agents/$($agentFile.Name) (body exceeds $maxChars chars: $($body.Length))"
+                }
+            }
         }
     }
 
