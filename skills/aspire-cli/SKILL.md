@@ -20,35 +20,11 @@ Use this skill to pick the right Aspire CLI command, outline the workflow, provi
 6. Mention any Aspire 13.1 CLI behavior changes that affect the request.
 7. **For AI testing goals**: use the [AI-native resource management](#ai-native-resource-management-mcp-first) workflow — MCP for resource/log/port discovery, playwright-cli for browser automation.
 
-## Incremental adoption workflow (adding Aspire to existing apps or Aspirify an existing app)
+## Incremental adoption workflow (adding Aspire to existing apps)
 
-Use this 5-step pattern when helping users adopt Aspire in existing applications:
+`aspire init` → edit `AppHost.cs` → (optional) ServiceDefaults → (optional) `aspire add` → `aspire run`.
 
-1. **Initialize Aspire support** → `aspire init`
-   - Interactive mode by default
-   - Analyzes solution structure and suggests projects to add
-   - Creates `{SolutionName}.AppHost/` project with `AppHost.cs`
-   - May offer to add ServiceDefaults project
-
-2. **Add applications to AppHost** → Edit `AppHost.cs`
-   - Use `AddProject<Projects.ProjectName>("resource-name")`
-   - Chain `.WithHttpHealthCheck("/health")` for health monitoring
-   - Chain `.WithReference(dependency)` for service-to-service communication
-   - Chain `.WaitFor(dependency)` for startup ordering
-
-3. **Configure telemetry** (optional) → `dotnet new aspire-servicedefaults`
-   - Creates ServiceDefaults project for observability, resilience, health checks
-   - Reference from service projects
-   - Add `builder.AddServiceDefaults()` and `app.MapDefaultEndpoints()` in Program.cs
-
-4. **Add integrations** (optional) → `aspire add <package-id>`
-   - Adds hosting packages (Redis, PostgreSQL, etc.)
-   - Configure in AppHost with `.WithReference(integration)`
-
-5. **Run and verify** → `aspire run`
-   - Builds AppHost/resources, starts dashboard
-   - Dashboard URL appears in terminal output
-   - Verify resources, logs, traces in dashboard
+See [App adoption patterns](references/app-adoption.md) for the full 5-step workflow, AppHost.cs patterns (project registration, Redis, PostgreSQL, container registry), ServiceDefaults setup, and polyglot (Python/Node) orchestration.
 
 ## Command selection (decision guide)
 
@@ -115,71 +91,19 @@ Use this 5-step pattern when helping users adopt Aspire in existing applications
 
 ## E2E testing facilitation
 
-### When to use Aspire testing vs alternatives
+**Use Aspire testing** (`DistributedApplicationTestingBuilder`) for: full distributed app E2E, service-to-service interactions, real external dependencies (PostgreSQL, Redis).
 
-Use **Aspire testing** (via `DistributedApplicationTestingBuilder`) when you want to:
-- Verify end-to-end functionality of your distributed application
-- Ensure interactions between multiple services and resources behave correctly in realistic conditions
-- Confirm data persistence and integration with real external dependencies (PostgreSQL, Redis, etc.)
+**Use `WebApplicationFactory<T>`** for: single-project isolation, in-memory mocking.
 
-Use **`WebApplicationFactory<T>`** instead when you want to:
-- Test a single project in isolation
-- Run components in-memory
-- Mock external dependencies
+Default setup: dashboard disabled, ports randomized. Load [Debugging + E2E testing notes](references/debugging-e2e-testing.md) for builder configuration patterns (enable dashboard, disable port randomization, combined config), `DistributedApplicationTestingBuilder` usage, and pipeline behaviors.
 
-### Aspire testing characteristics
+### CLI-based E2E workflows
 
-- **Closed-box**: Tests run as separate processes — no direct access to DI services from test code.
-- **Influence via config**: Use env vars or config settings to affect behavior; internal state is encapsulated.
-- **Real dependencies**: Tests use actual resources (databases, caches) orchestrated by the AppHost.
-
-### Testing builder configuration patterns
-
-Default test setup (dashboard disabled, ports randomized):
-
-```csharp
-var builder = await DistributedApplicationTestingBuilder
-    .CreateAsync<Projects.MyAppHost>();
-```
-
-Enable dashboard for debugging tests:
-
-```csharp
-var builder = await DistributedApplicationTestingBuilder
-    .CreateAsync<Projects.MyAppHost>(
-        args: [],
-        configureBuilder: (appOptions, hostSettings) =>
-        {
-            appOptions.DisableDashboard = false;
-        });
-```
-
-Disable port randomization for stable endpoints:
-
-```csharp
-var builder = await DistributedApplicationTestingBuilder
-    .CreateAsync<Projects.MyAppHost>(
-        ["DcpPublisher:RandomizePorts=false"]);
-```
-
-Combined configuration (dashboard enabled + stable ports):
-
-```csharp
-var builder = await DistributedApplicationTestingBuilder
-    .CreateAsync<Projects.MyAppHost>(
-        ["DcpPublisher:RandomizePorts=false"],
-        (appOptions, _) => { appOptions.DisableDashboard = false; });
-```
-
-### CLI-based E2E testing workflows
-
-- Orchestrate dependencies before tests: run `aspire run` to start services, then call `list_resources` via MCP to get live endpoint URLs.
-- **Port discovery**: use `list_resources` MCP tool — it returns full endpoint URLs with ports; never hardcode ports (randomized by default).
-- Run setup steps as isolated pipeline steps (migrations, seeding, data reset): `aspire do <step>`.
-- Execute tooling inside a resource context to inherit connection strings and env vars: `aspire exec --resource <name> -- <command>`.
-- Keep the AppHost folder as the working directory to ensure the right resource graph is used.
-- Stop the orchestration when tests finish to avoid orphaned resources.
-- **For AI-driven ad-hoc testing**: combine `aspire run` + MCP resource/log tools + playwright-cli for browser automation. See [playwright-cli E2E testing](#playwright-cli-e2e-testing-browser-automation) for the full workflow.
+- Orchestrate dependencies before tests: `aspire run` → `list_resources` via MCP to get live endpoint URLs.
+- **Port discovery**: use `list_resources` MCP tool — never hardcode ports (randomized by default).
+- Run setup steps as isolated pipeline steps: `aspire do <step>`.
+- Execute tooling in resource context (inherits env vars/connection strings): `aspire exec --resource <name> -- <command>`.
+- **For AI-driven ad-hoc testing**: combine `aspire run` + MCP tools + playwright-cli. See [playwright-cli E2E testing](#playwright-cli-e2e-testing-browser-automation) below.
 
 ## Parallel worktrees and isolation
 
@@ -204,74 +128,6 @@ When users need to run multiple AppHost instances simultaneously (git worktrees,
 3. Discuss MCP proxy architecture only if AI agent integration is mentioned
 4. Highlight distributed testing as alternative for test-focused isolation
 
-## Code patterns for existing app adoption
-
-### AppHost.cs patterns
-
-Basic project registration with health checks and external endpoints:
-
-```csharp
-var builder = DistributedApplication.CreateBuilder(args);
-
-var api = builder.AddProject<Projects.MyApi>("api")
-    .WithHttpHealthCheck("/health");
-
-var web = builder.AddProject<Projects.MyWeb>("web")
-    .WithExternalHttpEndpoints()
-    .WithReference(api)
-    .WaitFor(api);
-
-builder.Build().Run();
-```
-
-Adding Redis and sharing across services:
-
-```csharp
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-var api = builder.AddProject<Projects.MyApi>("api")
-    .WithReference(cache)
-    .WithHttpHealthCheck("/health");
-
-builder.Build().Run();
-```
-
-### ServiceDefaults configuration
-
-Add to service project's `Program.cs`:
-
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-// Add Aspire ServiceDefaults for observability and resilience
-builder.AddServiceDefaults();
-
-// ... existing service configuration ...
-
-var app = builder.Build();
-
-// Map Aspire ServiceDefaults endpoints
-app.MapDefaultEndpoints();
-
-// ... existing middleware ...
-
-app.Run();
-```
-
-Install ServiceDefaults project:
-
-```bash
-dotnet new aspire-servicedefaults -n MyProject.ServiceDefaults
-dotnet sln add MyProject.ServiceDefaults
-dotnet add MyProject reference MyProject.ServiceDefaults
-```
-
-### Polyglot orchestration
-
-Aspire supports C#, Python, and JavaScript in the same AppHost via `AddPythonApp`, `AddNodeApp`, and `AddProject`. Aspire automatically injects environment variables (e.g., `CACHE_HOST`, `CACHE_PORT`) for each language when references are configured.
-
 ## Troubleshooting guidance
 
 - `aspire run` fails to find AppHost → move to the AppHost directory or a parent folder and retry.
@@ -290,80 +146,30 @@ Aspire supports C#, Python, and JavaScript in the same AppHost via `AddPythonApp
 - **Do not scrape the dashboard URL** for resource discovery — use `list_resources` via MCP which returns structured JSON with full endpoint URLs and ports.
 - For AI agent port discovery, always call `list_resources` after `aspire run`; ports are randomized by default.
 
-## Aspire 13.1 new features
+## Aspire 13.1 highlights
 
-### MCP for AI coding agents
+Key changes — load [Aspire 13.1 CLI changes](references/aspire-13.1-cli.md) for full detail, breaking change migration, and connection property renames:
 
-Aspire 13.1 introduces first-class MCP support for AI coding agents via two commands:
-
-```bash
-# Configure MCP for your IDE/AI tool (one-time per project)
-aspire mcp init
-
-# Start the MCP server (stdio transport — IDE auto-starts this)
-aspire mcp start
-```
-
-`aspire mcp init` detects your environment and writes config for VS Code, GitHub Copilot CLI, Claude Code, or Open Code. It optionally creates `AGENTS.md` and configures Playwright MCP.
-
-`aspire mcp start` exposes a **12-tool MCP server** via stdio that lets AI agents manage a running AppHost: discover resources, read console logs, query structured logs and traces, and execute resource commands. See the [AI-native resource management](#ai-native-resource-management-mcp-first) section and [MCP server reference](references/mcp-server-and-resource-access.md) for the full tool catalog.
-
-### CLI enhancements
-
-- **Channel persistence**: When you run `aspire update --self` and select a channel, your selection is saved to `~/.aspire/globalsettings.json` and becomes the default for future `aspire new` and `aspire init` commands.
-- **Automatic instance detection**: Running `aspire run` when an instance is already running now automatically terminates the previous instance.
-- **Installation path option**: Install scripts support `--skip-path` to install without modifying PATH.
-
-### Azure Managed Redis (breaking change)
-
-`AddAzureRedisEnterprise` has been renamed to `AddAzureManagedRedis`:
-
-```csharp
-// Before (Aspire 13.0)
-var redis = builder.AddAzureRedisEnterprise("cache");
-
-// After (Aspire 13.1)
-var redis = builder.AddAzureManagedRedis("cache");
-```
-
-`AddAzureRedis` is now obsolete. Migrate to `AddAzureManagedRedis` for new projects.
-
-### Container registry resource
-
-New `ContainerRegistryResource` for general-purpose container registries:
-
-```csharp
-var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
-var api = builder.AddProject<Projects.Api>("api")
-    .WithContainerRegistry(registry);
-```
-
-The deployment pipeline now includes a `push` step: `aspire do push`.
+- **MCP for AI agents**: `aspire mcp init` configures VS Code, Copilot CLI, Claude Code, or Open Code; `aspire mcp start` exposes a 12-tool MCP server.
+- **Channel persistence**: `aspire update --self` saves channel choice to `~/.aspire/globalsettings.json`.
+- **Auto instance detection**: `aspire run` when an instance is already running terminates the previous one automatically.
+- **Azure Managed Redis (breaking)**: `AddAzureRedisEnterprise` renamed to `AddAzureManagedRedis`; `AddAzureRedis` is now obsolete.
+- **Container registry**: new `AddContainerRegistry` + `aspire do push` pipeline step.
+- **Install without PATH modification**: `--skip-path` flag on install scripts.
 
 ## AI-native resource management (MCP-first)
 
-Aspire 13.1 ships a built-in MCP server that lets AI coding agents interact with a running AppHost via structured tools — no dashboard scraping or terminal parsing required.
+Aspire 13.1 ships a built-in MCP stdio server. Run `aspire mcp init` once per project — the IDE auto-starts `aspire mcp start` as needed.
 
-### One-time MCP setup
-
-```bash
-# Run once per project to configure your AI tool (VS Code, Copilot CLI, Claude Code, Open Code)
-aspire mcp init
-```
-
-This writes the appropriate config file (`.vscode/mcp.json`, `~/.copilot/mcp-config.json`, or `.mcp.json`) pointing your IDE's MCP client to `aspire mcp start`. The IDE auto-starts the stdio server as needed.
-
-> `aspire mcp start` is started **separately from** `aspire run` — it acts as a stdio proxy to the dashboard's internal HTTP MCP endpoint.
-> Tools like `list_integrations` and `doctor` work without an AppHost. Resource tools (`list_resources`, `list_console_logs`, etc.) require an AppHost to be running.
+> `aspire mcp start` is a stdio proxy to the dashboard's internal HTTP MCP endpoint.  
+> `list_integrations` and `doctor` work without an AppHost; resource tools require an AppHost to be running.
 
 ### AI resource management workflow
 
-> MCP tools below are called by the AI agent through its MCP client — they are **not** shell commands.
-
 ```
 1. [shell]  aspire run               → starts AppHost; prints dashboard URL + log file path
-2. [MCP]    list_resources           → all resources: names, types, states, endpoint URLs+ports, health, env vars
-3. [MCP]    list_console_logs "api" → stdout/stderr log output for the named resource
+2. [MCP]    list_resources           → resources: names, types, states, full endpoint URLs+ports, health, env vars
+3. [MCP]    list_console_logs "api"  → stdout/stderr for the named resource
 4. [MCP]    list_structured_logs     → OTLP JSON logs (per-resource or all)
 5. [MCP]    list_traces              → distributed traces: IDs, resources, duration, error status
 6. [MCP]    execute_resource_command "api" "restart" → restart/stop/start a resource
@@ -373,68 +179,46 @@ This writes the appropriate config file (`.vscode/mcp.json`, `~/.copilot/mcp-con
 
 | Tool | Key parameters | What it returns |
 |---|---|---|
-| `list_resources` | — | All resources: names, types, states, **full endpoint URLs+ports**, health, env vars, commands |
-| `list_console_logs` | `resourceName` | stdout+stderr plaintext for a named resource |
-| `list_structured_logs` | `resourceName` (optional) | OTLP structured logs in JSON (single resource or all) |
+| `list_resources` | — | Resources: names, types, states, **full endpoint URLs+ports**, health, env vars, commands |
+| `list_console_logs` | `resourceName` | stdout+stderr for a named resource |
+| `list_structured_logs` | `resourceName` (optional) | OTLP logs in JSON |
 | `list_traces` | — | Distributed traces: IDs, resources, durations, errors |
 | `list_trace_structured_logs` | `traceId` | Logs scoped to a specific trace |
 | `execute_resource_command` | `resourceName`, `commandName` | Run start/stop/restart or custom command |
-| `list_apphosts` | — | All active AppHosts (multi-instance mode) |
-| `select_apphost` | apphost ID | Switch the active AppHost target |
+| `list_apphosts` | — | All active AppHosts (multi-instance) |
+| `select_apphost` | apphost ID | Switch active AppHost target |
 | `list_integrations` | — | Available Aspire NuGet integrations |
 | `get_integration_docs` | `integrationName` | Docs for a specific integration |
 | `doctor` | — | Environment/prerequisites check |
 | `refresh_tools` | — | Reload tools after AppHost change |
 
-See [MCP server and resource access](references/mcp-server-and-resource-access.md) for full architecture detail and JSON response shapes.
+**Multi-AppHost**: call `list_apphosts` first, then `select_apphost <id>` before resource tools.
 
-### Port discovery
+**Port discovery**: always call `list_resources` after `aspire run` — ports are randomized per session by default.
 
-Always call `list_resources` after `aspire run` — ports are randomized per session by default (unless `DcpPublisher:RandomizePorts=false`).
-
-```
-[MCP] list_resources
-# Returns resources array; each resource has an endpoints array with full URLs:
-# { "name": "api", "endpoints": [{ "name": "http", "url": "http://localhost:5234" }] }
-```
-
-**Multi-AppHost**: If multiple AppHosts are running (e.g., worktrees), call `list_apphosts` first to see what's available, then `select_apphost <id>` to target the right one before calling resource tools.
-
-### Resource console logs
-
-```
-list_console_logs "api"      → plaintext stdout/stderr for the "api" resource
-list_console_logs "postgres" → container logs for the "postgres" resource
-list_structured_logs "api"   → OTLP JSON logs (traceId, spanId, severity, message)
-```
-
-> **Important**: `aspire exec --resource <name> -- <command>` does NOT read running logs. Use `list_console_logs` or `list_structured_logs` via MCP instead.
+See [MCP server and resource access](references/mcp-server-and-resource-access.md) for full architecture detail, two-layer proxy design, and JSON response shapes.
 
 ---
 
 ## playwright-cli E2E testing (browser automation)
 
-Combine Aspire MCP + playwright-cli for full-stack ad-hoc E2E testing. AI agents can drive complete human-like browser workflows without any test harness setup.
+Combine Aspire MCP + playwright-cli for full-stack ad-hoc E2E testing without any test harness setup.
 
 ### Full-stack E2E workflow (AI agent pattern)
-
-MCP tool calls (`[MCP]`) and shell commands (`[shell]`) are shown together to illustrate the combined workflow. The AI coding assistant invokes MCP tools through its MCP client; shell commands run in the terminal.
 
 ```bash
 # Step 1 — Start Aspire [shell]
 aspire run
-# Prints: Dashboard: https://localhost:17213/login?t=<token>
 # Ports are randomized — do NOT hardcode them; use list_resources
 
 # Step 2 — Discover endpoints [MCP]
 list_resources
-# Response: "web" endpoint → http://localhost:5173
-#           "api" endpoint → http://localhost:5234
+# Response: "web" endpoint → http://localhost:5173, "api" endpoint → http://localhost:5234
 
 # Step 3 — Browser automation [shell]
 playwright-cli open http://localhost:5173
 playwright-cli snapshot                      # inspect page structure + element refs
-playwright-cli fill e3 "test@example.com"   # fill form field
+playwright-cli fill e3 "test@example.com"
 playwright-cli fill e4 "password123"
 playwright-cli click e5                      # submit
 playwright-cli snapshot                      # verify post-action state
@@ -446,32 +230,7 @@ list_structured_logs "api"                   # OTLP JSON logs
 list_traces                                  # trace the full request chain
 ```
 
-### Session-based testing (maintain browser state)
-
-```bash
-playwright-cli --session=e2e open http://localhost:5173
-playwright-cli --session=e2e fill e1 "user@example.com"
-playwright-cli --session=e2e click e2
-# Session persists cookies/auth across commands
-playwright-cli session-stop e2e
-```
-
-### Essential playwright-cli commands for ad-hoc testing
-
-```bash
-playwright-cli snapshot                  # Get accessible element refs (e1, e5…)
-playwright-cli fill e3 "text"           # Fill input/textarea
-playwright-cli click e5                 # Click element
-playwright-cli screenshot               # Capture current page state
-playwright-cli screenshot e5            # Capture a specific element
-playwright-cli console                  # Browser JS console logs
-playwright-cli network                  # Network request log
-playwright-cli eval "document.title"   # Evaluate JavaScript
-playwright-cli video-start              # Start recording test session
-playwright-cli video-stop video.webm    # Stop and save recording
-```
-
-> Load the `playwright-cli` skill for the full command reference and multi-tab workflows.
+Load the `playwright-cli` skill for session-based testing, multi-tab workflows, video recording, and the full command reference.
 
 ### Decision: Aspire MCP vs DistributedApplicationTestingBuilder
 
@@ -481,16 +240,17 @@ playwright-cli video-stop video.webm    # Stop and save recording
 | Automated regression tests in CI | `DistributedApplicationTestingBuilder` + xUnit/NUnit |
 | UI-only interaction testing | playwright-cli (no Aspire required) |
 | Service integration (API + database) | `DistributedApplicationTestingBuilder` |
-| Full-stack coverage (UI + backend) | Both, combined (see [aspire-vs-playwright-testing.md](references/aspire-vs-playwright-testing.md)) |
+| Full-stack coverage (UI + backend) | Both, combined — see [aspire-vs-playwright-testing.md](references/aspire-vs-playwright-testing.md) |
 
 ---
 
 ## Reference files
 
+- Use [App adoption patterns](references/app-adoption.md) for the incremental adoption workflow, AppHost.cs registration patterns (Redis, PostgreSQL, container registry), ServiceDefaults setup, and polyglot orchestration.
 - Use [CLI commands overview](references/cli-commands.md) for command selection, brief descriptions, and examples.
-- Use [Aspire 13.1 CLI changes](references/aspire-13.1-cli.md) for channel persistence, instance detection, and installation options.
+- Use [Aspire 13.1 CLI changes](references/aspire-13.1-cli.md) for channel persistence, instance detection, breaking changes (Azure Managed Redis, connection property renames), and upgrade path.
 - Use [HTTPS certificate management](references/https-cert-management.md) for manual trust commands, platform notes, and CI/CD patterns when auto-trust fails.
-- Use [Debugging + E2E testing notes](references/debugging-e2e-testing.md) for research-backed guidance on diagnosing issues and orchestrating tests.
+- Use [Debugging + E2E testing notes](references/debugging-e2e-testing.md) for `DistributedApplicationTestingBuilder` patterns, `aspire run`/`exec`/`do` behaviors, and pipeline debugging.
 - Use [Aspire Testing vs Playwright-CLI](references/aspire-vs-playwright-testing.md) for comparative analysis when choosing testing tools or combining them for full-stack testing.
-- Use [MCP server and resource access](references/mcp-server-and-resource-access.md) for the full 12-tool MCP catalog, two-layer architecture detail (stdio proxy + dashboard HTTP), JSON response shapes, port discovery, and console log access patterns. Load this when the user asks about resource discovery, reading logs, or using Aspire with AI agents.
-- Use [Aspire isolation for parallel worktrees](references/aspire-isolation.md) for comprehensive guidance on running multiple AppHost instances simultaneously: port allocation scripts, MCP proxy architecture, GitFolderResolver pattern, distributed testing, and complete troubleshooting workflows. Essential for git worktrees and multi-agent AI development.
+- Use [MCP server and resource access](references/mcp-server-and-resource-access.md) for full 12-tool MCP catalog, two-layer architecture, JSON response shapes, and console log access patterns.
+- Use [Aspire isolation for parallel worktrees](references/aspire-isolation.md) for running multiple AppHost instances simultaneously: port allocation scripts, MCP proxy, GitFolderResolver pattern, and troubleshooting.
