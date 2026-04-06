@@ -54,12 +54,29 @@ If visible text is already present next to the icon, the extra label is usually 
 Icon names are kebab-case and case-insensitive:
 - `arrow-right`
 - `magnifying-glass`
-- `check-circle`
+- `circle-check`
 
 Use the upstream catalog files when you need exact names:
 - `https://blazorblueprintui.com/llms/icons/lucide.txt`
 - `https://blazorblueprintui.com/llms/icons/heroicons.txt`
 - `https://blazorblueprintui.com/llms/icons/feather.txt`
+
+## Renamed icons (Lucide)
+
+BlazorBlueprint tracks the **current upstream Lucide naming**. Several commonly-used names have been renamed. A broken icon name renders a ⚠️ triangle in the browser — there is no compile-time error.
+
+**Known renames**:
+
+| Old name (broken) | New name (correct) |
+|---|---|
+| `check-circle` | `circle-check` |
+| `upload-cloud` | `cloud-upload` |
+| `alert-circle` | `circle-alert` |
+| `x-circle` | `circle-x` |
+| `play-circle` | `circle-play` |
+| `home` | `house` |
+
+**Before committing**: search for `LucideIcon Name="` across all Razor files and validate every icon name against `https://blazorblueprintui.com/llms/icons/lucide.txt`.
 
 ## Programmatic lookup
 

@@ -31,6 +31,17 @@ The upstream docs currently list 60 blueprints across 10 categories:
 - Landing pages -> `marketing`
 - Storefront/product flows -> `ecommerce`
 
+## Auth pages and SSR
+
+Login and signup blueprints are **SSR-only**. They use `@attribute [ExcludeFromInteractiveRouting]` so they render as static server pages and post via standard HTML `<form>` submission (BFF pattern).
+
+Constraints when adapting these blueprints:
+
+- Use `[SupplyParameterFromForm]` for form model binding — do **not** use `@bind-Value` on `<InputText>` components in these pages.
+- Do **not** add `@rendermode InteractiveServer` (or any interactive render mode) to the page or its child components.
+- `@onclick` handlers on the form element itself will not fire interactively; route user actions through form submit and `OnValidSubmit`.
+- Post-authentication navigation uses `NavigationManager.NavigateTo` from the server-side handler, not from a click event.
+
 ## Recommended workflow
 
 1. Finish library setup first using [setup.md](setup.md).

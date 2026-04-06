@@ -16,6 +16,33 @@ Load this file after the relevant component reference when you need conventions,
 - [Loading empty and error states](#loading-empty-and-error-states)
 - [Blueprint-first acceleration](#blueprint-first-acceleration)
 
+## No unmatched attribute capture
+
+**Critical**: BB components do **not** declare `[Parameter(CaptureUnmatchedValues = true)]`. Passing arbitrary HTML attributes — `@onclick`, `style=`, `class=`, `data-*`, etc. — directly on a BB component throws at runtime:
+
+```
+System.InvalidOperationException: Object of type 'BlazorBlueprint.Components.BbCard'
+does not have a property matching the name 'onclick'.
+```
+
+**Affected components**: `BbCard`, `BbBadge`, `LucideIcon`, and most other BB components.
+
+**Fix**: Wrap in a native HTML element and put the attribute on the wrapper:
+
+```razor
+❌ Don't do this:
+<BbCard @onclick="OpenDetail">...</BbCard>
+<BbBadge style="margin-top: 4px">Active</BbBadge>
+
+✅ Do this instead:
+<div @onclick="OpenDetail" class="cursor-pointer">
+    <BbCard>...</BbCard>
+</div>
+<span style="margin-top: 4px">
+    <BbBadge>Active</BbBadge>
+</span>
+```
+
 ## Naming and composition conventions
 
 Current upstream docs use official `Bb*` component names.

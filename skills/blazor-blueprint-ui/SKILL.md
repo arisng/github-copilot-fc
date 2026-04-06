@@ -2,7 +2,7 @@
 name: blazor-blueprint-ui
 description: Build and customize .NET 8+ Blazor UIs with BlazorBlueprint. Use when choosing between BlazorBlueprint.Components and BlazorBlueprint.Primitives, wiring setup and providers, using ToastService/DialogService/localization, selecting icon packs, applying shadcn-ui-style theming, or copying and adapting BlazorBlueprint blueprints.
 metadata: 
-    version: 0.1.0
+    version: 0.2.0
     author: arisng
 ---
 
@@ -146,6 +146,20 @@ Read [references/components-charts.md](references/components-charts.md) for:
 ### Portal and provider pattern
 
 Overlay components render through `BbPortalHost`. App-wide toasts and service-driven dialogs also need `BbToastProvider` and `BbDialogProvider` in the root layout.
+
+## Known Pitfalls
+
+These are hard-won constraints — check them before generating any BB component code:
+
+1. **No unmatched attribute capture** — BB components do not accept arbitrary HTML attributes (`@onclick`, `style`, `class`, etc.) and will throw at runtime. Wrap with a native element instead. See [patterns.md § No unmatched attribute capture](references/patterns.md).
+
+2. **Tailwind subset only** — BB ships only the utilities its own components use; writing other Tailwind classes silently has no effect. Add missing utilities as custom CSS. See [setup.md § Tailwind subset limitation](references/setup.md).
+
+3. **Lucide icon names change** — Several names have been renamed upstream (e.g. `check-circle` → `circle-check`, `home` → `house`). A broken icon renders ⚠️. Verify names at `https://blazorblueprintui.com/llms/icons/lucide.txt`. See [icons.md § Renamed icons](references/icons.md).
+
+4. **Auth pages are SSR-only** — Login/signup blueprints use `[ExcludeFromInteractiveRouting]`. Use HTML form POST + `[SupplyParameterFromForm]`; do not add `@rendermode InteractiveServer`. See [blueprints.md § Auth pages and SSR](references/blueprints.md).
+
+5. **`BbProvider` must be the outermost wrapper** — Bootstrap order in `App.razor` matters: `<BbProvider>` wraps everything. See [setup.md § App.razor bootstrap order](references/setup.md).
 
 ## Workflow
 

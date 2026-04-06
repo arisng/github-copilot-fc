@@ -13,6 +13,8 @@ Use this file first. It reflects the current v3 docs and official `Bb*` naming.
 - [Add imports and CSS](#add-imports-and-css)
 - [Configure layout providers](#configure-layout-providers)
 - [Theme and dark mode](#theme-and-dark-mode)
+- [Tailwind subset limitation](#tailwind-subset-limitation)
+- [App.razor bootstrap order](#apprazor-bootstrap-order)
 - [Verify the install](#verify-the-install)
 - [Troubleshooting](#troubleshooting)
 
@@ -106,6 +108,52 @@ High-value variables:
 - Charts: `--chart-1` through `--chart-5`
 
 Dark mode is activated by applying `.dark` to `<html>`. The library will automatically consume the dark variables from your theme.
+
+## Tailwind subset limitation
+
+**BB does not bundle the full Tailwind CSS utility catalog.** It only ships the utilities its own components actually use. Writing a Tailwind class that is absent from BB's bundle silently has no effect — there is no build error and no browser warning.
+
+**Confirmed absent utilities** (common ones that will not render):
+
+| Missing class | Substitute / workaround |
+|---|---|
+| `lg:grid-cols-2` | Use `md:grid-cols-2` (available) |
+| `lg:block` | Custom CSS |
+| `pb-20`, `md:pb-0` | Custom CSS |
+| `rounded-xl` | Use `rounded-lg` (available) |
+| `p-10` | Use `p-8` (available) |
+| `bg-primary/10` | `color-mix(in srgb, var(--color-primary) 10%, transparent)` |
+| `bg-background/70` | `color-mix(in srgb, var(--color-background) 70%, transparent)` |
+| `xl:*` (most xl variants) | `@media (min-width: 1280px)` in custom CSS |
+
+**Fix pattern**: Add missing utilities to a custom CSS override file:
+
+```css
+/* Compensate for BB's missing Tailwind utilities */
+.pb-20 { padding-bottom: 5rem; }
+@media (min-width: 768px) {
+    .md\:pb-0 { padding-bottom: 0; }
+}
+
+/* Opacity modifiers */
+.my-cover-panel {
+    background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+```
+
+**Audit approach**: If a utility class doesn't render, open DevTools → computed styles → verify the rule is present. If absent, it is not in BB's bundle.
+
+## App.razor bootstrap order
+
+`App.razor` must wrap the entire app in `<BbProvider>` so the theme configuration is set before anything renders. `ThemeInitializer` (or equivalent) runs inside `<CascadingAuthenticationState>` after authentication to load tenant/user-specific theme overrides.
+
+The required order is:
+
+1. `<BbProvider>` — outermost wrapper in `App.razor`; sets the static theme
+2. `<CascadingAuthenticationState>` — authentication state cascade inside `<BbProvider>`
+3. Theme initializer component — loads dynamic overrides once the user is known
+
+**Rule**: `<BbProvider>` must always be the outermost wrapper. Placing it inside `<CascadingAuthenticationState>` or another component will break theme initialization for unauthenticated routes.
 
 ## Verify the install
 
