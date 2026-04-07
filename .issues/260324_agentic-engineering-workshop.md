@@ -83,6 +83,9 @@ A 2-3 hour online workshop on **Agentic Engineering** (AI-assisted software deve
 - https://developers.openai.com/blog/skills-shell-tips
 - https://www.anthropic.com/engineering/harness-design-long-running-apps
 - https://github.com/badlogic/pi-mono
+- https://devblogs.microsoft.com/dotnet/ten-months-with-cca-in-dotnet-runtime/#instructions-are-your-lever
+- https://developers.openai.com/codex/use-cases/iterate-on-difficult-problems
+- https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
 
 ## 7. Acceptance Criteria
 
