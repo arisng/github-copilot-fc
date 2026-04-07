@@ -1,6 +1,9 @@
 ---
 name: copilot-vscode-agent-customization
-description: '**WORKFLOW SKILL** — Create, update, review, fix, or debug VS Code agent customization files (.instructions.md, .prompt.md, .agent.md, SKILL.md, copilot-instructions.md, AGENTS.md). USE FOR: saving coding preferences; troubleshooting why instructions/skills/agents are ignored or not invoked; configuring applyTo patterns; defining tool restrictions; creating custom agent modes or specialized workflows; packaging domain knowledge; fixing YAML frontmatter syntax. DO NOT USE FOR: general coding questions (use default agent); runtime debugging or error diagnosis; MCP server configuration (use MCP docs directly); VS Code extension development. INVOKES: file system tools (read/write customization files), ask-questions tool (interview user for requirements), subagents for codebase exploration. FOR SINGLE OPERATIONS: For quick YAML frontmatter fixes or creating a single file from a known pattern, edit the file directly — no skill needed.'
+description: '**WORKFLOW SKILL** — Create, update, review, fix, or debug VS Code agent customization files (.instructions.md, .prompt.md, .agent.md, SKILL.md, copilot-instructions.md, AGENTS.md). USE FOR: saving coding preferences; troubleshooting why instructions, skills, agents, or prompts are ignored; configuring applyTo patterns; defining tool restrictions; creating custom agent modes or specialized editor workflows; packaging domain knowledge; fixing YAML frontmatter syntax. DO NOT USE FOR: general coding questions (use default agent); runtime debugging or error diagnosis; Copilot CLI customization (use `copilot-cli-agent-customization` instead); MCP server configuration (use MCP docs directly); VS Code extension development. INVOKES: file system tools (read/write customization files), ask-questions tool (interview user for requirements), subagents for codebase exploration. FOR SINGLE OPERATIONS: For quick YAML frontmatter fixes or creating a single file from a known pattern, edit the file directly — no skill needed.'
+metadata: 
+  author: arisng
+  version: 0.1.0
 ---
 
 # Agent Customization
@@ -72,6 +75,12 @@ After creating:
 **Skill vs Custom Agent?** Same capabilities for all steps → Skill. Need context isolation (subagent returns single output) or different tool restrictions per stage → Custom Agent.
 
 **Hooks vs Instructions?** Instructions *guide* agent behavior (non-deterministic). Hooks *enforce* behavior via shell commands at lifecycle events like `PreToolUse` or `PostToolUse` — they can block operations, require approval, or run formatters deterministically. See [hooks reference](./references/hooks.md).
+
+## Guardrails
+
+- Use this skill only for **Copilot in VS Code** and editor-native customization surfaces.
+- If the request mentions Copilot CLI paths, `~/.copilot`, CLI slash commands, `plugin.json`, `commands/`, `copilot --help`, or terminal-only hooks behavior, stop and use [copilot-cli-agent-customization](../copilot-cli-agent-customization/SKILL.md) instead.
+- Do not teach CLI plugin commands or CLI hook schema from this skill; keep this skill focused on VS Code prompt files, editor discovery, and VS Code custom agent behavior.
 
 ## Common Pitfalls
 
