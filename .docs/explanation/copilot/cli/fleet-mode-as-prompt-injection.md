@@ -1,188 +1,141 @@
-# Fleet Mode as Prompt Injection in Copilot CLI
+# Understanding `/fleet` orchestration in Copilot CLI
 
-> **Conceptual explanation** of why fleet mode is a prompt engineering pattern, not a new session type or runtime feature.
+> **Last grounded**: April 2026 — current GitHub Docs + `github/copilot-cli` changelog, with older v1.0.2 bundle analysis preserved as historical context
+> **Audience**: Readers who want to understand what `/fleet` is, why it behaves the way it does, and where the older "prompt injection" mental model still helps
 
----
+Current public sources:
 
-## The Core Mental Model
-
-**Fleet mode = injecting a system prompt into the current session turn.**
-
-No new session is created. No special runtime mode is activated. No additional infrastructure is spun up. When you run `/fleet`, this is the entirety of what happens:
-
-```js
-await t.session.instance.fleet.start({ prompt: userPrompt });
-// which calls:
-await session.send({ prompt: FLEET_SYSTEM_PROMPT + "\nUser request: " + userPrompt });
-```
-
-The current agent receives a prompt that tells it to behave as an orchestrator. The agent's LLM then interprets that prompt and begins dispatching subagents via `task()`. The "fleet mode" behavior emerges entirely from the LLM responding to the injected text — not from any code that runs differently.
-
-This means:
-- Any agent can be "in fleet mode" if it receives the fleet system prompt
-- Fleet mode cannot be detected or blocked at the runtime level
-- Fleet mode is as durable (or fragile) as the prompt that drives it
+- [Running tasks in parallel with the `/fleet` command](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet)
+- [Speeding up task completion with the `/fleet` command](https://docs.github.com/en/copilot/how-tos/copilot-cli/speeding-up-task-completion)
+- [Allowing GitHub Copilot CLI to work autonomously](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/autopilot)
+- [Custom agents configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+- [`github/copilot-cli` changelog](https://github.com/github/copilot-cli/blob/main/changelog.md)
 
 ---
 
-## Why the Injection Pattern Matters
+## Background
 
-### The Current Agent Becomes the Orchestrator
+This page originally explained `/fleet` almost entirely through a reverse-engineered Copilot CLI v1.0.2 bundle. That framing was useful when `/fleet` had little or no public product documentation, but it is no longer the best primary explanation.
 
-When the fleet system prompt lands in a session, the agent that receives it is promoted to orchestrator role. If you run `/fleet` while using a generic Copilot session, the generic Copilot agent becomes the orchestrator. If you run it while a ralph-v2 orchestrator agent is active, the ralph-v2 orchestrator — which already has its own orchestration instructions — receives the fleet prompt on top of its existing identity.
+As of April 2026, GitHub documents `/fleet` as a first-class Copilot CLI feature for parallel subagent execution. The current public contract is product-level and workflow-level: the main agent decomposes work, chooses subagents when appropriate, runs tasks in parallel when dependencies allow, and exposes progress through the CLI UI.
 
-This has a practical implication: **the quality of fleet orchestration is bounded by the quality of the receiving agent's underlying instructions**. The fleet system prompt gives the agent the coordination protocol (SQL todo queries, parallel dispatch, status updates), but the agent's judgment about *what* tasks to create and *how* to describe them comes from its own instructions.
-
-### The Fleet System Prompt Is Self-Contained
-
-The fleet system prompt is not a configuration file or an agent definition — it is a complete behavioral specification delivered at runtime:
-
-```
-You are now in fleet mode. Dispatch sub-agents (via the task tool) in parallel to do the work.
-
-**Getting Started**
-1. Check for existing todos: SELECT id, title, status FROM todos WHERE status != 'done'
-2. If todos exist, dispatch them in parallel (respecting dependencies)
-3. If no todos exist, help decompose the work into todos first.
-...
-```
-
-It tells the agent *exactly* what to do: check the SQL database, find ready todos, dispatch them with status-update instructions, validate results, iterate. No configuration required. No agent file changes. A single prompt injection activates the entire pattern.
+The older bundle-derived "prompt injection" model still has value, but it is best treated as **historical implementation context**, not as the primary definition of what `/fleet` is.
 
 ---
 
-## How the Fleet System Prompt Is Constructed
+## The core concept
 
-The `fleet.start()` function has two construction paths:
+`/fleet` is best understood as a **parallel orchestration feature**.
 
-```js
-// With user prompt:
-n = `${FLEET_SYSTEM_PROMPT}\nUser request: ${e.prompt}`
+When you use `/fleet`, the main Copilot CLI agent analyzes the request, decides whether the work can be broken into smaller tasks, and acts as orchestrator for any subtasks that can be delegated to subagents. The orchestrator manages dependencies and synthesizes results back into the main session.
 
-// Without user prompt:
-n = FLEET_SYSTEM_PROMPT
-```
+This means the important present-tense mental model is:
 
-The `FLEET_SYSTEM_PROMPT` constant is a fixed string baked into the `index.js` bundle. When `/fleet some task` is typed, the user's task description is appended after the full system prompt. The agent sees both: the orchestration instructions first, then the specific task to accomplish.
+- the **main agent** stays in charge;
+- **subagents** are workers for parts of the task;
+- **parallelism** happens only where the work is independent enough to benefit from it.
 
-The `displayPrompt` shown in the UI is separate and human-readable:
-- With prompt: `"Fleet deployed: <user prompt>"`
-- Without prompt: `"Fleet deployed"`
-
-This is purely cosmetic — the LLM never sees the display prompt.
+That model is stable even if the underlying runtime implementation evolves.
 
 ---
 
-## The Todo-SQL Coordination Pattern
+## Why autopilot is related but distinct
 
-The fleet system prompt's core mechanism is the **session SQLite database** as a coordination bus:
+Autopilot and `/fleet` are often used together, but they answer different questions.
 
-```sql
--- Orchestrator: find ready todos (dependencies satisfied)
-SELECT * FROM todos
-WHERE status = 'pending'
-AND id NOT IN (
-  SELECT todo_id FROM todo_deps td
-  JOIN todos t ON td.depends_on = t.id
-  WHERE t.status != 'done'
-)
+- **Autopilot** answers: *should Copilot keep going without waiting for me?*
+- **`/fleet`** answers: *should Copilot split this work and run parts in parallel?*
 
--- Subagent: report success
-UPDATE todos SET status = 'done' WHERE id = '<todo-id>'
+Current GitHub Docs explicitly describe them as distinct features. A common workflow is:
 
--- Subagent: report blocker
-UPDATE todos SET status = 'blocked' WHERE id = '<todo-id>'
-```
+1. Use plan mode to shape the work.
+2. Accept the plan and continue with **autopilot + `/fleet`** when the work looks parallelizable.
+3. Let the main agent orchestrate subagents while still driving the overall task to completion.
 
-The SQL database acts as shared mutable state between the orchestrator and all subagents running in background mode. The orchestrator writes the todo rows; subagents read their assignment from the prompt and write back status. The orchestrator can poll for completions by re-querying.
-
-This is a significant design choice: coordination happens through data (a database row) rather than through direct message passing. This means:
-- Subagents don't need to know about each other
-- The orchestrator can track progress without blocking on individual agents
-- The dependency graph (`todo_deps`) is explicit and queryable
-- Session state survives agent restarts within the same session
+This distinction matters because older internal trigger names such as `autopilot_fleet` are not the user-facing contract anymore. The user-facing contract is the documented plan/autopilot/`/fleet` workflow.
 
 ---
 
-## `autopilot_fleet` — The Implicit Trigger
+## Why `/tasks` matters
 
-Fleet mode can also activate without an explicit `/fleet` command:
+`/tasks` is the operational surface that makes modern `/fleet` behavior visible.
 
-```js
-// index.js ~11678584
-if (x === "autopilot_fleet") this.fleet.start({});
-```
+GitHub's `/fleet` how-to now tells users to monitor subagent/background work through `/tasks`, where they can inspect progress, open task details, kill a task, and remove completed entries. The upstream changelog also shows steady post-launch work on task visibility: `/tasks` was added, background-agent progress became richer, subagent IDs became human-readable, recent activity was added, and idle subagents stopped cluttering the list.
 
-When `exit_plan_mode` is called with the value `autopilot_fleet`, fleet starts automatically with no user prompt. This is the path for autonomous plan-then-execute workflows: the agent generates a plan, the user approves it (or the agent decides to proceed), and fleet mode kicks in to execute the plan via the same injection mechanism.
-
-The result is identical to running `/fleet` with no arguments — the fleet system prompt is injected, and the agent begins executing whatever todos already exist.
+This is one of the clearest reasons the older "fleet is only prompt injection" framing is now incomplete. Whatever the low-level implementation details are, `/fleet` now has a visible orchestration workflow and a visible monitoring surface in the product.
 
 ---
 
-## Connection to Ralph-v2: Fleet Made Explicit
+## Why the historical prompt-injection model is still useful
 
-Ralph-v2 is the fleet pattern made **explicit, structured, and multi-iteration**.
+The older v1.0.2 reverse-engineering work still explains something real: `/fleet` appears to have worked by injecting orchestration instructions into the current session turn, causing the active agent to adopt orchestrator behavior.
 
-Fleet mode gives any agent the coordination protocol. Ralph-v2 is an agent architecture that *embeds* the coordination protocol as its primary design:
+That historical model remains useful for understanding:
 
-| Aspect           | Fleet mode                       | Ralph-v2                                           |
-| ---------------- | -------------------------------- | -------------------------------------------------- |
-| Trigger          | `/fleet` or `autopilot_fleet`    | User invokes ralph orchestrator                    |
-| Orchestrator     | Current session agent (ad-hoc)   | `ralph-v2-orchestrator-CLI` (dedicated)            |
-| Task breakdown   | LLM decides what todos to create | Planner agent creates structured tasks             |
-| Subagents        | Any available `agent_type`       | Named specialist agents (executor, reviewer, etc.) |
-| Iteration        | Single pass to completion        | Explicit iteration cycles with review gates        |
-| Task tracking    | SQL todos + todo_deps (session SQLite) | Markdown files: `iterations/<N>/tasks/<id>.md`; SSOT: `progress.md` |
-| State tracking   | Session SQLite                   | `metadata.yaml` (state machine) + `progress.md` (SSOT) |
+- why the **current agent** becomes the orchestrator rather than spawning a second top-level user session;
+- why the **quality of the active agent's instructions** can shape fleet behavior;
+- why **custom agents** and their configuration matter when subagents are selected.
 
-The fleet system prompt says: *"check todos, dispatch agents, validate results, iterate."* Ralph-v2's orchestrator instructions say the same thing, but with more structure: the planner writes structured task files (`iterations/<N>/tasks/<task-id>.md`), the executor reports results back into those files, the reviewer validates against spec, and the librarian extracts knowledge to the wiki. State is tracked via `metadata.yaml` (state machine) and `progress.md` (SSOT per iteration) — not SQL tables.
+But that insight is best phrased like this:
 
-**Ralph-v2 is what happens when you productionize the fleet pattern.**
+> A historical v1.0.2 implementation appears to have activated fleet by injecting orchestration instructions into the main session. Treat that as an implementation note that helps explain behavior, not as the primary product contract.
 
-### Why Ralph-v2 Doesn't Need `/fleet`
-
-The ralph-v2 orchestrator has `disable-model-invocation: true`, which means it cannot be *dispatched as a subagent* by another agent — including a fleet-mode session agent. And since the orchestrator's instructions already encode the parallel dispatch pattern, running `/fleet` while inside ralph-v2 would inject a duplicate, potentially conflicting orchestration prompt.
-
-Ralph-v2 manages its own fleet behavior without the fleet injection.
+That wording keeps the useful intuition without overstating undocumented internals as current truth.
 
 ---
 
-## When to Use Fleet vs Ralph-v2
+## Historical implementation notes from v1.0.2 analysis
 
-### Use `/fleet` when:
+The following points are preserved because they are still useful for advanced reasoning, but they are **version-scoped** observations rather than April 2026 product guarantees.
 
-- **Ad-hoc parallelism**: You have a list of independent tasks and want to execute them now without setting up a structured workflow
-- **Existing todos**: You've already populated the SQL todos table and just want to dispatch everything in parallel
-- **Quick delegation**: You want the current agent to spin up specialist subagents for a one-off task
-- **Exploration**: You want to understand what fleet orchestration does before building a structured workflow around it
+### Historical prompt-construction model
 
-### Use Ralph-v2 when:
+The earlier bundle analysis observed `/fleet` dispatching through `session.fleet.start()` and then calling `session.send()` with an orchestration prompt plus the user request. That historical note supports the intuition that the active agent received additional orchestration instructions instead of switching to a separate "fleet session" type.
 
-- **Structured iteration**: The work spans multiple rounds of planning, execution, and review
-- **Quality gates**: You need a reviewer to validate output before declaring a task done
-- **Knowledge capture**: You want the librarian to extract and promote knowledge to the wiki
-- **Reproducibility**: You need consistent task formats, frontmatter conventions, and artifact templates
-- **Complex dependencies**: The dependency graph between tasks is non-trivial and needs explicit management
-- **Multi-session work**: Tasks span multiple sessions and need durable state
+### Historical SQL coordination pattern
 
-### The decision heuristic:
+The earlier observed fleet prompt coordinated work through the per-session SQLite database, especially `todos` and `todo_deps`. That historical detail helps explain why fleet could reason about readiness and dependencies inside one session.
 
-> Fleet = "do this now, in parallel, best effort"  
-> Ralph-v2 = "do this correctly, with review, capturing what we learn"
+However, current public docs do **not** require readers to understand `/fleet` through SQL tables. For most users, the higher-level orchestrator/subagent model plus `/tasks` is the correct conceptual layer.
+
+### Historical `autopilot_fleet` trigger
+
+The older bundle analysis also observed an `autopilot_fleet` path tied to exiting plan mode. That remains useful as historical evidence that plan-to-build flows were wired into fleet execution early on.
+
+Today, the clearer explanation is the public one: plan mode can hand off to **autopilot + `/fleet`** through the CLI's approval flow.
 
 ---
 
-## Summary: Why This Mental Model Matters
+## Comparison to Ralph-v2 in this workspace
 
-Understanding fleet mode as prompt injection rather than a runtime feature has concrete implications:
+Ralph-v2 is a useful local analogy because it makes orchestration explicit and durable.
 
-1. **Any agent can be a fleet orchestrator** — the capability is not locked to specific agent types
-2. **Fleet quality scales with agent quality** — injecting the fleet prompt into a poorly-scoped agent produces poor fleet orchestration
-3. **Custom agents can replicate fleet behavior** — by encoding parallel dispatch and coordination in their own instructions (ralph-v2 does this, but uses structured markdown task files and `progress.md` rather than SQL todos)
-4. **Fleet is stateless** — it relies entirely on the SQL database for coordination; if the session resets, the todos persist but the orchestrator's in-flight reasoning does not
-5. **The prompt injection is the only thing** — there is no fleet "server," no background daemon, no special runtime. The LLM reading the fleet system prompt *is* the fleet mode
+| Aspect | Copilot CLI `/fleet` | Ralph-v2 in this workspace |
+|---|---|---|
+| Primary purpose | Ad-hoc parallel orchestration for the current task | Structured multi-step orchestration with review and knowledge capture |
+| Main orchestrator | Current Copilot CLI session agent | Dedicated Ralph orchestrator |
+| User-visible monitoring | `/tasks` and timeline | Ralph artifacts, iteration state, review outputs |
+| Best mental model | Product-level orchestration feature | Repository-specific orchestration workflow |
 
-See also:
-- [Fleet and Task Subagent Dispatch Reference](../../../../reference/copilot/cli/fleet-and-task-subagent-dispatch.md) — complete technical schema
-- [Ralph Subagent Contracts](../../../../reference/ralph/ralph-subagent-contracts.md) — how ralph-v2 names and wires its agents
-- [Orchestrator Router Contract Boundary](../../../../reference/ralph/orchestrator-router-contract-boundary.md) — `disable-model-invocation` design rationale
+This comparison is helpful for local readers, but it should stay secondary. Ralph-v2 explains **this repository's** workflow choices; it does not define Copilot CLI's `/fleet` semantics.
+
+---
+
+## Different perspectives
+
+Some readers care most about the **current product contract**. For them, the right explanation is simple: `/fleet` parallelizes suitable work by letting the main agent orchestrate subagents, often alongside autopilot, and `/tasks` is the operational window into that work.
+
+Other readers care about the **historical implementation story**. For them, the prompt-injection model is still useful because it explains why the active agent's prompt and instruction set matter so much to fleet quality.
+
+Both perspectives are valid. The important documentation change is only the ordering:
+
+1. current public behavior first;
+2. historical implementation notes second.
+
+---
+
+## Further reading
+
+- **Reference**: [Fleet and Task Subagent Dispatch in Copilot CLI](../../../../reference/copilot/cli/fleet-and-task-subagent-dispatch.md)
+- **Related explanation**: [Copilot CLI Session Topology and Orchestration Layer](./copilot-cli-session-topology.md)
+- **Shared comparison**: [Fleet Orchestration: CLI vs VS Code Comparative Analysis](../../shared/fleet-cli-vs-vscode-comparison.md)

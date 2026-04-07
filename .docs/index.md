@@ -64,6 +64,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How To Add Multi Runtime Support To Publish Scripts](how-to/copilot/shared/how-to-add-multi-runtime-support-to-publish-scripts.md)
 - [How To Create Markdown Issues](how-to/copilot/shared/how-to-create-markdown-issues.md)
 - [How To Extract Shared Instructions From Agents](how-to/copilot/shared/how-to-extract-shared-instructions-from-agents.md)
+- [How to Persistently Alias `python3` to `python` in PowerShell](how-to/copilot/shared/how-to-persistently-alias-python3-to-python-in-powershell.md)
 - [How to use Copilot FC commands](how-to/copilot/shared/how-to-use-copilot-fc-commands.md)
 - [Smoke Test Publish Scripts](how-to/copilot/shared/smoke-test-publish-scripts.md)
 #### Vscode
@@ -106,7 +107,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Copilot-CLI Customization Support Matrix](reference/copilot/cli/copilot-cli-customization-matrix.md)
 - [GitHub Copilot CLI - An AI-powered coding assistant](reference/copilot/cli/copilot-cli-help.md)
 - [Copilot CLI Session State Schema Reference](reference/copilot/cli/copilot-cli-session-state-schema.md)
-- [Fleet and Task Subagent Dispatch Reference in Copilot CLI](reference/copilot/cli/fleet-and-task-subagent-dispatch.md)
+- [Fleet and Task Subagent Dispatch in Copilot CLI](reference/copilot/cli/fleet-and-task-subagent-dispatch.md)
 #### Github Mobile
 
 - _No documents yet._
@@ -201,7 +202,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [About CLI Plugins](explanation/copilot/cli/about-cli-plugins.md)
 - [Ralph-v2 Tool Compatibility Analysis for Copilot CLI](explanation/copilot/cli/copilot-cli-ralph-v2-tool-compatibility.md)
 - [Copilot CLI Session Topology and Orchestration Layer](explanation/copilot/cli/copilot-cli-session-topology.md)
-- [Fleet Mode as Prompt Injection in Copilot CLI](explanation/copilot/cli/fleet-mode-as-prompt-injection.md)
+- [Understanding `/fleet` orchestration in Copilot CLI](explanation/copilot/cli/fleet-mode-as-prompt-injection.md)
 #### Github Mobile
 
 - _No documents yet._
@@ -242,3 +243,5 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph V1 State Machine](explanation/ralph/ralph-v1-state-machine.md)
 - [Self Critique Extension Rationale](explanation/ralph/self-critique-extension-rationale.md)
 - [V2.10.0 Knowledge Pipeline Refactor](explanation/ralph/v2.10.0-knowledge-pipeline-refactor.md)
+
+

@@ -22,8 +22,8 @@ This custom fleet.prompt.md (only for VS Code) is an attempt to simulate the nat
 
 See also:
 - [Fleet Orchestration: CLI vs VS Code Comparative Analysis](../../../../explanation/copilot/shared/fleet-cli-vs-vscode-comparison.md) — why this design differs from CLI `/fleet`
-- [Fleet Mode as Prompt Injection](../../../../explanation/copilot/cli/fleet-mode-as-prompt-injection.md) — how CLI `/fleet` works internally
-- [Fleet and Task Subagent Dispatch Reference](../../cli/fleet-and-task-subagent-dispatch.md) — full CLI `task()` schema
+- [Understanding `/fleet` orchestration in Copilot CLI](../../../../explanation/copilot/cli/fleet-mode-as-prompt-injection.md) — current product model first, with historical prompt-injection notes preserved
+- [Fleet and Task Subagent Dispatch in Copilot CLI](../../cli/fleet-and-task-subagent-dispatch.md) — current reference plus historical `task()` internals
 
 ---
 

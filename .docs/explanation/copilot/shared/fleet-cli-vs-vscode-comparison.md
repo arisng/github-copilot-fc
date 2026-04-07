@@ -14,8 +14,8 @@ Understanding how and why they differ is essential for:
 - Deriving domain-specific fleet variants from the generic VS Code baseline
 
 See also:
-- [Fleet Mode as Prompt Injection](../../cli/fleet-mode-as-prompt-injection.md) — deep-dive into how CLI `/fleet` works at the code level
-- [Fleet and Task Subagent Dispatch Reference](../../../../reference/copilot/cli/fleet-and-task-subagent-dispatch.md) — authoritative schema for the CLI `task()` tool and agent type resolution
+- [Understanding `/fleet` orchestration in Copilot CLI](../../cli/fleet-mode-as-prompt-injection.md) — current conceptual model, plus historical prompt-injection context
+- [Fleet and Task Subagent Dispatch in Copilot CLI](../../../../reference/copilot/cli/fleet-and-task-subagent-dispatch.md) — current reference plus historical `task()` dispatch details
 - [Fleet VS Code Generic Orchestrator Reference](../../../../reference/copilot/vscode/fleet-vscode-generic-orchestrator.md) — specification of the custom fleet prompt itself
 
 ---
@@ -186,4 +186,4 @@ The generic version deliberately does not hard-code domain assumptions, making i
 | Work that needs per-wave critique and atomic commits          | `fleet.prompt.md`                                                   |
 | Work that needs wiki knowledge promotion                      | `fleet.prompt.md`                                                   |
 | Structured multi-iteration work with review and spec-checking | Ralph-v2                                                            |
-| Understanding how CLI fleet works internally                  | [Fleet Mode as Prompt Injection](../../cli/fleet-mode-as-prompt-injection.md) |
+| Understanding current CLI fleet orchestration                | [Understanding `/fleet` orchestration in Copilot CLI](../../cli/fleet-mode-as-prompt-injection.md) |

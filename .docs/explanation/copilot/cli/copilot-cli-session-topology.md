@@ -2,7 +2,7 @@
 
 > **Last verified**: Copilot CLI v1.0.10 (March 2026) — empirical filesystem inspection on Windows + official GitHub Docs (`github/docs`)
 > **Audience**: Developers building orchestration layers (e.g., Ralph-v2) on top of Copilot CLI
-> **Related**: [About CLI Plugins](./about-cli-plugins.md) · [Fleet Mode as Prompt Injection](./fleet-mode-as-prompt-injection.md) · [CLI vs VS Code Customization](../../shared/copilot-cli-vs-vscode-customization.md)
+> **Related**: [About CLI Plugins](./about-cli-plugins.md) · [Understanding `/fleet` orchestration in Copilot CLI](./fleet-mode-as-prompt-injection.md) · [CLI vs VS Code Customization](../../shared/copilot-cli-vs-vscode-customization.md)
 
 ---
 

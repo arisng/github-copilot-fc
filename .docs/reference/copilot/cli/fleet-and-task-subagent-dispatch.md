@@ -1,16 +1,104 @@
-# Fleet and Task Subagent Dispatch Reference in Copilot CLI
+# Fleet and Task Subagent Dispatch in Copilot CLI
 
-**Version:** Copilot CLI v1.0.2  
-**Sources:** `index.js`, `sdk/index.d.ts`, `definitions/*.agent.yaml`
+> **Last grounded**: April 2026 — current GitHub Docs + `github/copilot-cli` changelog, with historical v1.0.2 reverse-engineering preserved below
+> **Scope**: Current verified behavior first; older bundle-derived internals second
 
-Authoritative reference for `/fleet`, `session.fleet.start()`, and the `task` tool subagent dispatch mechanism.
+Current public sources:
+
+- [Running tasks in parallel with the `/fleet` command](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet)
+- [Speeding up task completion with the `/fleet` command](https://docs.github.com/en/copilot/how-tos/copilot-cli/speeding-up-task-completion)
+- [Allowing GitHub Copilot CLI to work autonomously](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/autopilot)
+- [GitHub Copilot CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference)
+- [Custom agents configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+- [`github/copilot-cli` changelog](https://github.com/github/copilot-cli/blob/main/changelog.md)
 
 ---
 
-## `/fleet` Command
+## Overview
+
+`/fleet` is the documented Copilot CLI command for parallel subagent execution. It lets the main agent decompose suitable work into subtasks and orchestrate subagents where dependencies allow.
+
+The user-visible operational surfaces around that behavior are now:
+
+- `/fleet` for starting parallel orchestration;
+- `/tasks` for viewing and managing background task execution;
+- `/agent` and custom-agent configuration for influencing which specialist agents are available.
+
+The detailed `task()` schema and dispatch flow described later in this document remain useful, but they should be read as **historical reverse-engineering of v1.0.2 internals**, not as the current public product contract.
+
+---
+
+## Current verified behavior (March-April 2026)
+
+### `/fleet`
+
+Current GitHub Docs describe `/fleet` as a command that lets the **main agent** analyze a request, break it into subtasks, and run subagents in parallel where possible. The orchestrator agent remains responsible for dependencies and result synthesis.
+
+### Relationship to autopilot
+
+Autopilot and `/fleet` are distinct features:
+
+- **Autopilot** governs whether Copilot keeps working autonomously.
+- **`/fleet`** governs whether Copilot parallelizes suitable work with subagents.
+
+The documented plan-mode workflow now includes an **autopilot + `/fleet`** approval path for work that looks parallelizable.
+
+### Monitoring with `/tasks`
+
+The `/fleet` how-to now tells users to monitor subagent/background work through `/tasks`, including:
+
+- opening task details;
+- killing a running task;
+- removing completed or killed entries.
+
+The upstream changelog shows continuing refinement of this surface: `/tasks` was added, recent activity was added, human-readable subagent IDs were introduced, idle subagents stopped cluttering the list, and background-agent progress became more visible.
+
+### Current default and custom agent surfaces
+
+Current public docs explicitly name four default agents:
+
+- **Explore**
+- **Task**
+- **General-purpose**
+- **Code-review**
+
+Current public docs also document the following custom-agent frontmatter fields as supported:
+
+- `model`
+- `disable-model-invocation`
+- `user-invocable`
+- `mcp-servers`
+
+The command reference also exposes agent/task delegation tools in the CLI tool inventory, including:
+
+- `task`
+- `read_agent`
+- `list_agents`
+
+The public docs do **not** currently publish a full parameter-by-parameter `task()` schema. That lower-level detail is preserved below as version-scoped historical analysis.
+
+---
+
+## Current surface summary
+
+| Surface | Current public meaning | Notes |
+|---|---|---|
+| `/fleet [PROMPT]` | Start parallel subagent orchestration for suitable work | Main agent stays orchestrator |
+| Autopilot mode | Continue autonomously without waiting for user input | Often paired with `/fleet`, but separate |
+| `/tasks` | View/manage background tasks and subagent work | Operational monitoring surface |
+| `/agent` | Manually select a custom agent | User-facing custom-agent picker |
+| `model` in custom agents | Pin a model for a custom agent | Publicly documented in current schema |
+| `disable-model-invocation` | Prevent automatic model selection of a custom agent | Still allows manual invocation unless `user-invocable: false` |
+
+---
+
+## Historical v1.0.2 reverse-engineered internals
+
+The sections below preserve the earlier v1.0.2 analysis because they still help explain how `/fleet` and task-based dispatch appeared to work internally. Read them as **historical notes**, not April 2026 guarantees.
+
+### Observed `/fleet` command
 
 ```ts
-// index.js ~12471712
 {
   name: "/fleet",
   args: "[prompt]",
@@ -23,14 +111,11 @@ Authoritative reference for `/fleet`, `session.fleet.start()`, and the `task` to
 }
 ```
 
-`/fleet` is a thin wrapper that delegates immediately to `session.fleet.start()`. It accepts an optional prompt string and returns a `noop` result — no new session is created.
+In the observed v1.0.2 bundle, `/fleet` delegated directly to `session.fleet.start()` and returned a `noop` result rather than switching to a separate top-level session type.
 
----
-
-## `session.fleet.start()`
+### Observed `session.fleet.start()` behavior
 
 ```js
-// index.js ~11574950 (function HEr)
 function HEr(t) {
   return {
     async start(e) {
@@ -47,325 +132,148 @@ function HEr(t) {
 }
 ```
 
-**Behavior:**
-- With `prompt`: prepends `FLEET_SYSTEM_PROMPT`, appends `User request: <prompt>`
-- Without `prompt`: sends `FLEET_SYSTEM_PROMPT` as-is
-- Calls `session.send()` on the **current** session — no new session is started
-- `displayPrompt` is the human-readable label shown in the UI
+Observed v1.0.2 behavior:
 
-### Alternative trigger: `autopilot_fleet`
+- with a prompt, the user request was appended to a fixed orchestration prompt;
+- without a prompt, only the orchestration prompt was sent;
+- the orchestration text was delivered to the **current** session agent.
+
+### Historical alternative trigger: `autopilot_fleet`
 
 ```js
-// index.js ~11678584
 if (x === "autopilot_fleet") this.fleet.start({});
 ```
 
-When `exit_plan_mode` is called with the `autopilot_fleet` value, fleet starts automatically with no user prompt.
+The earlier bundle analysis observed an `autopilot_fleet` path when leaving plan mode. Current public docs explain the same workflow through the plan approval UX instead of internal trigger names.
 
----
+### Historical orchestration prompt excerpt
 
-## Fleet System Prompt (verbatim)
+The observed v1.0.2 orchestration prompt told the active agent to:
 
-```
+```text
 You are now in fleet mode. Dispatch sub-agents (via the task tool) in parallel to do the work.
 
-**Getting Started**
-1. Check for existing todos: SELECT id, title, status FROM todos WHERE status != 'done'
-2. If todos exist, dispatch them in parallel (respecting dependencies)
-3. If no todos exist, help decompose the work into todos first.
-
-**Parallel Execution**
-- Dispatch independent todos simultaneously
-- Never dispatch just a single background subagent. Prefer one sync subagent, or better,
-  prefer to efficiently dispatch multiple background subagents in the same turn.
-- Only serialize todos with true dependencies (check todo_deps)
-- Query ready todos: SELECT * FROM todos WHERE status = 'pending' AND id NOT IN (
-    SELECT todo_id FROM todo_deps td JOIN todos t ON td.depends_on = t.id WHERE t.status != 'done')
-
-**Sub-Agent Instructions**
-When dispatching a sub-agent, include these instructions in your prompt:
-1. Update the todo status when finished:
-   - Success: UPDATE todos SET status = 'done' WHERE id = '<todo-id>'
-   - Blocked: UPDATE todos SET status = 'blocked' WHERE id = '<todo-id>'
-2. Always return a response summarizing what was completed, whether done, any blockers.
-
-**After Sub-Agents Complete**
-- Check work done by sub-agents and validate the original request is fully satisfied
-- Ensure implementation is sensible, robust, and handles edge cases
-- If not fully satisfied, decompose remaining work into new todos and dispatch more sub-agents
-
-Now proceed with the user's request using fleet mode.
+1. Check for existing todos
+2. Dispatch ready todos in parallel
+3. Update todo status when sub-agents finish
+4. Validate the completed work
 ```
 
----
+That historical prompt is why older documentation often explained fleet through the session SQLite `todos` and `todo_deps` tables.
 
-## `task` Tool
-
-### Parameter Schema
+### Observed v1.0.2 `task()` schema
 
 ```ts
-// sdk/index.d.ts + index.js ~10284849
 {
-  description: string,          // 3-5 words, shown as intent in UI
-  prompt: string,               // full task instructions for the agent
-  agent_type: string,           // built-in type name OR custom agent name: field
-  model?: string,               // optional LLM override (validated against available models)
-  mode?: "sync" | "background"  // default: "sync"
+  description: string,
+  prompt: string,
+  agent_type: string,
+  model?: string,
+  mode?: "sync" | "background"
 }
 ```
 
-### Agent Type Resolution Order
+Observed meaning in the older bundle analysis:
 
-```js
-// index.js ~10279000 (function Bsr)
-if (ZBt(J))       // J is a built-in type?
-  ne = await (await bms(J, cache, ...)).createAgentTool(callback, Ie).callback({...});
-else if (E(J))    // J is in customAgents map?
-  ne = await (await Gms(J, cache, customAgentsMap, ...)).createAgentTool(callback, Ie).callback({...});
-else
-  throw new Error(`Unknown agent type: ${J}`);
-```
+| Field | Historical meaning |
+|---|---|
+| `description` | Short UI intent label |
+| `prompt` | Full instructions for the subagent |
+| `agent_type` | Built-in type name or custom-agent `name:` |
+| `model` | Per-dispatch model override |
+| `mode` | `sync` or `background` |
 
-1. **Built-in check** (`ZBt`): tests against a hardcoded set of built-in type names (`explore`, `task`, `code-review`, `research`, `general-purpose`)
-2. **Custom agent lookup** (`E` = `customAgentsMap.has`): the map is built from all loaded `*.agent.md` files, filtered to exclude `disableModelInvocation === true`
-3. **Error**: if neither matches, throws `Unknown agent type`
+### Observed built-in agent types in the v1.0.2 bundle
 
-> **Key fact:** For custom agents, `agent_type` must equal the `name:` frontmatter field of the target agent exactly.
+The earlier bundle analysis observed this set:
 
-### Background vs Sync Mode
-
-**Sync (default):**  
-The orchestrator blocks until the subagent returns a result string. Use for sequential dependencies.
-
-**Background:**
-
-```js
-// index.js ~9738564
-if (mode === "background") {
-  let id = taskRegistry.startAgent(agentType, description, prompt, executeAgent, {
-    modelOverride: Ie,
-    toolCallId: ...,
-    ownerId: sessionId,
-    parentId: sessionId
-  });
-  return { textResultForLlm: `Agent started with agent_id: ${id}. Use read_agent...`, ... };
-}
-```
-
-The orchestrator receives an `agent_id` immediately and continues. Use `read_agent` to collect results. Use for truly independent parallel tasks.
-
----
-
-## Built-in Agent Types
-
-| `agent_type` | Default Model | Tools | Purpose |
-|---|---|---|---|
-| `task` | `claude-haiku-4.5` | `["*"]` | General command execution |
-| `explore` | `claude-haiku-4.5` | Read-only subset | Codebase exploration |
-| `code-review` | `claude-sonnet-4.5` | `["*"]` | Code review (no modifications) |
-| `research` | `claude-sonnet-4.6` | GitHub + web | Research across sources |
-| `general-purpose` | _(session model)_ | `["*"]` | Full-capability, high-quality reasoning |
-
-Source: `definitions/*.agent.yaml` from Copilot CLI v1.0.2 package.
-
----
-
-## `SweCustomAgent` Type
-
-```ts
-// sdk/index.d.ts:686176
-type SweCustomAgent = {
-  name: string;                              // maps to name: frontmatter
-  displayName: string;                       // maps to (derived from name)
-  description: string;                       // maps to description: frontmatter
-  tools: string[] | null;                    // maps to tools: frontmatter
-  prompt: () => Promise<string>;             // lazily loads the markdown body
-  mcpServers?: Record<string, MCPServerConfig>; // maps to mcp-servers: frontmatter
-  disableModelInvocation: boolean;           // maps to disable-model-invocation: frontmatter
-  /** When unset, inherits the outer agent's model.
-   *  When set but unavailable, falls back to the outer agent's model. */
-  model?: string;                            // maps to model: frontmatter
-};
-```
-
-### Frontmatter → `SweCustomAgent` Field Map
-
-| `*.agent.md` frontmatter key | `SweCustomAgent` field | Notes |
+| `agent_type` | Default model | Purpose |
 |---|---|---|
-| `name:` | `name` | Used as `agent_type` in `task()` calls |
-| `description:` | `description` | Shown in agent picker UI |
-| `model:` | `model` | Optional; inherits session model if absent |
-| `tools:` | `tools` | `null` resolves to `["*"]` (all tools) |
-| `mcp-servers:` | `mcpServers` | Loaded on first invocation |
-| `disable-model-invocation:` | `disableModelInvocation` | Excludes agent from `task()` target list |
+| `task` | `claude-haiku-4.5` | General command execution |
+| `explore` | `claude-haiku-4.5` | Codebase exploration |
+| `code-review` | `claude-sonnet-4.5` | Code review |
+| `research` | `claude-sonnet-4.6` | Research across sources |
+| `general-purpose` | session model | Full-capability reasoning |
 
-**`getCustomAgents(authInfo, workingDir, integrationId?, logger?, settings?)`** scans `skillDirectories` for `*.agent.md` files and parses them into `SweCustomAgent` objects.
+This table is **version-scoped**. Current public docs only name Explore, Task, General-purpose, and Code-review as the default agent set.
 
-### Custom agent config builder
+### Observed custom-agent resolution
 
-```js
-// index.js ~10274211 (function ums)
-function ums(agent, promptBody) {
-  return {
-    name:        agent.name,
-    displayName: agent.displayName,
-    description: agent.description,
-    model:       agent.model,          // from model: frontmatter
-    tools:       agent.tools ?? ["*"], // from tools: frontmatter
-    promptParts: {
-      includeAISafety:                true,
-      includeToolInstructions:        true,
-      includeParallelToolCalling:     true,
-      includeCustomAgentInstructions: false,
-      includeEnvironmentContext:      true,
-    },
-    prompt:     promptBody,            // loaded markdown body
-    mcpServers: agent.mcpServers,      // from mcp-servers: frontmatter
-  };
-}
+The older analysis observed:
+
+1. built-in agent-type resolution first;
+2. custom-agent lookup by exact `name:` match second;
+3. an error if neither matched.
+
+It also observed `disable-model-invocation: true` filtering an agent out of `task()` target resolution while still allowing direct top-level user invocation.
+
+Those observations remain directionally consistent with today's public custom-agent schema, but the exact runtime behavior should still be treated as historical until revalidated against a current bundle.
+
+### Observed v1.0.2 model resolution priority
+
+The older analysis observed this priority order:
+
+1. `model` parameter passed to `task()`
+2. `model` set in custom-agent frontmatter
+3. outer session model
+
+That historical chain is now less speculative than it used to be because current public docs explicitly document the `model` field in custom-agent configuration. Even so, the exact fallback logic and cost guards described in the v1.0.2 bundle remain version-scoped details.
+
+### Historical v1.0.2 dispatch flow
+
+```text
+User types /fleet [prompt]
+        │
+        ▼
+session.fleet.start({prompt})
+        │
+        ▼
+Current session agent receives orchestration prompt
+        │
+        ▼
+task(agent_type, description, prompt, model?, mode?)
+        │
+        ├─ built-in type?  -> built-in loader
+        └─ custom type?    -> custom-agent loader
+        │
+        ▼
+Subagent runs
+        │
+        ▼
+Orchestrator receives result and continues
 ```
 
 ---
 
-## `disable-model-invocation: true`
+## Historical source index (v1.0.2 analysis)
 
-When a custom agent has `disable-model-invocation: true` in its frontmatter:
+The earlier reverse-engineering pass extracted details from these bundle locations:
 
-1. **Excluded from `task()` targets**: filtered out of `customAgentsMap` before agent type resolution
-   ```js
-   c = (t.customAgents ?? []).filter(k => k.disableModelInvocation !== true)
-   ```
-2. **Still usable as top-level session agent**: the flag only affects `task()` dispatch, not direct user invocation
-3. **Prevents recursive dispatch**: no subagent can call the orchestrator as a subagent
-4. **Orchestrator still makes LLM calls**: the flag does not suppress model invocation in the agent's own top-level turns
-
-**Canonical usage (ralph-v2):**
-- `ralph-v2-orchestrator-CLI` → `disable-model-invocation: true` (dispatches via `task()`)
-- `ralph-v2-planner-CLI`, `ralph-v2-executor-CLI`, etc. → no `disable-model-invocation` (are dispatched via `task()`)
-
----
-
-## Model Resolution Priority Chain
-
-Model is resolved in this order (highest priority first):
-
-```
-Priority (highest → lowest):
-┌──────────────────────────────────────────────────────────────────┐
-│ 1. model: parameter passed to task() call                        │
-│    → task("my-agent", "...", model="claude-opus-4.5")            │
-├──────────────────────────────────────────────────────────────────┤
-│ 2. model: frontmatter in the agent's *.agent.md                  │
-│    → model: claude-sonnet-4.5                                    │
-├──────────────────────────────────────────────────────────────────┤
-│ 3. Session model (outer/parent agent's model)                    │
-│    → inherited if neither 1 nor 2 is set, or if set model is     │
-│      unavailable in the current user's subscription              │
-└──────────────────────────────────────────────────────────────────┘
-
-Cost guard (always applied after 1-3):
-  If session model multiplier = 0 (free plan)
-  AND target model multiplier > 0 (paid)
-  → Downgrade to session model regardless of override
-```
-
-### Implementation: `Art.resolveDefinitionModel()`
-
-```js
-// index.js ~11430912 (Art class)
-resolveDefinitionModel() {
-  let definitionModel = this.definition.model;
-  if (!definitionModel) {
-    return sessionModel;                      // Level 3: inherit session
-  }
-  if (!availableModels.some(m => m.id === definitionModel)) {
-    return sessionModel;                      // Level 3: model unavailable
-  }
-  let sessionMultiplier  = availableModels.find(m => m.id === sessionModel)?.multiplier;
-  let targetMultiplier   = availableModels.find(m => m.id === definitionModel)?.multiplier;
-  if (sessionMultiplier === 0 && targetMultiplier > 0) {
-    return sessionModel;                      // Cost guard
-  }
-  return definitionModel;                     // Level 2: use definition model
-}
-```
-
-### Implementation: `Art.getOrCreateAgent()`
-
-```js
-// index.js ~11430912 (Art class)
-async getOrCreateAgent(callback, toolCallId, modelOverride?) {
-  let finalModel = modelOverride || this.resolveDefinitionModel(); // Level 1: override wins
-  // Creates CAPI client with model = finalModel
-  // Loads tools, MCP servers
-  // Returns { agent, tools }
-}
-```
+| Source | Historical content |
+|---|---|
+| `index.js:12471712` | `/fleet` command handler |
+| `index.js:11574900` | `fleet.start()` and orchestration prompt |
+| `index.js:11678584` | `autopilot_fleet` path |
+| `index.js:10274211` | Custom-agent config builder |
+| `index.js:10275000` | Task-tool agent resolution |
+| `index.js:10284849` | Built-in and custom agent loaders |
+| `index.js:11430912` | Model resolution and agent runner |
+| `index.js:9738564` | Background-agent tracker |
+| `sdk/index.d.ts:686176` | `SweCustomAgent` type |
+| `sdk/index.d.ts:146257` | `getCustomAgents()` signature |
 
 ---
 
-## Full Data Flow
+## Constraints
 
-```
-User types: /fleet [prompt]
-         │
-         ▼
-  session.fleet.start({prompt})
-         │  Prepends FLEET_SYSTEM_PROMPT to prompt
-         │  Calls session.send({prompt: combined})
-         ▼
-  Current session agent (e.g. Copilot or ralph-v2 orchestrator)
-  receives: "You are now in fleet mode. Dispatch sub-agents..."
-         │
-         │  LLM reasons: check todos, pick ready ones, dispatch
-         ▼
-  task(agent_type, description, prompt, model?, mode?)
-         │
-         ├─ agent_type is built-in? → load from definitions/*.agent.yaml
-         │                              → bms() → Art instance
-         │
-         └─ agent_type is custom?  → find in customAgents map by name:
-                                      → Gms() → load *.agent.md body
-                                      → ums() → build definition
-                                      → Art instance
-                    │
-                    ▼
-            Art.createAgentTool(callback, modelOverride?)
-                    │
-                    ▼
-            Art.getOrCreateAgent(callback, toolCallId, modelOverride?)
-                    │
-                    │  Final model = modelOverride OR resolveDefinitionModel()
-                    │
-                    ▼
-            CAPI client with model=finalModel
-            + tools (filtered by tools: frontmatter)
-            + MCP servers (from mcp-servers: frontmatter)
-                    │
-                    ▼
-            Subagent runs its task, returns textResultForLlm
-                    │
-         ◄──────────┘
-  Orchestrator receives result string
-  Updates todos, dispatches more subagents or declares done
-```
+- Use the **current public docs and changelog** for present-tense product behavior.
+- Use the **historical sections above** only when the version scope matters.
+- Do not treat the v1.0.2 built-in agent table, prompt text, or exact loader call graph as the current public contract without revalidation.
 
 ---
 
-## Source Index
+## Related docs
 
-All code extracted from Copilot CLI v1.0.2:
-
-| File | Location | Content |
-|---|---|---|
-| `index.js:12471712` | `/fleet` command | Execute handler |
-| `index.js:11574900` | `HEr()` | `fleet.start()` + `FLEET_SYSTEM_PROMPT` |
-| `index.js:11678584` | `autopilot_fleet` path | Alternative fleet trigger |
-| `index.js:10274211` | `ums()` | Custom agent config builder |
-| `index.js:10275000` | `Bsr()` | Task tool: full agent resolution logic |
-| `index.js:10284849` | `bms()` / `Gms()` | Built-in and custom agent loaders |
-| `index.js:11430912` | `Art` class | Model resolution + agent runner |
-| `index.js:9738564` | `TaskRegistry.startAgent()` | Background agent tracker |
-| `sdk/index.d.ts:686176` | `SweCustomAgent` | Type definition |
-| `sdk/index.d.ts:146257` | `getCustomAgents()` | Function signature |
-| `definitions/*.agent.yaml` | Built-in agents | Agent type definitions |
+- [Understanding `/fleet` orchestration in Copilot CLI](../../../../explanation/copilot/cli/fleet-mode-as-prompt-injection.md)
+- [Copilot CLI Session Topology and Orchestration Layer](../../../../explanation/copilot/cli/copilot-cli-session-topology.md)
+- [Fleet Orchestration: CLI vs VS Code Comparative Analysis](../../../../explanation/copilot/shared/fleet-cli-vs-vscode-comparison.md)
