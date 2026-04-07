@@ -1,0 +1,46 @@
+{
+  "skill": "replace-with-skill-name",
+  "objective": "replace-with-the-main-output-goal",
+  "cases": [
+    {
+      "id": "case-01",
+      "prompt": "replace-with-a-representative-positive-prompt",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "structural",
+          "description": "Output word count is under the agreed cap",
+          "passes_when": "word_count < MAX_WORDS"
+        },
+        {
+          "id": "A2",
+          "type": "formatting",
+          "description": "First paragraph is a single sentence",
+          "passes_when": "paragraph_1_sentence_count == 1"
+        },
+        {
+          "id": "A3",
+          "type": "coverage",
+          "description": "All required inputs are mentioned",
+          "passes_when": "required_inputs_covered == true"
+        }
+      ],
+      "human_review": [
+        "tone",
+        "semantic coherence"
+      ]
+    },
+    {
+      "id": "case-02",
+      "prompt": "replace-with-a-nearby-prompt-that-should-not-trigger",
+      "expected_trigger": false,
+      "assertions": [],
+      "human_review": []
+    }
+  ],
+  "stop_conditions": {
+    "activation": "Stop when false positives and false negatives no longer improve.",
+    "execution": "Stop when score plateaus, assertions conflict, or perfect scores still fail human review."
+  }
+}
