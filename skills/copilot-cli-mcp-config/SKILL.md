@@ -1,7 +1,9 @@
 ---
 name: copilot-cli-mcp-config
-description: Manage GitHub Copilot CLI MCP server configuration using mcp-config.json. Use when configuring MCP servers for GitHub Copilot CLI in ~/.copilot or custom paths, adding local/remote MCP servers with proper syntax, or understanding differences between GitHub Copilot CLI (mcp-config.json) and VS Code (mcp.json) configuration formats.
-version: 1.0.0
+description: Manage GitHub Copilot CLI MCP server configuration, including ~/.copilot/mcp-config.json, COPILOT_HOME or --config-dir, project-level .mcp.json/.github/mcp.json/.vscode/mcp.json, /mcp commands, --additional-mcp-config, and VS Code mcp.json migration.
+metadata:
+  author: arisng
+  version: 1.1.0
 ---
 
 # GitHub Copilot CLI MCP Configuration Management
@@ -12,49 +14,40 @@ Configure MCP servers for GitHub Copilot CLI using the `mcp-config.json` file, w
 
 **Default**: `~/.copilot/mcp-config.json`
 
-**Custom location**: Set `XDG_CONFIG_HOME` environment variable to redirect configuration directory.
+**Relocating the config directory** (precedence, highest first):
+
+1. `--config-dir` CLI flag: `copilot --config-dir /path/to/dir`
+2. `COPILOT_HOME` environment variable: `export COPILOT_HOME=/path/to/dir`
+3. Default `~/.copilot/`
+
+Setting either option redirects the entire config tree (agents, skills, MCP config, logs, sessions).
+
+**Project-level MCP configs**: `.mcp.json`, `.github/mcp.json`, or `.vscode/mcp.json` — these take precedence over user-level definitions when server names conflict and are shared via source control.
+
+**Additional config at runtime**: `--additional-mcp-config` augments `~/.copilot/mcp-config.json` for the current session only. It is repeatable, and accepts either a JSON string or a file path prefixed with `@`:
 
 ```bash
-# In ~/.zshrc or ~/.bashrc
-export XDG_CONFIG_HOME="/path/to/your/config"
+copilot --additional-mcp-config '{"mcpServers":{"extra":{"type":"stdio","command":"npx","args":["my-server"],"tools":["*"]}}}' \
+        --additional-mcp-config @/path/to/project-mcp.json
 ```
-
-**Additional config at runtime**: Use the `--additional-mcp-config` flag to load extra MCP configuration files alongside the default:
-
-```bash
-copilot --additional-mcp-config /path/to/extra-mcp-config.json
-```
-
-This merges the extra config with your default `mcp-config.json`, useful for project-specific servers without modifying the global file.
 
 ## CLI Commands
 
 ### Management Commands
 
-```bash
-# Add MCP server (interactive — Tab to navigate fields)
-copilot /mcp add
+These are **slash commands entered inside the Copilot CLI interactive session** (not shell commands):
 
-# List configured servers (summary view)
-copilot /mcp show
-
-# Show details of a specific server
-copilot /mcp show SERVER-NAME
-
-# Edit an existing server configuration
-copilot /mcp edit SERVER-NAME
-
-# Delete an MCP server
-copilot /mcp delete SERVER-NAME
-
-# Disable a server (keeps config, stops loading)
-copilot /mcp disable SERVER-NAME
-
-# Re-enable a disabled server
-copilot /mcp enable SERVER-NAME
+```
+/mcp add                  # Interactive form — Tab to navigate fields, Ctrl+S to save
+/mcp show                 # List all configured servers
+/mcp show SERVER-NAME     # Details for a specific server
+/mcp edit SERVER-NAME     # Edit an existing server
+/mcp delete SERVER-NAME   # Delete a server
+/mcp disable SERVER-NAME  # Disable a server (keeps config, stops loading)
+/mcp enable SERVER-NAME   # Re-enable a disabled server
 ```
 
-> **Note**: `/mcp add` launches an interactive flow — there is no positional `<server-name>` argument. Use Tab to navigate between fields.
+> **Note**: `/mcp add` is fully interactive — no server name argument is passed. Start Copilot CLI with `copilot`, then type `/mcp add` at the prompt.
 
 ## Configuration Syntax
 
@@ -74,36 +67,9 @@ GitHub Copilot CLI uses `mcpServers` (VS Code uses `servers`):
 
 GitHub Copilot CLI supports four server types:
 
-#### Type: `local` (Local Command Execution)
+#### Types: `stdio` / `local` (Subprocess — standard transport)
 
-Run MCP server via local command:
-
-```json
-{
-  "mcpServers": {
-    "serena": {
-      "type": "local",
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server"
-      ],
-      "tools": ["*"],
-      "env": {
-        "API_KEY": "${MY_API_KEY}"
-      }
-    }
-  }
-}
-```
-
-> **Transport equivalence**: `local` and `stdio` work the same way — both launch a subprocess and communicate via stdin/stdout. `local` is the preferred name; `stdio` is still recognized as an alias.
-
-#### Type: `stdio` (Standard I/O Communication)
-
-Communicate via stdin/stdout (common for local servers):
+`stdio` and `local` are equivalent: both launch a subprocess and communicate via stdin/stdout. **`stdio` is the portable standard name** (aligns with VS Code, the Copilot cloud agent, and the MCP spec); `local` is a CLI-specific alias that also works.
 
 ```json
 {
@@ -114,6 +80,15 @@ Communicate via stdin/stdout (common for local servers):
       "args": ["-y", "@azure/mcp@latest", "server", "start"],
       "tools": ["*"],
       "env": {}
+    },
+    "serena": {
+      "type": "local",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"],
+      "tools": ["*"],
+      "env": {
+        "API_KEY": "${MY_API_KEY}"
+      }
     }
   }
 }
@@ -204,7 +179,7 @@ Key differences between `mcp.json` (VS Code) and `mcp-config.json` (GitHub Copil
 | **Root key**        | `"servers"`                           | `"mcpServers"`                                                              |
 | **Type values**     | `"stdio"`, `"http"`                   | `"local"`, `"stdio"`, `"http"`, `"sse"`                                     |
 | **Env vars**        | Supports `inputs` and `envFile`       | Only `env` object with `${VAR}` syntax                                      |
-| **Location**        | `.vscode/mcp.json` or global settings | `~/.copilot/mcp-config.json` or `$XDG_CONFIG_HOME/.copilot/mcp-config.json` |
+| **Location**        | `.vscode/mcp.json` or global settings | `~/.copilot/mcp-config.json` (or `$COPILOT_HOME/mcp-config.json`) |
 | **Variable syntax** | Can use `inputs` references           | Must use `${VARIABLE}` syntax                                               |
 
 **VS Code example:**
@@ -241,6 +216,19 @@ Key differences between `mcp.json` (VS Code) and `mcp-config.json` (GitHub Copil
   }
 }
 ```
+
+## Per-Agent MCP Servers
+
+CLI agent files can declare remote HTTP MCP servers in `mcp-servers` frontmatter. This is the right surface when an MCP server is specific to one agent and uses the `http` transport:
+
+```yaml
+mcp-servers:
+  - type: http
+    url: https://example.com/mcp
+    name: example-server
+```
+
+Local `stdio`/`local` MCP servers **cannot** be declared per-agent — they must be configured globally in `~/.copilot/mcp-config.json`.
 
 ## Complete Configuration Examples
 
@@ -294,63 +282,25 @@ Key differences between `mcp.json` (VS Code) and `mcp-config.json` (GitHub Copil
 }
 ```
 
-## Setting Custom Output Path
+## Setting Custom Config Location
 
-To store configuration in a custom location:
+| Method | Usage |
+|--------|-------|
+| `COPILOT_HOME` env var | `export COPILOT_HOME=/path/to/dir` — redirects entire config tree |
+| `--config-dir` flag | `copilot --config-dir /path/to/dir` — takes precedence over `COPILOT_HOME` |
 
-**Option 1: Environment variable (recommended for global change)**
-
-```bash
-# In ~/.zshrc or ~/.bashrc
-export XDG_CONFIG_HOME="/path/to/config"
-```
-
-**Option 2: Temporary override for single session**
-
-```bash
-XDG_CONFIG_HOME="/path/to/config" copilot
-```
-
-**Option 3: Repository-level configuration (for team standardization)**
-
-Create `.devcontainer/postCreateCommand.sh`:
-
-```bash
-#!/bin/bash
-GH_CLI_CONFIG_DIR="/workspaces/your-repo"
-
-if ! grep -q 'export XDG_CONFIG_HOME=' ~/.bashrc; then
-    echo "export XDG_CONFIG_HOME=\"$GH_CLI_CONFIG_DIR\"" >> ~/.bashrc
-fi
-```
-
-Add to `.devcontainer/devcontainer.json`:
-
-```json
-{
-  "postCreateCommand": "bash .devcontainer/postCreateCommand.sh"
-}
-```
-
-Create `.copilot/mcp-config.json` in repository root with your MCP configuration.
-
-Exclude environment-specific files in `.gitignore`:
-
-```gitignore
-.copilot/logs/
-.copilot/config.json
-```
+**Project-level MCP configs** (shareable via source control): `.mcp.json`, `.github/mcp.json`, or `.vscode/mcp.json` — these take precedence over user-level definitions for conflicting server names.
 
 ## Troubleshooting
 
 **Configuration not loading:**
-- Verify `XDG_CONFIG_HOME`: `echo $XDG_CONFIG_HOME`
-- Check `.copilot/mcp-config.json` exists at expected location
+- Confirm active config dir: run `/session` inside Copilot CLI to see the config path
+- Check `mcp-config.json` exists at that location
 - Restart Copilot CLI
 
 **MCP server not starting:**
-- Verify command available (e.g., `which npx`, `which uvx`)
-- Check logs in `~/.copilot/logs/` or `$XDG_CONFIG_HOME/.copilot/logs/`
+- Verify command is available (e.g., `which npx`, `which uvx`)
+- Check logs in `~/.copilot/logs/` (or `$COPILOT_HOME/logs/` if overridden)
 - Test command manually
 
 **Environment variables not expanding:**
@@ -375,16 +325,18 @@ When migrating from VS Code `mcp.json` to CLI `mcp-config.json`:
 
 ## Use Cases
 
-**Personal configuration**: Store in default `~/.copilot/mcp-config.json`
+**Personal configuration**: Default `~/.copilot/mcp-config.json`
 
-**Project-specific configuration**: Use `XDG_CONFIG_HOME` to point to repository `.copilot/` directory
+**Session-specific servers**: `--additional-mcp-config` flag (repeatable, JSON string or `@file`)
 
-**Team standardization**: Commit `.copilot/mcp-config.json` to repository and configure XDG_CONFIG_HOME in DevContainers
+**Project-level / team sharing**: `.mcp.json`, `.github/mcp.json`, or `.vscode/mcp.json` — commit to source control
 
-**Multiple environments**: Use different `XDG_CONFIG_HOME` values for different projects
+**Agent-specific remote servers**: Per-agent `mcp-servers` frontmatter (HTTP only)
+
+**Custom config location**: `COPILOT_HOME` env var or `--config-dir` flag
 
 ## References
 
-- [GitHub Docs: Extending Copilot coding agent with MCP](https://docs.github.com/copilot/how-tos/agents/copilot-coding-agent/extending-copilot-coding-agent-with-mcp)
-- [GitHub Docs: Using Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli)
-- [Original article by Mikoshiba Kyu](https://dev.to/mikoshiba-kyu/managing-github-copilot-cli-mcp-server-configuration-in-your-repository-58i6)
+- [GitHub Docs: CLI configuration directory](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference)
+- [GitHub Docs: Adding MCP servers for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers)
+- [GitHub Docs: Custom agents configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
