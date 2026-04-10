@@ -1,33 +1,65 @@
-# Aspire CLI commands overview (13.x)
+# Aspire CLI commands overview (13.2)
 
 Sources:
 - https://aspire.dev/reference/cli/overview/
-- https://aspire.dev/reference/cli/commands/
+- https://aspire.dev/reference/cli/commands/aspire-run/
+- https://aspire.dev/reference/cli/commands/aspire-start/
+- https://aspire.dev/reference/cli/commands/aspire-agent/
+- https://aspire.dev/reference/cli/commands/aspire-agent-init/
+- https://aspire.dev/reference/cli/commands/aspire-describe/
+- https://aspire.dev/reference/cli/commands/aspire-logs/
+- https://aspire.dev/reference/cli/commands/aspire-wait/
+- https://aspire.dev/reference/cli/commands/aspire-resource/
+- https://aspire.dev/reference/cli/commands/aspire-doctor/
 
-## Core commands
+## Core lifecycle
 
-| Command                | Purpose                                     | Typical usage                                            |
-| ---------------------- | ------------------------------------------- | -------------------------------------------------------- |
-| `aspire new`           | Create a new Aspire solution from templates | `aspire new` or `aspire new <template>`                  |
-| `aspire init`          | Add Aspire to an existing solution          | `aspire init`                                            |
-| `aspire run`           | Run AppHost dev orchestration and dashboard | `aspire run`                                             |
-| `aspire add`           | Add official integration packages           | `aspire add <package-id>`                                |
-| `aspire update`        | Update Aspire NuGet packages                | `aspire update`                                          |
-| `aspire update --self` | Update the CLI binary                       | `aspire update --self`                                   |
-| `aspire publish`       | Publish deployment assets                   | `aspire publish`                                         |
-| `aspire deploy`        | Deploy serialized assets                    | `aspire deploy`                                          |
-| `aspire do`            | Run pipeline steps and dependencies         | `aspire do <step>`                                       |
-| `aspire exec`          | Run commands inside a resource context      | `aspire exec --resource <name> -- <command>`             |
-| `aspire config`        | Get/set CLI config options                  | `aspire config list` / `aspire config set <key> <value>` |
-| `aspire cache clear`   | Clear local cache                           | `aspire cache clear`                                     |
+| Scenario | Command | Notes |
+| --- | --- | --- |
+| Create a new Aspire solution | `aspire new` | Interactive-first template picker |
+| Add Aspire to an existing repo | `aspire init` | Adds an AppHost or single-file AppHost |
+| Restore AppHost dependencies | `aspire restore` | Useful in CI and after TypeScript AppHost changes |
+| Run in foreground | `aspire run` | Attached session; prints dashboard URL and log file path |
+| Run in background | `aspire start` | Detached-friendly shorthand for background startup |
+| List or stop running AppHosts | `aspire ps`, `aspire stop` | Use `--all` on `stop` to clean up multiple runs |
+| Run multiple instances safely | `aspire run --isolated` or `aspire start --isolated` | Randomized ports plus isolated user secrets |
+| Wait for readiness | `aspire wait <resource>` | Defaults to `healthy`; useful in automation |
+| Inspect resources and endpoints | `aspire describe` | Use `--follow` or `--format Json` for automation |
+| Read console logs | `aspire logs [resource]` | Supports `--follow`, `--tail`, and `--format Json` |
+| Inspect telemetry | `aspire otel` | CLI-first access to structured logs and traces |
+| Manage one resource | `aspire resource <resource> <command>` | Built-ins include `start`, `stop`, and `restart` |
 
-## Common flags
+## Agent and automation workflows
 
-- `-d`, `--debug`: Enable CLI debug logging (`run`, `exec`, `do`).
-- `--wait-for-debugger`: Pause before run so a debugger can attach (`run`, `exec`, `do`).
-- `--project <path>`: Explicitly select an AppHost when multiple are present (`run`).
+| Scenario | Command | Notes |
+| --- | --- | --- |
+| Configure agent integrations | `aspire agent init` | Sets up skill/MCP configuration for supported coding agents |
+| Start the Aspire MCP server | `aspire agent mcp` | Manual MCP server entry point when needed |
+| Validate local environment | `aspire doctor` | Check SDK, certs, container runtime, and related prerequisites |
+| Search docs from the terminal | `aspire docs search "redis"` | Use `docs get` to read a page by slug |
+| Discover integrations | `aspire add <name-or-id>` | Fuzzy search works well in 13.2 |
+| Update project packages | `aspire update` | Updates Aspire packages in the project |
+| Update the CLI itself | `aspire update --self` | Use before adopting new command surface or docs |
+
+## Advanced or conditional commands
+
+- `aspire do <step>` runs one pipeline step and its dependencies.
+- `aspire exec --resource <name> -- <command>` runs a new command inside a resource context; it is feature-gated and not a log reader.
+- `aspire publish`, `aspire deploy`, and `aspire export` cover publish, deploy, and diagnostics packaging workflows.
+- `aspire secret`, `aspire certs`, `aspire config`, and `aspire cache clear` manage secrets, certs, config, and cache.
+
+## Agent-friendly flags
+
+- `--format Json` for machine-readable output.
+- `--non-interactive` to disable prompts and spinners.
+- `--apphost <path>` to disambiguate the target AppHost.
+- `--isolated` for parallel worktrees, agents, or comparison runs.
+- `--no-build` when artifacts are already up to date.
+- `--` to pass arguments through to the AppHost.
 
 ## Notes
 
-- Run commands from the AppHost directory when possible to avoid ambiguity.
-- `aspire exec` is guarded by a feature flag; enable with `aspire config set features.execCommandEnabled true` when needed.
+- Prefer `aspire run` for an attached local loop and `aspire start` for background or delegated sessions.
+- Prefer `aspire describe` or MCP `list_resources` for endpoint discovery; do not hardcode ports.
+- 13.2 renamed `aspire mcp ...` to `aspire agent ...`; older posts or references may still use the former names.
+- Aspire now prefers rooted `aspire.config.json`; older `.aspire\settings.json` files are read during migration.

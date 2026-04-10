@@ -1,423 +1,108 @@
-# Aspire Isolation for Parallel Worktrees
+# Aspire isolated mode for parallel AppHosts
 
-Comprehensive guidance for running multiple Aspire AppHost instances simultaneously for parallel development workflows (git worktrees, multi-agent AI development). This solves the port conflict problem that prevents scaling to multiple instances.
+Sources:
+- https://devblogs.microsoft.com/aspire/aspire-isolated-mode-parallel-development/
+- https://aspire.dev/reference/cli/commands/aspire-run/
+- https://aspire.dev/reference/cli/commands/aspire-start/
+- https://aspire.dev/whats-new/aspire-13-2/
 
-## Table of Contents
+## Default recommendation
 
-1. [The Problem](#the-problem-port-conflicts)
-2. [Solution Architecture](#solution-architecture)
-3. [Implementation Guide](#implementation-guide)
-4. [Script Patterns](#script-patterns)
-5. [MCP Proxy Architecture](#mcp-proxy-architecture)
-6. [Distributed Testing](#distributed-testing)
-7. [Troubleshooting](#troubleshooting)
-
-## The Problem: Port Conflicts
-
-### What Happens
-
-When running multiple AppHost instances (e.g., in separate git worktrees), they all attempt to bind to the same default ports:
-
-- **Port 18888**: Aspire Dashboard
-- **Port 18889**: OTLP (OpenTelemetry) endpoint
-- **Port 18890**: Resource Service endpoint  
-- **Port 4317**: MCP endpoint (if enabled)
-
-The first instance starts successfully; subsequent instances fail with "port already in use" errors.
-
-### Why Manual Workarounds Fail
-
-- Requires remembering which ports are available
-- Must manually set 3-4 environment variables per worktree
-- Cleanup is error-prone (tracking which terminals use which ports)
-- **Critical issue**: MCP client configuration needs to know the dynamic port and API key
-
-The root problem: worktrees have isolated code but share port space.
-
-## Solution Architecture
-
-### Two-Layer Approach
-
-**Layer 1: Automatic Port Allocation**
-- Scripts find free ports using OS-level allocation
-- Set environment variables for Aspire dashboard components
-- Launch AppHost with unique ports
-- Save configuration to `settings.json` for MCP proxy
-
-**Layer 2: MCP Proxy (Optional)**
-- Provides fixed MCP client configuration
-- Reads `settings.json` dynamically to discover current AppHost
-- Forwards MCP requests to the correct dynamic port
-- Eliminates per-worktree MCP configuration
-
-```
-┌─────────────┐         ┌──────────────────┐         ┌─────────────────┐
-│ AI Agent    │ stdio   │ aspire-mcp-proxy │  HTTP   │ Aspire AppHost  │
-│             ├────────►│ (fixed config)   ├────────►│ (dynamic port)  │
-│             │         │                  │         │                 │
-└─────────────┘         └──────────────────┘         └─────────────────┘
-                              ↓
-                        reads from
-                        scripts/settings.json
-                        (updated by start-apphost)
-```
-
-## Implementation Guide
-
-### Step 1: Configure AppHost for Worktree Detection
-
-Detect the git folder name and customize the dashboard name:
-
-```csharp
-var gitFolderName = GitFolderResolver.GetGitFolderName();
-var dashboardAppName = string.IsNullOrEmpty(gitFolderName)
-    ? "MyApp"
-    : $"MyApp-{gitFolderName}";
-
-var builder = DistributedApplication.CreateBuilder(new DistributedApplicationOptions()
-{
-    Args = args,
-    DashboardApplicationName = dashboardAppName,
-});
-
-var backend = builder.AddProject<Projects.Backend>("backend")
-    .WithHttpEndpoint(name: "http")  // ✅ No port = random allocation
-    .WithExternalHttpEndpoints();
-
-builder.Build().Run();
-```
-
-**GitFolderResolver pattern:**
-
-```csharp
-public static class GitFolderResolver
-{
-    public static string GetGitFolderName()
-    {
-        try
-        {
-            var gitDir = FindGitDirectory(Directory.GetCurrentDirectory());
-            if (gitDir == null) return string.Empty;
-            
-            // If .git is a file (worktree), read the worktree path
-            if (File.Exists(gitDir))
-            {
-                var content = File.ReadAllText(gitDir);
-                var match = Regex.Match(content, @"gitdir:\s*(.+)");
-                if (match.Success)
-                {
-                    var worktreePath = match.Groups[1].Value.Trim();
-                    return Path.GetFileName(Path.GetDirectoryName(worktreePath));
-                }
-            }
-            
-            return string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    private static string? FindGitDirectory(string path)
-    {
-        var current = new DirectoryInfo(path);
-        while (current != null)
-        {
-            var gitPath = Path.Combine(current.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-                return gitPath;
-            current = current.Parent;
-        }
-        return null;
-    }
-}
-```
-
-**Key benefits:**
-- Dashboard shows `MyApp-feature-auth` for the feature-auth worktree
-- Clear visual distinction in dashboard UI
-- `WithHttpEndpoint()` without port enables random allocation
-
-### Step 2: Start AppHost with Management Scripts
-
-**Never run `dotnet run` directly.** Always use management scripts.
-
-#### PowerShell (Windows)
-
-```powershell
-cd worktrees-example.worktrees\feature-auth
-.\scripts\start-apphost.ps1
-
-# Output shows:
-# - Dashboard URL with unique port
-# - MCP endpoint saved to settings.json
-# - Process ID for cleanup
-```
-
-#### Bash (Linux/macOS/Git Bash)
+For parallel development in Aspire 13.2+, use isolated mode first:
 
 ```bash
-cd worktrees-example.worktrees/feature-auth
-./scripts/start-apphost.sh
+aspire run --isolated
 ```
 
-### Step 3: Run Multiple Worktrees Simultaneously
-
-Terminal 1 – Feature Auth:
-```powershell
-cd worktrees-example.worktrees\feature-auth
-.\scripts\start-apphost.ps1
-# Dashboard: https://localhost:54772
-# MCP: port 54775 (saved to settings.json)
-# Process ID: 12345
-```
-
-Terminal 2 – Feature Payments:
-```powershell
-cd worktrees-example.worktrees\feature-payments
-.\scripts\start-apphost.ps1
-# Dashboard: https://localhost:61447
-# MCP: port 61450 (saved to settings.json)
-# Process ID: 67890
-```
-
-All instances run simultaneously with zero conflicts!
-
-### Step 4: Cleanup When Done
-
-#### Quick Cleanup (Recommended)
-```powershell
-.\scripts\kill-apphost.ps1 -All
-```
+or:
 
 ```bash
-./scripts/kill-apphost.sh --all
+aspire start --isolated --format Json
 ```
 
-Terminates all AppHost processes from your repository.
+This is now the native solution for git worktrees, multiple checkouts, background agents, side-by-side comparison runs, and live integration testing against more than one copy of the same AppHost.
 
-## Script Patterns
+## What isolated mode does
 
-### start-apphost.ps1 / start-apphost.sh
+`--isolated` gives each run:
 
-**Responsibilities:**
-1. Find 4 free ports using OS allocation
-2. Set environment variables for Aspire dashboard
-3. Update `scripts/settings.json` with MCP port and API key
-4. Launch AppHost in the background
-5. Display dashboard URL and process ID
+- randomized ports
+- isolated user secrets
+- separate runtime configuration for that instance
 
-**Environment variables set:**
+This removes the two biggest multi-instance problems:
 
-```powershell
-$env:ASPIRE_DASHBOARD_PORT = "54772"                              # Dynamic
-$env:ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL = "http://localhost:54773"
-$env:ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL = "http://localhost:54774"
-$env:ASPIRE_DASHBOARD_MCP_ENDPOINT_URL = "http://localhost:54775"
-$env:AppHost__McpApiKey = "generated-api-key"                     # For Aspire MCP
+1. port collisions
+2. cross-instance config leakage
+
+Aspire service discovery and the dashboard adjust automatically, so isolated mode does not require AppHost code changes just to support parallel runs.
+
+## When to use it
+
+Use `--isolated` when:
+
+- multiple worktrees or checkouts may run the same AppHost
+- a background agent may start the same AppHost you are already running
+- you want side-by-side comparison of different branches or fixes
+- automated or exploratory tests need their own live AppHost
+- parallel local development would otherwise fight over shared ports or secrets
+
+## When normal mode is still fine
+
+Use normal `aspire run` or `aspire start` when:
+
+- only one AppHost instance is running
+- predictable ports are useful for your local workflow
+- the environment is already isolated enough that host port collisions are not a concern
+
+## Quick workflows
+
+### Worktree or background-agent workflow
+
+```bash
+aspire start --isolated --format Json
+aspire wait web --status healthy
+aspire describe --format Json
+aspire logs web --tail 100
 ```
 
-**Output format:**
-```
-Starting AppHost with dynamic ports...
-Dashboard: https://localhost:54772
-MCP: http://localhost:54775
-Process ID: 12345
-Settings saved to: scripts/settings.json
+### Cleanup
+
+```bash
+aspire ps
+aspire stop --all
 ```
 
-**settings.json structure:**
+## Advanced fallback patterns
 
-```json
-{
-  "port": "54775",
-  "apiKey": "abc123...",
-  "lastUpdated": "2026-02-06T10:30:00Z"
-}
-```
+The older script-and-proxy approach is now fallback guidance, not the default.
 
-### kill-apphost.ps1 / kill-apphost.sh
+Consider custom scripts, stable port allocation, or proxy layers only when you specifically need:
 
-**Purpose:** Clean shutdown of AppHost instances.
+- fixed ports for external tools that cannot follow dynamic discovery
+- fixed MCP client wiring across dynamic instances
+- repo-specific lifecycle automation or cleanup behavior
+- support for older Aspire CLI versions that do not have native isolated mode
 
-**Flags:**
-- `-All` / `--all`: Kill all AppHost processes from the repository
-- `-ProcessId <id>` / `--pid <id>`: Kill a specific process
-
-**Examples:**
-
-```powershell
-# Kill all from repo
-.\scripts\kill-apphost.ps1 -All
-
-# Kill specific instance
-.\scripts\kill-apphost.ps1 -ProcessId 12345
-```
-
-## MCP Proxy Architecture
-
-### When to Use MCP Proxy
-
-Use the MCP proxy layer when:
-- AI agents need to connect to Aspire MCP
-- Multiple worktrees/instances run concurrently
-- You want zero-configuration MCP client setup
-
-### How the Proxy Works
-
-The `aspire-mcp-proxy.cs` script is both:
-1. **MCP Server (stdio)** – Exposes tools to AI agents via stdin/stdout
-2. **MCP Client (HTTP)** – Connects to Aspire's MCP server
-
-**Architecture:**
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ aspire-mcp-proxy.cs (single file, ~272 lines)                   │
-│                                                                  │
-│  ┌────────────────────┐         ┌─────────────────────┐         │
-│  │ MCP Server (stdio) │◄────────┤ AI Agent            │         │
-│  │ - Exposes tools    │         │ (sends tool calls)  │         │
-│  └────────┬───────────┘         └─────────────────────┘         │
-│           │                                                      │
-│           ▼                                                      │
-│  ┌────────────────────┐                                          │
-│  │ ProxyTool          │  For each tool:                          │
-│  │ - Reads settings   │  1. Read settings.json                   │
-│  │ - Forwards calls   │  2. Create HTTP client                   │
-│  └────────┬───────────┘  3. Forward to Aspire                    │
-│           │              4. Return response                       │
-│           ▼                                                      │
-│  ┌────────────────────┐                                          │
-│  │ MCP Client (HTTP)  │────────► Aspire Dashboard MCP            │
-│  │ - Dynamic port     │         (from settings.json)             │
-│  └────────────────────┘                                          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Proxy Configuration
-
-**AI Agent Configuration (e.g., `.roo/mcp.json`):**
-
-```json
-{
-  "mcpServers": {
-    "aspire-mcp": {
-      "command": "dotnet",
-      "args": ["scripts/aspire-mcp-proxy.cs", "--no-build"],
-      "description": "Aspire Dashboard MCP stdio proxy",
-      "alwaysAllow": [
-        "list_resources",
-        "execute_resource_command",
-        "list_traces",
-        "list_console_logs",
-        "list_structured_logs"
-      ]
-    }
-  }
-}
-```
-
-**No ports to configure!** The proxy reads `scripts/settings.json` dynamically.
-
-### Settings Resolution Priority
-
-1. **Environment Variables** (highest priority):
-   - `ASPIRE_MCP_PORT`
-   - `ASPIRE_MCP_API_KEY`
-
-2. **settings.json file** (default):
-   - Updated by `start-apphost` scripts
-
-This allows flexibility: override via environment variables if needed, but defaults to file-based discovery.
-
-### Tool Caching for Offline Mode
-
-When the proxy starts, it attempts to connect to Aspire and cache available tools. If Aspire isn't running, it uses cached tool metadata so the AI agent can still see available tools (though tool invocations fail until AppHost starts).
-
-### Implementation with .NET 10 Single-File Scripts
-
-The proxy uses .NET 10's single-file script capability:
-
-```csharp
-#:package ModelContextProtocol@0.4.1-preview.1
-#:package Microsoft.Extensions.Hosting@10.0.0
-#:package Microsoft.Extensions.Logging@10.0.0
-
-// Complete proxy in one .cs file!
-```
-
-Run with: `dotnet run scripts/aspire-mcp-proxy.cs`
-
-No project file needed; packages restore automatically.
-
-## Distributed Testing
-
-Aspire provides built-in distributed testing capabilities with automatic port isolation.
-
-### DistributedApplicationTestingBuilder
-
-Spin up the full application stack with randomized ports:
-
-```csharp
-var appHost = await DistributedApplicationTestingBuilder
-    .CreateAsync<Projects.MyApp_AppHost>();
-
-var app = await appHost.BuildAsync();
-await app.StartAsync();
-
-// Wait for resources
-await app.ResourceNotifications.WaitForResourceHealthyAsync("frontend");
-
-// Get dynamically allocated endpoints
-var frontendUrl = app.GetEndpoint("frontend");
-```
-
-### End-to-End Testing with Playwright
-
-Combine with Playwright for full-stack E2E tests:
-
-```csharp
-// Get the dynamically allocated frontend URL
-var frontendUrl = app.GetEndpoint("frontend").ToString();
-
-// Use Playwright to interact with the UI
-var page = await browser.NewPageAsync();
-await page.GotoAsync(frontendUrl);
-
-// Test the actual UI with all dependencies running
-await page.FillAsync("#title", "Test Task");
-await page.ClickAsync("button[type='submit']");
-await page.WaitForSelectorAsync(".task-item");
-```
-
-**Key benefits:**
-- Dashboard disabled by default (set `DisableDashboard=false` if needed)
-- Ports randomized automatically (set `DcpPublisher:RandomizePorts=false` for stable ports)
-- Complete isolation per test run
-- All backend services, databases, and dependencies orchestrated automatically
-
-### AI Agent Autonomy
-
-With distributed testing, AI agents can:
-1. Modify code
-2. Run the full test suite with all system dependencies
-3. Validate changes end-to-end without manual intervention
+If you do not need one of those constraints, prefer isolated mode over manual port or environment variable management.
 
 ## Troubleshooting
 
-### AppHost fails to find instance
+### Parallel run fails with port conflicts
 
-**Symptom:** `aspire run` can't locate AppHost project.
+Retry with `--isolated` first. Do not start by manually juggling environment variables.
 
-**Solution:**
-- Move to the AppHost directory or a parent folder
-- Or pass `--project <path-to-apphost.csproj>`
+### I need stable ports for one local workflow
 
-### Port conflicts persist
+Use normal `aspire run` or `aspire start`, or adopt a repo-specific script only for that fixed-port scenario.
 
-**Symptom:** Even with scripts, ports conflict.
+### I am not sure which AppHost instance is running
+
+Use `aspire ps` to list running AppHosts, then `aspire stop` or `aspire stop --all` to clean up detached instances.
+
+### Secrets or configuration appear to leak between runs
+
+Confirm the affected runs were started with `--isolated`. Mixed isolated and non-isolated runs can still produce confusing local state.
 
 **Causes:**
 - Orphaned processes from previous runs
