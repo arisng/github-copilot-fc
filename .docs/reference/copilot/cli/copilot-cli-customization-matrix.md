@@ -76,18 +76,19 @@ Unrecognized frontmatter fields are **silently ignored** in both platforms — a
 
 Built-in tools use different names across runtimes.
 
-| VS Code Tool            | Copilot-CLI Tool                  | Notes                                                 |
-| ----------------------- | --------------------------------- | ----------------------------------------------------- |
-| `execute/runInTerminal` | `bash` (or PowerShell on Windows) | Shell command execution                               |
-| `read/readFile`         | `view`                            | File reading                                          |
-| `edit/editFiles`        | `edit`                            | File editing                                          |
-| (file creation)         | `create`                          | File creation                                         |
-| `search`                | Built-in search                   | Codebase search                                       |
-| `agent`                 | `task` (TaskTool)                 | Subagent delegation                                   |
-| `web`                   | **No built-in equivalent**        | Use MCP servers (Brave Search, etc.) or shell `curl`  |
-| `vscode/memory`         | **No equivalent**                 | CLI has implicit memory (automatic, not programmatic) |
-| `execute/testFailure`   | **No equivalent**                 | Use shell-based test execution                        |
-| `execute/runTests`      | **No equivalent**                 | Use shell-based test execution                        |
+| VS Code Tool            | Copilot-CLI Tool                            | Notes                                                                           |
+| ----------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
+| `execute/runInTerminal` | `bash` (or `powershell` on Windows)         | Shell command execution; CLI also exposes shell-session helpers (`read_*`, etc.) |
+| `read/readFile`         | `view`                                      | File reading                                                                    |
+| `edit/editFiles`        | `edit`                                      | File editing; CLI also documents `apply_patch` as a concrete file-write tool    |
+| (file creation)         | `create`                                    | File creation                                                                   |
+| `search`                | `grep` / `rg`, `glob`                       | Codebase search                                                                 |
+| `agent`                 | `task`, `read_agent`, `list_agents`         | Subagent delegation plus background-agent inspection                            |
+| `web`                   | `web_fetch`                                 | Built-in URL fetching; richer web search still commonly comes from MCP servers  |
+| `todo`                  | `update_todo`                               | Structured task checklist                                                       |
+| `vscode/memory`         | **No equivalent**                           | CLI has implicit memory (automatic, not programmatic)                           |
+| `execute/testFailure`   | **No equivalent**                           | Use shell-based test execution                                                  |
+| `execute/runTests`      | **No equivalent**                           | Use shell-based test execution                                                  |
 
 Tool filtering in CLI uses glob patterns: `--allow-tool "shell(npm run test:*)"`, `--deny-tool "shell(rm *)"`.
 

@@ -68,9 +68,9 @@ The built-in tools available to agents use completely different names across run
 | `read/readFile`         | `view`            | File reading        | Functionally identical. CLI's `view` supports line ranges natively.                                  |
 | `edit/editFiles`        | `edit`            | File editing        | Both support string replacement. CLI's `edit` uses a unified edit model.                             |
 | *(via edit)*            | `create`          | File creation       | CLI has a dedicated `create` tool. VS Code uses `edit/editFiles` or `create_file`.                   |
-| `search`                | Built-in search   | Code search         | Both do codebase-level search. Underlying implementations differ.                                    |
+| `search`                | `grep` / `glob`   | Code search         | Both do codebase-level search. Underlying implementations differ.                                    |
 | `agent`                 | `task` (TaskTool) | Subagent delegation | Architecturally different models (see below).                                                        |
-| `web`                   | **No built-in**   | Web access          | CLI has no built-in web tool. Mitigate with MCP servers (Brave Search, fetch).                       |
+| `web`                   | `web_fetch`       | Web access          | CLI documents built-in fetch, but richer web search still usually comes from MCP servers.            |
 | `vscode/memory`         | **No equivalent** | Memory              | CLI has implicit memory (automatic), not programmatic. Cannot `memory.create()`.                     |
 | `execute/runTests`      | **No equivalent** | Test execution      | CLI uses shell-based test runners via `bash`.                                                        |
 | `execute/testFailure`   | **No equivalent** | Test diagnostics    | CLI parses test output from `bash` invocations.                                                      |
@@ -296,9 +296,9 @@ Agents that depend on `vscode/memory` for cross-session context (e.g., storing u
 
 VS Code provides a built-in `web` tool that agents can use for web searches and content fetching. No configuration needed.
 
-### CLI: MCP-Based Web Access
+### CLI: Built-in Fetch Plus MCP-Based Search
 
-CLI has **no built-in web tool**. Web access requires configuring MCP servers:
+CLI now documents a built-in `web_fetch` tool for fetching and parsing page content. Richer web search is still typically provided by configuring MCP servers:
 
 ```json
 // ~/.copilot/mcp-config.json
@@ -315,7 +315,7 @@ CLI has **no built-in web tool**. Web access requires configuring MCP servers:
 
 Alternatively, agents can use `bash` with `curl` for simple HTTP requests.
 
-**Why no built-in?** VS Code's web tool is provided by the extension, which runs in a rich Node.js environment. CLI deliberately keeps its built-in tool surface minimal — web access is delegated to the MCP ecosystem, which offers more flexibility (choice of search provider, caching, rate limiting).
+**Why the difference?** VS Code exposes a broader built-in `web` tool, while CLI currently documents a narrower built-in fetch capability and still leans on the MCP ecosystem for search-provider choice, caching, rate limiting, and external-service access.
 
 ---
 

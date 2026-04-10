@@ -99,8 +99,8 @@ The `tools:` array uses different namespace references per runtime. Unknown tool
 | `edit/editFiles`                                    | `edit`                            | File editing                       |
 | `edit/createFile`                                   | `create`                          | File creation                      |
 | `edit/createDirectory`                              | `bash` (via `mkdir`)              | No dedicated tool in CLI           |
-| `search`                                            | Built-in (grep/glob)              | Namespace differs                  |
-| `web`                                               | No direct equivalent              | CLI has no built-in web tool       |
+| `search`                                            | Built-in (`grep`/`glob`)          | Namespace differs                  |
+| `web`                                               | `web_fetch`                       | CLI has built-in fetch; search still often comes from MCP servers |
 | `agent`                                             | `task`                            | Subagent invocation mechanism      |
 | `vscode/memory`                                     | No equivalent                     | Memory tool is VS Code-only        |
 | `execute/testFailure`                               | No equivalent                     | —                                  |
