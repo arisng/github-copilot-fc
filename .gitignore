@@ -5,3 +5,4 @@
 */**/.install/
 scripts/test/.artifacts/
 todos.db
+.playwright-cli/
