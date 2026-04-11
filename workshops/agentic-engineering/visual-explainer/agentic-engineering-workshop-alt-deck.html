@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Engineering Workshop — Alternative HTML Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;700;800&family=Fragment+Mono:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Bricolage Grotesque', system-ui, sans-serif;
+    --font-mono: 'Fragment Mono', 'SF Mono', Consolas, monospace;
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1f2630;
+    --surface-elevated: #222b36;
+    --border: rgba(230, 237, 243, 0.08);
+    --border-bright: rgba(230, 237, 243, 0.16);
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent-dim: rgba(88, 166, 255, 0.12);
+    --green: #3fb950;
+    --green-dim: rgba(63, 185, 80, 0.12);
+    --orange: #f0883e;
+    --orange-dim: rgba(240, 136, 62, 0.12);
+    --red: #ff7b72;
+    --red-dim: rgba(255, 123, 114, 0.12);
+    --amber: #d29922;
+    --amber-dim: rgba(210, 153, 34, 0.12);
+    --violet: #bc8cff;
+    --violet-dim: rgba(188, 140, 255, 0.10);
+    --code-bg: #0b1119;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --surface2: #eef3f8;
+      --surface-elevated: #ffffff;
+      --border: rgba(27, 31, 36, 0.08);
+      --border-bright: rgba(27, 31, 36, 0.16);
+      --text: #0f1720;
+      --text-dim: #57606a;
+      --accent: #0969da;
+      --accent-dim: rgba(9, 105, 218, 0.08);
+      --green: #1a7f37;
+      --green-dim: rgba(26, 127, 55, 0.08);
+      --orange: #bc4c00;
+      --orange-dim: rgba(188, 76, 0, 0.08);
+      --red: #cf222e;
+      --red-dim: rgba(207, 34, 46, 0.08);
+      --amber: #9a6700;
+      --amber-dim: rgba(154, 103, 0, 0.08);
+      --violet: #8250df;
+      --violet-dim: rgba(130, 80, 223, 0.08);
+      --code-bg: #f0f4f8;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-body);
+    color: var(--text);
+    background:
+      radial-gradient(circle at 20% 20%, rgba(88,166,255,0.09), transparent 28%),
+      radial-gradient(circle at 80% 25%, rgba(240,136,62,0.08), transparent 28%),
+      linear-gradient(180deg, #0d1117 0%, #111826 100%);
+    overflow: hidden;
+  }
+
+  .deck {
+    height: 100dvh;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .slide {
+    height: 100dvh;
+    scroll-snap-align: start;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(34px, 5vh, 72px) clamp(34px, 6vw, 96px);
+    isolation: isolate;
+    opacity: 0;
+    transform: translateY(32px) scale(0.985);
+    transition:
+      opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .slide.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .slide.visible .reveal { opacity: 1; transform: none; }
+  .slide.visible .reveal:nth-child(1) { transition-delay: 0.08s; }
+  .slide.visible .reveal:nth-child(2) { transition-delay: 0.16s; }
+  .slide.visible .reveal:nth-child(3) { transition-delay: 0.24s; }
+  .slide.visible .reveal:nth-child(4) { transition-delay: 0.32s; }
+  .slide.visible .reveal:nth-child(5) { transition-delay: 0.40s; }
+  .slide.visible .reveal:nth-child(6) { transition-delay: 0.48s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .reveal {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
+  .deck-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--orange));
+    z-index: 100;
+    transition: width 0.25s ease;
+    pointer-events: none;
+  }
+
+  .deck-dots {
+    position: fixed;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+    padding: 8px;
+    background: color-mix(in srgb, var(--bg) 72%, transparent 28%);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .deck-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    opacity: 0.28;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  }
+
+  .deck-dot.active {
+    opacity: 1;
+    background: var(--accent);
+    transform: scale(1.55);
+  }
+
+  .deck-counter {
+    position: fixed;
+    right: 22px;
+    bottom: 18px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    z-index: 100;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+
+  .deck-hints {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.7;
+    z-index: 100;
+    transition: opacity 0.4s ease;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    white-space: nowrap;
+  }
+
+  .deck-hints.faded {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .slide__display {
+    font-size: clamp(50px, 8vw, 110px);
+    font-weight: 800;
+    line-height: 0.94;
+    letter-spacing: -2.5px;
+    text-wrap: balance;
+  }
+
+  .slide__heading {
+    font-size: clamp(28px, 4.2vw, 52px);
+    font-weight: 760;
+    line-height: 1.08;
+    letter-spacing: -1px;
+    text-wrap: balance;
+  }
+
+  .slide__subtitle,
+  .slide__label {
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .slide__subtitle {
+    font-size: clamp(12px, 1.4vw, 18px);
+    letter-spacing: 1.6px;
+  }
+
+  .slide__label {
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    margin-bottom: 12px;
+  }
+
+  .slide__body {
+    font-size: clamp(16px, 1.9vw, 22px);
+    line-height: 1.58;
+    color: var(--text-dim);
+    text-wrap: pretty;
+  }
+
+  .slide__decor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.28;
+  }
+
+  .accent { color: var(--accent); }
+  .green { color: var(--green); }
+  .orange { color: var(--orange); }
+  .amber { color: var(--amber); }
+  .violet { color: var(--violet); }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+  }
+
+  .chip--accent { color: var(--accent); background: var(--accent-dim); }
+  .chip--green { color: var(--green); background: var(--green-dim); }
+  .chip--orange { color: var(--orange); background: var(--orange-dim); }
+  .chip--amber { color: var(--amber); background: var(--amber-dim); }
+  .chip--violet { color: var(--violet); background: var(--violet-dim); }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 100%), var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 20px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .card--accent { border-color: rgba(88,166,255,0.22); box-shadow: 0 0 0 1px rgba(88,166,255,0.06) inset; }
+  .card--green { border-color: rgba(63,185,80,0.20); }
+  .card--orange { border-color: rgba(240,136,62,0.20); }
+  .card--amber { border-color: rgba(210,153,34,0.20); }
+  .card--violet { border-color: rgba(188,140,255,0.18); }
+  .card--hero {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 78%, var(--accent) 22%), var(--surface) 100%);
+    border-color: rgba(88,166,255,0.24);
+  }
+
+  .card__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .card__title {
+    font-size: clamp(18px, 2vw, 24px);
+    font-weight: 720;
+    line-height: 1.18;
+    margin-bottom: 8px;
+  }
+
+  .card__body {
+    font-size: clamp(13px, 1.4vw, 16px);
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .metric-grid,
+  .case-grid,
+  .appendix-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .case-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .appendix-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+  }
+
+  .metric__value {
+    font-size: clamp(34px, 5vw, 58px);
+    line-height: 1.05;
+    font-weight: 780;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .metric__label {
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .proof-strip {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .proof-step {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 14px;
+    min-height: 118px;
+  }
+
+  .proof-step::after {
+    content: '→';
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 18px;
+  }
+
+  .proof-step:last-child::after { content: ''; }
+
+  .proof-step__num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
+
+  .proof-step__title {
+    margin-top: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .proof-step__body {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-dim);
+  }
+
+  .ladder {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .ladder__step {
+    display: grid;
+    grid-template-columns: 82px 1fr;
+    gap: 18px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 14px 18px;
+  }
+
+  .ladder__num {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ladder__title {
+    font-size: clamp(18px, 1.8vw, 24px);
+    font-weight: 720;
+  }
+
+  .ladder__body {
+    margin-top: 4px;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .table-scroll {
+    overflow: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    text-align: left;
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-bright);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: clamp(13px, 1.45vw, 17px);
+    line-height: 1.42;
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface2) 75%, transparent 25%); }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .status::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .status--green { color: var(--green); }
+  .status--orange { color: var(--orange); }
+  .status--amber { color: var(--amber); }
+  .status--red { color: var(--red); }
+
+  .slide--title {
+    align-items: center;
+    text-align: center;
+    background:
+      radial-gradient(circle at 50% 26%, rgba(88,166,255,0.16), transparent 32%),
+      radial-gradient(circle at 78% 76%, rgba(240,136,62,0.14), transparent 26%);
+  }
+
+  .slide--title .slide__display {
+    max-width: 980px;
+  }
+
+  .slide--bleed {
+    padding: 0;
+    justify-content: flex-end;
+  }
+
+  .slide__bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .slide__bg--gradient {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(88,166,255,0.28), transparent 30%),
+      radial-gradient(circle at 80% 25%, rgba(240,136,62,0.22), transparent 28%),
+      linear-gradient(135deg, #0b1119 0%, #111c2f 45%, #17202a 100%);
+  }
+
+  .slide__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.24) 46%, rgba(0,0,0,0.08) 100%);
+    z-index: 1;
+  }
+
+  .slide--bleed .slide__content {
+    position: relative;
+    z-index: 2;
+    padding: clamp(40px, 6vh, 80px) clamp(34px, 6vw, 96px);
+  }
+
+  .slide--divider {
+    justify-content: center;
+    background-image: radial-gradient(circle at 78% 50%, rgba(88,166,255,0.10), transparent 32%);
+  }
+
+  .slide__number {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -56%);
+    font-size: clamp(110px, 18vw, 240px);
+    font-family: var(--font-mono);
+    opacity: 0.08;
+    color: var(--accent);
+    pointer-events: none;
+  }
+
+  .slide--content .slide__inner,
+  .slide--split .slide__panels {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: clamp(24px, 3vw, 44px);
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .slide--content .slide__inner {
+    align-items: center;
+  }
+
+  .slide__bullets {
+    list-style: none;
+    margin-top: 18px;
+  }
+
+  .slide__bullets li {
+    position: relative;
+    padding: 10px 0 10px 20px;
+    font-size: clamp(16px, 1.65vw, 21px);
+    color: var(--text-dim);
+    line-height: 1.48;
+  }
+
+  .slide__bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 18px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .slide__aside {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    justify-content: center;
+  }
+
+  .slide--split {
+    padding: 0;
+  }
+
+  .slide__panel {
+    min-width: 0;
+    height: 100%;
+    padding: clamp(34px, 5vh, 72px) clamp(28px, 4vw, 54px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .slide__panel--primary { background: var(--surface); }
+  .slide__panel--secondary { background: var(--surface2); }
+
+  .quote-mark {
+    font-size: clamp(80px, 11vw, 150px);
+    line-height: 0.5;
+    opacity: 0.08;
+    color: var(--accent);
+    font-family: Georgia, serif;
+    margin-bottom: -12px;
+  }
+
+  blockquote {
+    font-size: clamp(25px, 3.5vw, 46px);
+    line-height: 1.26;
+    font-weight: 560;
+    max-width: 980px;
+  }
+
+  cite {
+    display: block;
+    margin-top: 18px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    font-style: normal;
+  }
+
+  .source-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .source-list .card__body code,
+  td code {
+    font-family: var(--font-mono);
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 980px) {
+    .metric-grid,
+    .case-grid,
+    .proof-strip,
+    .appendix-grid,
+    .source-list,
+    .slide--content .slide__inner,
+    .slide--split .slide__panels {
+      grid-template-columns: 1fr !important;
+    }
+    .proof-step::after { content: ''; }
+    .deck-dots { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+  <section class="slide slide--title">
+    <svg class="slide__decor" style="top:0;right:0;" width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+      <path d="M140 0 L140 48 M92 0 L140 0" stroke="var(--accent)" stroke-width="2"></path>
+    </svg>
+    <svg class="slide__decor" style="bottom:0;left:0;" width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+      <path d="M0 92 L0 140 M0 140 L48 140" stroke="var(--orange)" stroke-width="2"></path>
+    </svg>
+    <p class="slide__subtitle reveal">Alternative runtime generated from workshop source-materials</p>
+    <h1 class="slide__display reveal">Agentic Engineering</h1>
+    <p class="slide__subtitle reveal" style="margin-top:20px;">A cinematic HTML slide deck alternative to Slidev — grounded in agenda, research, case studies, and proof-chain artifacts.</p>
+    <div class="chip-row reveal" style="justify-content:center;">
+      <span class="chip chip--accent">GitHub Copilot</span>
+      <span class="chip chip--green">OpenSpec-first</span>
+      <span class="chip chip--orange">GitHub Pages</span>
+      <span class="chip chip--amber">GitHub Issues intake</span>
+    </div>
+  </section>
+
+  <section class="slide slide--bleed">
+    <div class="slide__bg slide__bg--gradient"></div>
+    <div class="slide__scrim"></div>
+    <div class="slide__content">
+      <p class="slide__label reveal">Artifact-first opening</p>
+      <h2 class="slide__heading reveal" style="color:#fff; max-width:920px;">Start with the shipped outcome, not the tooling diagram.</h2>
+      <p class="slide__body reveal" style="max-width:900px; color: rgba(255,255,255,0.78); margin-top:16px;">The workshop promise is concrete: move from a baseline issue to an OpenSpec package, into implementation, validation, GitHub Pages deployment, and a GitHub Issues registration path for the course <span class="accent">agentic engineering</span>.</p>
+      <div class="proof-strip reveal" style="margin-top:28px;">
+        <div class="proof-step"><div class="proof-step__num">01</div><div class="proof-step__title">Issue</div><div class="proof-step__body">Shared brief and scope.</div></div>
+        <div class="proof-step"><div class="proof-step__num">02</div><div class="proof-step__title">OpenSpec</div><div class="proof-step__body">Requirements, tasks, validation.</div></div>
+        <div class="proof-step"><div class="proof-step__num">03</div><div class="proof-step__title">Build</div><div class="proof-step__body">Landing page implementation.</div></div>
+        <div class="proof-step"><div class="proof-step__num">04</div><div class="proof-step__title">Validate</div><div class="proof-step__body">Tests, checks, visual proof.</div></div>
+        <div class="proof-step"><div class="proof-step__num">05</div><div class="proof-step__title">Ship</div><div class="proof-step__body">GitHub Pages live outcome.</div></div>
+        <div class="proof-step"><div class="proof-step__num">06</div><div class="proof-step__title">Intake</div><div class="proof-step__body">GitHub Issues registration/contact.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table">
+    <p class="slide__label reveal">Workshop profile</p>
+    <h2 class="slide__heading reveal">At a glance: what the room learns and in what order.</h2>
+    <div class="table-wrap reveal" style="margin-top:22px;">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Block</th>
+              <th>Mode</th>
+              <th>Outcome</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Async 15m</td>
+              <td>Pre-work</td>
+              <td>Preview + setup</td>
+              <td>See the final landing page, Pages outcome, and Issues intake before the live session begins.</td>
+            </tr>
+            <tr>
+              <td>0:00–0:25</td>
+              <td>Mental model</td>
+              <td>Preview + poll</td>
+              <td>Shared language for agents, vibe coding, proof, and verifiability.</td>
+            </tr>
+            <tr>
+              <td>0:25–0:50</td>
+              <td>Context engineering</td>
+              <td>Demo + walkthrough</td>
+              <td>See how curated context changes results in Copilot CLI.</td>
+            </tr>
+            <tr>
+              <td>0:50–1:25</td>
+              <td>Harness engineering</td>
+              <td>Artifact trace</td>
+              <td>Understand research → plan → implement → review as an inspectable loop.</td>
+            </tr>
+            <tr>
+              <td>1:35–2:15</td>
+              <td>Case studies</td>
+              <td>Examples + showcase</td>
+              <td>Map the same pattern across software and business workflows.</td>
+            </tr>
+            <tr>
+              <td>2:15–2:50</td>
+              <td>Agentic engineering</td>
+              <td>Closing synthesis</td>
+              <td>Leave with a practical autonomy ladder and a Monday-morning starting point.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--divider">
+    <span class="slide__number">01</span>
+    <div>
+      <p class="slide__label reveal">Mental model</p>
+      <h2 class="slide__heading reveal">The room needs a model of the work before a model of the tools.</h2>
+      <p class="slide__subtitle reveal" style="margin-top:12px;">Beginner-safe language first. Tool taxonomy later.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Memorable frame</p>
+        <h2 class="slide__heading reveal">The confident intern</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Fast, well-read, enthusiastic, and confidently wrong without direction.</li>
+          <li class="reveal">The human job is business judgment, architectural intent, and the final ship decision.</li>
+          <li class="reveal">This framing reduces fear without overselling autonomy.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--hero reveal">
+          <div class="card__label">Phrase to keep</div>
+          <div class="card__title">“Brilliant at following instructions. Terrible at inventing them.”</div>
+          <div class="card__body">That line grounds the entire workshop: agents amplify disciplined direction; they do not replace it.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--split">
+    <div class="slide__panels">
+      <div class="slide__panel slide__panel--primary">
+        <p class="slide__label reveal">Thinking before typing</p>
+        <h2 class="slide__heading reveal">Research and framing are separate jobs from implementation.</h2>
+        <p class="slide__body reveal">A bad line of research becomes a lot of bad code quickly. Agentic work starts by making the target, the constraints, and the proof visible before the model touches the keyboard.</p>
+      </div>
+      <div class="slide__panel slide__panel--secondary">
+        <div class="card card--accent reveal">
+          <div class="card__label">Step 1</div>
+          <div class="card__title">Think</div>
+          <div class="card__body">Clarify the goal, the quality bar, the evidence, and the rails.</div>
+        </div>
+        <div class="card card--orange reveal">
+          <div class="card__label">Step 2</div>
+          <div class="card__title">Type</div>
+          <div class="card__body">Only then let the model execute within the defined loop.</div>
+        </div>
+        <div class="card card--green reveal">
+          <div class="card__label">Workshop shortcut</div>
+          <div class="card__body">“Don’t give it a keyboard until you’ve given it a map.”</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table">
+    <p class="slide__label reveal">Quality bar</p>
+    <h2 class="slide__heading reveal">Vibe coding and disciplined agentic work are different operating modes.</h2>
+    <div class="table-wrap reveal" style="margin-top:22px;">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Vibe coding</th>
+              <th>Disciplined agentic work</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Prompt into existence</td>
+              <td>Define intent, scope, and proof first</td>
+            </tr>
+            <tr>
+              <td>One-shot output</td>
+              <td>Multi-step loop with review, evidence, and iteration</td>
+            </tr>
+            <tr>
+              <td>“Seems fine”</td>
+              <td>“I reviewed it, ran it, and can explain it”</td>
+            </tr>
+            <tr>
+              <td>Hard to repeat</td>
+              <td>Easy to rerun, inspect, and improve</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Economics</p>
+        <h2 class="slide__heading reveal">Code is cheap now. Confidence is still expensive.</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">More context is not automatically better context.</li>
+          <li class="reveal">Verifiable outcomes unlock safer delegation.</li>
+          <li class="reveal">The cost center moves from typing to reviewability, evidence, and changeability.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="metric-grid">
+          <div class="metric reveal"><div class="metric__value accent">46%</div><div class="metric__label">Copilot-written code</div></div>
+          <div class="metric reveal"><div class="metric__value green">84%</div><div class="metric__label">Pros using AI daily</div></div>
+          <div class="metric reveal"><div class="metric__value orange">51–55%</div><div class="metric__label">Task speed-up</div></div>
+          <div class="metric reveal"><div class="metric__value amber">20M+</div><div class="metric__label">Copilot users</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--divider">
+    <span class="slide__number">02</span>
+    <div>
+      <p class="slide__label reveal">Context engineering</p>
+      <h2 class="slide__heading reveal">Curate what the model sees. Don’t reward it with clutter.</h2>
+      <p class="slide__subtitle reveal" style="margin-top:12px;">Copilot CLI makes the abstract idea concrete.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Working definition</p>
+        <h2 class="slide__heading reveal">Context engineering is the deliberate curation of what the model sees.</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Best context is often proof of possibility: specs, examples, runbooks, screenshots.</li>
+          <li class="reveal">The context window behaves like a whiteboard: clutter degrades reasoning quality.</li>
+          <li class="reveal">The workshop’s own context sources are explicit: issue, OpenSpec, repo rules, plan, files, checkpoints.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--hero reveal">
+          <div class="card__label">Anchor lesson</div>
+          <div class="card__title">Curate, don’t dump.</div>
+          <div class="card__body">The quality jump rarely comes from “clever prompting.” It comes from narrowing the world the agent must reason over.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--split">
+    <div class="slide__panels">
+      <div class="slide__panel slide__panel--primary">
+        <p class="slide__label reveal">Copilot CLI topology</p>
+        <h2 class="slide__heading reveal">Two workspaces, one run.</h2>
+        <p class="slide__body reveal">Copilot CLI splits context into a <span class="accent">working directory</span> that Git owns and a <span class="green">session workspace</span> that holds ephemeral plans, files, and checkpoints.</p>
+      </div>
+      <div class="slide__panel slide__panel--secondary">
+        <div class="card card--accent reveal">
+          <div class="card__label">Layer 1</div>
+          <div class="card__title">Working directory</div>
+          <div class="card__body">Product code, tests, hooks, repo-wide instructions, shared conventions.</div>
+        </div>
+        <div class="card card--green reveal">
+          <div class="card__label">Layer 2</div>
+          <div class="card__title">Session workspace</div>
+          <div class="card__body"><code>plan.md</code>, <code>files/</code>, checkpoints, research outputs, resume state.</div>
+        </div>
+        <div class="card card--orange reveal">
+          <div class="card__label">Practical rule</div>
+          <div class="card__body">Team rules belong in the repo. Current-run thinking belongs outside Git.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table">
+    <p class="slide__label reveal">Load discipline</p>
+    <h2 class="slide__heading reveal">Persistent rules and on-demand context do different jobs.</h2>
+    <div class="table-wrap reveal" style="margin-top:20px;">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Keep persistent</th>
+              <th>Load on demand</th>
+              <th>Leave out</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>.github/copilot-instructions.md</code><br>user rules<br>path guidance</td>
+              <td>Skills<br><code>plan.md</code><br><code>files/</code><br>task-scoped references</td>
+              <td>Unrelated files<br>stale history<br>idle MCP surfaces</td>
+            </tr>
+            <tr>
+              <td><span class="status status--green">Always true</span></td>
+              <td><span class="status status--orange">Specific to this turn</span></td>
+              <td><span class="status status--red">Token noise</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Failure mode</p>
+        <h2 class="slide__heading reveal">Restart for poison. Compact for scale.</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">A poisoned session compounds bad assumptions; it does not heal through argument.</li>
+          <li class="reveal"><code>/compact</code> reduces size in healthy long sessions. It does not erase wrong mental models.</li>
+          <li class="reveal">The restart move is normal operating hygiene: summarize → exit → reopen → continue from the plan.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--amber reveal">
+          <div class="card__label">Symptoms</div>
+          <div class="card__body">Repeated contradictions, fake constraints, or “fixes” that never converge.</div>
+        </div>
+        <div class="card card--accent reveal">
+          <div class="card__label">Safe move</div>
+          <div class="card__body">Fresh session, minimal summary, clean context, no emotional sunk-cost recovery.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Capability discipline</p>
+        <h2 class="slide__heading reveal">Skills teach <span class="accent">how</span>. MCP extends <span class="orange">reach</span>.</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Skills are portable, on-demand workflow knowledge packs.</li>
+          <li class="reveal">MCP adds tools, APIs, browsers, databases, and therefore more surface area.</li>
+          <li class="reveal">The workshop framing stays simple: expertise → skill, new capability → MCP.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--green reveal">
+          <div class="card__title">Use skills by default</div>
+          <div class="card__body">Better token economics, stronger portability, narrower activation.</div>
+        </div>
+        <div class="card card--violet reveal">
+          <div class="card__title">Enable MCP intentionally</div>
+          <div class="card__body">Only when the workflow genuinely needs new reach into browsers, APIs, or systems.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Context artifacts</p>
+        <h2 class="slide__heading reveal">The artifacts that do real work in Copilot CLI</h2>
+        <div class="case-grid" style="margin-top:18px;">
+          <div class="card card--accent reveal"><div class="card__title"><code>/plan</code> → <code>plan.md</code></div><div class="card__body">Turns intent into an explicit implementation brief.</div></div>
+          <div class="card card--green reveal"><div class="card__title"><code>files/</code></div><div class="card__body">Session-scoped drafts, evidence, and handoff artifacts outside Git.</div></div>
+          <div class="card card--orange reveal"><div class="card__title">Checkpoints</div><div class="card__body">Narrative compression for resume and continuity.</div></div>
+        </div>
+      </div>
+      <div class="slide__aside">
+        <div class="card reveal">
+          <div class="card__label">Message to keep</div>
+          <div class="card__body">Persistent rules teach the repo. Session artifacts teach the current run.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--divider">
+    <span class="slide__number">03</span>
+    <div>
+      <p class="slide__label reveal">Harness engineering</p>
+      <h2 class="slide__heading reveal">Good prompts do not make reliable systems. Loops, evidence, and review do.</h2>
+      <p class="slide__subtitle reveal" style="margin-top:12px;">This is where the proof chain becomes operational.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Core rhythm</p>
+        <h2 class="slide__heading reveal">Research → plan → implement → review</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Every phase should produce an artifact, not just chat.</li>
+          <li class="reveal">The phase boundary between planning and execution is part of the harness, not ceremony.</li>
+          <li class="reveal">The workshop uses this rhythm to make OpenSpec-first delivery legible to mixed roles.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="ladder">
+          <div class="ladder__step reveal"><div class="ladder__num">01</div><div><div class="ladder__title">Research</div><div class="ladder__body">Clarify the problem and gather proofs.</div></div></div>
+          <div class="ladder__step reveal"><div class="ladder__num">02</div><div><div class="ladder__title">Plan</div><div class="ladder__body">Constrain the path and success conditions.</div></div></div>
+          <div class="ladder__step reveal"><div class="ladder__num">03</div><div><div class="ladder__title">Implement</div><div class="ladder__body">Execute in isolated, reviewable steps.</div></div></div>
+          <div class="ladder__step reveal"><div class="ladder__num">04</div><div><div class="ladder__title">Review</div><div class="ladder__body">Check the diff, the behavior, and the evidence.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--split">
+    <div class="slide__panels">
+      <div class="slide__panel slide__panel--primary">
+        <p class="slide__label reveal">Role separation</p>
+        <h2 class="slide__heading reveal">Planner → generator → evaluator beats self-critique.</h2>
+        <p class="slide__body reveal">Complex work improves when planning, making, and checking stop blurring together. Copilot CLI gives this shape through the main agent, <code>/fleet</code> workers, and visible <code>/tasks</code> coordination.</p>
+      </div>
+      <div class="slide__panel slide__panel--secondary">
+        <div class="card card--accent reveal"><div class="card__title">Planner</div><div class="card__body">Clarifies the path, dependencies, and success conditions.</div></div>
+        <div class="card card--orange reveal"><div class="card__title">Generator</div><div class="card__body">Executes the scoped step with the right tools.</div></div>
+        <div class="card card--green reveal"><div class="card__title">Evaluator</div><div class="card__body">Compares outcome against proof, tests, review rules, and intent.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--bleed">
+    <div class="slide__bg slide__bg--gradient"></div>
+    <div class="slide__scrim"></div>
+    <div class="slide__content">
+      <p class="slide__label reveal">Showcase harness</p>
+      <h2 class="slide__heading reveal" style="color:#fff; max-width:860px;">The workshop proof chain is the harness made visible.</h2>
+      <p class="slide__body reveal" style="max-width:820px; color: rgba(255,255,255,0.78); margin-top:14px;">The audience is not asked to trust an abstract theory. They watch one artifact move across explicit checkpoints from issue to spec to implementation to validation to shipping.</p>
+      <div class="proof-strip reveal" style="margin-top:28px;">
+        <div class="proof-step"><div class="proof-step__num">A</div><div class="proof-step__title">Issue</div><div class="proof-step__body">Durable brief and scope anchor.</div></div>
+        <div class="proof-step"><div class="proof-step__num">B</div><div class="proof-step__title">OpenSpec</div><div class="proof-step__body">Requirements, scenarios, tasks, validation.</div></div>
+        <div class="proof-step"><div class="proof-step__num">C</div><div class="proof-step__title">Implementation</div><div class="proof-step__body">Landing page build with repo-native intake.</div></div>
+        <div class="proof-step"><div class="proof-step__num">D</div><div class="proof-step__title">Validation</div><div class="proof-step__body">Checks, screenshots, acceptance proof.</div></div>
+        <div class="proof-step"><div class="proof-step__num">E</div><div class="proof-step__title">Pages</div><div class="proof-step__body">Deployed outcome anyone can inspect.</div></div>
+        <div class="proof-step"><div class="proof-step__num">F</div><div class="proof-step__title">Issues</div><div class="proof-step__body">Registration and contact capture path.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Reviewability</p>
+        <h2 class="slide__heading reveal">Fresh sessions, git diff, and reviewer respect are part of the harness.</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Fresh sessions isolate reasoning and reduce context bleed.</li>
+          <li class="reveal">Git diff is the local PR review between you and the agent.</li>
+          <li class="reveal">Reviewer respect means no opaque, unreviewed AI dump gets promoted just because it compiled.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--hero reveal">
+          <div class="card__label">Simon review thread</div>
+          <div class="card__title">Code is cheap now. Quality is still expensive.</div>
+          <div class="card__body">That’s why harnesses matter more than model mystique. The expensive part is trust, not output volume.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--divider">
+    <span class="slide__number">04</span>
+    <div>
+      <p class="slide__label reveal">Case studies</p>
+      <h2 class="slide__heading reveal">The same pattern repeats across software and business workflows.</h2>
+      <p class="slide__subtitle reveal" style="margin-top:12px;">Clear goal. Curated context. Constrained loop. Verifiable outcome.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--dashboard">
+    <p class="slide__label reveal">Engineering anchors</p>
+    <h2 class="slide__heading reveal">Three engineering stories make the thesis visible in under a minute.</h2>
+    <div class="case-grid" style="margin-top:24px;">
+      <div class="card card--accent reveal">
+        <div class="card__label">P0 GIF</div>
+        <div class="card__title">Multi-service auth refactoring</div>
+        <div class="card__body">Discover auth seams → refactor shared patterns → verify across services. The value is coordinated change, not just code generation.</div>
+      </div>
+      <div class="card card--orange reveal">
+        <div class="card__label">P0 GIF</div>
+        <div class="card__title">CI/CD workflow diagnosis &amp; fix</div>
+        <div class="card__body">Red pipeline → log investigation → workflow/script patch → green rerun. Strongest red-to-green operational story.</div>
+      </div>
+      <div class="card card--green reveal">
+        <div class="card__label">P0 GIF</div>
+        <div class="card__title">Test coverage automation</div>
+        <div class="card__body">Find weak modules → generate tests → fix failures → report the delta. A measurable trust-building loop.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--split">
+    <div class="slide__panels">
+      <div class="slide__panel slide__panel--primary">
+        <p class="slide__label reveal">Showcase anchor</p>
+        <h2 class="slide__heading reveal">The landing-page walkthrough keeps the room grounded.</h2>
+        <p class="slide__body reveal">This is the main live teaching case because everyone can understand the end-state, regardless of role: a dark-theme course page, a public Pages deployment, and a repo-native intake flow.</p>
+        <div class="chip-row reveal">
+          <span class="chip chip--green">OpenSpec primary</span>
+          <span class="chip chip--orange">GitHub Pages</span>
+          <span class="chip chip--accent">GitHub Issues</span>
+        </div>
+      </div>
+      <div class="slide__panel slide__panel--secondary">
+        <div class="card card--green reveal"><div class="card__title">Why it works</div><div class="card__body">Visible artifact. Visible proof chain. Mixed audience can all follow the flow.</div></div>
+        <div class="card card--accent reveal"><div class="card__title">What it teaches</div><div class="card__body">Context, harness, orchestration, deployment, and intake all in one compact storyline.</div></div>
+        <div class="card card--amber reveal"><div class="card__title">What stays backup</div><div class="card__body">SpecKit specifics and deep CLI internals move to appendix rather than clogging the main arc.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table">
+    <p class="slide__label reveal">Non-engineering shortlist</p>
+    <h2 class="slide__heading reveal">Developers already know the pattern. The domain changes, not the fundamentals.</h2>
+    <div class="table-wrap reveal" style="margin-top:20px;">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Workflow</th>
+              <th>Business pain</th>
+              <th>Best path</th>
+              <th>Why it matters in the workshop</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Google Workspace executive ops</td>
+              <td>Manual calendar, email, sheets, and file coordination</td>
+              <td>Coding agent + skills/tools</td>
+              <td>Best example of repurposing a coding agent for business operations.</td>
+            </tr>
+            <tr>
+              <td>B2B SaaS lead processing</td>
+              <td>Slow enrichment, inconsistent scoring, stale CRM updates</td>
+              <td>Start with tools, scale to orchestration</td>
+              <td>Strong ROI story for revenue-facing operations.</td>
+            </tr>
+            <tr>
+              <td>RFP response automation</td>
+              <td>Knowledge work bottlenecks and review-heavy drafting</td>
+              <td>Review chain / custom orchestration</td>
+              <td>Best retrieval + approval example.</td>
+            </tr>
+            <tr>
+              <td>HR onboarding</td>
+              <td>Repeated cross-functional setup with fragmented handoffs</td>
+              <td>Custom orchestration (MAF)</td>
+              <td>Most relatable end-to-end workflow graph.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Cross-domain transfer</p>
+        <h2 class="slide__heading reveal">The three disciplines survive outside engineering.</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><span class="accent">Context engineering</span>: policies, schemas, templates, calendars, approval rules.</li>
+          <li class="reveal"><span class="orange">Harness engineering</span>: checks, permissions, audit trails, human approvals, rollback.</li>
+          <li class="reveal"><span class="green">Orchestration</span>: the workflow shape that moves work between tools, agents, and humans.</li>
+        </ul>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--violet reveal">
+          <div class="card__label">Workshop line</div>
+          <div class="card__title">Developers already know the pattern; the domain changes, not the fundamentals.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--divider">
+    <span class="slide__number">05</span>
+    <div>
+      <p class="slide__label reveal">Agentic engineering</p>
+      <h2 class="slide__heading reveal">This is the synthesis, not the opener.</h2>
+      <p class="slide__subtitle reveal" style="margin-top:12px;">Only after context and harness make sense does autonomy become a practical conversation.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--split">
+    <div class="slide__panels">
+      <div class="slide__panel slide__panel--primary">
+        <p class="slide__label reveal">Human role shift</p>
+        <h2 class="slide__heading reveal">The human moves from typing every step to designing and reviewing the loop.</h2>
+        <p class="slide__body reveal">Agentic engineering is not a product. It is the discipline of giving the loop the right job, the right rules, and the right evidence — then deciding how much autonomy the task actually deserves.</p>
+      </div>
+      <div class="slide__panel slide__panel--secondary">
+        <div class="card reveal"><div class="card__title">Before</div><div class="card__body">Manual execution, ad hoc prompting, vague acceptance, local intuition.</div></div>
+        <div class="card card--accent reveal"><div class="card__title">After</div><div class="card__body">Intent setting, context curation, harness design, review, and progressive autonomy.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Autonomy ladder</p>
+        <h2 class="slide__heading reveal">Increase autonomy only when context, boundaries, and verification are stable.</h2>
+        <div class="ladder">
+          <div class="ladder__step reveal"><div class="ladder__num">0</div><div><div class="ladder__title">Chat assist</div><div class="ladder__body">Good for idea shaping and local edits.</div></div></div>
+          <div class="ladder__step reveal"><div class="ladder__num">1</div><div><div class="ladder__title">Agent task</div><div class="ladder__body">Clear win condition, scoped tools, reviewable output.</div></div></div>
+          <div class="ladder__step reveal"><div class="ladder__num">2</div><div><div class="ladder__title">Multi-step loop</div><div class="ladder__body">Research, plan, implement, review with visible artifacts.</div></div></div>
+          <div class="ladder__step reveal"><div class="ladder__num">3</div><div><div class="ladder__title">Orchestrated workflow</div><div class="ladder__body">Stable recurring work with queues, approvals, SLAs, or cross-functional routing.</div></div></div>
+        </div>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--amber reveal">
+          <div class="card__label">Decision rule</div>
+          <div class="card__body">If context is unstable or proof is fuzzy, don’t increase autonomy — tighten the harness first.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quote">
+    <div class="quote-mark reveal">“</div>
+    <blockquote class="reveal">Bits are cheap to copy; quality is still expensive.</blockquote>
+    <cite class="reveal">Workshop synthesis — closing principle</cite>
+  </section>
+
+  <section class="slide slide--dashboard">
+    <p class="slide__label reveal">Monday morning</p>
+    <h2 class="slide__heading reveal">A pragmatic adoption path for the room</h2>
+    <div class="case-grid" style="margin-top:24px;">
+      <div class="card card--accent reveal">
+        <div class="card__label">Step 1</div>
+        <div class="card__title">Stabilize repo rules</div>
+        <div class="card__body">Make the house style and non-negotiables explicit.</div>
+      </div>
+      <div class="card card--green reveal">
+        <div class="card__label">Step 2</div>
+        <div class="card__title">Add one reusable skill</div>
+        <div class="card__body">Package repeated workflow judgment instead of retyping it.</div>
+      </div>
+      <div class="card card--orange reveal">
+        <div class="card__label">Step 3</div>
+        <div class="card__title">Plan before build</div>
+        <div class="card__body">Use OpenSpec or another planning layer for consequential work.</div>
+      </div>
+      <div class="card card--amber reveal">
+        <div class="card__label">Step 4</div>
+        <div class="card__title">Increase orchestration only when needed</div>
+        <div class="card__body">Don’t pay workflow complexity before the work actually justifies it.</div>
+      </div>
+      <div class="card card--violet reveal">
+        <div class="card__label">Step 5</div>
+        <div class="card__title">Keep review visible</div>
+        <div class="card__body">Diffs, checks, screenshots, audits, and acceptance proof stay first-class.</div>
+      </div>
+      <div class="card reveal">
+        <div class="card__label">Outcome</div>
+        <div class="card__title">Disciplined autonomy</div>
+        <div class="card__body">More leverage, less chaos, and a path the team can explain and reuse.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--divider">
+    <span class="slide__number">06</span>
+    <div>
+      <p class="slide__label reveal">Appendix</p>
+      <h2 class="slide__heading reveal">What stays available without bloating the live narrative.</h2>
+      <p class="slide__subtitle reveal" style="margin-top:12px;">Backup depth, not discarded thinking.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table">
+    <p class="slide__label reveal">Backup topics</p>
+    <h2 class="slide__heading reveal">The appendix protects clarity by preserving depth in reserve.</h2>
+    <div class="table-wrap reveal" style="margin-top:22px;">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Appendix topic</th>
+              <th>Why it moved out of the main arc</th>
+              <th>When to pull it back in</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>SpecKit-specific deep dive</td>
+              <td>OpenSpec is the primary storyline; SpecKit is backup context.</td>
+              <td>If the audience asks for the compare/contrast or the primary path stalls.</td>
+            </tr>
+            <tr>
+              <td>CLI session-topology internals</td>
+              <td>Too deep for the live beginner-safe flow.</td>
+              <td>Advanced engineering audience or Q&amp;A follow-up.</td>
+            </tr>
+            <tr>
+              <td><code>/chronicle</code>, <code>events.jsonl</code>, SQL/session-store details</td>
+              <td>Great for depth, distracting in the main teaching arc.</td>
+              <td>Tooling-heavy room or backstage demo.</td>
+            </tr>
+            <tr>
+              <td>AutoResearch and extra P1/P2 cases</td>
+              <td>Useful breadth, weaker narrative anchor than the core showcase.</td>
+              <td>Longer session or role-specific follow-up.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Source map</p>
+        <h2 class="slide__heading reveal">This alternative runtime was generated from source-materials, not from Slidev source.</h2>
+        <div class="source-list">
+          <div class="card reveal"><div class="card__title">Agenda</div><div class="card__body"><code>source-materials/agenda/facilitator-agenda.md</code></div></div>
+          <div class="card reveal"><div class="card__title">Deck spine</div><div class="card__body"><code>slidev-workshop/docs/planning/slidev-deck.md</code></div></div>
+          <div class="card reveal"><div class="card__title">Research</div><div class="card__body"><code>video-analysis-synthesis.md</code> and <code>copilot-cli-context-harness-map.md</code></div></div>
+          <div class="card reveal"><div class="card__title">Case studies</div><div class="card__body"><code>engineering-use-cases.md</code> and <code>non-engineering-use-cases.md</code></div></div>
+        </div>
+      </div>
+      <div class="slide__aside">
+        <div class="card card--hero reveal">
+          <div class="card__label">Why this matters</div>
+          <div class="card__body">The workshop can now support multiple presentation runtimes from one shared content layer. Slidev is one runtime. This HTML deck is another.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+function autoFit() {
+  document.querySelectorAll('.metric__value').forEach(function (el) {
+    if (el.scrollWidth > el.clientWidth) {
+      var s = el.clientWidth / el.scrollWidth;
+      el.style.transform = 'scale(' + s + ')';
+      el.style.transformOrigin = 'left top';
+    }
+  });
+  document.querySelectorAll('blockquote').forEach(function (el) {
+    var len = el.textContent.trim().length;
+    if (len > 120) {
+      var scale = Math.max(0.55, 120 / len);
+      var fs = parseFloat(getComputedStyle(el).fontSize);
+      el.style.fontSize = Math.max(18, Math.round(fs * scale)) + 'px';
+    }
+  });
+}
+
+class SlideEngine {
+  constructor() {
+    this.deck = document.querySelector('.deck');
+    this.slides = Array.from(document.querySelectorAll('.slide'));
+    this.current = 0;
+    this.total = this.slides.length;
+    this.buildChrome();
+    this.bindEvents();
+    this.observe();
+    this.update();
+  }
+
+  buildChrome() {
+    this.bar = document.createElement('div');
+    this.bar.className = 'deck-progress';
+    document.body.appendChild(this.bar);
+
+    var dots = document.createElement('div');
+    dots.className = 'deck-dots';
+    this.dots = [];
+    this.slides.forEach((_, i) => {
+      var dot = document.createElement('button');
+      dot.className = 'deck-dot';
+      dot.title = 'Slide ' + (i + 1);
+      dot.addEventListener('click', () => this.goTo(i));
+      dots.appendChild(dot);
+      this.dots.push(dot);
+    });
+    document.body.appendChild(dots);
+
+    this.counter = document.createElement('div');
+    this.counter.className = 'deck-counter';
+    document.body.appendChild(this.counter);
+
+    this.hints = document.createElement('div');
+    this.hints.className = 'deck-hints';
+    this.hints.textContent = '← → or scroll to navigate';
+    document.body.appendChild(this.hints);
+    this.hintTimer = setTimeout(() => this.hints.classList.add('faded'), 4200);
+  }
+
+  bindEvents() {
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowDown', 'ArrowRight', ' ', 'PageDown'].includes(e.key)) {
+        e.preventDefault();
+        this.next();
+      } else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) {
+        e.preventDefault();
+        this.prev();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        this.goTo(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        this.goTo(this.total - 1);
+      }
+      this.fadeHints();
+    });
+
+    var touchY = null;
+    this.deck.addEventListener('touchstart', (e) => {
+      touchY = e.touches[0].clientY;
+    }, { passive: true });
+
+    this.deck.addEventListener('touchend', (e) => {
+      if (touchY === null) return;
+      var dy = touchY - e.changedTouches[0].clientY;
+      if (Math.abs(dy) > 50) {
+        dy > 0 ? this.next() : this.prev();
+      }
+    });
+  }
+
+  observe() {
+    var observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          this.current = this.slides.indexOf(entry.target);
+          this.update();
+        }
+      });
+    }, { threshold: 0.55 });
+
+    this.slides.forEach((slide) => observer.observe(slide));
+  }
+
+  goTo(index) {
+    this.slides[Math.max(0, Math.min(index, this.total - 1))].scrollIntoView({ behavior: 'smooth' });
+  }
+
+  next() {
+    if (this.current < this.total - 1) this.goTo(this.current + 1);
+  }
+
+  prev() {
+    if (this.current > 0) this.goTo(this.current - 1);
+  }
+
+  update() {
+    this.bar.style.width = (((this.current + 1) / this.total) * 100) + '%';
+    this.dots.forEach((dot, i) => dot.classList.toggle('active', i === this.current));
+    this.counter.textContent = (this.current + 1) + ' / ' + this.total;
+  }
+
+  fadeHints() {
+    clearTimeout(this.hintTimer);
+    this.hints.classList.add('faded');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  autoFit();
+  new SlideEngine();
+});
+</script>
+</body>
+</html>
