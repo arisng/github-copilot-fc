@@ -4,8 +4,13 @@ Sources:
 - https://aspire.dev/reference/cli/overview/
 - https://aspire.dev/reference/cli/commands/aspire-agent/
 - https://aspire.dev/reference/cli/commands/aspire-agent-init/
+- https://aspire.dev/reference/cli/commands/aspire-docs/
+- https://aspire.dev/reference/cli/commands/aspire-docs-list/
+- https://aspire.dev/reference/cli/commands/aspire-docs-search/
+- https://aspire.dev/reference/cli/commands/aspire-docs-get/
 - https://aspire.dev/reference/cli/commands/aspire-run/
 - https://aspire.dev/reference/cli/commands/aspire-start/
+- https://devblogs.microsoft.com/aspire/aspire-docs-in-your-terminal/
 - https://aspire.dev/whats-new/aspire-13-2/
 - https://aspire.dev/get-started/ai-coding-agents/
 
@@ -15,6 +20,7 @@ Sources:
 - `aspire agent init` now sets up coding-agent integrations and installs Aspire skill files.
 - `aspire start` is the background-friendly shortcut for detached AppHost startup.
 - `aspire run --isolated` and `aspire start --isolated` are first-class solutions for parallel worktrees and agents.
+- `aspire docs list`, `aspire docs search`, and `aspire docs get` bring official `aspire.dev` docs directly into the terminal and agent workflow.
 - `aspire describe`, `aspire logs`, `aspire wait`, `aspire resource`, `aspire doctor`, `aspire docs`, `aspire restore`, `aspire export`, `aspire secret`, and `aspire certs` expand the CLI far beyond the older 13.1 surface.
 
 ## Renames and migration notes
@@ -44,6 +50,14 @@ AppHost targeting order is:
 - Use `aspire doctor` early when setup issues could be certificate, SDK, or container-runtime related.
 - Use `aspire start --isolated` for delegated sessions, worktrees, and parallel agents.
 - Use `aspire describe`, `aspire logs`, `aspire otel`, and `aspire wait` instead of asking the user to manually inspect the dashboard first.
+- Use `aspire docs list`, `aspire docs search`, and `aspire docs get` before `aspire add`, custom resource commands, or unfamiliar AppHost APIs.
+
+## Docs lookup workflows
+
+- Use `aspire docs list` to browse titles, slugs, and summaries when the right page is not obvious.
+- Use `aspire docs search <topic>` to get ranked results and slugs. Add `--limit` when a smaller result set is easier to work with.
+- Use `aspire docs get <slug>` to read the full page. Add `--section "<heading>"` for a focused excerpt and `--format Json` for automation.
+- When Aspire MCP is already connected, `list_docs`, `search_docs`, and `get_doc` expose the same official docs inside the agent session.
 
 ## Upgrade checklist
 
@@ -52,3 +66,4 @@ AppHost targeting order is:
 3. Re-run agent setup if needed: `aspire agent init`
 4. Replace old `aspire mcp ...` guidance in docs, scripts, or prompts
 5. Prefer `aspire start` or `aspire run --isolated` where older guidance used custom detached or multi-worktree scripts
+6. Update local skills, prompts, or automation so unfamiliar Aspire edits use the docs-first workflow instead of guessing API shapes
