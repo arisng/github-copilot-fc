@@ -90,7 +90,8 @@ Required fields:
 - **YAML Frontmatter**: All task files must have valid YAML frontmatter
 - **Feedback Integration**: UPDATE mode must address all critical feedback issues
 - **Iterating Compatibility**: Prefer iterating or iterating history in user-facing workflow text, but keep the normative state and mode names `REPLANNING` and `UPDATE` in contracts and invocation payloads
-- **Single Mode Only**: Reject any request that asks for multiple modes in one invocation</rules>
+- **Single Mode Only**: Reject any request that asks for multiple modes in one invocation
+</rules>
 
 ## Shared Questioner Grounding Lookup Contract
 
