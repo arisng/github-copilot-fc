@@ -37,3 +37,5 @@ https://www.milanjovanovic.tech/blog
 ## Microsoft Agent Framework
 
 https://devblogs.microsoft.com/agent-framework/
+https://devblogs.microsoft.com/agent-framework/agent-skills-in-net-three-ways-to-author-one-provider-to-run-them/
+
