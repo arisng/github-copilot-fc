@@ -4,7 +4,8 @@
 			"readFile",
             "problems",
 			"terminalLastCommand",
-            "terminalSelection"
+            "terminalSelection",
+			"viewImage"
 		],
 		"description": "my custom read workspace toolset",
 		"icon": "eye-watch"

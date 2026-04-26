@@ -2,6 +2,7 @@
 	"web": {
 		"tools": [
 			"web",
+			"search", // duckduckgo
 			"fetch_content", // duckduckgo
 			"brave_summarizer", 
 			"brave_web_search"

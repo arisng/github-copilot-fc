@@ -2,7 +2,7 @@
 	"utils": {
 		"tools": [
             "sequentialthinking",
-			"vscode/memory"
+			"todo"
 		],
 		"description": "my utils toolset",
 		"icon": "tools"

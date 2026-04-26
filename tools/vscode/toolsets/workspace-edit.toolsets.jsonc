@@ -3,7 +3,8 @@
 		"tools": [
 			"createDirectory",
             "createFile",
-			"editFiles"
+			"editFiles",
+			"rename"
 		],
 		"description": "my custom edit workspace toolset",
 		"icon": "pencil"

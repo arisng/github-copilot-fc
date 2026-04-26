@@ -3,7 +3,8 @@
 		"tools": [
             "microsoftdocs/mcp",
 			"get-library-docs",
-			"resolve-library-id"
+			"resolve-library-id",
+			"deepwiki"
 		],
 		"description": "my dev libraries toolset",
 		"icon": "library"

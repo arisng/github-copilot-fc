@@ -2,7 +2,11 @@
 	"workspace-search": {
 		"tools": [
 			"search/changes",
-			"search/codebase"
+			"search/codebase",
+			"search/fileSearch",
+			"search/ListDirectory",
+			"search/textSearch",
+			"search/usages"
 		],
 		"description": "my custom workspace search tool set",
 		"icon": "search"

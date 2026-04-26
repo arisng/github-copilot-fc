@@ -1,12 +1,12 @@
 {
 	"workspace-terminal": {
 		"tools": [
+			"executionSubagent",
 			"getTerminalOutput",
 			"awaitTerminal",
 			"killTerminal",
 			"runInTerminal",
-			"runTests",
-			"testFailure"
+			"sendToTerminal"
 		],
 		"description": "my custom workspace terminal tool set",
 		"icon": "terminal"
