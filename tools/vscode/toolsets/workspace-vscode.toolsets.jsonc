@@ -1,0 +1,11 @@
+{
+	"workspace-edit": {
+		"tools": [
+			"askQuestions",
+			"memory",
+			"resolveMemoryFileUri"
+		],
+		"description": "my custom VS Code toolset",
+		"icon": "pencil"
+	}
+}
