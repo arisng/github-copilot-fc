@@ -33,6 +33,9 @@ This index links Diátaxis-organized documentation for the workspace.
 ## How-to Guides
 
 - [How To Query Sql Server From Command Line](how-to/how-to-query-sql-server-from-command-line.md)
+- [Port Copilot Customizations to Kimi Code](how-to/port-copilot-customizations-to-kimi-code.md)
+- [Port Copilot Customizations to OpenCode](how-to/port-copilot-customizations-to-opencode.md)
+- [Port Copilot Customizations to Pi](how-to/port-copilot-customizations-to-pi.md)
 
 ### Codex
 
@@ -42,6 +45,7 @@ This index links Diátaxis-organized documentation for the workspace.
 
 #### Cli
 
+- [Configure BYOK LLM Providers for Copilot CLI](how-to/copilot/cli/how-to-configure-byok-llm-providers-for-copilot-cli.md)
 - [Create Trimmed Cli Embed Instruction Variant](how-to/copilot/cli/create-trimmed-cli-embed-instruction-variant.md)
 - [How To Create Cli Agent Variants](how-to/copilot/cli/how-to-create-cli-agent-variants.md)
 - [How to Create a CLI Plugin](how-to/copilot/cli/how-to-create-cli-plugin.md)
