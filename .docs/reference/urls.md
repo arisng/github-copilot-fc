@@ -28,6 +28,8 @@ https://github.com/msitarzewski/agency-agents
 ## Agentic Engineering
 
 https://simonwillison.net/guides/agentic-engineering-patterns/
+https://rywalker.com/research/autonomous-agentic-engineering-tools
+https://openai.com/index/harness-engineering/
 
 ## ASP.NET Core Weekly Newsletters
 
@@ -39,3 +41,7 @@ https://www.milanjovanovic.tech/blog
 https://devblogs.microsoft.com/agent-framework/
 https://devblogs.microsoft.com/agent-framework/agent-skills-in-net-three-ways-to-author-one-provider-to-run-them/
 
+
+## Aspire
+
+https://devblogs.microsoft.com/aspire/
