@@ -2,7 +2,7 @@
 name: visual-explainer
 description: Generate beautiful, self-contained HTML pages that visually explain systems, code changes, plans, and data. Use when the user asks for a diagram, architecture overview, diff review, plan review, project recap, comparison table, or any visual explanation of technical concepts. Also use proactively when you are about to render a complex ASCII table (4+ rows or 3+ columns) — present it as a styled HTML page instead.
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   author: arisng
 ---
 
@@ -12,32 +12,34 @@ Generate self-contained HTML files for technical diagrams, visualizations, and d
 
 ## Environment Detection
 
-Before executing any skill operations, determine the active environment and set the `skills_source` and `diagrams_output` paths:
+Before executing any skill operations, resolve the output path from the current working directory and use the runtime-resolved skill root for skill assets.
 
-### Environment Identification
+### Path Identification
 
 ```python
-# Detect environment
-if os.name == 'nt' and 'WSL_DISTRO_NAME' not in os.environ:  # Windows
-    skills_source = os.path.expanduser(r'~\.copilot\skills')
-    diagrams_output = os.path.expanduser(r'~\.docs\diagrams')
-else:  # WSL or Generic Unix/Linux
-    skills_source = os.path.expanduser('~/.copilot/skills')
-    diagrams_output = os.path.expanduser('~/.docs/diagrams')
+import os
+
+# Resolve output under the active working directory.
+cwd = os.path.abspath(os.getcwd())
+diagrams_output = os.path.join(cwd, '.docs', 'diagrams')
+
+# `skill_dir` is resolved by the Coding Agent runtime.
+# Treat it as the canonical root for this skill's files.
+skill_dir = "{{skill_dir}}"
 ```
 
 ### Path Resolution
 
-Once detected, use `skills_source` as the base path when referencing skill files:
+Use `skill_dir` as the base path when referencing skill files:
 
-- **Skill Path**: `{skills_source}/visual-explainer/SKILL.md`
-- **Script Path**: `{skills_source}/visual-explainer/scripts/share.sh`
-- **Reference Path**: `{skills_source}/visual-explainer/references/<file>.md`
+- **Skill Path**: `{skill_dir}/SKILL.md`
+- **Script Path**: `{skill_dir}/scripts/share.sh`
+- **Reference Path**: `{skill_dir}/references/<file>.md`
 - **Output File**: `{diagrams_output}/<filename>.html`
 
 ## Available Commands (Prompts)
 
-Detailed prompt templates are available in `{skills_source}/visual-explainer/commands/`. In Copilot Chat, these can be invoked as workflow shortcuts (e.g., `/diff-review`) if registered as `.prompt.md` files in the workspace or user prompts directory.
+Detailed prompt templates are available in `{skill_dir}/commands/`. In Copilot Chat, these can be invoked as workflow shortcuts (e.g., `/diff-review`) if registered as `.prompt.md` files in the workspace or user prompts directory.
 
 | Command | What it does |
 |---------|-------------|
@@ -52,7 +54,7 @@ Detailed prompt templates are available in `{skills_source}/visual-explainer/com
 
 ## Workflow
 
-1. **Detect Environment**: Set `skills_source` and `diagrams_output` based on OS.
+1. **Resolve Paths**: Set `diagrams_output` from the current working directory and use runtime-resolved `skill_dir` for skill assets.
 2. **Analyze Intent**: Determine if the content is architecture, flowchart, sequence, or data-heavy.
 3. **Select Aesthetic**: Pick a constrained aesthetic (Blueprint, Editorial, Paper/ink) to avoid generic output.
 4. **Draft Structure**: Use the appropriate rendering approach (Mermaid vs. CSS Grid vs. HTML Table).
