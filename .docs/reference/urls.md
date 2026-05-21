@@ -35,6 +35,7 @@ https://openai.com/index/harness-engineering/
 
 https://us7.campaign-archive.com/home/?u=66fdd2122e968863d381a26e1&id=25e58ef874
 https://www.milanjovanovic.tech/blog
+https://codewithmukesh.com/blog/
 
 ## Microsoft Agent Framework
 
