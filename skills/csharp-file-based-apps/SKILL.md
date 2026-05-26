@@ -1,9 +1,9 @@
 ---
 name: csharp-file-based-apps
-description: Write and run single-file C# programs without a .csproj or solution file using .NET 10+ file-based apps. Use when the user wants to execute C# code quickly — scripts, utilities, prototyping, quick experiments, data processing, teaching examples, or tool authoring. Triggers on phrases like "run this C# file", "C# script", "no project file needed", "single file C# app", "dotnet run file.cs", "quick C# utility", or any request to write and immediately execute a small self-contained C# program.
+description: Write and run C# programs without a .csproj or solution file using .NET 10+ file-based apps, including multi-file apps with `#:include` (.NET 11+). Use when the user wants to execute C# code quickly — scripts, utilities, prototyping, quick experiments, data processing, teaching examples, or tool authoring. Triggers on phrases like "run this C# file", "C# script", "no project file needed", "single file C# app", "dotnet run file.cs", "quick C# utility", "split script across files", "#:include directive", or any request to write and immediately execute a small self-contained C# program.
 metadata:
   author: arisng
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # C# File-Based Apps (.NET 10+)
@@ -12,7 +12,10 @@ Run a single `.cs` file directly — no `.csproj` required. The SDK generates a 
 
 ## Requirements
 
-.NET 10 SDK or later. Verify with `dotnet --version`. If below 10, use the [fallback](#fallback).
+- Single-file apps: .NET 10 SDK or later.
+- Multi-file (`#:include`): .NET 11 SDK or later.
+
+Verify with `dotnet --version`. If below 10, use the [fallback](#fallback).
 
 ## Write the Script
 
@@ -56,6 +59,8 @@ Place at the top of the file, before any `using` or code:
 #:package Serilog@*                  // @* = latest
 #:project ../SharedLib/Shared.csproj // Reference a local project
 #:sdk Microsoft.NET.Sdk.Web          // Alternative SDK (default: Microsoft.NET.Sdk)
+#:include helpers.cs                 // Include another .cs file (.NET 11+)
+#:include models/customer.cs         // Include from subfolder (.NET 11+)
 #:property PublishAot=false          // Disable native AOT
 #:property TargetFramework=net10.0   // Explicit TFM
 #:property OutputPath=./output       // Custom build output path
@@ -65,6 +70,39 @@ Conditional property using MSBuild expression:
 ```csharp
 #:property LogLevel=$([MSBuild]::ValueOrDefault('$(LOG_LEVEL)', 'Information'))
 ```
+
+## Multi-File Apps (.NET 11+)
+
+Use `#:include` to split a growing script across files while keeping the file-based workflow:
+
+```csharp
+// models.cs
+public record Customer(int Id, string Name, string Email);
+```
+
+```csharp
+// helpers.cs
+public static class Helpers
+{
+    public static string Format(Customer c) =>
+        $"[{c.Id}] {c.Name} <{c.Email}>";
+}
+```
+
+```csharp
+// main.cs  ← entry point
+#:include models.cs
+#:include helpers.cs
+
+var customer = new Customer(1, "John Doe", "john@example.com");
+Console.WriteLine(Helpers.Format(customer));
+```
+
+Run from the entry point: `dotnet run main.cs`
+
+Files can live in subfolders: `#:include services/email-service.cs`. Roslyn provides IntelliSense for `#:include` in the entry-point file.
+
+See [references/examples.md](references/examples.md) for complete multi-file examples (HTTP health checker, Minimal API with EF Core + SQLite).
 
 ## Native AOT Gotcha
 
@@ -95,6 +133,8 @@ To use reflection-based APIs, disable AOT: `#:property PublishAot=false`.
 | Stale / unexpected build behavior | `dotnet clean script.cs && dotnet build script.cs` |
 | Inherits unwanted `Directory.Build.props` | Move to isolated directory or add a local empty `Directory.Build.props` |
 | Running multiple instances in parallel | Build first, then all instances use `--no-build` |
+| `#:include` not found | Requires .NET 11+; verify with `dotnet --version` |
+| Included file has top-level statements | Only the entry-point file may have top-level statements; included files declare types only |
 
 ## Unix Shebang (Unix/macOS only)
 
@@ -147,6 +187,17 @@ dotnet run
 # Add packages with: dotnet add package <Name>
 ```
 
+## When to Convert to a Full Project
+
+Convert with `dotnet project convert main.cs` when:
+- You need multiple projects (Web API + class library + test project)
+- Custom MSBuild targets or conditional compilation are required
+- Distributing as a NuGet package or self-contained executable
+- CI/CD pipelines expect a `csproj`
+- The team grows and `csproj` familiarity matters
+
+Start file-based, grow as needed, convert only when you exceed the approach.
+
 ## More Examples
 
-See [references/examples.md](references/examples.md) for: data processing with NuGet packages, ASP.NET Core minimal API, Aspire AppHost, and Spectre.Console CLI tool patterns.
+See [references/examples.md](references/examples.md) for: data processing with NuGet packages, ASP.NET Core minimal API, Aspire AppHost, Spectre.Console CLI tool, and multi-file examples (HTTP health checker, Minimal API with EF Core + SQLite).
