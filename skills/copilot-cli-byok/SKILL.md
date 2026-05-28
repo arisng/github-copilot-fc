@@ -1,6 +1,9 @@
 ---
 name: copilot-cli-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles; calculating max prompt or output token overrides; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, and COPILOT_OFFLINE.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, and COPILOT_OFFLINE.
+metadata:
+  author: arisng
+  version: 0.3.0
 ---
 
 # Copilot CLI BYOK Provider Configuration
@@ -20,34 +23,37 @@ Use this skill to configure Copilot CLI against non-GitHub-hosted model provider
 - **Manual one-off environment setup**: Read `references/providers.md`.
 - **API key storage or rotation**: Read `references/api-key-storage.md`.
 - **Token-limit sizing**: Read `references/providers.md` first, then calculate conservative prompt and output limits.
+- **Reasoning-level configuration**: Read `references/providers.md`, then apply `--reasoning-effort` per invocation.
 
 ## Use the profile manager first
 
 Use `scripts/byok-profile.ps1` when the user wants repeatable setup, named profiles, or quick switching.
 
+Run the following commands from the installed `copilot-cli-byok` skill folder (the folder that contains this `SKILL.md`).
+
 Common commands:
 
 ```powershell
 # List profiles
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 list
+.\scripts\byok-profile.ps1 list
 
 # Add a profile interactively
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 add
+.\scripts\byok-profile.ps1 add
 
 # Inspect a stored profile
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 show openai
+.\scripts\byok-profile.ps1 show openai
 
 # Run Copilot CLI with a profile for one session
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 run ollama
+.\scripts\byok-profile.ps1 run ollama
 
 # Apply a profile to the current shell
-. .\skills\copilot-cli-byok\scripts\byok-profile.ps1 set-env openai
+. .\scripts\byok-profile.ps1 set-env openai
 ```
 
-Pass extra CLI arguments through `run`:
+Pass extra Copilot CLI arguments through `run` (do not pass `--model`; model is sourced from the profile):
 
 ```powershell
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 run openai --model gpt-5.4
+.\scripts\byok-profile.ps1 run openai --help
 ```
 
 Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byok-profiles.json`.
@@ -64,8 +70,40 @@ Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byo
 - Prefer `${ENV_VAR}` placeholders over raw API keys in JSON.
 - Treat `openai` as the default provider type for OpenAI-compatible endpoints such as Ollama, vLLM, Foundry Local, and Moonshot.
 - Set `COPILOT_PROVIDER_TYPE=azure` only for Azure OpenAI and `anthropic` only for Anthropic.
+- For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`.
 - Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.
 - If the model is not in Copilot CLI's built-in catalog, set explicit prompt and output token overrides instead of assuming Copilot will infer them correctly.
+
+## Configure reasoning effort correctly
+
+Use Copilot CLI's `--reasoning-effort` option for model reasoning level control.
+
+- Supported levels: `none`, `low`, `medium`, `high`, `xhigh`, `max`.
+- Apply it per run, for example:
+
+```powershell
+.\scripts\byok-profile.ps1 run dprocess-openai-gpt-54 --reasoning-effort medium
+```
+
+For OpenAI models, you may also enable summaries:
+
+```powershell
+.\scripts\byok-profile.ps1 run dprocess-openai-gpt-54 --reasoning-effort high --enable-reasoning-summaries
+```
+
+Do not claim a dedicated `COPILOT_*` environment variable exists for reasoning effort unless `copilot help environment` in the user's installed CLI version explicitly lists one.
+
+## Grounding and evidence standard
+
+When answering questions in this domain, always separate grounded facts from inference:
+
+1. Cite authoritative evidence used (for example, `copilot --help`, `copilot help environment`, provider model docs).
+2. State what is directly evidenced versus inferred operational guidance.
+3. End with an explicit conclusion:
+  - `Grounding status: evidence-backed` when all key claims are directly supported.
+  - `Grounding status: mixed (evidence + inference)` when any recommendation is inferred.
+
+Do not present inferred workarounds (for example wrapper aliases for sticky defaults) as first-class documented product features.
 
 ## Calculate token overrides conservatively
 

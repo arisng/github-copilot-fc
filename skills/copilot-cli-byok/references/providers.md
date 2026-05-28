@@ -10,6 +10,7 @@ Quick-reference for configuring Copilot CLI BYOK providers.
 | `COPILOT_MODEL` | Yes | Model identifier. Can also be set via `--model` flag. |
 | `COPILOT_PROVIDER_TYPE` | No | Provider type: `openai`, `azure`, or `anthropic`. Defaults to `openai`. |
 | `COPILOT_PROVIDER_API_KEY` | No | API key. Omit for unauthenticated providers (e.g., local Ollama). |
+| `COPILOT_PROVIDER_WIRE_API` | No | Provider wire format: `completions` (default) or `responses`. For GPT-5 class OpenAI models, prefer `responses`. |
 | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` | No | Override the max prompt token limit Copilot CLI uses for the model. Useful when the model is not in Copilot's built-in catalog. |
 | `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS` | No | Override the max output token limit Copilot CLI uses for the model. |
 | `COPILOT_OFFLINE` | No | Set to `true` to prevent Copilot CLI from contacting GitHub's servers. |
@@ -29,6 +30,36 @@ The chosen model must support:
 - **Streaming**
 
 For best results, use a model with a context window of at least **128k tokens**. If your model supports a larger context window and is not in Copilot CLI's built-in catalog, set `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` to its actual limit so Copilot CLI doesn't fall back to a smaller default.
+
+## Reasoning Effort
+
+Reasoning level is configured via Copilot CLI option `--reasoning-effort` (alias: `--effort`) per invocation.
+
+Supported levels:
+- `none`
+- `low`
+- `medium`
+- `high`
+- `xhigh`
+- `max`
+
+Example:
+
+```powershell
+copilot --reasoning-effort medium
+```
+
+If you run through BYOK profile script passthrough:
+
+```powershell
+.\scripts\byok-profile.ps1 run dprocess-openai-gpt-54 --reasoning-effort medium
+```
+
+OpenAI-specific note:
+- GPT-5 class models may perform best with `COPILOT_PROVIDER_WIRE_API=responses`.
+
+Version note:
+- Do not assume a `COPILOT_*` environment variable exists for reasoning effort unless it appears in `copilot help environment` for the installed CLI version.
 
 ## Examples
 
