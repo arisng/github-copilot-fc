@@ -122,6 +122,13 @@ function Set-ProviderEnvironment {
         $env:COPILOT_PROVIDER_TYPE = 'openai'
     }
 
+    if ($Provider.wireApi) {
+        $env:COPILOT_PROVIDER_WIRE_API = $Provider.wireApi
+    }
+    else {
+        Remove-Item Env:\COPILOT_PROVIDER_WIRE_API -ErrorAction SilentlyContinue
+    }
+
     if ($Provider.apiKey) {
         $env:COPILOT_PROVIDER_API_KEY = Expand-EnvPlaceholder -Value $Provider.apiKey
     }
@@ -371,6 +378,7 @@ function Invoke-ProfileRun {
     Write-Host "  Provider : $(if ($p.type) { $p.type } else { 'openai' })" -ForegroundColor Gray
     Write-Host "  Base URL : $($p.baseUrl)" -ForegroundColor Gray
     Write-Host "  Model    : $($p.model)" -ForegroundColor Gray
+    if ($p.wireApi) { Write-Host "  Wire API : $($p.wireApi)" -ForegroundColor Gray }
     if ($p.maxPromptTokens) { Write-Host "  Max Prompt Tokens : $($p.maxPromptTokens)" -ForegroundColor Gray }
     if ($p.maxOutputTokens) { Write-Host "  Max Output Tokens : $($p.maxOutputTokens)" -ForegroundColor Gray }
     if ($p.offline -eq $true) { Write-Host "  Offline  : true" -ForegroundColor Gray }
@@ -404,6 +412,9 @@ function Invoke-ProfileSetEnv {
     Write-Host "  COPILOT_PROVIDER_BASE_URL = $($env:COPILOT_PROVIDER_BASE_URL)" -ForegroundColor Gray
     Write-Host "  COPILOT_PROVIDER_TYPE     = $($env:COPILOT_PROVIDER_TYPE)" -ForegroundColor Gray
     Write-Host "  COPILOT_MODEL             = $($env:COPILOT_MODEL)" -ForegroundColor Gray
+    if ($env:COPILOT_PROVIDER_WIRE_API) {
+        Write-Host "  COPILOT_PROVIDER_WIRE_API = $($env:COPILOT_PROVIDER_WIRE_API)" -ForegroundColor Gray
+    }
     if ($env:COPILOT_PROVIDER_API_KEY) {
         Write-Host "  COPILOT_PROVIDER_API_KEY  = ***" -ForegroundColor Gray
     }
