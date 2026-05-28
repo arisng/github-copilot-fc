@@ -1,192 +1,97 @@
 ---
 name: copilot-cli-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, or other OpenAI-compatible endpoints; switching provider profiles; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, and COPILOT_OFFLINE configuration.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles; calculating max prompt or output token overrides; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, and COPILOT_OFFLINE.
 ---
 
-# Copilot CLI BYOK LLM Provider Configuration
+# Copilot CLI BYOK Provider Configuration
 
-Configure GitHub Copilot CLI to use your own LLM provider instead of GitHub-hosted models.
+Use this skill to configure Copilot CLI against non-GitHub-hosted model providers and to manage repeatable provider profiles.
 
-## Quick Start
+## Follow this workflow
 
-Use the bundled profile manager script to avoid manual environment-variable setup every time.
+1. Determine whether the user needs a **profile-based setup**, a **one-off manual setup**, or **troubleshooting**.
+2. Prefer `scripts/byok-profile.ps1` for repeated use or when the user wants to switch providers quickly.
+3. Read only the reference file that matches the current need.
+4. Keep secrets out of files. Prefer `${ENV_VAR}` placeholders and user-scoped environment variables.
 
-**Script path:** `scripts/byok-profile.ps1`
+## Choose the path
 
-### Common Commands
+- **Reusable profile workflow**: Use `scripts/byok-profile.ps1`.
+- **Manual one-off environment setup**: Read `references/providers.md`.
+- **API key storage or rotation**: Read `references/api-key-storage.md`.
+- **Token-limit sizing**: Read `references/providers.md` first, then calculate conservative prompt and output limits.
 
-```powershell
-# List stored profiles
-.\scripts\byok-profile.ps1 list
+## Use the profile manager first
 
-# Add a new profile interactively
-.\scripts\byok-profile.ps1 add
+Use `scripts/byok-profile.ps1` when the user wants repeatable setup, named profiles, or quick switching.
 
-# Run Copilot CLI with a specific profile (one-off session)
-.\scripts\byok-profile.ps1 run ollama
-
-# Apply a profile to the current shell session (dot-source)
-. .\scripts\byok-profile.ps1 set-env openai
-```
-
-Pass extra arguments to `copilot` when using `run`:
+Common commands:
 
 ```powershell
-.\scripts\byok-profile.ps1 run openai --model gpt-4o
+# List profiles
+.\skills\copilot-cli-byok\scripts\byok-profile.ps1 list
+
+# Add a profile interactively
+.\skills\copilot-cli-byok\scripts\byok-profile.ps1 add
+
+# Inspect a stored profile
+.\skills\copilot-cli-byok\scripts\byok-profile.ps1 show openai
+
+# Run Copilot CLI with a profile for one session
+.\skills\copilot-cli-byok\scripts\byok-profile.ps1 run ollama
+
+# Apply a profile to the current shell
+. .\skills\copilot-cli-byok\scripts\byok-profile.ps1 set-env openai
 ```
 
-### Kimi / Moonshot Shortcut
-
-The profile manager includes a preset for Kimi providers:
-
-- **Kimi Code** (`api.kimi.com/coding/v1`) — for https://www.kimi.com/code subscribers. Creates a profile named `kimicode`. Note: Kimi Code currently blocks Copilot CLI with `403 Forbidden` (agent whitelist), so this profile acts as a placeholder.
-- **Moonshot Open Platform** (`api.moonshot.cn/v1` or `api.moonshot.ai/v1`) — for general Moonshot API users. Creates a profile named `kimi`.
+Pass extra CLI arguments through `run`:
 
 ```powershell
-.\scripts\byok-profile.ps1 add
-# Select preset 5) Kimi / Moonshot, then choose your option
+.\skills\copilot-cli-byok\scripts\byok-profile.ps1 run openai --model gpt-5.4
 ```
 
-Then run:
+Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byok-profiles.json`.
 
-```powershell
-# Moonshot Open Platform (works today)
-.\scripts\byok-profile.ps1 run kimi
+## Read references on demand
 
-# Kimi Code (placeholder until Copilot CLI is whitelisted)
-.\scripts\byok-profile.ps1 run kimicode
-```
+- `references/providers.md`
+  - Read when you need provider-specific environment variables, examples, model requirements, or offline-mode notes.
+- `references/api-key-storage.md`
+  - Read when the user needs secure key storage, persistent Windows environment variables, key rotation, or `${ENV_VAR}` placeholder guidance.
 
-### Profile Storage
+## Apply these operating rules
 
-Profiles are stored in `~/.copilot/byok-profiles.json` (or `$COPILOT_HOME/byok-profiles.json`). The `apiKey` field supports `${ENV_VAR}` syntax so secrets are not hard-coded.
+- Prefer `${ENV_VAR}` placeholders over raw API keys in JSON.
+- Treat `openai` as the default provider type for OpenAI-compatible endpoints such as Ollama, vLLM, Foundry Local, and Moonshot.
+- Set `COPILOT_PROVIDER_TYPE=azure` only for Azure OpenAI and `anthropic` only for Anthropic.
+- Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.
+- If the model is not in Copilot CLI's built-in catalog, set explicit prompt and output token overrides instead of assuming Copilot will infer them correctly.
 
-Example profile file:
+## Calculate token overrides conservatively
 
-```json
-{
-  "profiles": {
-    "ollama": {
-      "type": "openai",
-      "baseUrl": "http://localhost:11434",
-      "model": "llama3.2",
-      "apiKey": null,
-      "offline": true
-    },
-    "openai": {
-      "type": "openai",
-      "baseUrl": "https://api.openai.com/v1",
-      "model": "gpt-4o",
-      "apiKey": "${OPENAI_API_KEY}",
-      "offline": false
-    },
-    "kimi": {
-      "type": "openai",
-      "baseUrl": "https://api.moonshot.cn/v1",
-      "model": "kimi-k2.5",
-      "apiKey": "${MOONSHOT_API_KEY}",
-      "maxPromptTokens": 262144,
-      "offline": false
-    }
-  }
-}
-```
+When the user asks for `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` or `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS`:
 
-### Convenience Alias
+1. Get the model's documented context window.
+2. Pick a realistic max output budget for the workload.
+3. Reserve a safety buffer for tool calls, system instructions, and multi-turn variance.
+4. Compute:
 
-Add this to your PowerShell profile (`$PROFILE`) for quick access without typing the full path:
+`maxPromptTokens = contextWindow - plannedMaxOutput - safetyBuffer`
 
-```powershell
-function copilot-byok {
-    param(
-        [Parameter(Position = 0)] [string]$Command = 'list',
-        [Parameter(Position = 1)] [string]$Name,
-        [Parameter(ValueFromRemainingArguments = $true)] [string[]]$Remaining
-    )
-    & C:\path\to\repo\skills\copilot-cli-byok\scripts\byok-profile.ps1 $Command $Name @Remaining
-}
-```
+Prefer stable values over theoretical maximums. If the user reports context-limit failures, reduce prompt tokens by 5-10% and retry.
 
-Then use it anywhere:
+## Troubleshoot in this order
 
-```powershell
-copilot-byok run ollama
-copilot-byok add
-```
+1. Confirm the base URL, provider type, model name, and API key source.
+2. Confirm the model supports streaming and tool calling.
+3. If using a stored profile, run `show` or `list` to verify the saved values.
+4. If `${ENV_VAR}` placeholders are used, confirm the environment variable actually exists.
+5. If long-context models fail, add or lower explicit max prompt and output token overrides.
 
-#### One-time setup helper
+## Important provider caveat
 
-Run this from the repository root to auto-inject the alias into your PowerShell profile:
+Kimi Code (`https://api.kimi.com/coding/v1`) is currently useful only as a placeholder profile for Copilot CLI because that backend enforces an allowlist and may return `403 Forbidden` for unsupported clients. Use Moonshot Open Platform endpoints for working OpenAI-compatible Kimi-family access unless the provider explicitly adds Copilot CLI support.
 
-```powershell
-$repoRoot = (Get-Location).Path
-$aliasLine = @"
+## Related skill
 
-function copilot-byok {
-    param(
-        [Parameter(Position = 0)] [string]`$Command = 'list',
-        [Parameter(Position = 1)] [string]`$Name,
-        [Parameter(ValueFromRemainingArguments = `$true)] [string[]]`$Remaining
-    )
-    & `"$repoRoot\skills\copilot-cli-byok\scripts\byok-profile.ps1`" `$Command `$Name @Remaining
-}
-"@
-
-if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
-if ((Get-Content $PROFILE -Raw) -notlike '*function copilot-byok*') {
-    Add-Content -Path $PROFILE -Value $aliasLine
-    Write-Host "Added 'copilot-byok' alias to `$PROFILE. Restart your shell to use it." -ForegroundColor Green
-}
-else {
-    Write-Host "'copilot-byok' alias already exists in `$PROFILE." -ForegroundColor Yellow
-}
-```
-
-#### Alternative: add the scripts folder to PATH
-
-If you prefer invoking the script directly by name:
-
-```powershell
-# Permanent (User scope)
-[Environment]::SetEnvironmentVariable(
-    "Path",
-    "$env:Path;C:\path\to\repo\skills\copilot-cli-byok\scripts",
-    "User"
-)
-```
-
-After restarting your shell, run:
-
-```powershell
-byok-profile.ps1 list
-byok-profile.ps1 run kimi
-```
-
-## Manual Configuration
-
-If you prefer not to use the profile manager, set the environment variables directly before launching `copilot`.
-
-See [references/providers.md](references/providers.md) for:
-- Full environment variable reference
-- Supported providers and model requirements
-- Copy-paste examples for Ollama, OpenAI, Azure OpenAI, and Anthropic
-- Offline mode guidance
-
-## Troubleshooting
-
-**Copilot CLI returns a model error on startup:**
-- Confirm the model supports tool calling and streaming.
-- Verify the model identifier matches exactly what the provider expects.
-
-**Authentication errors:**
-- Double-check `COPILOT_PROVIDER_API_KEY`.
-- For Azure, ensure the full deployment URL is used as the base URL.
-
-**Profile not found:**
-- Verify the profile name exists in the JSON file (`list` command).
-- Confirm the script resolves the correct config directory (`$env:COPILOT_HOME` or `~/.copilot`).
-
-## References
-
-- [GitHub Docs: Use BYOK models with Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-byok-models)
-- [Copilot CLI MCP Config Skill](../copilot-cli-mcp-config/SKILL.md)
+For MCP server configuration rather than model-provider configuration, read `../copilot-cli-mcp-config/SKILL.md`.
