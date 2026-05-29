@@ -1,0 +1,214 @@
+{
+  "_schema_note": "SKILL INPUT FORMAT — This file uses a simplified human/agent-readable schema, NOT a native tldraw store snapshot. Do not pass to store.loadSnapshot(). Parse and create shapes via editor.createShapes() instead. See test-server/src/App.jsx for a working reference. In tldraw 3.x, 'props.text' is replaced by 'props.richText' (ProseMirror document); use toRichText(str) from the tldraw package to convert.",
+  "version": 15,
+  "document": {
+    "id": "doc_example_architecture",
+    "pages": {
+      "page_main": {
+        "id": "page_main",
+        "name": "System Architecture",
+        "shapes": {
+          "shape_frontend": {
+            "id": "shape_frontend",
+            "type": "geo",
+            "x": 50,
+            "y": 100,
+            "rotation": 0,
+            "props": {
+              "w": 180,
+              "h": 100,
+              "geo": "rectangle",
+              "fill": "solid",
+              "color": "blue",
+              "opacityForShape": 1,
+              "dash": "solid",
+              "size": "m",
+              "text": "Frontend\n(React)",
+              "align": "middle",
+              "verticalAlign": "middle",
+              "font": "sans"
+            }
+          },
+          "shape_backend": {
+            "id": "shape_backend",
+            "type": "geo",
+            "x": 350,
+            "y": 100,
+            "rotation": 0,
+            "props": {
+              "w": 180,
+              "h": 100,
+              "geo": "rectangle",
+              "fill": "solid",
+              "color": "green",
+              "opacityForShape": 1,
+              "dash": "solid",
+              "size": "m",
+              "text": "Backend\n(Node.js)",
+              "align": "middle",
+              "verticalAlign": "middle",
+              "font": "sans"
+            }
+          },
+          "shape_database": {
+            "id": "shape_database",
+            "type": "geo",
+            "x": 650,
+            "y": 100,
+            "rotation": 0,
+            "props": {
+              "w": 180,
+              "h": 100,
+              "geo": "rectangle",
+              "fill": "solid",
+              "color": "orange",
+              "opacityForShape": 1,
+              "dash": "solid",
+              "size": "m",
+              "text": "Database\n(PostgreSQL)",
+              "align": "middle",
+              "verticalAlign": "middle",
+              "font": "sans"
+            }
+          },
+          "shape_cache": {
+            "id": "shape_cache",
+            "type": "geo",
+            "x": 350,
+            "y": 300,
+            "rotation": 0,
+            "props": {
+              "w": 180,
+              "h": 80,
+              "geo": "rectangle",
+              "fill": "solid",
+              "color": "purple",
+              "opacityForShape": 1,
+              "dash": "solid",
+              "size": "m",
+              "text": "Cache\n(Redis)",
+              "align": "middle",
+              "verticalAlign": "middle",
+              "font": "sans"
+            }
+          },
+          "shape_title": {
+            "id": "shape_title",
+            "type": "text",
+            "x": 50,
+            "y": 20,
+            "rotation": 0,
+            "props": {
+              "text": "System Architecture Diagram",
+              "color": "black",
+              "size": "xl",
+              "align": "start",
+              "font": "sans",
+              "opacityForShape": 1
+            }
+          },
+          "shape_label_1": {
+            "id": "shape_label_1",
+            "type": "text",
+            "x": 190,
+            "y": 160,
+            "rotation": 0,
+            "props": {
+              "text": "HTTP/REST",
+              "color": "black",
+              "size": "s",
+              "align": "middle",
+              "font": "sans",
+              "opacityForShape": 1
+            }
+          },
+          "shape_label_2": {
+            "id": "shape_label_2",
+            "type": "text",
+            "x": 540,
+            "y": 160,
+            "rotation": 0,
+            "props": {
+              "text": "SQL",
+              "color": "black",
+              "size": "s",
+              "align": "middle",
+              "font": "sans",
+              "opacityForShape": 1
+            }
+          },
+          "shape_label_3": {
+            "id": "shape_label_3",
+            "type": "text",
+            "x": 350,
+            "y": 210,
+            "rotation": 0,
+            "props": {
+              "text": "Query Cache",
+              "color": "black",
+              "size": "s",
+              "align": "middle",
+              "font": "sans",
+              "opacityForShape": 1
+            }
+          }
+        },
+        "bindings": {
+          "binding_frontend_backend": {
+            "id": "binding_frontend_backend",
+            "type": "arrow",
+            "fromId": "shape_frontend",
+            "toId": "shape_backend",
+            "props": {
+              "start": "none",
+              "end": "arrow",
+              "dash": "solid",
+              "size": "m"
+            }
+          },
+          "binding_backend_database": {
+            "id": "binding_backend_database",
+            "type": "arrow",
+            "fromId": "shape_backend",
+            "toId": "shape_database",
+            "props": {
+              "start": "none",
+              "end": "arrow",
+              "dash": "solid",
+              "size": "m"
+            }
+          },
+          "binding_backend_cache": {
+            "id": "binding_backend_cache",
+            "type": "arrow",
+            "fromId": "shape_backend",
+            "toId": "shape_cache",
+            "props": {
+              "start": "none",
+              "end": "arrow",
+              "dash": "dashed",
+              "size": "m"
+            }
+          }
+        }
+      }
+    },
+    "assets": {},
+    "pageStates": {
+      "page_main": {
+        "id": "page_main",
+        "selectedShapeIds": [],
+        "pageLayerIds": [
+          "shape_title",
+          "shape_frontend",
+          "shape_backend",
+          "shape_database",
+          "shape_cache",
+          "shape_label_1",
+          "shape_label_2",
+          "shape_label_3"
+        ]
+      }
+    }
+  }
+}
