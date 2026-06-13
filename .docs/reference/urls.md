@@ -42,7 +42,10 @@ https://codewithmukesh.com/blog/
 https://devblogs.microsoft.com/agent-framework/
 https://devblogs.microsoft.com/agent-framework/agent-skills-in-net-three-ways-to-author-one-provider-to-run-them/
 
-
 ## Aspire
 
 https://devblogs.microsoft.com/aspire/
+
+## Claude Kit for dotnet
+
+https://github.com/codewithmukesh/dotnet-claude-kit
