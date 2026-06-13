@@ -1,9 +1,9 @@
 ---
 name: copilot-cli-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, and COPILOT_OFFLINE.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, and COPILOT_OFFLINE.
 metadata:
   author: arisng
-  version: 0.3.0
+  version: 0.4.0
 ---
 
 # Copilot CLI BYOK Provider Configuration
@@ -70,6 +70,8 @@ Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byo
 - Prefer `${ENV_VAR}` placeholders over raw API keys in JSON.
 - Treat `openai` as the default provider type for OpenAI-compatible endpoints such as Ollama, vLLM, Foundry Local, and Moonshot.
 - Set `COPILOT_PROVIDER_TYPE=azure` only for Azure OpenAI and `anthropic` only for Anthropic.
+- **OpenCode Go** uses a shared base URL with two possible provider types: `openai` (append `/v1`) for DeepSeek, GLM, Kimi, and MiMo models; `anthropic` (no `/v1` suffix — SDK adds it) for MiniMax and Qwen models. Store the OpenCode API key as `OPENCODE_API_KEY`.
+- **CRITICAL: `COPILOT_MODEL` must use the bare model ID** (e.g., `deepseek-v4-flash`), **not** the `opencode-go/` prefix. The prefix is only used in OpenCode TUI config and in Copilot CLI profile names — never in `COPILOT_MODEL`.
 - For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`.
 - Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.
 - If the model is not in Copilot CLI's built-in catalog, set explicit prompt and output token overrides instead of assuming Copilot will infer them correctly.
@@ -126,9 +128,9 @@ Prefer stable values over theoretical maximums. If the user reports context-limi
 4. If `${ENV_VAR}` placeholders are used, confirm the environment variable actually exists.
 5. If long-context models fail, add or lower explicit max prompt and output token overrides.
 
-## Important provider caveat
+## Moonshot/Kimi AI credentials
 
-Kimi Code (`https://api.kimi.com/coding/v1`) is currently useful only as a placeholder profile for Copilot CLI because that backend enforces an allowlist and may return `403 Forbidden` for unsupported clients. Use Moonshot Open Platform endpoints for working OpenAI-compatible Kimi-family access unless the provider explicitly adds Copilot CLI support.
+Use `MOONSHOT_API_KEY` for the Kimi AI Platform (`api.moonshot.ai/v1`). All models use OpenAI-compatible format, 262K context, and support tool calling and streaming.
 
 ## Related skill
 

@@ -19,9 +19,9 @@ Quick-reference for configuring Copilot CLI BYOK providers.
 
 | Provider Type | Compatible Services |
 |---------------|---------------------|
-| `openai` | OpenAI, Ollama, vLLM, Foundry Local, and any OpenAI Chat Completions API-compatible endpoint (default) |
+| `openai` | OpenAI, Ollama, vLLM, Foundry Local, OpenCode Go (OpenAI-compatible models), and any OpenAI Chat Completions API-compatible endpoint (default) |
 | `azure` | Azure OpenAI Service |
-| `anthropic` | Anthropic (Claude models) |
+| `anthropic` | Anthropic (Claude models), OpenCode Go (Anthropic-compatible models) |
 
 ## Model Requirements
 
@@ -100,41 +100,156 @@ $env:COPILOT_MODEL = 'claude-opus-4-5'
 copilot
 ```
 
-### Kimi Code (kimi.com/code subscription)
+### Kimi AI / Moonshot Open Platform
 
-If you have a Kimi Code subscription and generated an API key from https://www.kimi.com/code/console, use the Kimi Code OpenAI-compatible endpoint:
-
-```powershell
-$env:COPILOT_PROVIDER_BASE_URL = 'https://api.kimi.com/coding/v1'
-$env:COPILOT_PROVIDER_TYPE = 'openai'
-$env:COPILOT_PROVIDER_API_KEY = $env:KIMICODE_API_KEY
-$env:COPILOT_MODEL = 'kimi-for-coding'
-$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 262144
-copilot
-```
-
-> **Important:** Kimi Code's backend currently enforces an agent whitelist. It returns `403 Forbidden` for clients other than Kimi CLI, Claude Code, Roo Code, and Kilo Code. GitHub Copilot CLI is **not yet whitelisted**, so this configuration is effectively a placeholder for now.
-
-### Moonshot Open Platform
-
-For the general Moonshot API (not Kimi Code), use the Moonshot OpenAI-compatible endpoint with `provider type = openai`:
+The [Kimi AI Platform](https://platform.kimi.ai/docs/overview) (backed by Moonshot AI) provides OpenAI-compatible API access to the Kimi model family. All models support tool calling, streaming, and thinking mode.
 
 ```powershell
-$env:COPILOT_PROVIDER_BASE_URL = 'https://api.moonshot.cn/v1'
+$env:COPILOT_PROVIDER_BASE_URL = 'https://api.moonshot.ai/v1'
 $env:COPILOT_PROVIDER_TYPE = 'openai'
 $env:COPILOT_PROVIDER_API_KEY = $env:MOONSHOT_API_KEY
-$env:COPILOT_MODEL = 'kimi-k2.5'
-$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 256000
+$env:COPILOT_MODEL = 'kimi-k2.6'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 240000
 copilot
 ```
 
 Available regions:
-- China: `https://api.moonshot.cn/v1`
 - Global: `https://api.moonshot.ai/v1`
+- China: `https://api.moonshot.cn/v1`
 
-Common Moonshot models: `kimi-k2.5`, `kimi-k2`, `moonshot-v1-8k`, `moonshot-v1-32k`, `moonshot-v1-128k`.
+Available models:
 
-Models from Moonshot may support up to **256,000 tokens** (or 262,144 in some coding-tool configs). Explicitly set `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` to avoid Copilot CLI defaulting to a smaller limit.
+| Model | Model ID | Context | Thinking | Input Price | Output Price | Notes |
+|-------|----------|---------|----------|-------------|--------------|-------|
+| Kimi K2.7 Code | `kimi-k2.7-code` | 262,144 | Always on | $0.95 / MTok | $4.00 / MTok | Coding-optimized; cannot disable thinking |
+| Kimi K2.6 | `kimi-k2.6` | 262,144 | Optional | $0.95 / MTok | $4.00 / MTok | Latest flagship; text, image, video |
+| Kimi K2.5 | `kimi-k2.5` | 262,144 | Optional | $0.60 / MTok | $3.00 / MTok | Cost-effective; text, image, video |
+
+> All models support automatic context caching (cache hit prices: K2.7 $0.19, K2.6 $0.16, K2.5 $0.10 per MTok).
+
+Store your API key persistently:
+
+```powershell
+[Environment]::SetEnvironmentVariable("MOONSHOT_API_KEY", "<your-api-key>", "User")
+```
+
+### Moonshot Open Platform (legacy)
+
+Older Moonshot models (`kimi-k2`, `moonshot-v1-*`) are deprecated. Use the Kimi AI Platform models above instead.
+
+## OpenCode Go
+
+OpenCode Go is a subscription-based provider offering reliable access to popular open coding models via a single shared base URL. Models use one of two endpoint formats depending on the model family.
+
+### Prerequisites
+
+1. Subscribe to OpenCode Go at **[OpenCode Zen](https://opencode.ai/auth)** ($5 first month, then $10/month).
+2. Generate an API key from the console.
+3. Store the key as the environment variable `OPENCODE_API_KEY`:
+
+```powershell
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY", "<your-opencode-api-key>", "User")
+```
+
+### Base URL
+
+```
+https://opencode.ai/zen/go/v1
+```
+
+This single base URL serves both OpenAI-compatible and Anthropic-compatible models. Copilot CLI automatically appends the correct path based on `COPILOT_PROVIDER_TYPE`.
+
+**Critical base URL pattern:**
+- `COPILOT_PROVIDER_TYPE=openai` → use `https://opencode.ai/zen/go/v1` (SDK appends `/chat/completions`)
+- `COPILOT_PROVIDER_TYPE=anthropic` → use `https://opencode.ai/zen/go` (SDK appends `/v1/messages`)
+
+The Anthropic-type base URL strips the `/v1` because the SDK already adds it.
+
+**CRITICAL: `COPILOT_MODEL` must use the bare model ID (e.g., `deepseek-v4-flash`), never the `opencode-go/` prefix.** The `opencode-go/<model-id>` format is used **only** in OpenCode TUI config (`opencode.json`) — not in Copilot CLI's `COPILOT_MODEL`. The prefix in profile names like `opencode-go-deepseek-v4-flash` is just a naming convention for the profile key, not the model value.
+
+### Model naming convention
+
+Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `opencode-go/<model-id>` prefix is used only in OpenCode TUI config — **never** in `COPILOT_MODEL`. Profile names like `opencode-go-deepseek-v4-flash` are just naming keys, not model values.
+
+### Available Models
+
+### Available Models
+
+| Model | Bare Model ID (`COPILOT_MODEL`) | Provider Type | Wire Format |
+|-------|-------------------------------|---------------|-------------|
+| DeepSeek V4 Flash | `deepseek-v4-flash` | `openai` | `completions` |
+| DeepSeek V4 Pro | `deepseek-v4-pro` | `openai` | `completions` |
+| Kimi K2.7 Code | `kimi-k2.7-code` | `openai` | `completions` |
+| Kimi K2.6 | `kimi-k2.6` | `openai` | `completions` |
+| GLM-5.1 | `glm-5.1` | `openai` | `completions` |
+| GLM-5 | `glm-5` | `openai` | `completions` |
+| MiMo-V2.5 (Xiaomi, 1M context) | `mimo-v2.5` | `openai` | `completions` |
+| MiMo-V2.5-Pro (Xiaomi, 1M context) | `mimo-v2.5-pro` | `openai` | `completions` |
+| Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `completions` |
+| Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `completions` |
+| Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `completions` |
+| MiniMax M3 | `minimax-m3` | `anthropic` | `completions` |
+| MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `completions` |
+
+> The model list may change over time. Fetch the current list at any time:
+> ```
+> curl https://opencode.ai/zen/go/v1/models
+> ```
+
+### Usage limits
+
+OpenCode Go imposes dollar-value usage limits tracked in the Zen console:
+- **5 hour limit** — $12 of usage
+- **Weekly limit** — $30 of usage
+- **Monthly limit** — $60 of usage
+
+If you also have OpenCode Zen credits, enable **Use balance** in the console to fall back to your balance after limits are reached.
+
+### Examples
+
+#### DeepSeek V4 Flash (OpenAI-compatible, cheapest)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY
+$env:COPILOT_MODEL = 'deepseek-v4-flash'
+copilot
+```
+
+#### Qwen3.7 Plus (Anthropic-compatible — note: base URL without `/v1` because SDK appends it)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go'
+$env:COPILOT_PROVIDER_TYPE = 'anthropic'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY
+$env:COPILOT_MODEL = 'qwen3.7-plus'
+copilot
+```
+
+#### Kimi K2.7 Code (OpenAI-compatible)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY
+$env:COPILOT_MODEL = 'kimi-k2.7-code'
+copilot
+```
+
+### Profile-based setup
+
+Use the profile manager script with preset **6 (OpenCode Go)**:
+
+```powershell
+.\scripts\byok-profile.ps1 add
+```
+
+Then run:
+
+```powershell
+.\scripts\byok-profile.ps1 run my-opencode-go-profile
+```
 
 ## Offline Mode Notes
 

@@ -7,6 +7,7 @@
     Configurations are persisted in ~/.copilot/byok-profiles.json (or $COPILOT_HOME/byok-profiles.json).
 
     Supported provider types: openai (default), azure, anthropic.
+    OpenCode Go is supported via preset in the interactive 'add' workflow.
 
 .PARAMETER Command
     Action to perform: list, show, add, remove, run, set-env
@@ -231,10 +232,11 @@ function Invoke-ProfileAdd {
     Write-Host "  2) Azure OpenAI"
     Write-Host "  3) Anthropic"
     Write-Host "  4) Ollama (local)"
-    Write-Host "  5) Kimi / Moonshot"
-    Write-Host "  6) Custom"
-    $preset = Read-Host "Preset number [6]"
-    if ([string]::IsNullOrWhiteSpace($preset)) { $preset = '6' }
+    Write-Host "  5) Kimi AI / Moonshot"
+    Write-Host "  6) OpenCode Go"
+    Write-Host "  7) Custom"
+    $preset = Read-Host "Preset number [7]"
+    if ([string]::IsNullOrWhiteSpace($preset)) { $preset = '7' }
 
     $type = 'openai'
     $baseUrl = ''
@@ -273,29 +275,84 @@ function Invoke-ProfileAdd {
         }
         '5' {
             $type = 'openai'
-            Write-Host "Select Kimi provider:" -ForegroundColor Cyan
-            Write-Host "  1) Kimi Code (api.kimi.com/coding/v1) - for kimi.com/code subscribers"
-            Write-Host "  2) Moonshot Open Platform China (api.moonshot.cn/v1)"
-            Write-Host "  3) Moonshot Open Platform Global (api.moonshot.ai/v1)"
-            $region = Read-Host "Option [1]"
+            $defaultApiKeyPrompt = '${MOONSHOT_API_KEY}'
+            $defaultMaxPromptTokens = 240000
+
+            Write-Host "Select Kimi AI region:" -ForegroundColor Cyan
+            Write-Host "  1) Global (api.moonshot.ai/v1) - recommended"
+            Write-Host "  2) China (api.moonshot.cn/v1)"
+            $region = Read-Host "Region [1]"
             if ([string]::IsNullOrWhiteSpace($region) -or $region -eq '1') {
-                $baseUrl = 'https://api.kimi.com/coding/v1'
-                $model = 'kimi-for-coding'
-                $defaultApiKeyPrompt = '${KIMICODE_API_KEY}'
-                $defaultMaxPromptTokens = 262144
-            }
-            elseif ($region -eq '2') {
-                $baseUrl = 'https://api.moonshot.cn/v1'
-                $model = 'kimi-k2.5'
-                $defaultApiKeyPrompt = '${MOONSHOT_API_KEY}'
-                $defaultMaxPromptTokens = 256000
+                $baseUrl = 'https://api.moonshot.ai/v1'
             }
             else {
-                $baseUrl = 'https://api.moonshot.ai/v1'
-                $model = 'kimi-k2.5'
-                $defaultApiKeyPrompt = '${MOONSHOT_API_KEY}'
-                $defaultMaxPromptTokens = 256000
+                $baseUrl = 'https://api.moonshot.cn/v1'
             }
+
+            Write-Host "Select model:" -ForegroundColor Cyan
+            Write-Host "  1) Kimi K2.7 Code (coding-optimized, thinking always on)"
+            Write-Host "  2) Kimi K2.6 (latest flagship, multimodal)"
+            Write-Host "  3) Kimi K2.5 (multimodal, lower cost)"
+            $modelChoice = Read-Host "Model [2]"
+            $model = switch ($modelChoice) {
+                '1' { 'kimi-k2.7-code' }
+                '2' { 'kimi-k2.6' }
+                '3' { 'kimi-k2.5' }
+                default { 'kimi-k2.6' }
+            }
+        }
+        '6' {
+            $type = 'openai'
+            $baseUrl = 'https://opencode.ai/zen/go/v1'
+            $defaultApiKeyPrompt = '${OPENCODE_API_KEY}'
+
+            Write-Host "Select OpenCode Go model category:" -ForegroundColor Cyan
+            Write-Host "  1) OpenAI-compatible (DeepSeek, GLM, Kimi, MiMo)"
+            Write-Host "  2) Anthropic-compatible (MiniMax, Qwen)"
+            $modelCategory = Read-Host "Category [1]"
+            if ([string]::IsNullOrWhiteSpace($modelCategory) -or $modelCategory -eq '1') {
+                $type = 'openai'
+                Write-Host "Select model:" -ForegroundColor Cyan
+                Write-Host "  1) DeepSeek V4 Flash (cheapest, recommended)"
+                Write-Host "  2) DeepSeek V4 Pro"
+                Write-Host "  3) Kimi K2.7 Code"
+                Write-Host "  4) Kimi K2.6"
+                Write-Host "  5) GLM-5.1"
+                Write-Host "  6) GLM-5"
+                Write-Host "  7) MiMo-V2.5"
+                Write-Host "  8) MiMo-V2.5-Pro"
+                $modelChoice = Read-Host "Model [1]"
+                $model = switch ($modelChoice) {
+                    '1' { 'deepseek-v4-flash' }
+                    '2' { 'deepseek-v4-pro' }
+                    '3' { 'kimi-k2.7-code' }
+                    '4' { 'kimi-k2.6' }
+                    '5' { 'glm-5.1' }
+                    '6' { 'glm-5' }
+                    '7' { 'mimo-v2.5' }
+                    '8' { 'mimo-v2.5-pro' }
+                    default { 'deepseek-v4-flash' }
+                }
+            }
+            else {
+                $type = 'anthropic'
+                Write-Host "Select model:" -ForegroundColor Cyan
+                Write-Host "  1) Qwen3.7 Plus (recommended)"
+                Write-Host "  2) Qwen3.7 Max"
+                Write-Host "  3) Qwen3.6 Plus"
+                Write-Host "  4) MiniMax M3"
+                Write-Host "  5) MiniMax M2.7"
+                $modelChoice = Read-Host "Model [1]"
+                $model = switch ($modelChoice) {
+                    '1' { 'qwen3.7-plus' }
+                    '2' { 'qwen3.7-max' }
+                    '3' { 'qwen3.6-plus' }
+                    '4' { 'minimax-m3' }
+                    '5' { 'minimax-m2.7' }
+                    default { 'qwen3.7-plus' }
+                }
+            }
+            $defaultMaxPromptTokens = 200000
         }
         default {
             $type = Read-Host "Provider type (openai/azure/anthropic) [openai]"
@@ -438,3 +495,4 @@ switch ($Command) {
     'set-env' { Invoke-ProfileSetEnv -Name $Profile }
     default   { Invoke-ProfileList }
 }
+
