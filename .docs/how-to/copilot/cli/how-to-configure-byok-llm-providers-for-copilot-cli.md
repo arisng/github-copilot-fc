@@ -111,18 +111,18 @@ Explicitly set `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` to avoid Copilot CLI default
 
 Switching between providers manually can be tedious. The `byok-profile.ps1` script stores provider configurations as named profiles and launches Copilot CLI with the correct environment variables.
 
-**Script location:** `skills/copilot-cli-byok/scripts/byok-profile.ps1`
+**Script location:** `skills/copilot-byok/scripts/byok-profile.ps1`
 
 ### List profiles
 
 ```powershell
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 list
+.\skills\copilot-byok\scripts\byok-profile.ps1 list
 ```
 
 ### Add a profile interactively
 
 ```powershell
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 add
+.\skills\copilot-byok\scripts\byok-profile.ps1 add
 ```
 
 ### Run Copilot CLI with a specific profile
@@ -130,13 +130,13 @@ Switching between providers manually can be tedious. The `byok-profile.ps1` scri
 This launches Copilot CLI with the profile's environment variables applied only to that process:
 
 ```powershell
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 run ollama
+.\skills\copilot-byok\scripts\byok-profile.ps1 run ollama
 ```
 
 You can also pass extra arguments to `copilot`:
 
 ```powershell
-.\skills\copilot-cli-byok\scripts\byok-profile.ps1 run openai --model gpt-4o
+.\skills\copilot-byok\scripts\byok-profile.ps1 run openai --model gpt-4o
 ```
 
 ### Apply a profile to the current shell session
@@ -144,7 +144,7 @@ You can also pass extra arguments to `copilot`:
 Dot-source the script so the environment variables persist in your current terminal session:
 
 ```powershell
-. .\skills\copilot-cli-byok\scripts\byok-profile.ps1 set-env openai
+. .\skills\copilot-byok\scripts\byok-profile.ps1 set-env openai
 ```
 
 ### Create a shell alias (optional)
@@ -153,7 +153,7 @@ Add the following to your PowerShell profile (`$PROFILE`) for quick access witho
 
 ```powershell
 function copilot-byok {
-    & C:\path\to\repo\skills\copilot-cli-byok\scripts\byok-profile.ps1 @args
+    & C:\path\to\repo\skills\copilot-byok\scripts\byok-profile.ps1 @args
 }
 ```
 
@@ -173,7 +173,7 @@ $repoRoot = (Get-Location).Path
 $aliasLine = @"
 
 function copilot-byok {
-    & `"$repoRoot\skills\copilot-cli-byok\scripts\byok-profile.ps1`" @args
+    & `"$repoRoot\skills\copilot-byok\scripts\byok-profile.ps1`" @args
 }
 "@
 
@@ -195,7 +195,7 @@ If you prefer invoking the script directly by name without an alias:
 # Permanent (User scope)
 [Environment]::SetEnvironmentVariable(
     "Path",
-    "$env:Path;C:\path\to\repo\skills\copilot-cli-byok\scripts",
+    "$env:Path;C:\path\to\repo\skills\copilot-byok\scripts",
     "User"
 )
 ```

@@ -33,15 +33,15 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 - `tools/`: cross-runtime tools inventory, tool docs, and VS Code toolsets under `tools/vscode/toolsets/`.
 - `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
 - `scripts/`: automation entry points:
- 	- `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
- 	- `scripts/issues/`: issue metadata extraction and indexing.
- 	- `scripts/workspace/`: workspace command router.
- 	- `scripts/changelog/`: weekly changelog generation.
+  - `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
+  - `scripts/issues/`: issue metadata extraction and indexing.
+  - `scripts/workspace/`: workspace command router.
+  - `scripts/changelog/`: weekly changelog generation.
 - `.docs/`: workspace documentation index and Diataxis-style content.
 - `.issues/`: issue documents used as planning/change inputs.
 - `.ralph-sessions/`: Ralph session artifacts and iteration state.
- 	- Session folders use `<YYMMDD>-<hhmmss>` format.
- 	- Session-level instruction files may exist as `.ralph-sessions/<session-id>.instructions.md`.
+  - Session folders use `<YYMMDD>-<hhmmss>` format.
+  - Session-level instruction files may exist as `.ralph-sessions/<session-id>.instructions.md`.
 
 Archived locations that should not be used as authoring templates:
 
@@ -104,14 +104,14 @@ Publish scripts are the canonical distribution path:
 Publish destination behavior:
 
 - Agents, instructions, prompts, and VS Code toolsets are copied to VS Code user prompts paths:
- 	- `%APPDATA%/Code/User/prompts`
- 	- `%APPDATA%/Code - Insiders/User/prompts`
+  - `%APPDATA%/Code/User/prompts`
+  - `%APPDATA%/Code - Insiders/User/prompts`
 - Hooks are copied to workspace `.github/hooks/` for VS Code agent hook discovery.
 - Skills are copied to personal skill folders:
- 	- `%USERPROFILE%/.claude/skills`
- 	- `%USERPROFILE%/.codex/skills`
- 	- `%USERPROFILE%/.copilot/skills`
- 	- Optional WSL equivalents (unless `-SkipWSL`)
+  - `%USERPROFILE%/.claude/skills`
+  - `%USERPROFILE%/.codex/skills`
+  - `%USERPROFILE%/.copilot/skills`
+  - Optional WSL equivalents (unless `-SkipWSL`)
 
 Wildcard patterns are supported by helpers for name selection. Quote patterns to avoid shell expansion.
 
@@ -167,16 +167,16 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 
 Behavioral specifications for the Ralph v2 multi-agent system live under `openspec/specs/ralph-v2-orchestration/`. Each domain has its own `spec.md` following the OpenSpec SDD convention.
 
-| Domain | Path | Description |
-|--------|------|-------------|
-| Session | `openspec/specs/ralph-v2-orchestration/session/spec.md` | Abstract vocabulary, session/iteration model, artifact ownership, progress tracking |
-| Signals | `openspec/specs/ralph-v2-orchestration/signals/spec.md` | Live intervention protocol — 4 signal types, acknowledgment, polling |
-| Orchestration | `openspec/specs/ralph-v2-orchestration/orchestration/spec.md` | 10-state machine, transitions, routing, messenger protocol |
-| Planning | `openspec/specs/ralph-v2-orchestration/planning/spec.md` | 9-mode task management, breakdown algorithm, grounding |
-| Discovery | `openspec/specs/ralph-v2-orchestration/discovery/spec.md` | 3-mode Q&A discovery, research protocol |
-| Execution | `openspec/specs/ralph-v2-orchestration/execution/spec.md` | Single-task execution model, rework, dependency inheritance |
-| Review | `openspec/specs/ralph-v2-orchestration/review/spec.md` | 4-mode quality assurance, version control commit |
-| Knowledge | `openspec/specs/ralph-v2-orchestration/knowledge/spec.md` | 4-stage Diátaxis knowledge pipeline |
+| Domain        | Path                                                          | Description                                                                         |
+| ------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Session       | `openspec/specs/ralph-v2-orchestration/session/spec.md`       | Abstract vocabulary, session/iteration model, artifact ownership, progress tracking |
+| Signals       | `openspec/specs/ralph-v2-orchestration/signals/spec.md`       | Live intervention protocol — 4 signal types, acknowledgment, polling                |
+| Orchestration | `openspec/specs/ralph-v2-orchestration/orchestration/spec.md` | 10-state machine, transitions, routing, messenger protocol                          |
+| Planning      | `openspec/specs/ralph-v2-orchestration/planning/spec.md`      | 9-mode task management, breakdown algorithm, grounding                              |
+| Discovery     | `openspec/specs/ralph-v2-orchestration/discovery/spec.md`     | 3-mode Q&A discovery, research protocol                                             |
+| Execution     | `openspec/specs/ralph-v2-orchestration/execution/spec.md`     | Single-task execution model, rework, dependency inheritance                         |
+| Review        | `openspec/specs/ralph-v2-orchestration/review/spec.md`        | 4-mode quality assurance, version control commit                                    |
+| Knowledge     | `openspec/specs/ralph-v2-orchestration/knowledge/spec.md`     | 4-stage Diátaxis knowledge pipeline                                                 |
 
 > **Deprecated specs**: The 3 ad-hoc specs under `agents/ralph-v2/specs/` (`normalization.spec.md`, `live-signals.spec.md`, `ralph-v2-stop-hook-metadata-finalization.spec.md`) are deprecated. Each contains a `superseded_by:` pointer to its OpenSpec replacement.
 
@@ -192,11 +192,11 @@ Behavioral specifications for the Ralph v2 multi-agent system live under `opensp
 ## Troubleshooting
 
 - PowerShell execution policy blocks scripts:
- 	- Run PowerShell with proper policy or trusted shell context.
+  - Run PowerShell with proper policy or trusted shell context.
 - Publish output not reflected:
- 	- Re-run publish script and verify personal target folders.
+  - Re-run publish script and verify personal target folders.
 - Issue index not generated:
- 	- Ensure `.issues` exists and contains markdown issue files.
+  - Ensure `.issues` exists and contains markdown issue files.
 - Python tooling scripts fail:
- 	- Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
- 	- Install Python 3 and invoke those utilities as `python3`.
+  - Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
+  - Install Python 3 and invoke those utilities as `python3`.
