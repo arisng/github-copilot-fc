@@ -1,35 +1,42 @@
 ---
-name: copilot-cli-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, and COPILOT_OFFLINE.
+name: copilot-byok
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.4.0
+  version: 0.5.0
 ---
 
-# Copilot CLI BYOK Provider Configuration
+# Copilot BYOK Provider Configuration
 
-Use this skill to configure Copilot CLI against non-GitHub-hosted model providers and to manage repeatable provider profiles.
+Use this skill to configure BYOK (Bring Your Own Key) LLM providers for **both GitHub Copilot CLI and VS Code Chat**. Manage repeatable CLI provider profiles and VS Code `chatLanguageModels.json` from a single source of truth.
 
 ## Follow this workflow
 
-1. Determine whether the user needs a **profile-based setup**, a **one-off manual setup**, or **troubleshooting**.
-2. Prefer `scripts/byok-profile.ps1` for repeated use or when the user wants to switch providers quickly.
-3. Read only the reference file that matches the current need.
-4. Keep secrets out of files. Prefer `${ENV_VAR}` placeholders and user-scoped environment variables.
+1. Determine whether the user needs a **CLI profile-based setup**, **VS Code BYOK setup**, a **one-off manual setup**, or **troubleshooting**.
+2. For CLI, prefer `scripts/byok-profile.ps1` for repeated use or quick switching between providers.
+3. For VS Code, read `references/copilot-vscode-providers.md` and use the **Chat: Manage Language Models** UI command.
+4. Read only the reference file that matches the current need.
+5. Keep secrets out of files. Prefer `${ENV_VAR}` placeholders and user-scoped environment variables.
 
 ## Choose the path
 
+### CLI paths
+
 - **Reusable profile workflow**: Use `scripts/byok-profile.ps1`.
-- **Manual one-off environment setup**: Read `references/providers.md`.
+- **Manual one-off environment setup**: Read `references/copilot-cli-providers.md`.
 - **API key storage or rotation**: Read `references/api-key-storage.md`.
-- **Token-limit sizing**: Read `references/providers.md` first, then calculate conservative prompt and output limits.
-- **Reasoning-level configuration**: Read `references/providers.md`, then apply `--reasoning-effort` per invocation.
+- **Token-limit sizing**: Read `references/copilot-cli-providers.md` first, then calculate conservative prompt and output limits.
+- **Reasoning-level configuration**: Read `references/copilot-cli-providers.md`, then apply `--reasoning-effort` per invocation.
+
+### VS Code path
+
+- **VS Code BYOK setup**: Read `references/copilot-vscode-providers.md` and use the **Chat: Manage Language Models** UI command to add models. VS Code uses `chatLanguageModels.json` and ignores `COPILOT_PROVIDER_*` env vars.
 
 ## Use the profile manager first
 
 Use `scripts/byok-profile.ps1` when the user wants repeatable setup, named profiles, or quick switching.
 
-Run the following commands from the installed `copilot-cli-byok` skill folder (the folder that contains this `SKILL.md`).
+Run the following commands from the installed `copilot-byok` skill folder (the folder that contains this `SKILL.md`).
 
 Common commands:
 
@@ -60,8 +67,10 @@ Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byo
 
 ## Read references on demand
 
-- `references/providers.md`
-  - Read when you need provider-specific environment variables, examples, model requirements, or offline-mode notes.
+- `references/copilot-cli-providers.md`
+  - Read when you need CLI-specific provider environment variables, examples, model requirements, or offline-mode notes.
+- `references/copilot-vscode-providers.md`
+  - Read when the user wants to configure BYOK models in **VS Code Chat**. VS Code uses a completely different mechanism (`chatLanguageModels.json`) and ignores `COPILOT_PROVIDER_*` env vars. This reference covers multi-provider setup, per-agent model pinning via `.agent.md` frontmatter, agent-specific model settings, and the full model-to-VS-Code mapping from `byok-profiles.json`.
 - `references/api-key-storage.md`
   - Read when the user needs secure key storage, persistent Windows environment variables, key rotation, or `${ENV_VAR}` placeholder guidance.
 
