@@ -15,6 +15,10 @@ https://docs.github.com/en/copilot/reference/cli-plugin-reference
 https://code.visualstudio.com/docs/copilot/overview
 https://code.visualstudio.com/docs/copilot/customization/agent-plugins
 
+## GitHub Copilot SDK
+
+https://github.com/github/awesome-copilot/tree/main/cookbook/copilot-sdk
+
 ## GitHub Copilot Community Repos
 
 https://github.com/github/copilot-plugins
