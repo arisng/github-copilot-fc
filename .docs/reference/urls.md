@@ -19,12 +19,13 @@ https://code.visualstudio.com/docs/copilot/customization/agent-plugins
 
 https://github.com/github/awesome-copilot/tree/main/cookbook/copilot-sdk
 
-## GitHub Copilot Community Repos
+## GitHub Copilot Community References
 
 https://github.com/github/copilot-plugins
 https://github.com/github/awesome-copilot
+https://awesome-copilot.github.com/
 
-## Multi-agent workflows Community Repos
+## Multi-agent workflows Community References
 
 https://github.com/bradygaster/squad
 https://github.com/msitarzewski/agency-agents
