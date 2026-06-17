@@ -300,7 +300,7 @@ An agent (specialized or fallback) is listed here only after it has been verifie
 | `Nexus` | Synthesis Specialist | |
 | `agent` | Iteration Reviewer | agent-evaluator, diataxis-categorizer |
 | `agent` | Knowledge Curator | ralph-knowledge-merge-and-promotion, diataxis |
-| `agent` | Domain Execution Specialist | git-atomic-commit, md-issue-writer |
+| `agent` | Domain Execution Specialist | git-atomic-commit, issue-md-writer |
 
 > **Loose coupling principle:** Workflow Shape dispatches by JD name (e.g., "dispatch the Iteration Reviewer"). Routing resolves JD → agent + skills via this table. Changes to agents/skills do not require Workflow Shape edits. Scan `skills/` for relevant skills per JD when updating fallbacks.
 > **Excluded by design:** Ralph-v2 agents excluded — fleet is the orchestration layer; no nested orchestration.

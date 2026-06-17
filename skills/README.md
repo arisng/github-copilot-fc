@@ -41,7 +41,7 @@ Publishing copies skills from `skills/` to personal skill folders. By default it
 .\scripts\publish\publish-skills.ps1
 
 # Publish specific skills
-.\scripts\publish\publish-skills.ps1 -Skills "git-atomic-commit", "md-issue-writer"
+.\scripts\publish\publish-skills.ps1 -Skills "git-atomic-commit", "issue-md-writer"
 
 # Publish to Copilot, Codex, and Claude
 .\scripts\publish\publish-skills.ps1 -Targets copilot,codex,claude
@@ -69,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
 skills/
 ├── git-committer/            # Individual skill
 │   └── SKILL.md              # Required skill definition
-├── md-issue-writer/
+├── issue-md-writer/
 │   ├── SKILL.md
 │   └── references/
 └── ...
@@ -77,7 +77,7 @@ skills/
 ~/.claude/
 └── skills/                    # Personal skills (published)
     ├── git-committer/         # Copied from factory
-    └── md-issue-writer/
+    └── issue-md-writer/
 
 ~/.codex/
 └── skills/                    # Personal skills (published)

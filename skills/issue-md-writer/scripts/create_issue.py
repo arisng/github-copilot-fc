@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create MD Issue Script for md-issue-writer skill
+Create MD Issue Script for issue-md-writer skill
 
 Usage:
     python create_issue.py --type "Bug" --title "Fix login timeout" --description "Users are logged out after 5 minutes" --severity "High" --status "Investigating"
