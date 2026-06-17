@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Copilot BYOK Provider Configuration
@@ -84,6 +84,7 @@ Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byo
 - For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`.
 - Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.
 - If the model is not in Copilot CLI's built-in catalog, set explicit prompt and output token overrides instead of assuming Copilot will infer them correctly.
+- **Profile `proxyPort` field**: For Kimi models from `https://api.moonshot.ai` (which require `top_p=0.95`), add `"proxyPort": 443` to the profile and the `run` command will auto-start the local proxy and route through `https://moonshot.local/v1`. The proxy strips `top_p` to `0.95` before forwarding to Moonshot.
 
 ## Configure reasoning effort correctly
 
@@ -136,6 +137,43 @@ Prefer stable values over theoretical maximums. If the user reports context-limi
 3. If using a stored profile, run `show` or `list` to verify the saved values.
 4. If `${ENV_VAR}` placeholders are used, confirm the environment variable actually exists.
 5. If long-context models fail, add or lower explicit max prompt and output token overrides.
+
+## Moonshot proxy (top_p workaround)
+
+**Problem:** Kimi models from `https://api.moonshot.ai` only accepts `top_p=0.95`, but VS Code Copilot BYOK always sends `top_p=1.0` and the `chatLanguageModels.json` schema doesn't support per-model parameter overrides.
+
+**Solution:** A local HTTPS proxy that strips `top_p` before forwarding. Scripts live in the skill's `scripts/` folder; runtime cert data is stored at `~/.copilot/moonshot-proxy/`.
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `proxy.js` | `scripts/proxy.js` | HTTPS proxy server (Node.js) — dual-port: 3002 (always) + 443 (elevated) |
+| `start-proxy.ps1` | `scripts/start-proxy.ps1` | Auto-elevates admin, kills old proxy, starts via `node proxy.js` |
+| `setup-dns.ps1` | `scripts/setup-dns.ps1` | One-time admin setup: adds `127.0.0.1 moonshot.local` to hosts + trusted cert |
+| Certs | `~/.copilot/moonshot-proxy/` | Runtime cert data (moonshot.pfx, cert.pfx) |
+
+### How to use
+
+```powershell
+# One-time setup (run once, elevated):
+.\scripts\setup-dns.ps1
+
+# Start proxy (after every reboot):
+.\scripts\start-proxy.ps1
+
+# Or from published skill location:
+pwsh -NoProfile "~\.copilot\skills\copilot-byok\scripts\start-proxy.ps1"
+
+# Check status:
+curl -s https://moonshot.local/health
+```
+
+### Profile integration
+
+Add `"proxyPort": 443` to any `byok-profiles.json` profile that needs the proxy. The `run` command auto-starts the proxy and routes through `https://moonshot.local/v1`.
+
+### VS Code integration
+
+Configure the Moonshot provider's `url` to `https://moonshot.local/v1/chat/completions` in `chatLanguageModels.json`. The `.vscode/tasks.json` background task with `runOn: "folderOpen"` auto-starts the proxy, or run **Terminal → Run Task → "Moonshot Proxy"**.
 
 ## Moonshot/Kimi AI credentials
 

@@ -271,6 +271,61 @@ Add via UI first (Add Models → Custom Endpoint), then edit JSON to add all mod
 }
 ```
 
+> ⚠️ **Known limitation:** Moonshot's `kimi-k2.7-code` model only accepts `top_p=0.95`, but VS Code always sends `top_p=1.0` and the `chatLanguageModels.json` schema does not support per-model `topP` overrides. Direct `api.moonshot.ai` URLs will fail with a 400 error for this model.
+
+> **Workaround:** Use the local HTTPS proxy described below.
+
+### Kimi AI via local proxy (top_p workaround)
+
+Since VS Code's schema doesn't support `top_p` overrides, route through a local proxy that strips it. Scripts are in the `copilot-byok` skill's `scripts/` folder. Runtime cert data stores at `~/.copilot/moonshot-proxy/`.
+
+**Step 1 — One-time setup** (elevated):
+```powershell
+pwsh -NoProfile "~\.copilot\skills\copilot-byok\scripts\setup-dns.ps1"
+```
+
+Or from the workspace:
+```powershell
+.\scripts\setup-dns.ps1
+```
+
+This adds `127.0.0.1 moonshot.local` to the hosts file and installs a trusted SSL cert.
+
+**Step 2 — Start the proxy** (after every reboot):
+```powershell
+pwsh -NoProfile "~\.copilot\skills\copilot-byok\scripts\start-proxy.ps1"
+```
+
+Or from the workspace:
+```powershell
+.\scripts\start-proxy.ps1
+```
+
+Or add to `.vscode/tasks.json` with `runOn: "folderOpen"` for auto-start.
+
+**Step 3 — Configure `chatLanguageModels.json`** with the proxy URL:
+```json
+{
+  "name": "Moonshot",
+  "vendor": "customendpoint",
+  "apiKey": "${input:chat.lm.secret.XXXXXXXX}",
+  "apiType": "chat-completions",
+  "models": [
+    {
+      "id": "kimi-k2.7-code",
+      "name": "Kimi K2.7 Code",
+      "url": "https://moonshot.local/v1/chat/completions",
+      "toolCalling": true,
+      "vision": true,
+      "streaming": true,
+      "maxInputTokens": 240000,
+      "maxOutputTokens": 32768,
+      "thinking": true
+    }
+  ]
+}
+```
+
 ---
 
 ## Per-Agent Model Pinning in VS Code

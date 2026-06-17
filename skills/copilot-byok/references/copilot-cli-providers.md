@@ -104,6 +104,8 @@ copilot
 
 The [Kimi AI Platform](https://platform.kimi.ai/docs/overview) (backed by Moonshot AI) provides OpenAI-compatible API access to the Kimi model family. All models support tool calling, streaming, and thinking mode.
 
+> ⚠️ **Known limitation:** The `kimi-k2.7-code` model only accepts `top_p=0.95`. When used directly with Copilot CLI, the default `top_p` is fine. But in VS Code BYOK, the extension always sends `top_p=1.0`, causing a 400 error. See the Moonshot proxy section below for the workaround.
+
 ```powershell
 $env:COPILOT_PROVIDER_BASE_URL = 'https://api.moonshot.ai/v1'
 $env:COPILOT_PROVIDER_TYPE = 'openai'
@@ -132,6 +134,31 @@ Store your API key persistently:
 ```powershell
 [Environment]::SetEnvironmentVariable("MOONSHOT_API_KEY", "<your-api-key>", "User")
 ```
+
+### Moonshot proxy (top_p workaround)
+
+For Kimi K2.7 Code in VS Code BYOK, use a local proxy since VS Code always sends `top_p=1.0`. Scripts are in the `copilot-byok` skill's `scripts/` folder.
+
+| File | Location |
+|------|----------|
+| Proxy server | `skills/copilot-byok/scripts/proxy.js` (workspace) / `~/.copilot/skills/copilot-byok/scripts/proxy.js` (published) |
+| Start script | `skills/copilot-byok/scripts/start-proxy.ps1` |
+| Setup script | `skills/copilot-byok/scripts/setup-dns.ps1` (run once as admin) |
+| Runtime certs | `~/.copilot/moonshot-proxy/` |
+| Health check | `curl -s https://moonshot.local/health` |
+
+Add `"proxyPort": 443` to the profile in `byok-profiles.json` to auto-start the proxy on `run`:
+
+```json
+"kimi-ai-k27-code": {
+  "baseUrl": "https://api.moonshot.ai/v1",
+  "model": "kimi-k2.7-code",
+  "apiKey": "${MOONSHOT_API_KEY}",
+  "proxyPort": 443
+}
+```
+
+When `proxyPort` is set, `run` auto-starts `start-proxy.ps1` (elevated) and overrides `baseUrl` to `https://moonshot.local/v1`.
 
 ### Moonshot Open Platform (legacy)
 

@@ -415,6 +415,40 @@ function Invoke-ProfileAdd {
     Write-Host "Saved profile '$name'." -ForegroundColor Green
 }
 
+function Start-MoonshotProxy {
+    <#
+    .SYNOPSIS
+        Auto-start the Moonshot top_p fix proxy if not already running.
+    .DESCRIPTION
+        Checks ports 3002 and 443. If neither is listening, starts start-proxy.ps1 elevated.
+        Profiles needing the proxy set "proxyPort" in byok-profiles.json.
+    #>
+    $startScript = Join-Path $PSScriptRoot 'start-proxy.ps1'
+
+    if (-not (Test-Path $startScript)) {
+        Write-Error "Moonshot proxy script not found at $startScript"
+        exit 1
+    }
+
+    $on3002 = (Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue).State -eq 'Listen'
+    $on443  = (Get-NetTCPConnection -LocalPort 443 -ErrorAction SilentlyContinue).State -eq 'Listen'
+
+    if (-not $on3002 -and -not $on443) {
+        Write-Host "  Starting Moonshot proxy..." -ForegroundColor Yellow
+        Start-Process -FilePath powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$startScript`"" -Verb RunAs
+        Start-Sleep 5
+        $on3002 = (Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue).State -eq 'Listen'
+        if (-not $on3002) {
+            Write-Error "Proxy failed to start"
+            exit 1
+        }
+        Write-Host "  Proxy running" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  Proxy already running" -ForegroundColor Gray
+    }
+}
+
 function Invoke-ProfileRun {
     param([string]$Name)
     if ([string]::IsNullOrWhiteSpace($Name)) {
@@ -427,10 +461,20 @@ function Invoke-ProfileRun {
         exit 1
     }
 
-    Set-ProviderEnvironment -Provider $config.profiles[$Name]
+    $p = $config.profiles[$Name]
+
+    # Auto-start proxy if profile has proxyPort
+    $proxyPort = $p.proxyPort
+    if ($proxyPort) {
+        Start-MoonshotProxy
+        $originalBaseUrl = $p.baseUrl
+        $p.baseUrl = "https://moonshot.local/v1"
+        Write-Host "  (base URL proxied: $originalBaseUrl → https://moonshot.local)" -ForegroundColor DarkYellow
+    }
+
+    Set-ProviderEnvironment -Provider $p
 
     # Show a brief summary
-    $p = $config.profiles[$Name]
     Write-Host "Launching copilot with profile '$Name'" -ForegroundColor Cyan
     Write-Host "  Provider : $(if ($p.type) { $p.type } else { 'openai' })" -ForegroundColor Gray
     Write-Host "  Base URL : $($p.baseUrl)" -ForegroundColor Gray
@@ -439,6 +483,7 @@ function Invoke-ProfileRun {
     if ($p.maxPromptTokens) { Write-Host "  Max Prompt Tokens : $($p.maxPromptTokens)" -ForegroundColor Gray }
     if ($p.maxOutputTokens) { Write-Host "  Max Output Tokens : $($p.maxOutputTokens)" -ForegroundColor Gray }
     if ($p.offline -eq $true) { Write-Host "  Offline  : true" -ForegroundColor Gray }
+    if ($proxyPort) { Write-Host "  Proxy    : https://moonshot.local (top_p override)" -ForegroundColor Green }
     Write-Host ""
 
     $copilotCmd = Get-Command copilot -ErrorAction SilentlyContinue
