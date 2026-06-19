@@ -104,7 +104,7 @@ $r2 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
 | `-ReasoningEffort` | No | `high` | `none`, `low`, `medium`, `high`, `xhigh`, `max`. **Important**: the default BYOK model (`opencode-go-deepseek-v4-flash`) does NOT support reasoning effort — always pass `-ReasoningEffort none` when using the default profile. |
 | `-WorkingDir` | No | current location | Working directory for the sub-process. |
 | `-JsonOutput` | Switch | off | Emit JSONL instead of plain text. |
-| `-AllowAll` | Switch | off | Add `--allow-all --no-ask-user`. |
+| `-NoAllowAll` | Switch | off | Opt out of `--allow-all --no-ask-user`. By default the sub-session runs with full permissions. |
 | `-DisableBuiltInMcps` | Switch | off | Isolate from main session's MCP servers. |
 | `-NoCustomInstructions` | Switch | off | Skip project custom instructions. |
 | `-TimeoutSeconds` | No | `600` | Kill the sub-process after N seconds. |
@@ -168,7 +168,7 @@ Inline newlines via `` `n `` also work: `-Prompt "Line 1`nLine 2`nLine 3"`.
 ```powershell
 # Plan → Execute → Review with slash commands
 .\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "plan" -Prompt "Implement user auth" -Name "plan-auth" -SessionId $uuid -ReasoningEffort "none"
-.\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "Execute the plan above" -Name "exec-auth" -SessionId $uuid -ReasoningEffort "none" -AllowAll
+.\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "Execute the plan above" -Name "exec-auth" -SessionId $uuid -ReasoningEffort "none"
 .\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "review" -Name "review-auth" -SessionId $uuid -ReasoningEffort "none"
 ```
 ## Custom agent invocation (`-Agent`)
@@ -246,7 +246,7 @@ The script prints a structured result object (metadata only — StdOut is writte
 ## Safety rules
 
 - Always assign a descriptive `-Name` in kebab-case.
-- Prefer `-AllowAll` only for trusted, isolated sub-workflows.
+- `-NoAllowAll` lets you opt out of the default `--allow-all --no-ask-user` for read-only or untrusted contexts.
 - The sub-session inherits MCP and custom instructions by default; use `-DisableBuiltInMcps` or `-NoCustomInstructions` only when isolation is intended.
 - The sub-process inherits the main session's environment except where the script overrides it.
 

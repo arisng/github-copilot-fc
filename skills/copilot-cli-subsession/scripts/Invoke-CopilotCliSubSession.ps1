@@ -54,8 +54,9 @@
 .PARAMETER JsonOutput
     Emit JSONL output instead of plain text.
 
-.PARAMETER AllowAll
-    Grant full permissions and disable interactive prompts.
+.PARAMETER NoAllowAll
+    Opt out of --allow-all and --no-ask-user. By default the sub-session runs
+    with full permissions and no interactive prompts.
 
 .PARAMETER DisableBuiltInMcps
     Disable built-in MCP servers (by default the sub-session inherits the main
@@ -110,7 +111,7 @@ param(
     [string]$ReasoningEffort = 'high',
 
     [switch]$JsonOutput,
-    [switch]$AllowAll,
+    [switch]$NoAllowAll,
     [switch]$DisableBuiltInMcps,
     [switch]$NoCustomInstructions,
 
@@ -258,7 +259,7 @@ else {
     [void]$cliArgs.Add('-s')
 }
 
-if ($AllowAll) {
+if (-not $NoAllowAll) {
     [void]$cliArgs.Add('--allow-all')
     [void]$cliArgs.Add('--no-ask-user')
 }
