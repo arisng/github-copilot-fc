@@ -73,22 +73,20 @@ Review the codebase for security vulnerabilities:
     -Name "perf-analysis" `
     -Prompt "Scan for async anti-patterns"
 
-# Context handoff: embed plan + specs inline so sub-session has full context
+# Context handoff: list relevant file paths; sub-session reads them itself
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -Name "exec-plan" `
     -ReasoningEffort "none" `
     -Prompt @"
---- plan.md ---
-Implement user authentication (OAuth2 + JWT)
-1. Add auth middleware to Program.cs
-2. Create Login/Logout endpoints
-3. Wire JWT validation
+Execute the implementation plan at:
+  c:/Workplace/my-repo/openspec/changes/auth-impl/plan.md
+  c:/Workplace/my-repo/openspec/changes/auth-impl/tasks.md
 
---- openspec/specs/auth/spec.md ---
-REQ-AUTH-1: User must log in with email + password
-REQ-AUTH-2: Token expires after 60 minutes
+Reference specs:
+  c:/Workplace/my-repo/openspec/specs/auth/spec.md
 
-Execute the plan step by step. Reference files by absolute path.
+Working directory: c:/Workplace/my-repo
+Read each file before executing. Report progress after each step.
 "@
 
 # Chain two prompts on the same sub-session by reusing SessionId
@@ -216,66 +214,61 @@ The agent is invoked via the Copilot CLI `--agent` flag and inherits the sub-ses
 
 ## Context handoff convention
 
-When delegating to a sub-session, **embed the full paths of relevant files directly in `-Prompt`**. This ensures the sub-session receives complete context without having to navigate the main session's workspace independently.
+When delegating to a sub-session, **always prioritize listing the full absolute paths of relevant files** in `-Prompt`. The sub-session can read those files itself using its own tools (`cat`, `grep`, `read`). Only embed content inline when the context is short and simple enough to fit in a single message.
 
 ### Why
 
-- The sub-session starts with a blank context — it does not know what the main session discussed, what files it created, or what decisions were made.
+- The sub-session starts with a blank context — it does not know what files the main session worked with, what decisions were made, or what artifacts exist.
 - MCP and custom instructions inheritance provides *environment* (tools, config), not *session memory*.
-- Multi-line prompts (`@"..."@` here-strings) can carry the full content of the main session's plan, research report, spec, or task list inline.
+- Listing file paths is cheaper, avoids duplication, and lets the sub-session choose what to read in depth.
 
 ### Do this
 
 ```powershell
-# BAD — sub-session has no context
-.\scripts\Invoke-CopilotCliSubSession.ps1 `
-    -Name "exec" `
-    -Prompt "Execute the plan"
-
-# GOOD — embed relevant file content inline
+# PREFERRED — list full paths; sub-session reads files itself
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -Name "exec" `
     -Prompt @"
-Execute the following plan:
+Execute the implementation plan at:
+  c:/Workplace/my-repo/openspec/changes/auth-impl/plan.md
+  c:/Workplace/my-repo/openspec/changes/auth-impl/tasks.md
 
---- plan.md ---
-[content of plan.md copied verbatim here]
+Reference specs:
+  c:/Workplace/my-repo/openspec/specs/auth/spec.md
 
---- research/findings.md ---
-[content of research/findings.md copied here]
-
---- .github/git-scope-constitution.md (relevant scopes) ---
-[excerpts as needed]
-
-Requirements:
-1. Start from $PWD
-2. Reference files by absolute path when needed
-3. Report progress after each step
+Start from working directory: c:/Workplace/my-repo
+After each step, report progress.
 "@
+
+# EXCEPTION — directly embed only when context is short and simple
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Name "quick-fix" `
+    -Prompt "Fix the typo in src/utils/helpers.ts line 42: change 'teh' to 'the'."
 ```
 
 ### Practical workflow
 
-1. Read the relevant files from the main session context (plan, research, spec, ADR, design doc).
-2. Concatenate their content into the `-Prompt` argument, clearly delimited by headers like `--- path/to/file ---`.
-3. Include the **final instruction** — what the sub-session should produce.
-4. Call the sub-session. The result (StdOut) returns the output.
+1. Identify the relevant files from the main session (plan, research, spec, ADR, design doc, task list).
+2. List their **full absolute paths** in the `-Prompt` argument, grouped by role.
+3. Include the **working directory** and the **final instruction** — what the sub-session should produce.
+4. Only embed content inline (via here-string) when the context is trivially short (a few lines).
 5. Use the returned `SessionId` to chain follow-up messages if the task requires multiple turns.
 
-### What to include
+### What to reference
 
-| Context type | Files to embed | Why |
-|--------------|----------------|-----|
-| Implementation plan | `openspec/changes/*/plan.md`, `openspec/changes/*/tasks.md` | The sub-session needs to know what to build and in what order. |
-| Research findings | `openspec/research/*.md`, `docs/design-docs/*.md` | The sub-session shouldn't re-research what the main session already discovered. |
-| Specifications | `openspec/specs/**/spec.md`, `requirements/*.md` | Specs define the acceptance criteria the sub-session must satisfy. |
-| Active task checklist | Current todo list, task breakdown | Keeps the sub-session focused on the right priorities. |
-| Configuration excerpts | `.github/git-scope-constitution.md`, relevant `*.agent.md` | Ensures the sub-session follows the same conventions. |
+| Context type | Files to reference by path |
+|--------------|----------------------------|
+| Implementation plan | `openspec/changes/*/plan.md`, `openspec/changes/*/tasks.md` |
+| Research findings | `openspec/research/*.md`, `docs/design-docs/*.md` |
+| Specifications | `openspec/specs/**/spec.md`, `requirements/*.md` |
+| Active task checklist | Current todo list, task breakdown |
+| Configuration / conventions | `.github/git-scope-constitution.md`, relevant `*.agent.md` |
 
-### Path formatting in prompts
+### Path formatting
 
-- Use **absolute paths** (`c:/Workplace/...` or `$PWD/relative`) so the sub-session can `cat` or `grep` files if needed beyond what was embedded.
-- Prefix paths with the file's role: `--- plan:openspec/changes/.../plan.md ---`.
+- Use **absolute paths** (`c:/Workplace/my-repo/...`) so the sub-session can read them regardless of its working directory.
+- If the sub-session's `-WorkingDir` matches the repo root, relative paths rooted there also work.
+- Group paths by purpose with a short header line before each group.
 
 ## MCP and custom instructions inheritance
 
