@@ -127,7 +127,7 @@
                     }
                 ],
                 "background": {
-                    "activeOnStart": true,
+                    "activeOnStart": false,
                     "beginsPattern": ".",
                     "endsPattern": "Listening on https://moonshot.local"
                 }
