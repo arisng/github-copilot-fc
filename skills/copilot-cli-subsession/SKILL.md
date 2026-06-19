@@ -10,7 +10,7 @@ description: >-
 argument-hint: "What is the sub-session prompt?"
 metadata:
   author: arisng
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Invoke Copilot CLI Sub-Session
@@ -72,6 +72,24 @@ Review the codebase for security vulnerabilities:
     -Agent "dotnet-diag:optimizing-dotnet-performance" `
     -Name "perf-analysis" `
     -Prompt "Scan for async anti-patterns"
+
+# Context handoff: embed plan + specs inline so sub-session has full context
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Name "exec-plan" `
+    -ReasoningEffort "none" `
+    -Prompt @"
+--- plan.md ---
+Implement user authentication (OAuth2 + JWT)
+1. Add auth middleware to Program.cs
+2. Create Login/Logout endpoints
+3. Wire JWT validation
+
+--- openspec/specs/auth/spec.md ---
+REQ-AUTH-1: User must log in with email + password
+REQ-AUTH-2: Token expires after 60 minutes
+
+Execute the plan step by step. Reference files by absolute path.
+"@
 
 # Chain two prompts on the same sub-session by reusing SessionId
 $uuid = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
@@ -195,6 +213,70 @@ Agent discovery paths (in precedence order):
 3. `plugin:agent-name` (qualified, from installed plugins)
 
 The agent is invoked via the Copilot CLI `--agent` flag and inherits the sub-session's model, BYOK config, and all other parameters.
+
+## Context handoff convention
+
+When delegating to a sub-session, **embed the full paths of relevant files directly in `-Prompt`**. This ensures the sub-session receives complete context without having to navigate the main session's workspace independently.
+
+### Why
+
+- The sub-session starts with a blank context — it does not know what the main session discussed, what files it created, or what decisions were made.
+- MCP and custom instructions inheritance provides *environment* (tools, config), not *session memory*.
+- Multi-line prompts (`@"..."@` here-strings) can carry the full content of the main session's plan, research report, spec, or task list inline.
+
+### Do this
+
+```powershell
+# BAD — sub-session has no context
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Name "exec" `
+    -Prompt "Execute the plan"
+
+# GOOD — embed relevant file content inline
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Name "exec" `
+    -Prompt @"
+Execute the following plan:
+
+--- plan.md ---
+[content of plan.md copied verbatim here]
+
+--- research/findings.md ---
+[content of research/findings.md copied here]
+
+--- .github/git-scope-constitution.md (relevant scopes) ---
+[excerpts as needed]
+
+Requirements:
+1. Start from $PWD
+2. Reference files by absolute path when needed
+3. Report progress after each step
+"@
+```
+
+### Practical workflow
+
+1. Read the relevant files from the main session context (plan, research, spec, ADR, design doc).
+2. Concatenate their content into the `-Prompt` argument, clearly delimited by headers like `--- path/to/file ---`.
+3. Include the **final instruction** — what the sub-session should produce.
+4. Call the sub-session. The result (StdOut) returns the output.
+5. Use the returned `SessionId` to chain follow-up messages if the task requires multiple turns.
+
+### What to include
+
+| Context type | Files to embed | Why |
+|--------------|----------------|-----|
+| Implementation plan | `openspec/changes/*/plan.md`, `openspec/changes/*/tasks.md` | The sub-session needs to know what to build and in what order. |
+| Research findings | `openspec/research/*.md`, `docs/design-docs/*.md` | The sub-session shouldn't re-research what the main session already discovered. |
+| Specifications | `openspec/specs/**/spec.md`, `requirements/*.md` | Specs define the acceptance criteria the sub-session must satisfy. |
+| Active task checklist | Current todo list, task breakdown | Keeps the sub-session focused on the right priorities. |
+| Configuration excerpts | `.github/git-scope-constitution.md`, relevant `*.agent.md` | Ensures the sub-session follows the same conventions. |
+
+### Path formatting in prompts
+
+- Use **absolute paths** (`c:/Workplace/...` or `$PWD/relative`) so the sub-session can `cat` or `grep` files if needed beyond what was embedded.
+- Prefix paths with the file's role: `--- plan:openspec/changes/.../plan.md ---`.
+
 ## MCP and custom instructions inheritance
 
 By default the sub-session **inherits** the main session's MCP servers and custom instructions because:
