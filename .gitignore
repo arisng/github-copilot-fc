@@ -7,3 +7,4 @@ scripts/test/.artifacts/
 todos.db
 .playwright-cli/
 **/node_modules/
+.agent-handoffs/
