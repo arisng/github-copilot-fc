@@ -3,7 +3,14 @@
 ## Core command
 
 ```bash
+# Freeform prompt
 copilot -p "PROMPT" --session-id "UUID" --agent "AGENT" --model "MODEL" -s
+
+# Slash command (built-in or skill)
+copilot -p "/handoff Describe session" -s
+
+# Slash command with chaining (same --session-id for follow-ups)
+copilot -p "/plan Implement OAuth" --session-id "uuid" -s
 ```
 
 ## Flags relevant to sub-session spawning
@@ -97,4 +104,36 @@ copilot --agent my-plugin/my-sub-agent -p "Execute task"
 --allow-tool write(README.md)          # allow writing README.md
 --allow-tool url(github.com)           # allow calls to github.com
 --available-tools "read, edit, grep"   # restrict to named tools
+```
+
+## Slash commands in non-interactive mode
+
+Pass slash commands directly in `-p`. Works for built-in commands AND installed skills:
+
+```bash
+# Built-in commands
+copilot -p "/help" -s
+copilot -p "/model" -s
+copilot -p "/init" -s
+
+# Skills with arguments
+copilot -p "/handoff Describe the session" -s
+copilot -p "/git-atomic-commit" -s
+copilot -p "/plan Implement OAuth middleware" -s
+
+# Multi-skill orchestration
+copilot -p "/research Investigate auth patterns" --session-id "uuid-1" -s
+copilot -p "/plan Based on above research, create implementation plan" --session-id "uuid-1" -s
+```
+
+### `Invoke-CopilotCliSubSession.ps1` convenience
+
+The script provides a `-SlashCommand` parameter that auto-prepends `/`:
+
+```powershell
+# Same as -Prompt "/handoff Describe session"
+.\Invoke-CopilotCliSubSession.ps1 -SlashCommand "handoff" -Prompt "Describe session"
+
+# Same as -Prompt "/git-atomic-commit"
+.\Invoke-CopilotCliSubSession.ps1 -SlashCommand "git-atomic-commit" -Name "commit-pass"
 ```

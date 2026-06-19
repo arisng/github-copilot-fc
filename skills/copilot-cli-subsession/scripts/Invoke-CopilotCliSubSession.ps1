@@ -9,20 +9,31 @@
     custom agent selection, model pinning, and BYOK profile application from
     ~/.copilot/byok-profiles.json.
 
+.PARAMETER SlashCommand
+    Name of a built-in Copilot CLI command or installed skill to invoke
+    (e.g., 'handoff', 'git-atomic-commit', 'plan', 'review', 'diff', 'pr').
+    The script prepends `/` and appends -Prompt text as the command argument.
+    At least one of -SlashCommand or -Prompt must be provided.
+
 .PARAMETER Prompt
-    The task prompt to send to the sub-session. Supports multi-line strings
-    (here-strings, backtick-n, or literal newlines).
+    The task prompt sent to the sub-session, OR the argument passed to
+    -SlashCommand when both are given. Supports multi-line strings
+    (here-strings, backtick-n, or literal newlines). Optional when
+    -SlashCommand is provided.
 
 .PARAMETER Name
     Human-readable session name passed to --name. Use short kebab-case slugs
     so agents can reference sessions by name. Distinct from SessionId (UUID).
 
 .PARAMETER SessionId
-    Custom session UUID passed to --session-id. Reuse the same UUID to chain
-    follow-up messages in the same sub-session.
+    Custom session UUID passed to --session-id. Must be a valid UUID format
+    (8-4-4-4-12 hex digits). When omitted, a UUID is auto-generated so the
+    result always contains a SessionId. Reuse the same UUID across calls to
+    chain follow-up messages in the same sub-session.
 
 .PARAMETER Agent
-    Custom agent name. Qualify plugin agents as plugin-name/agent-name.
+    Custom agent name. Qualify plugin agents as plugin:agent-name (colon syntax,
+    e.g. dotnet-diag:optimizing-dotnet-performance). Repo agents use bare name.
 
 .PARAMETER Model
     Model override for --model. Also sets $env:COPILOT_MODEL.
@@ -62,7 +73,15 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, Position = 0)]
+    [Parameter(Mandatory = $false, Position = 0)]
+    [ValidateScript({
+        if ([string]::IsNullOrWhiteSpace($_)) { throw 'SlashCommand must not be empty.' }
+        if ($_ -match '^/') { throw 'SlashCommand must not start with /. Just the command name, e.g. git-atomic-commit.' }
+        return $true
+    })]
+    [string]$SlashCommand,
+
+    [Parameter(Mandatory = $false, Position = 1)]
     [string]$Prompt,
 
     [Parameter(Mandatory = $false)]
@@ -206,9 +225,17 @@ if ($Name) {
 }
 
 if ($SessionId) {
-    # --session-id starts a new session with an explicit UUID (preferred).
-    # Resume via --resume is attempted only if --session-id does not exist in this CLI version.
-    # Detect by checking copilot help: newer versions support --session-id for new sessions.
+    # Validate UUID format: 8-4-4-4-12 hex digits
+    if ($SessionId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+        Write-Warning "'$SessionId' is not a valid UUID. Generating a new one."
+        $SessionId = (New-Guid).ToString()
+    }
+    [void]$cliArgs.Add('--session-id')
+    [void]$cliArgs.Add($SessionId)
+}
+else {
+    # Auto-generate a UUID so the result always has a non-empty SessionId.
+    $SessionId = (New-Guid).ToString()
     [void]$cliArgs.Add('--session-id')
     [void]$cliArgs.Add($SessionId)
 }
@@ -254,9 +281,24 @@ if ($Passthrough) {
     }
 }
 
+# --- Assemble prompt (slash command or freeform) ---
+if (-not $SlashCommand -and [string]::IsNullOrWhiteSpace($Prompt)) {
+    throw 'At least one of -SlashCommand or -Prompt must be provided.'
+}
+
+$resolvedPrompt = if ($SlashCommand -and $Prompt) {
+    "/$SlashCommand $Prompt"
+}
+elseif ($SlashCommand) {
+    "/$SlashCommand"
+}
+else {
+    $Prompt
+}
+
 # Prompt must be last.
 [void]$cliArgs.Add('-p')
-[void]$cliArgs.Add($Prompt)
+[void]$cliArgs.Add($resolvedPrompt)
 
 # --- Step 4: Resolve copilot command and runtime ---
 $copilotCmd = Get-Command copilot -ErrorAction SilentlyContinue
@@ -273,15 +315,13 @@ if (-not $pwshCmd) {
 # --- Step 5: Ensure COPILOT_HOME is set ---
 # Copilot CLI auto-adds --config-dir internally when COPILOT_HOME is unset,
 # triggering a deprecation warning. Set it to the standard location.
-if (-not $env:COPILOT_HOME) {
-    $env:COPILOT_HOME = Join-Path $HOME '.copilot'
-}
+# Note: $env: works for the parent, but ProcessStartInfo needs explicit env block.
+$copilotHome = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME '.copilot' }
+$env:COPILOT_HOME = $copilotHome
 
 # --- Step 6: Spawn subprocess via pwsh ---
-Write-Host "[copilot-cli-subsession] Spawning sub-session..." -ForegroundColor Cyan
-Write-Host "[copilot-cli-subsession] Name: $Name | Agent: $Agent | Model: $env:COPILOT_MODEL | Session: $SessionId" -ForegroundColor Gray
-
 $psi = New-Object System.Diagnostics.ProcessStartInfo
+
 $psi.FileName = $pwshCmd.Source
 $psi.ArgumentList.Add('-NoProfile')
 $psi.ArgumentList.Add('-File')
@@ -316,11 +356,10 @@ $stderr = $stderrTask.Result.TrimEnd()
 if ($stdout) { Write-Host $stdout }
 if ($stderr) { Write-Warning $stderr }
 
-# --- Step 7: Return structured result ---
+# --- Step 7: Return structured result (metadata only; StdOut already printed above) ---
 return [PSCustomObject]@{
     ExitCode      = $proc.ExitCode
-    StdOut        = $stdout
-    StdErr        = $stderr
+    SlashCommand  = $SlashCommand
     Name          = $Name
     SessionId     = $SessionId
     Agent         = $Agent

@@ -10,7 +10,7 @@ description: >-
 argument-hint: "What is the sub-session prompt?"
 metadata:
   author: arisng
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Invoke Copilot CLI Sub-Session
@@ -54,6 +54,25 @@ Review the codebase for security vulnerabilities:
 4. Report findings with severity levels
 "@
 
+# Invoke a built-in command or skill via slash command
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -SlashCommand "handoff" `
+    -Prompt "Describe the current session state" `
+    -Name "session-handoff" `
+    -ReasoningEffort "none"
+
+# Invoke a skill without extra prompt
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -SlashCommand "git-atomic-commit" `
+    -Name "auto-commit" `
+    -ReasoningEffort "none"
+
+# Invoke with a custom agent
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Agent "dotnet-diag:optimizing-dotnet-performance" `
+    -Name "perf-analysis" `
+    -Prompt "Scan for async anti-patterns"
+
 # Chain two prompts on the same sub-session by reusing SessionId
 $uuid = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
 $r1 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
@@ -75,10 +94,11 @@ $r2 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
 
 | Parameter | Required | Default | Purpose |
 |-----------|----------|---------|---------|
-| `-Prompt` | **Yes** | — | The task prompt. Supports multi-line (here-strings, `` `n ``, literal newlines). |
+| `-SlashCommand` | No | — | Built-in command or skill name to invoke (e.g., `handoff`, `git-atomic-commit`, `plan`, `review`). Script prepends `/`. When given with `-Prompt`, the prompt becomes the command argument. **At least one of `-SlashCommand` or `-Prompt` is required.** |
+| `-Prompt` | No* | — | The task prompt, or argument to `-SlashCommand` when both are given. Supports multi-line (here-strings, `` `n ``, literal newlines). \*Required when `-SlashCommand` is not provided. |
 | `-Name` | No | — | Human-readable session name (`--name`). Use kebab-case slugs (e.g. `"analyze-async"`). The agent should proactively generate one. |
-| `-SessionId` | No | — | Custom UUID for `--session-id`. Reuse the same value across calls to chain messages on the same session. |
-| `-Agent` | No | — | Custom agent name. Qualify plugin agents as `plugin-name/agent-name`. |
+| `-SessionId` | No | auto-generated UUID | Custom UUID for `--session-id`. Must be valid UUID format. When omitted, a UUID is auto-generated. Reuse the same value across calls to chain messages on the same session. |
+| `-Agent` | No | — | Custom agent name. Qualify plugin agents as `plugin:agent-name` (colon, e.g. `dotnet-diag:optimizing-dotnet-performance`). Repo agents use bare name. |
 | `-Model` | No | — | Model override. Takes precedence over the BYOK profile's model. |
 | `-ByokProfile` | No | `opencode-go-deepseek-v4-flash` | BYOK profile name from `~/.copilot/byok-profiles.json`. |
 | `-ReasoningEffort` | No | `high` | `none`, `low`, `medium`, `high`, `xhigh`, `max`. **Important**: the default BYOK model (`opencode-go-deepseek-v4-flash`) does NOT support reasoning effort — always pass `-ReasoningEffort none` when using the default profile. |
@@ -102,8 +122,9 @@ This name appears in `copilot --resume` listings and session logs. It is distinc
 
 ## Choosing a session ID
 
-- **One-shot sub-session**: omit `-SessionId` or generate a fresh UUID (`$(New-Guid)`).
-- **Follow-up to the same sub-session**: reuse the exact same `-SessionId` value; the prior session state is reloaded.
+- **Auto-generated**: when `-SessionId` is omitted, a valid UUID is auto-generated using `New-Guid`. Every call gets a fresh session unless you reuse the same UUID.
+- **Explicit UUID**: pass a valid UUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). Invalid UUIDs trigger a warning and are replaced with an auto-generated one.
+- **Follow-up to the same sub-session**: reuse the exact same `-SessionId` value; the prior session state is reloaded via `--session-id`.
 - **Valid UUIDs only**: `--session-id` requires standard format (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
 
 ## Multi-line prompts
@@ -125,6 +146,55 @@ Report findings in a markdown table.
 
 Inline newlines via `` `n `` also work: `-Prompt "Line 1`nLine 2`nLine 3"`.
 
+## Slash command invocation (`-SlashCommand`)
+
+`-SlashCommand` wraps Copilot CLI's interactive slash commands for non-interactive use. Pass just the command name (no leading `/`) — the script prepends `/` automatically.
+
+**Supported commands**: Any built-in CLI command (`help`, `model`, `init`, `diff`, `pr`, `review`, `plan`, `research`, `delegate`, `undo`, `compact`, `share`, `allow-all`, `add-dir`, `skills`) and any installed skill (`git-atomic-commit`, `handoff`, `mermaid-creator`, etc.).
+
+```powershell
+# Slash command only
+.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "plan" -Name "planning-pass"
+
+# Slash command with arguments (Prompt becomes the argument)
+.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "handoff" -Prompt "Describe session results" -Name "handoff-pass"
+
+# Equivalent freeform prompt (also valid)
+.\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "/handoff Describe session results" -Name "handoff-pass"
+```
+
+**Multi-step orchestration pattern**:
+
+```powershell
+# Plan → Execute → Review with slash commands
+.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "plan" -Prompt "Implement user auth" -Name "plan-auth" -SessionId $uuid -ReasoningEffort "none"
+.\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "Execute the plan above" -Name "exec-auth" -SessionId $uuid -ReasoningEffort "none" -AllowAll
+.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "review" -Name "review-auth" -SessionId $uuid -ReasoningEffort "none"
+```
+## Custom agent invocation (`-Agent`)
+
+Pin a specific agent to the sub-session. Plugin agents use **colon**: `plugin:agent-name`. Repo agents use bare name.
+
+```powershell
+# Plugin agent
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Agent "dotnet-diag:optimizing-dotnet-performance" `
+    -Prompt "Analyze this project's performance" `
+    -Name "perf-analysis"
+
+# Repo agent (discovered from .github/agents/)
+.\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -Agent "my-custom-agent" `
+    -Prompt "Execute the workflow" `
+    -Name "custom-workflow"
+```
+
+Agent discovery paths (in precedence order):
+1. `~/.copilot/agents/` (user-level)
+2. `.github/agents/` (repo-level)
+3. `plugin:agent-name` (qualified, from installed plugins)
+
+The agent is invoked via the Copilot CLI `--agent` flag and inherits the sub-session's model, BYOK config, and all other parameters.
 ## MCP and custom instructions inheritance
 
 By default the sub-session **inherits** the main session's MCP servers and custom instructions because:
@@ -159,13 +229,12 @@ A `-Model` parameter, when provided, takes precedence over the profile's model.
 
 By default the script returns a plain-text block. With `-JsonOutput` it returns JSONL; the final `result` line contains `exitCode` and `usage`.
 
-The script prints a structured result object:
+The script prints a structured result object (metadata only — StdOut is written to the console directly):
 
 ```powershell
 [PSCustomObject]@{
     ExitCode      = $proc.ExitCode
-    StdOut        = $stdout
-    StdErr        = $stderr
+    SlashCommand  = $SlashCommand
     Name          = $Name
     SessionId     = $SessionId
     Agent         = $Agent
