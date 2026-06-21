@@ -138,9 +138,9 @@
                 "focus": false,
                 "panel": "dedicated"
             },
-            "runOptions": {
-                "runOn": "folderOpen"
-            }
+            // "runOptions": {
+            //     "runOn": "folderOpen"
+            // }
         }
     ]
 }
