@@ -106,6 +106,28 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "thinking": true
     },
     {
+      "id": "kimi-k2.5",
+      "name": "Kimi K2.5",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": true,
+      "streaming": true,
+      "maxInputTokens": 240000,
+      "maxOutputTokens": 32768,
+      "thinking": true
+    },
+    {
+      "id": "glm-5.2",
+      "name": "GLM-5.2",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": false,
+      "streaming": true,
+      "maxInputTokens": 178000,
+      "maxOutputTokens": 16384,
+      "thinking": true
+    },
+    {
       "id": "glm-5.1",
       "name": "GLM-5.1",
       "url": "https://opencode.ai/zen/go/v1/chat/completions",

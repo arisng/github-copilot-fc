@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.6.0
+  version: 0.7.0
 ---
 
 # Copilot BYOK Provider Configuration
@@ -90,7 +90,7 @@ Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byo
 
 Use Copilot CLI's `--reasoning-effort` option for model reasoning level control.
 
-- Supported levels: `none`, `low`, `medium`, `high`, `xhigh`, `max`.
+- Supported levels: `none`, `low`, `medium`, `high`, `xhigh`, `max` (per-model subset may vary — e.g., DeepSeek V4 models on OpenCode Go only support `low`, `medium`, `high`).
 - Apply it per run, for example:
 
 ```powershell
@@ -102,6 +102,28 @@ For OpenAI models, you may also enable summaries:
 ```powershell
 .\scripts\byok-profile.ps1 run dprocess-openai-gpt-54 --reasoning-effort high --enable-reasoning-summaries
 ```
+
+### Model compatibility warning
+
+Not all models support Copilot CLI's `--reasoning-effort` levels. If you get:
+
+```
+Model "glm-5.2" does not support reasoning effort configuration (requested: "high").
+```
+
+it means the model's API does not expose controllable reasoning effort levels. Known families **without** reasoning-effort support:
+
+- **GLM** (`glm-5`, `glm-5.1`, `glm-5.2`) — Zhipu AI / OpenCode Go
+- **MiMo** (`mimo-v2.5`, `mimo-v2.5-pro`, `mimo-v2-pro`, `mimo-v2-omni`) — Xiaomi / OpenCode Go
+- **Kimi K2.x** (`kimi-k2.7-code`, `kimi-k2.6`, `kimi-k2.5`) — Moonshot AI / OpenCode Go (thinking is implicit / always-on)
+- **Qwen3.x** (`qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus`) — Alibaba / OpenCode Go (Anthropic-type, implicit thinking)
+- **MiniMax** (`minimax-m3`, `minimax-m2.7`, `minimax-m2.5`) — MiniMax / OpenCode Go (Anthropic-type, implicit thinking)
+
+When using these models, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.
+
+To check whether a model supports it, try `--reasoning-effort none` (the least demanding level). If that also fails, the model simply doesn't support the feature.
+
+The profile system tracks this per model. Profiles for models that do not support reasoning effort set `"reasoningEffortSupported": false`. The `run` command detects incompatible `--reasoning-effort`/`--effort` arguments, **strips them before forwarding to Copilot CLI**, and displays a clear notice. This prevents the API error.
 
 Do not claim a dedicated `COPILOT_*` environment variable exists for reasoning effort unless `copilot help environment` in the user's installed CLI version explicitly lists one.
 

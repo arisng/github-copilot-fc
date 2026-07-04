@@ -317,20 +317,24 @@ function Invoke-ProfileAdd {
                 Write-Host "  2) DeepSeek V4 Pro"
                 Write-Host "  3) Kimi K2.7 Code"
                 Write-Host "  4) Kimi K2.6"
-                Write-Host "  5) GLM-5.1"
-                Write-Host "  6) GLM-5"
-                Write-Host "  7) MiMo-V2.5"
-                Write-Host "  8) MiMo-V2.5-Pro"
+                Write-Host "  5) GLM-5.2"
+                Write-Host "  6) GLM-5.1"
+                Write-Host "  7) GLM-5"
+                Write-Host "  8) MiMo-V2.5"
+                Write-Host "  9) MiMo-V2.5-Pro"
+                Write-Host "  10) Other (type model ID manually)"
                 $modelChoice = Read-Host "Model [1]"
                 $model = switch ($modelChoice) {
                     '1' { 'deepseek-v4-flash' }
                     '2' { 'deepseek-v4-pro' }
                     '3' { 'kimi-k2.7-code' }
                     '4' { 'kimi-k2.6' }
-                    '5' { 'glm-5.1' }
-                    '6' { 'glm-5' }
-                    '7' { 'mimo-v2.5' }
-                    '8' { 'mimo-v2.5-pro' }
+                    '5' { 'glm-5.2' }
+                    '6' { 'glm-5.1' }
+                    '7' { 'glm-5' }
+                    '8' { 'mimo-v2.5' }
+                    '9' { 'mimo-v2.5-pro' }
+                    '10' { Read-Host "Enter model ID" }
                     default { 'deepseek-v4-flash' }
                 }
             }
@@ -399,6 +403,16 @@ function Invoke-ProfileAdd {
     $offlineInput = Read-Host "Offline mode? (y/N)"
     $offline = $offlineInput -in @('y', 'Y')
 
+    # Determine whether the model supports Copilot CLI --reasoning-effort
+    $noReasoningEffortModels = @(
+        'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
+        'glm-5.2', 'glm-5.1', 'glm-5',
+        'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
+        'qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-plus', 'qwen3.5-plus',
+        'minimax-m3', 'minimax-m2.7', 'minimax-m2.5'
+    )
+    $supportsReasoningEffort = $model -notin $noReasoningEffortModels
+
     $profileEntry = [ordered]@{
         type    = $type
         baseUrl = $baseUrl
@@ -406,8 +420,13 @@ function Invoke-ProfileAdd {
         apiKey  = if ($apiKey) { $apiKey } else { $null }
         offline = $offline
     }
+    if ($supportsReasoningEffort -eq $false) { $profileEntry.reasoningEffortSupported = $false }
     if ($maxPromptTokens) { $profileEntry.maxPromptTokens = $maxPromptTokens }
     if ($maxOutputTokens) { $profileEntry.maxOutputTokens = $maxOutputTokens }
+
+    if ($supportsReasoningEffort -eq $false) {
+        Write-Host "  Note: '$model' does not support --reasoning-effort. The profile has 'reasoningEffortSupported: false'." -ForegroundColor DarkYellow
+    }
 
     $config.profiles[$name] = $profileEntry
 
@@ -472,6 +491,34 @@ function Invoke-ProfileRun {
         Write-Host "  (base URL proxied: $originalBaseUrl → https://moonshot.local)" -ForegroundColor DarkYellow
     }
 
+    # Check for reasoning-effort compatibility
+    $hasReasoningArg = ($Arguments | Where-Object { $_ -match '^--(reasoning-effort|effort)(=|$)' }).Count -gt 0
+    $reasoningSupported = if ($p.PSObject.Properties.Name -contains 'reasoningEffortSupported') { $p.reasoningEffortSupported } else { $true }
+
+    if ($hasReasoningArg -and $reasoningSupported -eq $false) {
+        # Strip both the flag and its value argument
+        $stripped = @()
+        $newArgs = @()
+        $skipNext = $false
+        foreach ($arg in $Arguments) {
+            if ($skipNext -and -not ($arg -match '^--')) {
+                $stripped += $arg; $skipNext = $false; continue
+            }
+            $skipNext = $false
+            if ($arg -match '^--(reasoning-effort|effort)(=|$)' ) {
+                if ($arg -notmatch '=') { $skipNext = $true }
+                $stripped += $arg; continue
+            }
+            $newArgs += $arg
+        }
+        $Arguments = $newArgs
+        Write-Host ""
+        Write-Host "  ⚠ Stripped --reasoning-effort argument(s) for model '$($p.model)'" -ForegroundColor Yellow
+        Write-Host "    (the API does not expose controllable reasoning-effort levels)." -ForegroundColor Yellow
+        Write-Host "    Removed: $($stripped -join ' ')" -ForegroundColor DarkYellow
+        Write-Host ""
+    }
+
     Set-ProviderEnvironment -Provider $p
 
     # Show a brief summary
@@ -484,6 +531,9 @@ function Invoke-ProfileRun {
     if ($p.maxOutputTokens) { Write-Host "  Max Output Tokens : $($p.maxOutputTokens)" -ForegroundColor Gray }
     if ($p.offline -eq $true) { Write-Host "  Offline  : true" -ForegroundColor Gray }
     if ($proxyPort) { Write-Host "  Proxy    : https://moonshot.local (top_p override)" -ForegroundColor Green }
+    if ($p.PSObject.Properties.Name -contains 'reasoningEffortSupported') {
+        Write-Host "  Reasoning Effort : $($p.reasoningEffortSupported)" -ForegroundColor Gray
+    }
     Write-Host ""
 
     $copilotCmd = Get-Command copilot -ErrorAction SilentlyContinue
@@ -529,6 +579,8 @@ function Invoke-ProfileSetEnv {
     if ($env:COPILOT_OFFLINE) {
         Write-Host "  COPILOT_OFFLINE           = $($env:COPILOT_OFFLINE)" -ForegroundColor Gray
     }
+    $reasoningSupported = if ($p.PSObject.Properties.Name -contains 'reasoningEffortSupported') { $p.reasoningEffortSupported } else { $true }
+    Write-Host "  Reasoning Effort Supported = $reasoningSupported" -ForegroundColor Gray
 }
 
 switch ($Command) {

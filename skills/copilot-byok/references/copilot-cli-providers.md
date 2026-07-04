@@ -43,6 +43,8 @@ Supported levels:
 - `xhigh`
 - `max`
 
+> Not all models support every level. For example, DeepSeek V4 models on OpenCode Go support only `low`, `medium`, `high`. Check the Reasoning Effort column in the Available Models table below for per-model notes.
+
 Example:
 
 ```powershell
@@ -54,6 +56,20 @@ If you run through BYOK profile script passthrough:
 ```powershell
 .\scripts\byok-profile.ps1 run dprocess-openai-gpt-54 --reasoning-effort medium
 ```
+
+### Model compatibility
+
+Not all models support `--reasoning-effort`. If you get:
+
+```
+Model "glm-5.2" does not support reasoning effort configuration (requested: "high").
+```
+
+it means the model's API does not expose controllable reasoning effort levels. Models from the **GLM** (Zhipu AI), **Kimi K2.x** (Moonshot AI), **MiMo** (Xiaomi), **Qwen3.x** (Alibaba), and **MiniMax** families do not support reasoning effort. See the Available Models table above for per-model notes.
+
+When using these models, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.
+
+The profile system tracks this per model. Profiles set `"reasoningEffortSupported": false` for models that don't support it. The `run` command warns if you try to pass `--reasoning-effort` to an incompatible profile.
 
 OpenAI-specific note:
 - GPT-5 class models may perform best with `COPILOT_PROVIDER_WIRE_API=responses`.
@@ -200,23 +216,23 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 
 ### Available Models
 
-### Available Models
-
-| Model | Bare Model ID (`COPILOT_MODEL`) | Provider Type | Wire Format |
-|-------|-------------------------------|---------------|-------------|
-| DeepSeek V4 Flash | `deepseek-v4-flash` | `openai` | `completions` |
-| DeepSeek V4 Pro | `deepseek-v4-pro` | `openai` | `completions` |
-| Kimi K2.7 Code | `kimi-k2.7-code` | `openai` | `completions` |
-| Kimi K2.6 | `kimi-k2.6` | `openai` | `completions` |
-| GLM-5.1 | `glm-5.1` | `openai` | `completions` |
-| GLM-5 | `glm-5` | `openai` | `completions` |
-| MiMo-V2.5 (Xiaomi, 1M context) | `mimo-v2.5` | `openai` | `completions` |
-| MiMo-V2.5-Pro (Xiaomi, 1M context) | `mimo-v2.5-pro` | `openai` | `completions` |
-| Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `completions` |
-| Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `completions` |
-| Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `completions` |
-| MiniMax M3 | `minimax-m3` | `anthropic` | `completions` |
-| MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `completions` |
+| Model | Bare Model ID (`COPILOT_MODEL`) | Provider Type | Wire Format | Reasoning Effort |
+|-------|-------------------------------|---------------|-------------|-----------------|
+| DeepSeek V4 Flash | `deepseek-v4-flash` | `openai` | `completions` | Supported (`low`, `medium`, `high`) |
+| DeepSeek V4 Pro | `deepseek-v4-pro` | `openai` | `completions` | Supported (`low`, `medium`, `high`) |
+| Kimi K2.7 Code | `kimi-k2.7-code` | `openai` | `completions` | Not supported (thinking always-on) |
+| Kimi K2.6 | `kimi-k2.6` | `openai` | `completions` | Not supported (implicit thinking) |
+| Kimi K2.5 | `kimi-k2.5` | `openai` | `completions` | Not supported (implicit thinking) |
+| GLM-5.2 | `glm-5.2` | `openai` | `completions` | Not supported |
+| GLM-5.1 | `glm-5.1` | `openai` | `completions` | Not supported |
+| GLM-5 | `glm-5` | `openai` | `completions` | Not supported |
+| MiMo-V2.5 (Xiaomi, 1M context) | `mimo-v2.5` | `openai` | `completions` | Not supported |
+| MiMo-V2.5-Pro (Xiaomi, 1M context) | `mimo-v2.5-pro` | `openai` | `completions` | Not supported |
+| Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `completions` | Not supported (implicit thinking) |
+| Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `completions` | Not supported (implicit thinking) |
+| Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `completions` | Not supported (implicit thinking) |
+| MiniMax M3 | `minimax-m3` | `anthropic` | `completions` | Not supported (implicit thinking) |
+| MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `completions` | Not supported (implicit thinking) |
 
 > The model list may change over time. Fetch the current list at any time:
 > ```
