@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.7.0
+  version: 0.8.0
 ---
 
 # Copilot BYOK Provider Configuration
@@ -151,6 +151,22 @@ When the user asks for `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` or `COPILOT_PROVIDER
 `maxPromptTokens = contextWindow - plannedMaxOutput - safetyBuffer`
 
 Prefer stable values over theoretical maximums. If the user reports context-limit failures, reduce prompt tokens by 5-10% and retry.
+
+### Provider-enforced limits vs theoretical context windows
+
+Some gateway providers (notably **OpenCode Go**) enforce per-request token limits **lower than the model's theoretical context window**. The native DeepSeek V4 Flash model supports 1M context, but OpenCode Go's gateway enforces an effective limit around ~300K for prompt tokens. Using the theoretical 1M to calculate maxPromptTokens (840K) will cause compaction failures with `400 Error from provider (Console Go): Upstream request failed`.
+
+**Empirical approach**: Test compaction at increasing context-usage levels. When compaction fails, derive the provider's effective limit:
+
+```
+maxPromptTokens = successfulCompactionTokens / 0.78
+```
+
+For OpenCode Go's DeepSeek V4 models, the empirically validated safe values are:
+- `maxPromptTokens`: 325,000
+- `maxOutputTokens`: 64,000
+
+This same limit discovery process applies to any provider whose gateway enforces stricter limits than the model's published context window.
 
 ## Troubleshoot in this order
 

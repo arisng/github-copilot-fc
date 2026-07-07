@@ -66,8 +66,8 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "toolCalling": true,
       "vision": false,
       "streaming": true,
-      "maxInputTokens": 840000,
-      "maxOutputTokens": 128000,
+      "maxInputTokens": 325000,
+      "maxOutputTokens": 64000,
       "thinking": true,
       "supportsReasoningEffort": ["low", "medium", "high"]
     },
@@ -78,8 +78,8 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "toolCalling": true,
       "vision": false,
       "streaming": true,
-      "maxInputTokens": 840000,
-      "maxOutputTokens": 128000,
+      "maxInputTokens": 325000,
+      "maxOutputTokens": 64000,
       "thinking": true,
       "supportsReasoningEffort": ["low", "medium", "high"]
     },

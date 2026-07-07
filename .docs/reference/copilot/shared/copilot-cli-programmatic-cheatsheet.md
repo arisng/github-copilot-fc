@@ -185,8 +185,8 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
       "model": "deepseek-v4-flash",
       "type": "openai",
       "apiKey": "${OPENCODE_API_KEY}",
-      "maxPromptTokens": 840000,
-      "maxOutputTokens": 128000
+      "maxPromptTokens": 325000,
+      "maxOutputTokens": 64000
     },
     "dprocess-openai-gpt-54": {
       "baseUrl": "https://api.openai.com/v1",
