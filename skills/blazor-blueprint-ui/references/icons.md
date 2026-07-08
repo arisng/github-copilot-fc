@@ -4,9 +4,10 @@ Source: https://blazorblueprintui.com/llms/icons.txt
 
 ## Pick the icon package intentionally
 
-- `BlazorBlueprint.Icons.Lucide` - 1,665 stroke icons; best default for most app UI.
+- `BlazorBlueprint.Icons.Lucide` - 1,753 stroke icons; best default for most app UI.
 - `BlazorBlueprint.Icons.Heroicons` - 1,288 icons across Outline, Solid, Mini, and Micro variants.
 - `BlazorBlueprint.Icons.Feather` - 286 lightweight stroke icons.
+- `BlazorBlueprint.Icons.FontAwesome` - 2,066 icons across Solid, Regular, and Brands variants.
 
 Install only the package(s) you need:
 
@@ -14,6 +15,7 @@ Install only the package(s) you need:
 dotnet add package BlazorBlueprint.Icons.Lucide
 dotnet add package BlazorBlueprint.Icons.Heroicons
 dotnet add package BlazorBlueprint.Icons.Feather
+dotnet add package BlazorBlueprint.Icons.FontAwesome
 ```
 
 No service registration is required.
@@ -25,7 +27,7 @@ No service registration is required.
 @using BlazorBlueprint.Icons.Lucide.Data
 ```
 
-Swap `Lucide` for `Heroicons` or `Feather` as needed.
+Swap `Lucide` for `Heroicons`, `Feather`, or `FontAwesome` as needed.
 
 ## Typical usage
 
@@ -60,6 +62,7 @@ Use the upstream catalog files when you need exact names:
 - `https://blazorblueprintui.com/llms/icons/lucide.txt`
 - `https://blazorblueprintui.com/llms/icons/heroicons.txt`
 - `https://blazorblueprintui.com/llms/icons/feather.txt`
+- `https://blazorblueprintui.com/llms/icons/fontawesome.txt`
 
 ## Renamed icons (Lucide)
 
@@ -80,4 +83,4 @@ BlazorBlueprint tracks the **current upstream Lucide naming**. Several commonly-
 
 ## Programmatic lookup
 
-Each package also ships a data helper class (`LucideIconData`, `HeroIconData`, `FeatherIconData`) for existence checks and iteration.
+Each package also ships a data helper class (`LucideIconData`, `HeroIconData`, `FeatherIconData`, `FontAwesomeIconData`) for existence checks and iteration.

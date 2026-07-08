@@ -24,6 +24,7 @@ Use this file for shells, page structure, and navigation. Display-heavy and data
 | Managed scrolling | `BbScrollArea` | Use inside fixed-height panels or drawers. |
 | Media aspect lock | `BbAspectRatio` | Keeps images/video placeholders stable. |
 | Visual separation | `BbSeparator` | Cheap structure signal for headers, toolbars, and menus. |
+| IDE-style docking | `BbDock` | Drag-and-drop panels, floating, pin/maximize/close, tab-strip overflow. Great for dev tools and analytics workspaces. |
 | Paging long datasets | `BbPagination` | Usually paired with `BbDataTable`, `BbDataView`, or server-driven pages. |
 
 ## App shell and navigation
@@ -116,3 +117,4 @@ Keep layout responsibilities here; do not route tables, alerts, timelines, or em
 - For alerts, badges, timelines, tables, and empty states, load `components-display-data.md`.
 - For dialogs, menus, and tooltips, load `components-overlays.md`.
 - For input-heavy pages, pair this file with `components-forms.md`.
+- For `BbDock` details, load `https://blazorblueprintui.com/llms/components/dock.txt`.

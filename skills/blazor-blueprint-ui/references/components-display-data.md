@@ -33,6 +33,10 @@ Use this file for status display, loading/empty states, presentation helpers, an
 | Enterprise grid | `BbDataGrid<TData>` | Grouping, hierarchy, virtualization, pinning, resize/reorder, server providers. |
 | List/grid catalog | `BbDataView<TItem>` | Toolbar search, sort, pagination, and list/grid template switching. |
 | Rich text content presentation | `BbTypography*` components | Keep docs, marketing, and long-form pages visually consistent. |
+| Click-to-copy | `BbCopyText` | Shows a tooltip on copy; ideal for API keys, IDs, and code snippets. |
+| Event calendar | `BbEventCalendar<TEvent>` | Month/Week/Agenda views, two-way bindable `View`/`CurrentDate`. Pairs with `BbDialog` for event detail modals. |
+| Chat / AI conversation | `BbMessage`, `BbBubble`, `BbAttachment`, `BbMarker` | AI conversation UI: message blocks, chat bubbles, file attachments, and marker indicators. |
+| Theme switcher | `BbThemeSwitcher`, `BbDarkModeToggle` | Pre-built UI for dark/light and base color switching. `ColorLayout` supports `Split` or `Combined` sections. |
 | Slide or media presentation | `BbCarousel` | Display concern, not layout shell. |
 
 ## Status and feedback components
@@ -126,3 +130,14 @@ Guidance:
 - Floating menus, tooltips, dialogs, and toasts belong in `components-overlays.md`.
 - Input and editing workflows belong in `components-forms.md`.
 - Data dashboards that need charts should pair this file with `components-charts.md`.
+- IDE-style docking belongs in `components-layout.md` (`BbDock`).
+
+### Chat family note
+
+`BbMessage`, `BbBubble`, `BbAttachment`, and `BbMarker` form a chat/AI conversation component family:
+- `BbMessage` renders a message block with role (user/assistant), timestamp, and action buttons.
+- `BbBubble` renders individual chat bubbles within a message (text, code, image).
+- `BbAttachment` shows file attachments with download or preview actions.
+- `BbMarker` marks inline content with status (info, warning, error, success).
+
+Load `https://blazorblueprintui.com/llms/components/message.txt` when you need the full chat component API.

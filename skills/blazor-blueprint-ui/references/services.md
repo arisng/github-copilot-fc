@@ -72,6 +72,53 @@ Add these where appropriate in the root layout:
 - Always add `BbPortalHost` when using overlays.
 - Add toast/dialog providers only if the corresponding service is used.
 
+## Configuration overloads
+
+`AddBlazorBlueprintComponents()` accepts optional callbacks:
+
+```csharp
+// Localization overrides
+builder.Services.AddBlazorBlueprintComponents(localizer =>
+{
+    localizer.Set("DataGrid.Loading", "Laden...");
+});
+
+// Theme configuration at startup
+builder.Services.AddBlazorBlueprintComponents(
+    configureLocalizer: localizer => { },
+    configureTheme: theme =>
+    {
+        theme.DefaultDarkMode = false;
+        theme.DefaultBaseColor = "Stone";
+        theme.DefaultPrimaryColor = "Blue";
+    }
+);
+```
+
+The `configureTheme` callback accepts `ThemeOptions` with:
+- `DefaultDarkMode` (bool) — initial light/dark preference
+- `DefaultBaseColor` / `DefaultPrimaryColor` (string) — color presets from the library palette
+- Persistence behavior for the selected theme
+
+## ThemeService
+
+`ThemeService` (scoped) provides runtime theme control:
+
+```csharp
+@inject ThemeService ThemeService
+
+// Toggle between light and dark
+await ThemeService.ToggleDarkModeAsync();
+
+// Change base color at runtime
+await ThemeService.SetBaseColorAsync("Zinc");
+
+// Change primary color at runtime
+await ThemeService.SetPrimaryColorAsync("Violet");
+```
+
+`BbThemeSwitcher` and `BbDarkModeToggle` provide ready-made UI for users to change themes interactively.
+
 ## Localization service hook
 
 `AddBlazorBlueprintComponents(Action<DefaultBbLocalizer>?)` also lets you override built-in strings during startup. Read [localization.md](localization.md) when text, labels, or culture formatting need customization.

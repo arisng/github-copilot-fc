@@ -6,7 +6,7 @@ Source: https://blazorblueprintui.com/llms/localization.txt
 
 BlazorBlueprint routes component chrome text through `IBbLocalizer`: button labels, placeholder text, ARIA labels, status messages, pagination text, and similar UI strings.
 
-The upstream doc lists 189 keys. Load the official `localization.txt` when you need the full key catalog.
+The upstream doc lists 263 keys (v3.13.0). Load the official `localization.txt` when you need the full key catalog.
 
 ## Default behavior
 

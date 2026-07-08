@@ -28,7 +28,7 @@ Current BlazorBlueprint charts are built on **Apache ECharts**, not ApexCharts. 
 | Circular progress or comparative arcs | `BbRadialBarChart` | Great for completion metrics and ring summaries. |
 | Single KPI gauge | `BbGaugeChart` | Meter/speedometer style. |
 | Radial comparison | `BbRadarChart` | Best for comparing several dimensions on one shape. |
-| Specialized analytics | `BbHeatmapChart`, `BbFunnelChart`, `BbCandlestickChart` | Load the specific upstream doc only when needed. |
+| Specialized analytics | `BbHeatmapChart`, `BbFunnelChart`, `BbCandlestickChart` | Load the specific upstream doc only when needed. `BbCandlestickChart` is the newest addition — use for financial OHLC data. |
 | Consistent card-like wrapper | `BbChartContainer` | Preferred visual shell for dashboards. |
 
 ## Current chart model

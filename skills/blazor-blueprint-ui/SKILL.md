@@ -2,8 +2,10 @@
 name: blazor-blueprint-ui
 description: Build and customize .NET 8+ Blazor UIs with BlazorBlueprint. Use when choosing between BlazorBlueprint.Components and BlazorBlueprint.Primitives, wiring setup and providers, using ToastService/DialogService/localization, selecting icon packs, applying shadcn-ui-style theming, or copying and adapting BlazorBlueprint blueprints.
 metadata: 
-    version: 0.2.0
+    version: 0.3.0
     author: arisng
+    lastVerified: 2026-07-08
+    libraryVersion: 3.13.0
 ---
 
 # BlazorBlueprint UI
@@ -23,9 +25,10 @@ Core packages:
 
 - **BlazorBlueprint.Components** - Styled component library; includes primitives
 - **BlazorBlueprint.Primitives** - Headless accessibility and behavior layer
-- **BlazorBlueprint.Icons.Lucide** - Lucide icon pack
-- **BlazorBlueprint.Icons.Heroicons** - Heroicons pack
-- **BlazorBlueprint.Icons.Feather** - Feather icon pack
+- **BlazorBlueprint.Icons.Lucide** - Lucide icon pack (1,753 icons)
+- **BlazorBlueprint.Icons.Heroicons** - Heroicons pack (1,288 icons)
+- **BlazorBlueprint.Icons.Feather** - Feather icon pack (286 icons)
+- **BlazorBlueprint.Icons.FontAwesome** - Font Awesome 6 Free pack (2,066 icons, 3 variants)
 
 ## Quick Navigation
 
@@ -72,41 +75,43 @@ Read [references/patterns.md](references/patterns.md) for:
 
 ## Component Categories
 
-### Form Components
+### Form Components (30+ form-related)
 Read [references/components-forms.md](references/components-forms.md) for:
 - text, typed, and structured inputs
 - selection controls and searchable selection
-- date/time and OTP flows
+- date/time, date+time, and OTP flows
 - uploads, editors, and advanced inputs
-- form sections, wizards, and dynamic forms
+- form sections, wizards, dynamic forms, and `BbFormField*` wrappers
 
-### Layout & Navigation Components
+### Layout & Navigation Components (15+)
 Read [references/components-layout.md](references/components-layout.md) for:
 - sidebars, responsive nav, navigation menus, and breadcrumbs
-- cards, tabs, accordions, and collapsible content
+- cards, tabs, accordions, collapsible content, and IDE-style docking
 - resizable work areas, scroll areas, separators, and aspect-ratio containers
 - routing guidance for shells vs display/data surfaces
 
-### Overlay Components
+### Overlay Components (14+)
 Read [references/components-overlays.md](references/components-overlays.md) for:
 - dialogs, alert dialogs, sheets, drawers, and popovers
 - menus, tooltips, hover cards, and command surfaces
 - `DialogService` and `ToastService` usage
 - provider and portal requirements
 
-### Display & Data Components
+### Display & Data Components (18+)
 Read [references/components-display-data.md](references/components-display-data.md) for:
 - alerts, badges, avatars, shortcuts, loading states, and empty states
-- items, timelines, typography, and carousel-style presentation
+- items, timelines, typography, carousel, click-to-copy, and chat components
 - `BbDataTable`, `BbDataGrid`, and `BbDataView` routing
-- dashboard/data-screen guidance
+- dashboard/data-screen and event calendar guidance
 
-### Chart Components
+### Chart Components (12 types)
 Read [references/components-charts.md](references/components-charts.md) for:
 - the current Apache ECharts-based chart stack
 - `BbChart` composite charts and `ChartConfig`
-- dedicated bar, line, area, pie, radial bar, gauge, radar, and scatter charts
+- dedicated bar, line, area, pie, radial bar, gauge, radar, scatter, and candlestick charts
 - `BbChartContainer` and chart theming
+
+> Counts are approximate and grow with each library release. The authoritative component list is at https://blazorblueprintui.com/llms/llms-full.txt.
 
 ## Key Architecture Patterns
 
@@ -143,6 +148,8 @@ Read [references/components-charts.md](references/components-charts.md) for:
 </BbDialog>
 ```
 
+> **Note**: `AsChild` defaults to `true` (v3+). Set `AsChild="false"` when you need the trigger's built-in `<button>` wrapper instead of merging into a child element — useful when migrating v2 code that relied on auto-generated wrappers.
+
 ### Portal and provider pattern
 
 Overlay components render through `BbPortalHost`. App-wide toasts and service-driven dialogs also need `BbToastProvider` and `BbDialogProvider` in the root layout.
@@ -151,7 +158,7 @@ Overlay components render through `BbPortalHost`. App-wide toasts and service-dr
 
 These are hard-won constraints — check them before generating any BB component code:
 
-1. **No unmatched attribute capture** — BB components do not accept arbitrary HTML attributes (`@onclick`, `style`, `class`, etc.) and will throw at runtime. Wrap with a native element instead. See [patterns.md § No unmatched attribute capture](references/patterns.md).
+1. **CaptureUnmatchedValues is supported, not universal** — Most BB components now accept arbitrary HTML attributes (`@onclick`, `style`, `class`, `data-*`, etc.) and pass them through to the root element. However, not every component declares `[Parameter(CaptureUnmatchedValues = true)]` — check the upstream docs or source for your specific component. For components that lack it, use a wrapper element. See [patterns.md § Unmatched attribute capture](references/patterns.md).
 
 2. **Tailwind subset only** — BB ships only the utilities its own components use; writing other Tailwind classes silently has no effect. Add missing utilities as custom CSS. See [setup.md § Tailwind subset limitation](references/setup.md).
 

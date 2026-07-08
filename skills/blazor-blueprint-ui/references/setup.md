@@ -37,6 +37,7 @@ Optional icon packages:
 dotnet add package BlazorBlueprint.Icons.Lucide
 dotnet add package BlazorBlueprint.Icons.Heroicons
 dotnet add package BlazorBlueprint.Icons.Feather
+dotnet add package BlazorBlueprint.Icons.FontAwesome
 ```
 
 ## Register services
@@ -66,6 +67,7 @@ Important service implications:
 @using BlazorBlueprint.Components
 @using BlazorBlueprint.Primitives
 @using BlazorBlueprint.Icons.Lucide.Components
+@using BlazorBlueprint.Icons.FontAwesome.Components
 ```
 
 Add the stylesheet to `App.razor` (Blazor Web App) or `_Host.cshtml` (older Blazor Server hosting):
@@ -74,7 +76,7 @@ Add the stylesheet to `App.razor` (Blazor Web App) or `_Host.cshtml` (older Blaz
 <link rel="stylesheet" href="_content/BlazorBlueprint.Components/blazorblueprint.css" />
 ```
 
-If you maintain a custom theme file, load it **before** `blazorblueprint.css` so the CSS variables already exist.
+If you maintain a custom theme file, load it **before** `blazorblueprint.css` so the CSS variables already exist. The library uses `@layer bb` cascade layering for its component CSS, so your own utility classes override library defaults naturally.
 
 ## Configure layout providers
 
@@ -184,6 +186,7 @@ A small smoke test page is usually enough:
 ### Components render with no styling
 - Confirm the CSS link points to `_content/BlazorBlueprint.Components/blazorblueprint.css`.
 - Confirm your theme file loads before the library stylesheet.
+- **`@layer bb`** — BlazorBlueprint wraps its component CSS in a cascading `@layer bb` to prevent consumer style conflicts. Your own Tailwind utilities cascade normally. This reduces the need for precise load ordering — just ensure the theme variables are set before the library CSS loads.
 
 ### Dialogs, popovers, or tooltips never appear
 - Confirm `<BbPortalHost />` exists in the root layout.

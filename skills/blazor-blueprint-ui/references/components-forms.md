@@ -99,8 +99,21 @@ Use:
 - `BbDatePicker` for a single-date field with overlay calendar
 - `BbDateRangePicker` for reporting, analytics, and filter bars
 - `BbTimePicker` for time-only entry
+- `BbDateTimePicker` / `BbFormFieldDateTimePicker` for combined date+time selection (supports 12/24h, Now/Clear actions, `Editable` + `InputFormats` for manual entry)
 
 For structured short values, `BbMaskedInput` and `BbInputOTP` are the main tools.
+
+### `SelectOption<TValue>` record
+
+`BbSelect`, `BbCombobox`, and `BbMultiSelect` use the `SelectOption<TValue>` record for their `Options` mode:
+
+```csharp
+var options = new SelectOption<int>[]
+{
+    new() { Value = 1, DisplayText = "Option A" },
+    new() { Value = 2, DisplayText = "Option B" },
+};
+```
 
 ## Rich media and advanced input
 
