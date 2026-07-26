@@ -116,8 +116,10 @@ export function serveHtml(instanceId, initialSessionUuid) {
   .sidebar.collapsed .sidebar-header .session-id,
   .sidebar.collapsed .sidebar-header div { display: none; }
   .sidebar.collapsed .sidebar-header svg { margin: 0; }
-  .sidebar.collapsed .sidebar-tab { font-size: 0; padding: 8px 4px; }
+  .sidebar.collapsed .sidebar-tabs { flex-direction: column; border-bottom: none; }
+  .sidebar.collapsed .sidebar-tab { font-size: 0; padding: 8px 4px; flex: none; }
   .sidebar.collapsed .sidebar-tab::after { content: attr(data-icon); font-size: 16px; }
+  .sidebar.collapsed .sidebar-tab.active { border-bottom: none; border-left: 2px solid var(--accent); }
   .sidebar.collapsed .file-group,
   .sidebar.collapsed .toc-item,
   .sidebar.collapsed .active-file-info,
