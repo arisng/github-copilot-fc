@@ -20,6 +20,7 @@ This repository is a **customization factory** for GitHub Copilot customizations
 | `tools/`              | Tools Inventory       | `inventory.md`, runtime toolsets   |
 | `plugins/`            | Copilot CLI Plugins   | `plugin.json` + local components   |
 | `copilot-sdk/`        | SDK Documentation     | `.md` docs                         |
+| `copilot-extensions/` | Copilot CLI Extensions| `.mjs`, `.json`, `package.json`    |
 | `prompt-engineering/` | PE Research           | `.md`, `.json` docs                |
 | `.github/`            | Repository Governance | Constitution, inventory, workflows |
 
@@ -45,6 +46,7 @@ Changes to GitHub Copilot customization artifact files — the most-used commit 
 - `prompt`: Copilot prompt files (`prompts/**/*.prompt.md`)
 - `toolset`: Copilot tool inventory and runtime toolset files (`tools/**`)
 - `hook`: Copilot hook lifecycle configurations (`hooks/`)
+- `copilot-extension`: Copilot CLI canvas extension files (`copilot-extensions/**/`)
 
 ### `agent`
 
@@ -222,6 +224,19 @@ To propose a new scope or modify an existing one:
 6. **Document amendment**: Add an entry to the Amendment History below
 
 ## Amendment History
+
+### 2026-07-26 — Amendment #4 (Add `copilot-extension` scope for Copilot CLI extensions)
+
+**Changes:**
+- Added `copilot-extensions/` to the Repository Context table
+- Added `copilot-extension` scope under `copilot` type for Copilot CLI canvas extension files
+- Retroactively rebased 5 recent commits to use `copilot(copilot-extension)` scope
+
+**Rationale:**
+The `copilot-extensions/` directory is a distinct artifact type — self-contained HTTP server + SPA canvas extensions — separate from plugins, agents, or skills. A dedicated scope improves git log scanning clarity.
+
+**Migration Notes:**
+All commits touching `copilot-extensions/` should use `copilot(copilot-extension)` scope going forward.
 
 ### 2026-02-24 — Amendment #1 (Initial Constitution)
 
