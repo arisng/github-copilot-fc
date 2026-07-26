@@ -1,0 +1,10 @@
+{
+  "name": "session-md-reader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.62.0",
+    "sql.js": "^1.11.0"
+  }
+}
