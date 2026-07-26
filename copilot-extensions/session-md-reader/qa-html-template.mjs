@@ -171,6 +171,21 @@ export function serveHtml(instanceId, initialSessionUuid) {
   }
   .todo-tree-container .empty-state svg { width: 32px; height: 32px; opacity: 0.3; margin-bottom: 8px; }
 
+  /* Toggle all button */
+  .todo-tree-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px; flex-shrink: 0;
+  }
+  .todo-toggle-all {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border: 1px solid var(--border);
+    border-radius: 5px; cursor: pointer; font-size: 10px;
+    background: var(--surface); color: var(--text-muted); flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .todo-toggle-all:hover { background: var(--surface-hover); color: var(--accent); }
+  .todo-toggle-all .icon { font-size: 12px; }
+
   /* ── details/summary tree ── */
   .todo-tree-node { --depth: 0; }
   /* Summary acts as the clickable node header */
@@ -209,21 +224,6 @@ export function serveHtml(instanceId, initialSessionUuid) {
     width: 1.5px;
     background: var(--border);
   }
-  /* Last child trunk: only top half */
-  .todo-tree-node:last-child > .todo-node-children::before {
-    height: 50%; bottom: auto;
-  }
-
-  /* Horizontal branch: from parent trunk to content start */
-  .todo-tree-node > summary.todo-node-content::before {
-    content: ''; position: absolute;
-    top: 50%;
-    left: -32px;
-    width: 32px;
-    height: 1.5px;
-    background: var(--border);
-  }
-
   /* Status dot */
   .todo-status-dot {
     width: 10px; height: 10px; border-radius: 50%;
@@ -626,7 +626,7 @@ function renderTodosTree() {
         const children = node.children || [];
         const hasChildren = children.length > 0 && children[0]?.id !== "CYCLE";
 
-        let html = '<details class="todo-tree-node" style="--depth:' + depth + '" data-id="' + escapeHtml(node.id) + '">';
+        let html = '<details open class="todo-tree-node" style="--depth:' + depth + '" data-id="' + escapeHtml(node.id) + '">';
         html += '<summary class="todo-node-content" style="margin-left:' + (24 + depth * 20) + 'px" onclick="onTodoNodeClick(this, \\'' + escapeHtml(node.id) + '\\')">';
         html += '<span class="chevron"' + (hasChildren ? '' : ' style="visibility:hidden"') + '>▶</span>';
         html += '<span class="todo-status-dot" style="--status-color:' + color + '"></span>';
@@ -644,7 +644,8 @@ function renderTodosTree() {
         return html;
     }
 
-    let html = '<div class="todo-tree-container">';
+    let html = '<div class="todo-tree-toolbar"><button class="todo-toggle-all" onclick="toggleAllTodos()"><span class="icon">⊞</span><span id="toggleAllLabel">Collapse All</span></button></div>';
+    html += '<div class="todo-tree-container">';
     for (const root of tree) {
         html += buildNodeHtml(root, 0);
     }
@@ -667,6 +668,17 @@ function renderTodosTree() {
     html += '</div></div>';
 
     sidebarContent.innerHTML = html;
+}
+
+// --- Toggle all todos (collapse/expand) ---
+function toggleAllTodos() {
+    const details = document.querySelectorAll(".todo-tree-node");
+    const anyOpen = Array.from(details).some(d => d.open);
+    const label = document.getElementById("toggleAllLabel");
+    for (const d of details) {
+        d.open = !anyOpen;
+    }
+    label.textContent = anyOpen ? "Expand All" : "Collapse All";
 }
 
 // --- Todo node click handler ---
