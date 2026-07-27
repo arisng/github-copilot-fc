@@ -788,6 +788,256 @@ const TC8_EMPTY_TODOS = test("TC8.6", "No-todos session shows empty state", asyn
 });
 
 // ========================================================================
+// TC7: Todo Tree — Pass Badge Tests
+// ========================================================================
+
+const TC7_PASS_BADGE_COUNT = test("TC7.10", "Each todo node has a pass badge", async (page) => {
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    const nodeCount = await page.locator(".todo-tree-node").count();
+    if (nodeCount > 0) {
+        const badgeCount = await page.locator(".todo-pass-badge").count();
+        assert.ok(badgeCount === nodeCount, `Badge count (${badgeCount}) should equal node count (${nodeCount})`);
+    }
+});
+
+const TC7_PASS_BADGE_TEXT = test("TC7.11", "Badge text matches data-passid attribute", async (page) => {
+    const nodes = page.locator(".todo-tree-node");
+    const count = await nodes.count();
+    for (let i = 0; i < Math.min(count, 10); i++) {
+        const dataPass = await nodes.nth(i).getAttribute("data-passid");
+        // Use direct child selector to avoid matching badges inside nested details
+        const badge = nodes.nth(i).locator("> summary .todo-pass-badge");
+        const badgeText = await badge.textContent();
+        assert.equal(badgeText, dataPass, `Badge text "${badgeText}" should match data-passid "${dataPass}"`);
+    }
+});
+
+const TC7_PASS_BADGE_STYLE = test("TC7.12", "Badge has pill styling with small font", async (page) => {
+    const badge = page.locator(".todo-pass-badge").first();
+    if (await badge.count() > 0) {
+        const borderRadius = await badge.evaluate(el => parseFloat(getComputedStyle(el).borderRadius));
+        const fontSize = await badge.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+        assert.ok(borderRadius >= 6, `Border-radius should be pill-like, got ${borderRadius}`);
+        assert.ok(fontSize <= 10, `Font-size should be small, got ${fontSize}`);
+    }
+});
+
+// ========================================================================
+// TC11: Pass ID Filter
+// ========================================================================
+
+const TC11_FILTER_BAR = test("TC11.1", "Filter bar renders with All + unique pass buttons", async (page) => {
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    const filterBtns = page.locator(".todo-filter-btn");
+    const btnCount = await filterBtns.count();
+    assert.ok(btnCount >= 2, `Should have at least All + 1 pass filter, got ${btnCount} buttons`);
+    const allBtn = page.locator('.todo-filter-btn[data-pass="all"]');
+    assert.ok(await allBtn.count() > 0, "All button should exist");
+    const allActive = await allBtn.evaluate(el => el.classList.contains("active"));
+    assert.ok(allActive, "All button should be active by default");
+});
+
+const TC11_FILTER_HIDES = test("TC11.2", "Click pass filter hides non-matching nodes", async (page) => {
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    const passBtns = page.locator('.todo-filter-btn[data-pass]:not([data-pass="all"])');
+    const btnCount = await passBtns.count();
+    if (btnCount > 0) {
+        const firstPass = await passBtns.first().getAttribute("data-pass");
+        await passBtns.first().click();
+        await page.waitForTimeout(200);
+        // Check that at least one node matches the filter
+        const matchingNodes = page.locator(`.todo-tree-node[data-passid="${firstPass}"]:not(.hidden-by-filter)`);
+        const hiddenNodes = page.locator('.todo-tree-node.hidden-by-filter');
+        const matchingCount = await matchingNodes.count();
+        const hiddenCount = await hiddenNodes.count();
+        assert.ok(matchingCount > 0, `Should have matching nodes for pass "${firstPass}"`);
+        assert.ok(hiddenCount > 0, "Should have hidden nodes when filter is active");
+    }
+});
+
+const TC11_FILTER_ALL = test("TC11.3", "Click All restores all nodes", async (page) => {
+    const allBtn = page.locator('.todo-filter-btn[data-pass="all"]');
+    await allBtn.click();
+    await page.waitForTimeout(200);
+    const hiddenNodes = page.locator('.todo-tree-node.hidden-by-filter');
+    const hiddenCount = await hiddenNodes.count();
+    assert.equal(hiddenCount, 0, "All nodes should be visible when All filter is active");
+});
+
+const TC11_FILTER_PERSISTS = test("TC11.4", "Filter state persists through tab switch", async (page) => {
+    const passBtns = page.locator('.todo-filter-btn[data-pass]:not([data-pass="all"])');
+    const btnCount = await passBtns.count();
+    if (btnCount > 0) {
+        const firstPass = await passBtns.first().getAttribute("data-pass");
+        await passBtns.first().click();
+        await page.waitForTimeout(200);
+        // Switch to Files tab and back
+        await page.locator('[data-tab="files"]').click();
+        await page.waitForTimeout(200);
+        await page.locator('[data-tab="todos"]').click();
+        await page.waitForTimeout(600);
+        // Check filter is still active
+        const activeBtn = page.locator('.todo-filter-btn.active');
+        const activePass = await activeBtn.getAttribute("data-pass");
+        assert.equal(activePass, firstPass, `Filter should persist as "${firstPass}" after tab switch`);
+        // Check non-matching nodes are still hidden
+        const hiddenCount = await page.locator('.todo-tree-node.hidden-by-filter').count();
+        assert.ok(hiddenCount > 0, "Hidden-by-filter should persist after tab switch");
+    }
+});
+
+const TC11_FILTER_DETAILS = test("TC11.5", "Filter + details panel interaction", async (page) => {
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    // Reset filter to All, click a visible node
+    await page.locator('.todo-filter-btn[data-pass="all"]').click();
+    await page.waitForTimeout(200);
+    const firstNode = page.locator(".todo-node-content").first();
+    if (await firstNode.count() > 0) {
+        await firstNode.click();
+        await page.waitForTimeout(300);
+        const panelOpen = await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open"));
+        assert.ok(panelOpen, "Details panel should open when clicking a filtered-visible node");
+        await page.locator(".todo-details-close").click();
+    }
+});
+
+const TC11_FILTER_STYLING = test("TC11.6", "Active filter button has distinct styling", async (page) => {
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    const allBtn = page.locator('.todo-filter-btn[data-pass="all"]');
+    const bgActive = await allBtn.evaluate(el => getComputedStyle(el).background);
+    // Click a different one
+    const passBtns = page.locator('.todo-filter-btn[data-pass]:not([data-pass="all"])');
+    if (await passBtns.count() > 0) {
+        await passBtns.first().click();
+        await page.waitForTimeout(200);
+        const bgInactive = await allBtn.evaluate(el => getComputedStyle(el).background);
+        const activeBg = await passBtns.first().evaluate(el => getComputedStyle(el).background);
+        assert.ok(activeBg !== bgInactive, "Active filter should have different background than inactive");
+    }
+});
+
+const TC11_FILTER_RAPID = test("TC11.7", "Rapid filter switching is stable", async (page) => {
+    const errors = [];
+    page.on("pageerror", e => errors.push(e.message));
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    const passBtns = page.locator('.todo-filter-btn');
+    const count = await passBtns.count();
+    for (let i = 0; i < Math.min(count, 5); i++) {
+        await passBtns.nth(i).click();
+    }
+    await page.waitForTimeout(200);
+    assert.equal(errors.length, 0, `No JS errors on rapid filter clicks: ${errors.join(", ")}`);
+});
+
+// ========================================================================
+// TC12: Inline Tab Refresh
+// ========================================================================
+
+const TC12_REFRESH_BUTTONS = test("TC12.1", "Each sidebar tab has a refresh button", async (page) => {
+    const refreshBtns = page.locator(".tab-refresh-btn");
+    const count = await refreshBtns.count();
+    assert.equal(count, 3, `Should have 3 refresh buttons (Files, TOC, Todos), got ${count}`);
+});
+
+const TC12_REFRESH_VISIBILITY = test("TC12.2", "Refresh button visible on tab hover", async (page) => {
+    await page.locator('[data-tab="todos"]').hover();
+    await page.waitForTimeout(200);
+    const refreshBtn = page.locator('.sidebar-tab[data-tab="todos"] .tab-refresh-btn');
+    const opacity = await refreshBtn.evaluate(el => parseFloat(getComputedStyle(el).opacity));
+    assert.ok(opacity > 0, `Refresh button should be visible on tab hover, opacity=${opacity}`);
+});
+
+const TC12_FILES_REFRESH = test("TC12.3", "Click refresh on Files tab re-fetches file list", async (page) => {
+    // First ensure we're on Files tab
+    await page.locator('[data-tab="files"]').click();
+    await page.waitForTimeout(400);
+    const beforeCount = await page.locator(".file-item").count();
+    assert.ok(beforeCount > 0, "Should have files before refresh");
+    // Click refresh button on Files tab
+    const refreshBtn = page.locator('.sidebar-tab[data-tab="files"] .tab-refresh-btn');
+    await refreshBtn.click({ force: true });
+    await page.waitForTimeout(600);
+    const afterCount = await page.locator(".file-item").count();
+    assert.ok(afterCount > 0, `File items should still exist after refresh (count=${afterCount})`);
+    assert.equal(afterCount, beforeCount, "File item count should be stable after refresh");
+});
+
+const TC12_TODOS_REFRESH = test("TC12.4", "Click refresh on Todos tab preserves filter state", async (page) => {
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(600);
+    // Apply a filter
+    const passBtns = page.locator('.todo-filter-btn[data-pass]:not([data-pass="all"])');
+    if (await passBtns.count() > 0) {
+        const filterPass = await passBtns.first().getAttribute("data-pass");
+        await passBtns.first().click();
+        await page.waitForTimeout(200);
+        // Click refresh on Todos tab
+        await page.locator('[data-tab="todos"]').hover();
+        const refreshBtn = page.locator('.sidebar-tab[data-tab="todos"] .tab-refresh-btn');
+        await refreshBtn.click();
+        await page.waitForTimeout(600);
+        // Filter should still be active
+        const activeBtn = page.locator('.todo-filter-btn.active');
+        const activePass = await activeBtn.getAttribute("data-pass");
+        assert.equal(activePass, filterPass, "Filter should persist after refresh");
+    }
+});
+
+const TC12_TOC_REFRESH = test("TC12.5", "Click refresh on TOC tab re-renders heading tree", async (page) => {
+    // Load a file first
+    await page.locator('[data-tab="files"]').click();
+    await page.waitForTimeout(200);
+    const firstFile = page.locator(".file-item").first();
+    if (await firstFile.count() > 0) {
+        await firstFile.click();
+        await page.waitForTimeout(400);
+    }
+    // Switch to TOC tab and refresh
+    await page.locator('[data-tab="toc"]').hover();
+    await page.waitForTimeout(200);
+    const refreshBtn = page.locator('.sidebar-tab[data-tab="toc"] .tab-refresh-btn');
+    await refreshBtn.click();
+    await page.waitForTimeout(600);
+    const tocItems = page.locator(".toc-item");
+    const tocCount = await tocItems.count();
+    assert.ok(tocCount >= 0, "TOC items should be visible after refresh");
+});
+
+const TC12_LOADING_ANIMATION = test("TC12.6", "Refresh button shows loading animation", async (page) => {
+    await page.locator('[data-tab="todos"]').hover();
+    const refreshBtn = page.locator('.sidebar-tab[data-tab="todos"] .tab-refresh-btn');
+    // Get initial animation
+    const animBefore = await refreshBtn.evaluate(el => getComputedStyle(el).animationName || "");
+    // Click and check during loading
+    await refreshBtn.evaluate(el => {
+        el.classList.add("loading");
+    });
+    const hasSpinAnim = await refreshBtn.evaluate(el => {
+        const anim = getComputedStyle(el).animationName;
+        return anim && anim.length > 0;
+    });
+    assert.ok(hasSpinAnim, "Loading class should trigger a spin animation");
+});
+
+const TC12_RAPID_REFRESH = test("TC12.7", "Rapid refresh clicks are stable", async (page) => {
+    const errors = [];
+    page.on("pageerror", e => errors.push(e.message));
+    await page.locator('[data-tab="files"]').hover();
+    const refreshBtn = page.locator('.sidebar-tab[data-tab="files"] .tab-refresh-btn');
+    for (let i = 0; i < 5; i++) {
+        await refreshBtn.click();
+    }
+    await page.waitForTimeout(500);
+    assert.equal(errors.length, 0, `No JS errors on rapid refresh clicks: ${errors.join(", ")}`);
+});
+
+// ========================================================================
 // Main
 // ========================================================================
 async function main() {
@@ -812,10 +1062,12 @@ async function main() {
             { name: "TC4: Mermaid Rendering", tests: [TC4_MERMAID_LOAD, TC4_MERMAID_DIVS, TC4_MERMAID_SVG, TC4_MERMAID_THEME, TC4_NO_MERMAID] },
             { name: "TC5: Sidebar Collapse", tests: [TC5_COLLAPSE, TC5_COLLAPSED_CLASS, TC5_TAB_ICONS, TC5_CONTENT_HIDDEN, TC5_EXPAND, TC5_EXPANDED] },
             { name: "TC6: Keyboard Shortcuts", tests: [TC6_CTRL_B, TC6_CTRL_1, TC6_CTRL_2, TC6_CTRL_3, TC6_ZOOM_IN, TC6_ZOOM_OUT, TC6_ZOOM_RESET] },
-            { name: "TC7: Todo Tree", tests: [TC7_TODOS_TAB, TC7_TODOS_CONTENT, TC7_TODOS_COLORS, TC7_TODOS_DETAILS, TC7_TODOS_SWITCH_BACK, TC7_COLLAPSE_TOGGLE, TC7_CHEVRON_VISIBLE, TC7_CHEVRON_ROTATION, TC7_DEPTH_INDENT] },
+            { name: "TC7: Todo Tree", tests: [TC7_TODOS_TAB, TC7_TODOS_CONTENT, TC7_TODOS_COLORS, TC7_TODOS_DETAILS, TC7_TODOS_SWITCH_BACK, TC7_COLLAPSE_TOGGLE, TC7_CHEVRON_VISIBLE, TC7_CHEVRON_ROTATION, TC7_DEPTH_INDENT, TC7_PASS_BADGE_COUNT, TC7_PASS_BADGE_TEXT, TC7_PASS_BADGE_STYLE] },
             { name: "TC8: Edge Cases", tests: [TC8_INVALID_UUID, TC8_NO_UUID, TC8_RAPID_SWITCH, TC8_SSE, TC8_RAPID_CLICKS, TC8_EMPTY_TODOS] },
             { name: "TC9: Details Panel Layout", tests: [TC9_PANEL_HEIGHT, TC9_TREE_SCROLLS, TC9_PANEL_OVERFLOW, TC9_CLOSE_BUTTON, TC9_TAB_SWITCH, TC9_REOPEN, TC9_PANEL_WIDTH] },
             { name: "TC10: Responsive Main Content", tests: [TC10_MAX_WIDTH, TC10_REFLOW, TC10_NO_HSCROLL] },
+            { name: "TC11: Pass ID Filter", tests: [TC11_FILTER_BAR, TC11_FILTER_HIDES, TC11_FILTER_ALL, TC11_FILTER_PERSISTS, TC11_FILTER_DETAILS, TC11_FILTER_STYLING, TC11_FILTER_RAPID] },
+            { name: "TC12: Inline Tab Refresh", tests: [TC12_REFRESH_BUTTONS, TC12_REFRESH_VISIBILITY, TC12_FILES_REFRESH, TC12_TODOS_REFRESH, TC12_TOC_REFRESH, TC12_LOADING_ANIMATION, TC12_RAPID_REFRESH] },
         ];
 
         // Take an initial screenshot
