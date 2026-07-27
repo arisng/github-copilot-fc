@@ -716,6 +716,49 @@ function serveHtml(instanceId, initialSessionUuid) {
     font-family: monospace; background: var(--surface); border-radius: 3px;
     border: 1px solid var(--border); color: var(--text-muted);
   }
+
+  /* ── Pass badge ── */
+  .todo-pass-badge {
+    display: inline-block; padding: 1px 6px; font-size: 9px;
+    font-family: monospace; color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 8px; flex-shrink: 0; margin-top: 2px;
+    line-height: 1.4; white-space: nowrap;
+  }
+
+  /* ── Pass filter bar ── */
+  .todo-filter-bar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 12px 4px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .todo-filter-btn {
+    padding: 2px 8px; font-size: 9px; font-family: monospace;
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; background: transparent; color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .todo-filter-btn:hover { background: var(--surface-hover); color: var(--text); }
+  .todo-filter-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .todo-tree-node.hidden-by-filter { display: none; }
+
+  /* ── Tab refresh button ── */
+  .sidebar-tab { position: relative; }
+  .tab-refresh-btn {
+    position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: none; cursor: pointer;
+    font-size: 11px; opacity: 0; transition: opacity 0.15s;
+    background: var(--surface-hover); color: var(--text-muted);
+    line-height: 1; padding: 0;
+  }
+  .sidebar-tab:hover .tab-refresh-btn { opacity: 0.65; }
+  .tab-refresh-btn:hover { opacity: 1 !important; color: var(--accent); }
+  .tab-refresh-btn.loading { animation: tab-spin 0.6s linear infinite; }
+  @keyframes tab-spin { to { transform: translateY(-50%) rotate(360deg); } }
+  .sidebar.collapsed .tab-refresh-btn { display: none; }
 </style>
 </head>
 <body>
@@ -730,9 +773,9 @@ function serveHtml(instanceId, initialSessionUuid) {
       </div>
     </div>
     <div class="sidebar-tabs">
-      <button class="sidebar-tab active" data-tab="files" data-icon="&#x1F4C4;" onclick="switchTab('files')">Files</button>
-      <button class="sidebar-tab" data-tab="toc" data-icon="&#x1F4CB;" onclick="switchTab('toc')">TOC</button>
-      <button class="sidebar-tab" data-tab="todos" data-icon="&#x1F4CA;" onclick="switchTab('todos')">Todos</button>
+      <button class="sidebar-tab active" data-tab="files" data-icon="&#x1F4C4;" onclick="switchTab('files')"><span class="tab-label">Files</span><span class="tab-refresh-btn" onclick="event.stopPropagation();refreshTab('files')">&#x21bb;</span></button>
+      <button class="sidebar-tab" data-tab="toc" data-icon="&#x1F4CB;" onclick="switchTab('toc')"><span class="tab-label">TOC</span><span class="tab-refresh-btn" onclick="event.stopPropagation();refreshTab('toc')">&#x21bb;</span></button>
+      <button class="sidebar-tab" data-tab="todos" data-icon="&#x1F4CA;" onclick="switchTab('todos')"><span class="tab-label">Todos</span><span class="tab-refresh-btn" onclick="event.stopPropagation();refreshTab('todos')">&#x21bb;</span></button>
     </div>
     <div class="active-file-info" id="activeFileInfo">
       <span class="sep">Select a file to view</span>
@@ -877,11 +920,30 @@ function initSidebarResizer() {
 
 // --- Tab switching ---
 let currentTab = "files";
+let currentFilterPass = "all";
 function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll(".sidebar-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
     renderSidebar();
     if (tab === "todos" && !todosData) loadTodos();
+}
+
+// --- Inline tab refresh ---
+async function refreshTab(tab) {
+    const btn = document.querySelector('.sidebar-tab[data-tab="' + tab + '"] .tab-refresh-btn');
+    if (btn) btn.classList.add("loading");
+    try {
+        if (tab === "files") {
+            await loadFiles();
+        } else if (tab === "toc") {
+            if (currentFilePath) await loadFile(currentFilePath);
+        } else if (tab === "todos") {
+            await loadTodosForce();
+        }
+    } catch (e) {
+        console.error("Refresh error:", e);
+    }
+    if (btn) btn.classList.remove("loading");
 }
 
 // --- Zoom ---
@@ -932,6 +994,21 @@ async function loadFiles() {
 async function loadTodos() {
     if (!SESSION_UUID) return;
     if (todosData) { renderTodosTree(); return; }
+    try {
+        const res = await fetch("/api/todos?sessionUuid=" + encodeURIComponent(SESSION_UUID));
+        if (!res.ok) { todosData = { tree: [] }; renderTodosTree(); return; }
+        const data = await res.json();
+        todosData = data;
+        renderTodosTree();
+    } catch {
+        todosData = { tree: [] };
+        renderTodosTree();
+    }
+}
+
+// --- Force reload todos (ignore cache) ---
+async function loadTodosForce() {
+    if (!SESSION_UUID) return;
     try {
         const res = await fetch("/api/todos?sessionUuid=" + encodeURIComponent(SESSION_UUID));
         if (!res.ok) { todosData = { tree: [] }; renderTodosTree(); return; }
@@ -1045,12 +1122,14 @@ function renderTodosTree() {
         const title = escapeHtml(node.title || node.id);
         const children = node.children || [];
         const hasChildren = children.length > 0 && children[0]?.id !== "CYCLE";
+        const passId = extractPassId(node.id);
 
-        let html = '<details open class="todo-tree-node" style="--depth:' + depth + '" data-id="' + escapeHtml(node.id) + '">';
+        let html = '<details open class="todo-tree-node" style="--depth:' + depth + '" data-id="' + escapeHtml(node.id) + '" data-passid="' + escapeHtml(passId) + '">';
         html += '<summary class="todo-node-content" style="margin-left:' + (24 + depth * 20) + 'px" onclick="onTodoNodeClick(this, \\'' + escapeHtml(node.id) + '\\')">';
         html += '<span class="chevron"' + (hasChildren ? '' : ' style="visibility:hidden"') + '>▶</span>';
         html += '<span class="todo-status-dot" style="--status-color:' + color + '"></span>';
         html += '<span class="todo-title">' + title + '</span>';
+        html += '<span class="todo-pass-badge">' + escapeHtml(passId) + '</span>';
         html += '<span class="todo-status-label" style="--status-color:' + color + '">' + label + '</span>';
         html += '</summary>';
         if (hasChildren) {
@@ -1064,7 +1143,21 @@ function renderTodosTree() {
         return html;
     }
 
+    // Collect unique pass IDs
+    const passIds = new Set();
+    for (const t of todosData?.todos || []) {
+        const pid = extractPassId(t.id);
+        if (pid) passIds.add(pid);
+    }
+    const uniquePassIds = [...passIds].sort();
+
     let html = '<div class="todo-tree-toolbar"><button class="todo-toggle-all" onclick="toggleAllTodos()"><span class="icon">⊞</span><span id="toggleAllLabel">Collapse All</span></button></div>';
+    html += '<div class="todo-filter-bar" id="todoFilterBar">';
+    html += '<button class="todo-filter-btn active" data-pass="all" onclick="filterTodosByPass(\\'all\\')">All</button>';
+    for (const pid of uniquePassIds) {
+        html += '<button class="todo-filter-btn" data-pass="' + escapeHtml(pid) + '" onclick="filterTodosByPass(\\'' + escapeHtml(pid) + '\\')">' + escapeHtml(pid) + '</button>';
+    }
+    html += '</div>';
     html += '<div class="todo-tree-container">';
     for (const root of tree) {
         html += buildNodeHtml(root, 0);
@@ -1088,6 +1181,36 @@ function renderTodosTree() {
     html += '</div></div>';
 
     sidebarContent.innerHTML = html;
+    // Re-apply current filter if set
+    if (currentFilterPass && currentFilterPass !== "all") {
+        filterTodosByPass(currentFilterPass);
+    }
+}
+
+// --- Pass ID extraction ---
+function extractPassId(todoId) {
+    if (!todoId || typeof todoId !== "string") return "";
+    const idx = todoId.indexOf("-");
+    return idx > 0 ? todoId.substring(0, idx) : "";
+}
+
+// --- Filter todos by pass ID ---
+function filterTodosByPass(passId) {
+    currentFilterPass = passId;
+    // Update button states
+    document.querySelectorAll(".todo-filter-btn").forEach(btn => btn.classList.remove("active"));
+    const activeBtn = document.querySelector('.todo-filter-btn[data-pass="' + passId + '"]');
+    if (activeBtn) activeBtn.classList.add("active");
+
+    // Show/hide nodes
+    document.querySelectorAll(".todo-tree-node").forEach(node => {
+        const nodePass = node.getAttribute("data-passid") || "";
+        if (passId === "all" || nodePass === passId) {
+            node.classList.remove("hidden-by-filter");
+        } else {
+            node.classList.add("hidden-by-filter");
+        }
+    });
 }
 
 // --- Toggle all todos (collapse/expand) ---
