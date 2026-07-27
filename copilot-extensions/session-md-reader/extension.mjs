@@ -930,6 +930,9 @@ function switchTab(tab) {
 
 // --- Inline tab refresh ---
 async function refreshTab(tab) {
+    // Set current tab to the one being refreshed
+    currentTab = tab;
+    document.querySelectorAll(".sidebar-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
     const btn = document.querySelector('.sidebar-tab[data-tab="' + tab + '"] .tab-refresh-btn');
     if (btn) btn.classList.add("loading");
     try {
