@@ -188,10 +188,11 @@ OpenCode Go is a subscription-based provider offering reliable access to popular
 
 1. Subscribe to OpenCode Go at **[OpenCode Zen](https://opencode.ai/auth)** ($5 first month, then $10/month).
 2. Generate an API key from the console.
-3. Store the key as the environment variable `OPENCODE_API_KEY`:
+3. Store the key as an environment variable at **User scope**: `OPENCODE_API_KEY_HOME` for personal usage, `OPENCODE_API_KEY_WORK` for work usage:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY", "<your-opencode-api-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_HOME", "<your-opencode-api-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_WORK", "<your-work-opencode-api-key>", "User")
 ```
 
 ### Base URL
@@ -255,7 +256,7 @@ If you also have OpenCode Zen credits, enable **Use balance** in the console to 
 ```powershell
 $env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
 $env:COPILOT_PROVIDER_TYPE = 'openai'
-$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
 $env:COPILOT_MODEL = 'deepseek-v4-flash'
 copilot
 ```
@@ -265,7 +266,7 @@ copilot
 ```powershell
 $env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go'
 $env:COPILOT_PROVIDER_TYPE = 'anthropic'
-$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
 $env:COPILOT_MODEL = 'qwen3.7-plus'
 copilot
 ```
@@ -275,7 +276,7 @@ copilot
 ```powershell
 $env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
 $env:COPILOT_PROVIDER_TYPE = 'openai'
-$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
 $env:COPILOT_MODEL = 'kimi-k2.7-code'
 copilot
 ```
@@ -305,8 +306,8 @@ When you hold multiple subscriptions for one provider (for example, **two OpenCo
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
   "activeAccount": "opencode-1",
   "profiles": {
@@ -314,7 +315,7 @@ When you hold multiple subscriptions for one provider (for example, **two OpenCo
       "baseUrl": "https://opencode.ai/zen/go/v1",
       "model": "deepseek-v4-flash",
       "type": "openai",
-      "apiKey": "${OPENCODE_API_KEY}",
+      "apiKey": "${OPENCODE_API_KEY_HOME}",
       "accountGroup": "opencode"
     }
   }

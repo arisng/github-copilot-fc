@@ -446,7 +446,7 @@ function Invoke-ProfileAdd {
         '6' {
             $type = 'openai'
             $baseUrl = 'https://opencode.ai/zen/go/v1'
-            $defaultApiKeyPrompt = '${OPENCODE_API_KEY}'
+            $defaultApiKeyPrompt = '${OPENCODE_API_KEY_HOME}'
 
             Write-Host "Select OpenCode Go model category:" -ForegroundColor Cyan
             Write-Host "  1) OpenAI-compatible (DeepSeek, GLM, Kimi, MiMo)"

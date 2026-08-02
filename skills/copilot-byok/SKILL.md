@@ -74,8 +74,8 @@ When you have multiple subscriptions for the same provider (for example, **two O
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
   "activeAccount": "opencode-1"
 }
@@ -112,7 +112,7 @@ Resolution order: `--account` flag → profile `account` pin → `activeAccount`
 - Prefer `${ENV_VAR}` placeholders over raw API keys in JSON.
 - Treat `openai` as the default provider type for OpenAI-compatible endpoints such as Ollama, vLLM, Foundry Local, and Moonshot.
 - Set `COPILOT_PROVIDER_TYPE=azure` only for Azure OpenAI and `anthropic` only for Anthropic.
-- **OpenCode Go** uses a shared base URL with two possible provider types: `openai` (append `/v1`) for DeepSeek, GLM, Kimi, and MiMo models; `anthropic` (no `/v1` suffix — SDK adds it) for MiniMax and Qwen models. Store the OpenCode API key as `OPENCODE_API_KEY`.
+- **OpenCode Go** uses a shared base URL with two possible provider types: `openai` (append `/v1`) for DeepSeek, GLM, Kimi, and MiMo models; `anthropic` (no `/v1` suffix — SDK adds it) for MiniMax and Qwen models. Store the personal OpenCode key as `OPENCODE_API_KEY_HOME` and the work key as `OPENCODE_API_KEY_WORK` — both at **User scope** (never Machine scope).
 - **CRITICAL: `COPILOT_MODEL` must use the bare model ID** (e.g., `deepseek-v4-flash`), **not** the `opencode-go/` prefix. The prefix is only used in OpenCode TUI config and in Copilot CLI profile names — never in `COPILOT_MODEL`.
 - For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`.
 - Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.

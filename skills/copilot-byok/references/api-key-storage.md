@@ -95,15 +95,15 @@ Restart your terminal after any change.
 When you have more than one subscription for the same provider (for example, **two OpenCode Zen accounts**), store each key in its own environment variable and reference them from the `accounts` registry in `byok-profiles.json`:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY", "<account-1-key>", "User")
-[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_B", "<account-2-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_HOME", "<account-1-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_WORK", "<account-2-key>", "User")
 ```
 
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
   "activeAccount": "opencode-1"
 }
