@@ -10,7 +10,7 @@ Quick-reference for configuring Copilot CLI BYOK providers.
 | `COPILOT_MODEL` | Yes | Model identifier. Can also be set via `--model` flag. |
 | `COPILOT_PROVIDER_TYPE` | No | Provider type: `openai`, `azure`, or `anthropic`. Defaults to `openai`. |
 | `COPILOT_PROVIDER_API_KEY` | No | API key. Omit for unauthenticated providers (e.g., local Ollama). |
-| `COPILOT_PROVIDER_WIRE_API` | No | Provider wire format: `completions` (default) or `responses`. For GPT-5 class OpenAI models, prefer `responses`. |
+| `COPILOT_PROVIDER_WIRE_API` | No | Provider wire format: `completions` (default) or `responses`. Required for GPT-5 class OpenAI models — e.g. OpenCode Go's GPT-5.6 Luna is Responses-API only. |
 | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` | No | Override the max prompt token limit Copilot CLI uses for the model. Useful when the model is not in Copilot's built-in catalog. |
 | `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS` | No | Override the max output token limit Copilot CLI uses for the model. |
 | `COPILOT_OFFLINE` | No | Set to `true` to prevent Copilot CLI from contacting GitHub's servers. |
@@ -19,7 +19,7 @@ Quick-reference for configuring Copilot CLI BYOK providers.
 
 | Provider Type | Compatible Services |
 |---------------|---------------------|
-| `openai` | OpenAI, Ollama, vLLM, Foundry Local, OpenCode Go (OpenAI-compatible models), and any OpenAI Chat Completions API-compatible endpoint (default) |
+| `openai` | OpenAI, Ollama, vLLM, Foundry Local, OpenCode Go (OpenAI-compatible models), and any OpenAI Chat Completions / Responses API-compatible endpoint (default) |
 | `azure` | Azure OpenAI Service |
 | `anthropic` | Anthropic (Claude models), OpenCode Go (Anthropic-compatible models) |
 
@@ -65,7 +65,7 @@ Not all models support `--reasoning-effort`. If you get:
 Model "glm-5.2" does not support reasoning effort configuration (requested: "high").
 ```
 
-it means the model's API does not expose controllable reasoning effort levels. Models from the **GLM** (Zhipu AI), **Kimi K2.x** (Moonshot AI), **MiMo** (Xiaomi), **Qwen3.x** (Alibaba), and **MiniMax** families do not support reasoning effort. See the Available Models table above for per-model notes.
+it means the model's API does not expose controllable reasoning effort levels. Models from the **GLM** (Zhipu AI), **Kimi K2.x** (Moonshot AI), **MiMo** (Xiaomi), **Qwen3.x** (Alibaba), and **MiniMax** families do not support reasoning effort. OpenAI GPT-5.x-class models (for example `gpt-5.6-luna` on OpenCode Go) **do** support it, including the `max` level. See the Available Models table above for per-model notes.
 
 When using these models, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.
 
@@ -73,6 +73,7 @@ The profile system tracks this per model. Profiles set `"reasoningEffortSupporte
 
 OpenAI-specific note:
 - GPT-5 class models may perform best with `COPILOT_PROVIDER_WIRE_API=responses`.
+- On OpenCode Go, GPT-5.6 Luna is Responses-API **only** — the `completions` wire format fails against it. GPT-5.6-class models also support the full `--reasoning-effort` range including `max`, unlike the GLM/Kimi/MiMo/Qwen/MiniMax families listed above.
 
 Version note:
 - Do not assume a `COPILOT_*` environment variable exists for reasoning effort unless it appears in `copilot help environment` for the installed CLI version.
@@ -204,7 +205,8 @@ https://opencode.ai/zen/go/v1
 This single base URL serves both OpenAI-compatible and Anthropic-compatible models. Copilot CLI automatically appends the correct path based on `COPILOT_PROVIDER_TYPE`.
 
 **Critical base URL pattern:**
-- `COPILOT_PROVIDER_TYPE=openai` → use `https://opencode.ai/zen/go/v1` (SDK appends `/chat/completions`)
+- `COPILOT_PROVIDER_TYPE=openai` + wire API `completions` (default) → use `https://opencode.ai/zen/go/v1` (SDK appends `/chat/completions`)
+- `COPILOT_PROVIDER_TYPE=openai` + wire API `responses` → use `https://opencode.ai/zen/go/v1` (SDK appends `/responses`) — required for GPT-5.6 Luna
 - `COPILOT_PROVIDER_TYPE=anthropic` → use `https://opencode.ai/zen/go` (SDK appends `/v1/messages`)
 
 The Anthropic-type base URL strips the `/v1` because the SDK already adds it.
@@ -219,6 +221,7 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 
 | Model | Bare Model ID (`COPILOT_MODEL`) | Provider Type | Wire Format | Reasoning Effort |
 |-------|-------------------------------|---------------|-------------|-----------------|
+| GPT-5.6 Luna | `gpt-5.6-luna` | `openai` | `responses` | Supported (full range, incl. `max`) |
 | DeepSeek V4 Flash | `deepseek-v4-flash` | `openai` | `completions` | Supported (`low`, `medium`, `high`) |
 | DeepSeek V4 Pro | `deepseek-v4-pro` | `openai` | `completions` | Supported (`low`, `medium`, `high`) |
 | Kimi K2.7 Code | `kimi-k2.7-code` | `openai` | `completions` | Not supported (thinking always-on) |
@@ -248,6 +251,8 @@ OpenCode Go imposes dollar-value usage limits tracked in the Zen console:
 - **Monthly limit** — $60 of usage
 
 If you also have OpenCode Zen credits, enable **Use balance** in the console to fall back to your balance after limits are reached.
+
+Some models consume usage at a higher rate — notably **GPT-5.6 Luna** (~2,050 / 5,100 / 10,250 requests per 5-hour / week / month based on a typical 1,000 input + 50,000 cached + 220 output token request). Cheaper models like DeepSeek V4 Flash and MiMo-V2.5 allow far more requests within the same dollar budget.
 
 ### Examples
 
@@ -279,6 +284,57 @@ $env:COPILOT_PROVIDER_TYPE = 'openai'
 $env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
 $env:COPILOT_MODEL = 'kimi-k2.7-code'
 copilot
+```
+
+### GPT-5.6 Luna (Responses API)
+
+GPT-5.6 Luna is OpenCode Go's cost-efficient GPT-5.6 entry point. Unlike every other OpenCode Go model, it is served **only** through the OpenAI **Responses API** — there is no `chat/completions` endpoint for it, so `COPILOT_PROVIDER_WIRE_API=responses` is mandatory.
+
+| Property | Value | Source |
+|----------|-------|--------|
+| Endpoint | `https://opencode.ai/zen/go/v1/responses` | [OpenCode Go docs](https://opencode.ai/docs/go/) |
+| Wire API | `responses` | OpenCode Go docs |
+| Theoretical context | 1,050,000 tokens | [models.dev](https://models.dev/models/openai/gpt-5.6-luna/) |
+| Theoretical max output | 128,000 tokens | models.dev |
+| Capabilities | tool calling, reasoning (incl. `max`), structured output; text / image / PDF input | models.dev |
+| Gateway price tiers | ≤ 272K tokens: $0.20 / $1.20 per MTok → > 272K tokens: $0.40 / $1.80 (2x) | [OpenCode Go docs](https://opencode.ai/docs/go/) |
+| Go usage | Lower multiplier — ~2,050 / 5,100 / 10,250 requests per 5-hour / week / month (typical request: 1,000 input + 50,000 cached + 220 output tokens) | OpenCode Go docs |
+
+**Grounded token overrides.** OpenCode Go prices GPT-5.6 Luna in two per-request tiers split at **272K tokens**. Staying under that boundary avoids both the 2x price and gateway compaction failures — the same gateway-limit discovery process used for DeepSeek V4 Flash (whose empirically validated 325K prompt cap is far below its 1M theoretical context) applies here:
+
+```powershell
+# Conservative values: 272K tier − 64K output budget − ~8K safety margin = 200K prompt cap
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 200000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
+```
+
+`maxOutputTokens = 64000` matches the other OpenCode Go OpenAI profiles and stays well under the 128K theoretical output limit, leaving headroom for reasoning tokens. If you need to push past 200K prompt tokens, verify the true gateway ceiling with the compaction test from the skill before raising the cap.
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_WIRE_API = 'responses'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'gpt-5.6-luna'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 200000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
+copilot --reasoning-effort high
+```
+
+Profile entry (stored in `~/.copilot/byok-profiles.json`, account-grouped so `--account` / `activeAccount` resolve the key):
+
+```json
+"opencode-go-gpt-5.6-luna": {
+  "apiKey": "${OPENCODE_API_KEY_WORK}",
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "wireApi": "responses",
+  "offline": false,
+  "maxPromptTokens": 200000,
+  "model": "gpt-5.6-luna",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 64000
+}
 ```
 
 ### Profile-based setup
