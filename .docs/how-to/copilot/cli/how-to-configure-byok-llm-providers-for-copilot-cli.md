@@ -213,11 +213,11 @@ If you have more than one subscription for the same provider — for example, **
 
 ### 1. Store each key in its own environment variable
 
-Keep account 1 as `OPENCODE_API_KEY` and add account 2 as `OPENCODE_API_KEY_B` (User scope):
+Keep your personal key as `OPENCODE_API_KEY_HOME` and your work key as `OPENCODE_API_KEY_WORK` (User scope — never Machine scope):
 
 ```powershell
-[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY", "<account-1-key>", "User")
-[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_B", "<account-2-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_HOME", "<account-1-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_WORK", "<account-2-key>", "User")
 ```
 
 Restart your terminal after setting them. Never paste the raw keys into `byok-profiles.json`.
@@ -227,8 +227,8 @@ Restart your terminal after setting them. Never paste the raw keys into `byok-pr
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
   "activeAccount": "opencode-1",
   "profiles": { }

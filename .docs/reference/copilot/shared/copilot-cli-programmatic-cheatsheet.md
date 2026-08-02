@@ -171,8 +171,8 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
   "activeAccount": "opencode-1",
   "profiles": {
@@ -189,7 +189,7 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
       "baseUrl": "https://opencode.ai/zen/go/v1",
       "model": "deepseek-v4-flash",
       "type": "openai",
-      "apiKey": "${OPENCODE_API_KEY}",
+      "apiKey": "${OPENCODE_API_KEY_HOME}",
       "maxPromptTokens": 325000,
       "maxOutputTokens": 64000,
       "accountGroup": "opencode"
