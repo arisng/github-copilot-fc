@@ -306,10 +306,10 @@ When you hold multiple subscriptions for one provider (for example, **two OpenCo
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
+    "opencode-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
-  "activeAccount": "opencode-1",
+  "activeAccount": "opencode-home",
   "profiles": {
     "opencode-go-deepseek-v4-flash": {
       "baseUrl": "https://opencode.ai/zen/go/v1",

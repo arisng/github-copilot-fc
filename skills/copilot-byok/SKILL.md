@@ -74,10 +74,10 @@ When you have multiple subscriptions for the same provider (for example, **two O
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
+    "opencode-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
-  "activeAccount": "opencode-1"
+  "activeAccount": "opencode-home"
 }
 ```
 
@@ -91,12 +91,12 @@ Add `"accountGroup": "opencode"` to each profile that should use the registry (t
 
 ```powershell
 .\scripts\byok-profile.ps1 accounts
-.\scripts\byok-profile.ps1 use opencode-2
+.\scripts\byok-profile.ps1 use opencode-work
 .\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash
-.\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-2
+.\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-work
 ```
 
-Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-2` to `Invoke-CopilotCliSubSession.ps1`.
+Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-work` to `Invoke-CopilotCliSubSession.ps1`.
 
 ## Read references on demand
 

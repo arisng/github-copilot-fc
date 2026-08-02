@@ -245,6 +245,27 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
 }
 ```
 
+### Multiple OpenCode Zen accounts (Home / Work)
+
+If you hold two OpenCode Zen subscriptions — personal and work — VS Code does **not** read the CLI `accounts` registry in `byok-profiles.json`; that file only drives Copilot CLI (`byok-profile.ps1` / `Invoke-CopilotCliSubSession.ps1`). In VS Code each account is a **separate provider entry**, each with its own API key in secret storage.
+
+To mirror the CLI convention (`opencode-home` / `opencode-work`), create one provider per account per API type:
+
+| Provider `name` in `chatLanguageModels.json` | Account | Env var (CLI) | `apiType` |
+|----------------------------------------------|---------|---------------|-----------|
+| `OpenCode Go (Home, OpenAI)` | personal | `OPENCODE_API_KEY_HOME` | `chat-completions` |
+| `OpenCode Go (Home, Anthropic)` | personal | `OPENCODE_API_KEY_HOME` | `messages` |
+| `OpenCode Go (Work, OpenAI)` | work | `OPENCODE_API_KEY_WORK` | `chat-completions` |
+| `OpenCode Go (Work, Anthropic)` | work | `OPENCODE_API_KEY_WORK` | `messages` |
+
+Setup:
+
+1. **Chat: Manage Language Models → Add Models → Custom Endpoint** — repeat once per row (4 providers). When prompted, paste the raw API key for that account; VS Code stores it in secret storage and writes a `${input:chat.lm.secret.XXXX}` reference. Never hand-edit `apiKey`.
+2. Paste the model list from the [OpenAI-compatible](#opencode-go--openai-compatible-models-deepseek-kimi-glm-mimo) or [Anthropic-compatible](#opencode-go--anthropic-compatible-models-minimax-qwen) section into each provider's `models` array.
+3. Reload the window.
+
+Model `name` fields are identical across accounts (e.g. `DeepSeek V4 Flash`), so the provider `name` is what distinguishes Home from Work in the picker. Per-agent model pinning and `chat.*Agent.model` settings still reference model names; choose the account by selecting the corresponding provider in the conversation.
+
 ### Kimi AI Platform (`platform.kimi.ai`)
 
 Add via UI first (Add Models → Custom Endpoint), then edit JSON to add all models:
@@ -427,8 +448,8 @@ Available settings reference:
 1. Open VS Code → Command Palette → **Chat: Manage Language Models**
 2. Click **Add Models** → choose **Custom Endpoint**
 3. Enter the configuration:
-   - **Name**: `OpenCode Go (OpenAI)`
-   - **API Key**: paste your actual raw key (VS Code stores it in secret storage)
+   - **Name**: `OpenCode Go (OpenAI)` — with two OpenCode Zen accounts, use the account-specific names from [Multiple OpenCode Zen accounts](#multiple-opencode-zen-accounts-home--work) instead (e.g. `OpenCode Go (Home, OpenAI)`).
+   - **API Key**: paste your actual raw key for that account (VS Code stores it in secret storage)
    - **API Type**: `Chat Completions`
 4. VS Code opens `chatLanguageModels.json` — **do not edit the `apiKey` field**
 
@@ -438,7 +459,7 @@ Paste the full model list from the [OpenCode Go OpenAI](#opencode-go--openai-com
 
 ### Step 3: Repeat for Anthropic models
 
-Repeat Step 1 but choose **API Type: Messages** and name it `OpenCode Go (Anthropic)`. Add the Anthropic-compatible models from the [OpenCode Go Anthropic](#opencode-go--anthropic-compatible-models-minimax-qwen) section.
+Repeat Step 1 but choose **API Type: Messages** and name it `OpenCode Go (Anthropic)` (or `OpenCode Go (Home, Anthropic)` / `OpenCode Go (Work, Anthropic)` with two accounts). Add the Anthropic-compatible models from the [OpenCode Go Anthropic](#opencode-go--anthropic-compatible-models-minimax-qwen) section.
 
 ### Step 4: Reload VS Code
 
