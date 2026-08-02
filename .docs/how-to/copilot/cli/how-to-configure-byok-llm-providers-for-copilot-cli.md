@@ -207,6 +207,74 @@ byok-profile.ps1 list
 byok-profile.ps1 run kimi
 ```
 
+## Switch between multiple accounts for the same provider
+
+If you have more than one subscription for the same provider — for example, **two OpenCode Zen accounts** with separate API keys — register both accounts in the profile config and switch between them without editing each profile.
+
+### 1. Store each key in its own environment variable
+
+Keep account 1 as `OPENCODE_API_KEY` and add account 2 as `OPENCODE_API_KEY_B` (User scope):
+
+```powershell
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY", "<account-1-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_B", "<account-2-key>", "User")
+```
+
+Restart your terminal after setting them. Never paste the raw keys into `byok-profiles.json`.
+
+### 2. Register the accounts in `~/.copilot/byok-profiles.json`
+
+```json
+{
+  "accounts": {
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+  },
+  "activeAccount": "opencode-1",
+  "profiles": { }
+}
+```
+
+The `accounts` registry stores **environment variable names**, never key values. `activeAccount` selects the default.
+
+### 3. Mark your provider profiles with `accountGroup`
+
+Add `"accountGroup": "opencode"` to each profile that should use these accounts (for example, every `opencode-go-*` profile). The `add` wizard sets this automatically when you pick the **OpenCode Go** preset. Profiles without `accountGroup` are never affected by account resolution.
+
+### 4. Pick the default account
+
+```powershell
+.\skills\copilot-byok\scripts\byok-profile.ps1 use opencode-2
+.\skills\copilot-byok\scripts\byok-profile.ps1 accounts
+```
+
+The `accounts` command lists all registered accounts and marks the active one with `[active]`.
+
+### 5. Launch a session
+
+```powershell
+.\skills\copilot-byok\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash
+```
+
+The profile uses the active account's key.
+
+### 6. Override the account for a single session
+
+```powershell
+.\skills\copilot-byok\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-2
+```
+
+Resolution order: `--account` flag → profile-level `account` pin → config-level `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning.
+
+The same override works when spawning sub-sessions:
+
+```powershell
+.\skills\copilot-cli-subsession\scripts\Invoke-CopilotCliSubSession.ps1 `
+    -ByokProfile opencode-go-deepseek-v4-flash `
+    -ByokAccount opencode-2 `
+    -Prompt "research task"
+```
+
 ## Offline mode
 
 To prevent Copilot CLI from contacting GitHub's servers entirely, set `COPILOT_OFFLINE=true`:

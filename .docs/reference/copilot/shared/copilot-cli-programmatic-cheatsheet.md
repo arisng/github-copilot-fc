@@ -170,6 +170,11 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
 
 ```json
 {
+  "accounts": {
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+  },
+  "activeAccount": "opencode-1",
   "profiles": {
     "kimi-ai-k27-code": {
       "baseUrl": "https://api.moonshot.ai/v1",
@@ -186,7 +191,8 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
       "type": "openai",
       "apiKey": "${OPENCODE_API_KEY}",
       "maxPromptTokens": 325000,
-      "maxOutputTokens": 64000
+      "maxOutputTokens": 64000,
+      "accountGroup": "opencode"
     },
     "dprocess-openai-gpt-54": {
       "baseUrl": "https://api.openai.com/v1",
@@ -199,6 +205,16 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
     }
   }
 }
+```
+
+`accounts` maps account names to **environment variable names** (never raw keys). Profiles with an `accountGroup` resolve their key via: `--account` flag → profile `account` pin → config `activeAccount`. Profiles without `accountGroup` are unaffected.
+
+Account commands:
+
+```powershell
+byok-profile.ps1 accounts                          # list accounts, [active] marker
+byok-profile.ps1 use opencode-2                     # persist default account
+byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-2   # one-session override
 ```
 
 Apply before spawning:
