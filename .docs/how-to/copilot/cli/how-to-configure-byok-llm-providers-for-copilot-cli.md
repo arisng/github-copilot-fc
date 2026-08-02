@@ -227,10 +227,10 @@ Restart your terminal after setting them. Never paste the raw keys into `byok-pr
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
+    "opencode-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
-  "activeAccount": "opencode-1",
+  "activeAccount": "opencode-home",
   "profiles": { }
 }
 ```
@@ -244,7 +244,7 @@ Add `"accountGroup": "opencode"` to each profile that should use these accounts 
 ### 4. Pick the default account
 
 ```powershell
-.\skills\copilot-byok\scripts\byok-profile.ps1 use opencode-2
+.\skills\copilot-byok\scripts\byok-profile.ps1 use opencode-work
 .\skills\copilot-byok\scripts\byok-profile.ps1 accounts
 ```
 
@@ -261,7 +261,7 @@ The profile uses the active account's key.
 ### 6. Override the account for a single session
 
 ```powershell
-.\skills\copilot-byok\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-2
+.\skills\copilot-byok\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-work
 ```
 
 Resolution order: `--account` flag → profile-level `account` pin → config-level `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning.
@@ -271,7 +271,7 @@ The same override works when spawning sub-sessions:
 ```powershell
 .\skills\copilot-cli-subsession\scripts\Invoke-CopilotCliSubSession.ps1 `
     -ByokProfile opencode-go-deepseek-v4-flash `
-    -ByokAccount opencode-2 `
+    -ByokAccount opencode-work `
     -Prompt "research task"
 ```
 

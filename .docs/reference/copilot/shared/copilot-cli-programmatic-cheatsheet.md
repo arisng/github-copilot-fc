@@ -171,10 +171,10 @@ The profile system stores reusable BYOK configs in `~/.copilot/byok-profiles.jso
 ```json
 {
   "accounts": {
-    "opencode-1": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
-    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
+    "opencode-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
+    "opencode-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
   },
-  "activeAccount": "opencode-1",
+  "activeAccount": "opencode-home",
   "profiles": {
     "kimi-ai-k27-code": {
       "baseUrl": "https://api.moonshot.ai/v1",
@@ -213,8 +213,8 @@ Account commands:
 
 ```powershell
 byok-profile.ps1 accounts                          # list accounts, [active] marker
-byok-profile.ps1 use opencode-2                     # persist default account
-byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-2   # one-session override
+byok-profile.ps1 use opencode-work                     # persist default account
+byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-work   # one-session override
 ```
 
 Apply before spawning:
