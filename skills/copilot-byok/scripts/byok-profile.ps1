@@ -10,7 +10,7 @@
     OpenCode Go is supported via preset in the interactive 'add' workflow.
 
 .PARAMETER Command
-    Action to perform: list, show, add, remove, run, set-env
+    Action to perform: list, show, add, remove, run, set-env, accounts, use
 
 .PARAMETER Profile
     Profile name to target.
@@ -40,7 +40,7 @@
 #>
 param(
     [Parameter(Mandatory = $false, Position = 0)]
-    [ValidateSet('list', 'show', 'add', 'remove', 'run', 'set-env')]
+    [ValidateSet('list', 'show', 'add', 'remove', 'run', 'set-env', 'accounts', 'use')]
     [string]$Command = 'list',
 
     [Parameter(Mandatory = $false, Position = 1)]
@@ -83,8 +83,10 @@ function Get-ProfileConfig {
     }
     $raw = Get-Content $profilePath -Raw | ConvertFrom-Json
     $raw = ConvertTo-Hashtable -InputObject $raw
-    if (-not $raw) { return @{ profiles = @{} } }
+    if (-not $raw) { return @{ profiles = @{}; accounts = @{} } }
     if (-not $raw.profiles) { $raw.profiles = @{} }
+    if (-not $raw.accounts) { $raw.accounts = @{} }
+    if (-not $raw.ContainsKey('activeAccount')) { $raw.activeAccount = $null }
     return $raw
 }
 
@@ -159,6 +161,93 @@ function Set-ProviderEnvironment {
     }
 }
 
+function Resolve-ProfileAccount {
+    <#
+    .SYNOPSIS
+        Resolves which account (and which API-key env var) applies to a profile.
+    .DESCRIPTION
+        Only profiles with an 'accountGroup' field participate in account resolution.
+        Resolution order: --account override > profile 'account' pin > config 'activeAccount'.
+        Returns a hashtable with Name / KeyEnv / Source, or $null when the profile is
+        not account-grouped. Emits a warning and returns $null when resolution fails,
+        letting callers fall back to the profile's legacy 'apiKey' field.
+    #>
+    param(
+        [hashtable]$Config,
+        [hashtable]$Profile,
+        [string]$AccountOverride
+    )
+    if (-not $Profile.accountGroup) { return $null }
+
+    $accountName = $null
+    $source = ''
+    if ($AccountOverride) {
+        $accountName = $AccountOverride
+        $source = '--account override'
+    }
+    elseif ($Profile.account) {
+        $accountName = $Profile.account
+        $source = 'profile account pin'
+    }
+    elseif ($Config.activeAccount) {
+        $accountName = $Config.activeAccount
+        $source = 'activeAccount'
+    }
+
+    if (-not $accountName) {
+        Write-Warning "Profile '$($Profile.model)' uses accountGroup '$($Profile.accountGroup)' but no account is selected. Run 'byok-profile.ps1 use <account>' or pass --account. Falling back to profile apiKey."
+        return $null
+    }
+    if (-not $Config.accounts -or -not $Config.accounts.ContainsKey($accountName)) {
+        Write-Warning "Account '$accountName' is not defined in the 'accounts' registry (via $source). Falling back to profile apiKey."
+        return $null
+    }
+    $keyEnv = $Config.accounts[$accountName].keyEnv
+    if (-not $keyEnv) {
+        Write-Warning "Account '$accountName' has no 'keyEnv' set (via $source). Falling back to profile apiKey."
+        return $null
+    }
+    return @{
+        Name   = $accountName
+        KeyEnv = $keyEnv
+        Source = $source
+    }
+}
+
+function Remove-AccountArg {
+    <#
+    .SYNOPSIS
+        Extracts a --account <name> / --account=<name> override from CLI arguments.
+    .DESCRIPTION
+        Returns @{ Account = <name or $null>; Arguments = <remaining args> }.
+        The account token is consumed here and never forwarded to copilot.
+    #>
+    param([string[]]$ArgList)
+    $account = $null
+    $newArgs = [System.Collections.Generic.List[string]]::new()
+    $skipNext = $false
+    foreach ($arg in $ArgList) {
+        if ($skipNext) {
+            $account = $arg
+            $skipNext = $false
+            continue
+        }
+        if ($arg -match '^--account=(.+)$') {
+            $account = $Matches[1]
+            continue
+        }
+        if ($arg -eq '--account') {
+            $skipNext = $true
+            continue
+        }
+        $newArgs.Add($arg)
+    }
+    if ($skipNext) {
+        Write-Warning "'--account' was the last argument and has no value; ignoring it."
+    }
+    return @{ Account = $account; Arguments = $newArgs.ToArray() }
+}
+
 function Invoke-ProfileList {
     $config = Get-ProfileConfig
     $profiles = $config.profiles
@@ -174,8 +263,9 @@ function Invoke-ProfileList {
         $p = $profiles[$name]
         $type = if ($p.type) { $p.type } else { 'openai' }
         $offline = if ($p.offline -eq $true) { ' [offline]' } else { '' }
+        $accountInfo = if ($p.accountGroup) { " [accountGroup: $($p.accountGroup)]" } else { '' }
         Write-Host "$name" -ForegroundColor Green -NoNewline
-        Write-Host " -> $type | $($p.model) | $($p.baseUrl)$offline" -ForegroundColor Gray
+        Write-Host " -> $type | $($p.model) | $($p.baseUrl)$offline$accountInfo" -ForegroundColor Gray
     }
 }
 
@@ -190,7 +280,13 @@ function Invoke-ProfileShow {
         Write-Error "Profile '$Name' not found."
         exit 1
     }
-    $config.profiles[$Name] | ConvertTo-Json -Depth 10
+    $p = $config.profiles[$Name]
+    $p | ConvertTo-Json -Depth 10
+    $resolved = Resolve-ProfileAccount -Config $config -Profile $p -AccountOverride $null
+    if ($resolved) {
+        Write-Host ""
+        Write-Host "  Account : $($resolved.Name) ($($resolved.KeyEnv), via $($resolved.Source))" -ForegroundColor Green
+    }
 }
 
 function Invoke-ProfileRemove {
@@ -207,6 +303,52 @@ function Invoke-ProfileRemove {
     $config.profiles.Remove($Name)
     Save-ProfileConfig -Config $config
     Write-Host "Removed profile '$Name'." -ForegroundColor Green
+}
+
+function Invoke-ProfileAccounts {
+    $config = Get-ProfileConfig
+    $accounts = $config.accounts
+    if (-not $accounts -or $accounts.Count -eq 0) {
+        Write-Host "No accounts defined. Add an 'accounts' section to $profilePath (see references/copilot-cli-providers.md)." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "BYOK Accounts ($profilePath)" -ForegroundColor Cyan
+    Write-Host ('=' * 60) -ForegroundColor Cyan
+    $active = $config.activeAccount
+
+    foreach ($name in ($accounts.Keys | Sort-Object)) {
+        $a = $accounts[$name]
+        $marker = if ($name -eq $active) { ' [active]' } else { '' }
+        $label = if ($a.label) { $a.label } else { '(no label)' }
+        $keyEnv = if ($a.keyEnv) { $a.keyEnv } else { '(no keyEnv)' }
+        Write-Host "$name" -ForegroundColor Green -NoNewline
+        Write-Host " -> $label | keyEnv: $keyEnv$marker" -ForegroundColor Gray
+    }
+
+    if (-not $active) {
+        Write-Host "" -ForegroundColor Gray
+        Write-Host "No active account set. Use 'use <account>' to select one." -ForegroundColor Yellow
+    }
+}
+
+function Invoke-ProfileUse {
+    param([string]$Name)
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+        Write-Error "Account name is required for 'use'."
+        exit 1
+    }
+    $config = Get-ProfileConfig
+    if (-not $config.accounts -or -not $config.accounts.ContainsKey($Name)) {
+        Write-Error "Account '$Name' is not defined in the 'accounts' registry. See $profilePath"
+        exit 1
+    }
+    $config.activeAccount = $Name
+    Save-ProfileConfig -Config $config
+    $a = $config.accounts[$Name]
+    Write-Host "Active account set to '$Name'." -ForegroundColor Green
+    if ($a.label) { Write-Host "  $($a.label)" -ForegroundColor Gray }
+    if ($a.keyEnv) { Write-Host "  API key env: $($a.keyEnv)" -ForegroundColor Gray }
 }
 
 function Invoke-ProfileAdd {
@@ -428,6 +570,11 @@ function Invoke-ProfileAdd {
         Write-Host "  Note: '$model' does not support --reasoning-effort. The profile has 'reasoningEffortSupported: false'." -ForegroundColor DarkYellow
     }
 
+    if ($preset -eq '6') {
+        $profileEntry.accountGroup = 'opencode'
+        Write-Host "  Note: accountGroup 'opencode' set. Select the account with 'use <account>' or 'run <profile> --account <account>'." -ForegroundColor DarkYellow
+    }
+
     $config.profiles[$name] = $profileEntry
 
     Save-ProfileConfig -Config $config
@@ -482,6 +629,17 @@ function Invoke-ProfileRun {
 
     $p = $config.profiles[$Name]
 
+    # Parse --account override (consumed here, never forwarded to copilot)
+    $accountParse = Remove-AccountArg -ArgList $Arguments
+    $Arguments = $accountParse.Arguments
+    $accountOverride = $accountParse.Account
+
+    # Resolve account -> API-key env var for account-grouped profiles
+    $resolvedAccount = Resolve-ProfileAccount -Config $config -Profile $p -AccountOverride $accountOverride
+    if ($resolvedAccount) {
+        $p.apiKey = '${' + $resolvedAccount.KeyEnv + '}'
+    }
+
     # Auto-start proxy if profile has proxyPort
     $proxyPort = $p.proxyPort
     if ($proxyPort) {
@@ -526,6 +684,9 @@ function Invoke-ProfileRun {
     Write-Host "  Provider : $(if ($p.type) { $p.type } else { 'openai' })" -ForegroundColor Gray
     Write-Host "  Base URL : $($p.baseUrl)" -ForegroundColor Gray
     Write-Host "  Model    : $($p.model)" -ForegroundColor Gray
+    if ($resolvedAccount) {
+        Write-Host "  Account  : $($resolvedAccount.Name) ($($resolvedAccount.KeyEnv), via $($resolvedAccount.Source))" -ForegroundColor Gray
+    }
     if ($p.wireApi) { Write-Host "  Wire API : $($p.wireApi)" -ForegroundColor Gray }
     if ($p.maxPromptTokens) { Write-Host "  Max Prompt Tokens : $($p.maxPromptTokens)" -ForegroundColor Gray }
     if ($p.maxOutputTokens) { Write-Host "  Max Output Tokens : $($p.maxOutputTokens)" -ForegroundColor Gray }
@@ -546,7 +707,7 @@ function Invoke-ProfileRun {
 }
 
 function Invoke-ProfileSetEnv {
-    param([string]$Name)
+    param([string]$Name, [string[]]$Arguments)
     if ([string]::IsNullOrWhiteSpace($Name)) {
         Write-Error "Profile name is required for 'set-env'."
         exit 1
@@ -557,13 +718,27 @@ function Invoke-ProfileSetEnv {
         exit 1
     }
 
-    Set-ProviderEnvironment -Provider $config.profiles[$Name]
-
     $p = $config.profiles[$Name]
+
+    # Parse --account override (consumed here, not part of the env)
+    $accountParse = Remove-AccountArg -ArgList $Arguments
+    $accountOverride = $accountParse.Account
+
+    # Resolve account -> API-key env var for account-grouped profiles
+    $resolvedAccount = Resolve-ProfileAccount -Config $config -Profile $p -AccountOverride $accountOverride
+    if ($resolvedAccount) {
+        $p.apiKey = '${' + $resolvedAccount.KeyEnv + '}'
+    }
+
+    Set-ProviderEnvironment -Provider $p
+
     Write-Host "Applied profile '$Name' to the current shell session." -ForegroundColor Green
     Write-Host "  COPILOT_PROVIDER_BASE_URL = $($env:COPILOT_PROVIDER_BASE_URL)" -ForegroundColor Gray
     Write-Host "  COPILOT_PROVIDER_TYPE     = $($env:COPILOT_PROVIDER_TYPE)" -ForegroundColor Gray
     Write-Host "  COPILOT_MODEL             = $($env:COPILOT_MODEL)" -ForegroundColor Gray
+    if ($resolvedAccount) {
+        Write-Host "  COPILOT_PROVIDER_ACCOUNT = $($resolvedAccount.Name) ($($resolvedAccount.KeyEnv), via $($resolvedAccount.Source))" -ForegroundColor Gray
+    }
     if ($env:COPILOT_PROVIDER_WIRE_API) {
         Write-Host "  COPILOT_PROVIDER_WIRE_API = $($env:COPILOT_PROVIDER_WIRE_API)" -ForegroundColor Gray
     }
@@ -584,12 +759,14 @@ function Invoke-ProfileSetEnv {
 }
 
 switch ($Command) {
-    'list'    { Invoke-ProfileList }
-    'show'    { Invoke-ProfileShow -Name $Profile }
-    'add'     { Invoke-ProfileAdd }
-    'remove'  { Invoke-ProfileRemove -Name $Profile }
-    'run'     { Invoke-ProfileRun -Name $Profile }
-    'set-env' { Invoke-ProfileSetEnv -Name $Profile }
-    default   { Invoke-ProfileList }
+    'list'     { Invoke-ProfileList }
+    'show'     { Invoke-ProfileShow -Name $Profile }
+    'add'      { Invoke-ProfileAdd }
+    'remove'   { Invoke-ProfileRemove -Name $Profile }
+    'run'      { Invoke-ProfileRun -Name $Profile }
+    'set-env'  { Invoke-ProfileSetEnv -Name $Profile -Arguments $Arguments }
+    'accounts' { Invoke-ProfileAccounts }
+    'use'      { Invoke-ProfileUse -Name $Profile }
+    default    { Invoke-ProfileList }
 }
 

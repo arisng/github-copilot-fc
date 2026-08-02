@@ -117,6 +117,7 @@ $r2 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
 | `-Agent` | No | — | Custom agent name. Qualify plugin agents as `plugin:agent-name` (colon, e.g. `dotnet-diag:optimizing-dotnet-performance`). Repo agents use bare name. |
 | `-Model` | No | — | Model override. Takes precedence over the BYOK profile's model. |
 | `-ByokProfile` | No | `opencode-go-deepseek-v4-flash` | BYOK profile name from `~/.copilot/byok-profiles.json`. |
+| `-ByokAccount` | No | — | Account override for account-grouped profiles (e.g., multiple OpenCode Go subscriptions). Takes precedence over the profile's `account` pin and the config-level `activeAccount`. When omitted, the profile pin or `activeAccount` is used. |
 | `-ReasoningEffort` | No | `high` | `none`, `low`, `medium`, `high`, `xhigh`, `max`. **Important**: the default BYOK model (`opencode-go-deepseek-v4-flash`) does NOT support reasoning effort — always pass `-ReasoningEffort none` when using the default profile. |
 | `-WorkingDir` | No | current location | Working directory for the sub-process. |
 | `-JsonOutput` | Switch | off | Emit JSONL instead of plain text. |

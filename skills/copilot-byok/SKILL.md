@@ -1,6 +1,6 @@
 ---
 name: copilot-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
   version: 0.8.0
@@ -64,6 +64,39 @@ Pass extra Copilot CLI arguments through `run` (do not pass `--model`; model is 
 ```
 
 Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byok-profiles.json`.
+
+## Switch between multiple provider accounts
+
+When you have multiple subscriptions for the same provider (for example, **two OpenCode Zen accounts** with separate API keys), register the accounts once and switch per session — no profile edits needed.
+
+### 1. Register accounts in `~/.copilot/byok-profiles.json`
+
+```json
+{
+  "accounts": {
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+  },
+  "activeAccount": "opencode-1"
+}
+```
+
+`keyEnv` holds the **name** of an environment variable with that account's key — never the raw key. `activeAccount` sets the default.
+
+### 2. Opt profiles in with `accountGroup`
+
+Add `"accountGroup": "opencode"` to each profile that should use the registry (the `add` wizard sets it automatically for the OpenCode Go preset). Profiles without `accountGroup` never participate.
+
+### 3. Manage and switch accounts
+
+```powershell
+.\scripts\byok-profile.ps1 accounts
+.\scripts\byok-profile.ps1 use opencode-2
+.\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash
+.\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-2
+```
+
+Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-2` to `Invoke-CopilotCliSubSession.ps1`.
 
 ## Read references on demand
 

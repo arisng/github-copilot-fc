@@ -42,6 +42,12 @@
     Name of a BYOK profile stored in ~/.copilot/byok-profiles.json.
     Default: 'opencode-go-deepseek-v4-flash'.
 
+.PARAMETER ByokAccount
+    Account override for account-grouped BYOK profiles (e.g., multiple OpenCode
+    Go subscriptions). Takes precedence over the profile's 'account' pin and the
+    config-level 'activeAccount'. When omitted, the profile pin or activeAccount
+    is used.
+
 .PARAMETER ConfigDir
     Isolated Copilot CLI config directory for --config-dir.
 
@@ -99,6 +105,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$ByokProfile = 'opencode-go-deepseek-v4-flash',
+
+    [Parameter(Mandatory = $false)]
+    [string]$ByokAccount,
 
     [Parameter(Mandatory = $false)]
     [string]$ConfigDir,
@@ -170,6 +179,44 @@ if ($ByokProfile) {
     $env:COPILOT_MODEL = $provider.model
 
     $apiKey = Get-ProviderProp $provider 'apiKey'
+
+    # Account resolution for account-grouped providers (e.g., multiple OpenCode Go subscriptions).
+    # Overrides the legacy apiKey placeholder when an account resolves.
+    $resolvedByokAccount = $null
+    $accountGroup = Get-ProviderProp $provider 'accountGroup'
+    if ($accountGroup) {
+        $accountName = $ByokAccount
+        $accountSource = '-ByokAccount'
+        if (-not $accountName) {
+            $accountName = Get-ProviderProp $provider 'account'
+            $accountSource = 'profile account pin'
+        }
+        if (-not $accountName -and $raw.PSObject.Properties.Name -contains 'activeAccount' -and $raw.activeAccount) {
+            $accountName = $raw.activeAccount
+            $accountSource = 'activeAccount'
+        }
+        $accountsAvailable = ($raw.PSObject.Properties.Name -contains 'accounts') -and ($null -ne $raw.accounts)
+        if (-not $accountName) {
+            Write-Warning "BYOK profile '$ByokProfile' uses accountGroup '$accountGroup' but no account is selected. Pass -ByokAccount or set activeAccount in byok-profiles.json. Falling back to profile apiKey."
+        }
+        elseif (-not $accountsAvailable -or $raw.accounts.PSObject.Properties.Name -notcontains $accountName) {
+            Write-Warning "Account '$accountName' (via $accountSource) is not defined in the 'accounts' registry. Falling back to profile apiKey."
+        }
+        else {
+            $accountEntry = $raw.accounts.$accountName
+            $keyEnv = $null
+            if ($accountEntry.PSObject.Properties.Name -contains 'keyEnv') { $keyEnv = $accountEntry.keyEnv }
+            if (-not $keyEnv) {
+                Write-Warning "Account '$accountName' (via $accountSource) has no keyEnv. Falling back to profile apiKey."
+            }
+            else {
+                $apiKey = '${' + $keyEnv + '}'
+                $resolvedByokAccount = $accountName
+                Write-Verbose "BYOK account: $accountName ($keyEnv, via $accountSource)"
+            }
+        }
+    }
+
     if ($apiKey) {
         $env:COPILOT_PROVIDER_API_KEY = Expand-EnvPlaceholder -Value $apiKey
     }
@@ -366,4 +413,5 @@ return [PSCustomObject]@{
     Agent         = $Agent
     Model         = $env:COPILOT_MODEL
     ByokProfile   = $ByokProfile
+    ByokAccount   = $resolvedByokAccount
 }

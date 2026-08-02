@@ -90,6 +90,27 @@ To update or remove a key set with Option 1 or 2:
 
 Restart your terminal after any change.
 
+## Multiple Keys for the Same Provider
+
+When you have more than one subscription for the same provider (for example, **two OpenCode Zen accounts**), store each key in its own environment variable and reference them from the `accounts` registry in `byok-profiles.json`:
+
+```powershell
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY", "<account-1-key>", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_B", "<account-2-key>", "User")
+```
+
+```json
+{
+  "accounts": {
+    "opencode-1": { "keyEnv": "OPENCODE_API_KEY",   "label": "OpenCode Zen Account 1" },
+    "opencode-2": { "keyEnv": "OPENCODE_API_KEY_B", "label": "OpenCode Zen Account 2" }
+  },
+  "activeAccount": "opencode-1"
+}
+```
+
+The registry stores **environment variable names only** — never key values. Switch the default with `use <account>` or override per session with `run <profile> --account <account>`. See `copilot-cli-providers.md` for the full reference.
+
 ## Checklist
 
 - [ ] Profile JSON uses `${ENV_VAR}` placeholder, not a raw key.
