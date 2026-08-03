@@ -164,10 +164,10 @@ Hook config format: `{ "version": 1, "hooks": { "<event>": [{ "bash": "...", "po
 
 ## Configuration Override
 
-The default configuration directory `~/.copilot/` can be overridden:
+The default configuration directory `~/.copilot/` can be overridden (v1.0.77+):
 
-- **CLI flag**: `--config-dir <directory>`
-- **Environment variable**: `XDG_CONFIG_HOME` (path becomes `$XDG_CONFIG_HOME/.copilot/`)
+- **Environment variable**: `COPILOT_HOME` (full config root override; the `--config-dir` CLI flag was removed in v1.0.77)
+- **Environment variable**: `XDG_CONFIG_HOME` (path becomes `$XDG_CONFIG_HOME/.copilot/`; Linux/macOS)
 - **Config file**: `config-dir` key in `~/.copilot/config.json`
 
 This redirects the entire `~/.copilot/` tree (agents, skills, MCP config, instructions, logs, sessions).

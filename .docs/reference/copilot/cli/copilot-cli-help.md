@@ -1,5 +1,7 @@
 # GitHub Copilot CLI - An AI-powered coding assistant
 
+> **Historical snapshot**: This help output predates v1.0.77 — it still lists `--config-dir` and `--disable-parallel-tools-execution`, both removed in v1.0.77. For current behavior run `copilot --help` or see the [programmatic cheatsheet](../shared/copilot-cli-programmatic-cheatsheet.md).
+
 ## Options:
 
 ```txt

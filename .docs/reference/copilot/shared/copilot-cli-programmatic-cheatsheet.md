@@ -68,7 +68,7 @@ Exit codes: `0` on success, non-zero on LLM backend errors (auth, quota, network
 | `--resume UUID`                | New or existing session ID                  | `--resume "uuid"`                      |
 | `--session-id UUID`            | Alternative session ID flag                 | `--session-id "uuid"`                  |
 | `--name NAME`                  | Named session (v1.0.52+)                    | `--name "research-pass-1"`             |
-| `--config-dir DIR`             | Isolated configuration dir                  | `--config-dir /tmp/isolated`           |
+| `COPILOT_HOME` (env)           | Isolated config root (v1.0.77+)             | `COPILOT_HOME=/tmp/isolated`           |
 | `--allow-all` / `--yolo`       | Full permissions (tools + paths + URLs)     | `--allow-all`                          |
 | `--allow-all-tools`            | Allow every tool without asking             | `--allow-all-tools`                    |
 | `--no-ask-user`                | Prevent clarification prompts               | `--no-ask-user`                        |
@@ -433,7 +433,7 @@ if ($Model) { $env:COPILOT_MODEL = $Model }
 # --- Step 3: Build CLI arguments ---
 $cliArgs = [System.Collections.ArrayList]@()
 
-if ($ConfigDir) { $cliArgs.Add('--config-dir') | Out-Null; $cliArgs.Add($ConfigDir) | Out-Null }
+if ($ConfigDir) { $env:COPILOT_HOME = $ConfigDir }
 if ($SessionId) { $cliArgs.Add('--resume') | Out-Null; $cliArgs.Add($SessionId) | Out-Null }
 if ($Agent) { $cliArgs.Add('--agent') | Out-Null; $cliArgs.Add($Agent) | Out-Null }
 if ($ReasoningEffort) { $cliArgs.Add('--reasoning-effort') | Out-Null; $cliArgs.Add($ReasoningEffort) | Out-Null }
