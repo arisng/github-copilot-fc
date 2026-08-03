@@ -2,8 +2,9 @@
 name: copilot-sdk-dotnet
 description: Build applications with GitHub Copilot CLI SDKs for .NET. Use for direct CopilotClient integration or Microsoft Agent Framework. Covers sessions, streaming, tools, MCP, permissions, and multi-agent workflows.
 metadata:
-    version: 1.1.0
+    version: 1.2.0
     authors: arisng
+    lastVerified: 2026-08-03
 ---
 
 # GitHub Copilot CLI SDK (.NET)
@@ -110,6 +111,8 @@ Common options:
 - `ExcludedTools`: Blacklist specific tools
 - `SystemMessage`: Custom system prompt with mode ("append" or "replace")
 - `OnPermissionRequest`: Permission handler function
+
+> **Reasoning effort (known gap)**: The SDK `SessionConfig` surface does not currently document a reasoning-effort option, while the CLI (`--reasoning-effort`) and VS Code (`supportsReasoningEffort`) expose it. If your workload needs per-model reasoning-effort control and the SDK version does not expose it, prefer the CLI path (`copilot-cli-subsession`) or VS Code BYOK. See the [parity matrix](../copilot-cli-subsession/references/copilot-sdk-parity-matrix.md) and the [feature audit](../copilot-cli-subsession/references/copilot-cli-feature-verification-audit.md).
 
 ### Session queries
 
@@ -418,3 +421,5 @@ The GitHub Copilot ecosystem comprises multiple distinct products, each serving 
 - Use [MCP Server Integration](references/mcp-integration.md) for MCP server setup, local vs. remote patterns, and debugging.
 - Use [Custom Tools & Agents](references/tools-agents.md) for tool definition patterns, schema validation, and agent persona setup.
 - Use [Agent Framework Integration](references/agent-framework.md) for using Copilot with Microsoft Agent Framework (.NET/Python).
+- Use [Copilot CLI ↔ SDK parity matrix](../copilot-cli-subsession/references/copilot-sdk-parity-matrix.md) to see how SDK APIs map to CLI flags / `COPILOT_*` env vars / VS Code settings, and how to keep this skill in sync with new CLI features.
+- Use [Copilot CLI feature verification audit](../copilot-cli-subsession/references/copilot-cli-feature-verification-audit.md) for the empirical verification record and known gaps (including reasoning effort).
