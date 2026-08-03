@@ -49,13 +49,16 @@
     is used.
 
 .PARAMETER ConfigDir
-    Isolated Copilot CLI config directory for --config-dir.
+    Isolated Copilot CLI config directory. Mapped to COPILOT_HOME for the
+    sub-process (CLI 1.0.77+ no longer accepts --config-dir).
 
 .PARAMETER WorkingDir
     Working directory for the sub-process (default: current location).
 
 .PARAMETER ReasoningEffort
-    Reasoning level: none | low | medium | high | xhigh | max.  Default: 'high'.
+    Reasoning level: none | minimal | low | medium | high | xhigh | max.  Default: 'high'.
+    Forwarded to the sub-process only when the resolved BYOK profile supports it
+    (grounded in copilot-byok references/reasoning-effort-lookup.md).
 
 .PARAMETER JsonOutput
     Emit JSONL output instead of plain text.
@@ -116,7 +119,7 @@ param(
     [string]$WorkingDir = (Get-Location).Path,
 
     [Parameter(Mandatory = $false)]
-    [ValidateSet('none', 'low', 'medium', 'high', 'xhigh', 'max')]
+    [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')]
     [string]$ReasoningEffort = 'high',
 
     [switch]$JsonOutput,
@@ -254,6 +257,27 @@ if ($ByokProfile) {
     }
 }
 
+# Ground reasoning-effort forwarding in the resolved profile (per-model support is
+# documented in the copilot-byok skill's references/reasoning-effort-lookup.md).
+# The profile flag takes precedence when present, but hand-added profiles may omit
+# it, so fall back to the shared no-support model list (mirrors byok-profile.ps1).
+$noReasoningEffortModels = @(
+    'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
+    'glm-5.2', 'glm-5.1', 'glm-5',
+    'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
+    'qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-plus', 'qwen3.5-plus',
+    'minimax-m3', 'minimax-m2.7', 'minimax-m2.5'
+)
+$reasoningEffortSupported = $true
+if ($null -ne $provider) {
+    if ($provider.PSObject.Properties.Name -contains 'reasoningEffortSupported') {
+        $reasoningEffortSupported = [bool]$provider.reasoningEffortSupported
+    }
+    elseif ($provider.model -in $noReasoningEffortModels) {
+        $reasoningEffortSupported = $false
+    }
+}
+
 # --- Step 2: Model override precedence ---
 if ($Model) {
     $env:COPILOT_MODEL = $Model
@@ -261,11 +285,6 @@ if ($Model) {
 
 # --- Step 3: Build CLI argument list ---
 $cliArgs = [System.Collections.ArrayList]@()
-
-if ($ConfigDir) {
-    [void]$cliArgs.Add('--config-dir')
-    [void]$cliArgs.Add($ConfigDir)
-}
 
 if ($Name) {
     [void]$cliArgs.Add('--name')
@@ -294,8 +313,13 @@ if ($Agent) {
 }
 
 if ($ReasoningEffort) {
-    [void]$cliArgs.Add('--reasoning-effort')
-    [void]$cliArgs.Add($ReasoningEffort)
+    if ($reasoningEffortSupported) {
+        [void]$cliArgs.Add('--reasoning-effort')
+        [void]$cliArgs.Add($ReasoningEffort)
+    }
+    else {
+        Write-Warning "Stripped --reasoning-effort '$ReasoningEffort' for model '$($provider.model)' — the API does not expose controllable reasoning-effort levels. See copilot-byok references/reasoning-effort-lookup.md."
+    }
 }
 
 if ($JsonOutput) {
@@ -360,11 +384,18 @@ if (-not $pwshCmd) {
     throw "'pwsh' (PowerShell 7+) not found in PATH."
 }
 
-# --- Step 5: Ensure COPILOT_HOME is set ---
-# Copilot CLI auto-adds --config-dir internally when COPILOT_HOME is unset,
-# triggering a deprecation warning. Set it to the standard location.
-# Note: $env: works for the parent, but ProcessStartInfo needs explicit env block.
-$copilotHome = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME '.copilot' }
+# --- Step 5: Ensure COPILOT_HOME is set (config isolation) ---
+# CLI 1.0.77+ no longer accepts --config-dir; COPILOT_HOME is the supported
+# config-override mechanism (see references/copilot-sdk-parity-matrix.md F-1).
+# -ConfigDir maps to COPILOT_HOME so full isolation works on current CLI.
+$copilotHome = if ($ConfigDir) {
+    # -ConfigDir is an absolute path; normalize to a directory.
+    $ConfigDir
+} elseif ($env:COPILOT_HOME) {
+    $env:COPILOT_HOME
+} else {
+    Join-Path $HOME '.copilot'
+}
 $env:COPILOT_HOME = $copilotHome
 
 # --- Step 6: Spawn subprocess via pwsh ---

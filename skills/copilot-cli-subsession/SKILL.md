@@ -10,7 +10,9 @@ description: >-
 argument-hint: "What is the sub-session prompt?"
 metadata:
   author: arisng
-  version: 0.3.0
+  version: 0.4.0
+  lastVerified: 2026-08-03
+  verifiedCliVersion: 1.0.77
 ---
 
 # Invoke Copilot CLI Sub-Session
@@ -21,7 +23,7 @@ Use this skill when a main session (in Copilot CLI or VS Code) needs to spawn a 
 
 - Run a long or risky sub-workflow in a separate process that does not pollute the main session context.
 - Pin a specific **custom agent** to the sub-session.
-- Pin a specific **BYOK provider / model** for the sub-session (default: `opencode-go-deepseek-v4-flash`, reasoning-effort `high`; the default model requires `-ReasoningEffort none`).
+- Pin a specific **BYOK provider / model** for the sub-session (default: `opencode-go-deepseek-v4-flash`, reasoning-effort `high`; per-model levels are grounded in the `copilot-byok` skill's [`references/reasoning-effort-lookup.md`](../copilot-byok/references/reasoning-effort-lookup.md)).
 - Self-generate a **session name** (`--name`) and **session UUID** (`--session-id`) so the main session can send follow-up prompts to the same sub-session.
 - Capture structured output (text or JSONL) for programmatic parsing.
 
@@ -34,10 +36,9 @@ Use this skill when a main session (in Copilot CLI or VS Code) needs to spawn a 
 ## Quick start
 
 ```powershell
-# Minimal invocation — uses default BYOK profile (requires reasoning-effort none)
+# Minimal invocation — uses default BYOK profile (opencode-go-deepseek-v4-flash) at reasoning-effort high
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -Name "analyze-async" `
-    -ReasoningEffort "none" `
     -Prompt "Analyze the project structure and list all async methods."
 
 # Specific agent, model override, named session, multi-line prompt
@@ -58,14 +59,12 @@ Review the codebase for security vulnerabilities:
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -SlashCommand "handoff" `
     -Prompt "Describe the current session state" `
-    -Name "session-handoff" `
-    -ReasoningEffort "none"
+    -Name "session-handoff"
 
 # Invoke a skill without extra prompt
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -SlashCommand "git-atomic-commit" `
-    -Name "auto-commit" `
-    -ReasoningEffort "none"
+    -Name "auto-commit"
 
 # Invoke with a custom agent
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
@@ -76,7 +75,6 @@ Review the codebase for security vulnerabilities:
 # Context handoff: list relevant file paths; sub-session reads them itself
 .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -Name "exec-plan" `
-    -ReasoningEffort "none" `
     -Prompt @"
 Execute the implementation plan at:
   c:/Workplace/my-repo/openspec/changes/auth-impl/plan.md
@@ -94,14 +92,12 @@ $uuid = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
 $r1 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -Name "research-auth" `
     -SessionId $uuid `
-    -ReasoningEffort "none" `
     -Prompt "Research this repo's authentication approach." `
     -JsonOutput
 
 $r2 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
     -Name "research-auth" `
     -SessionId $uuid `
-    -ReasoningEffort "none" `
     -Prompt "Based on the research, propose three security improvements." `
     -JsonOutput
 ```
@@ -118,7 +114,7 @@ $r2 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
 | `-Model` | No | — | Model override. Takes precedence over the BYOK profile's model. |
 | `-ByokProfile` | No | `opencode-go-deepseek-v4-flash` | BYOK profile name from `~/.copilot/byok-profiles.json`. |
 | `-ByokAccount` | No | — | Account override for account-grouped profiles (e.g., multiple OpenCode Go subscriptions). Takes precedence over the profile's `account` pin and the config-level `activeAccount`. When omitted, the profile pin or `activeAccount` is used. |
-| `-ReasoningEffort` | No | `high` | `none`, `low`, `medium`, `high`, `xhigh`, `max`. **Important**: the default BYOK model (`opencode-go-deepseek-v4-flash`) does NOT support reasoning effort — always pass `-ReasoningEffort none` when using the default profile. |
+| `-ReasoningEffort` | No | `high` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (per-model subset may vary; `minimal` is newer — verified in CLI 1.0.77). The default BYOK profile (`opencode-go-deepseek-v4-flash`) runs at `high` by default. For the grounded per-model lookup — which levels a model supports and whether to omit the flag — see the `copilot-byok` skill's [`references/reasoning-effort-lookup.md`](../copilot-byok/references/reasoning-effort-lookup.md). |
 | `-WorkingDir` | No | current location | Working directory for the sub-process. |
 | `-JsonOutput` | Switch | off | Emit JSONL instead of plain text. |
 | `-NoAllowAll` | Switch | off | Opt out of `--allow-all --no-ask-user`. By default the sub-session runs with full permissions. |
@@ -167,7 +163,7 @@ Inline newlines via `` `n `` also work: `-Prompt "Line 1`nLine 2`nLine 3"`.
 
 `-SlashCommand` wraps Copilot CLI's interactive slash commands for non-interactive use. Pass just the command name (no leading `/`) — the script prepends `/` automatically.
 
-**Supported commands**: Any built-in CLI command (`help`, `model`, `init`, `diff`, `pr`, `review`, `plan`, `research`, `delegate`, `undo`, `compact`, `share`, `allow-all`, `add-dir`, `skills`) and any installed skill (`git-atomic-commit`, `handoff`, `mermaid-creator`, etc.).
+**Supported commands**: Any built-in CLI command (`help`, `model`, `init`, `diff`, `pr`, `review`, `plan`, `research`, `delegate`, `rewind`, `compact`, `share`, `allow-all`, `add-dir`, `skills`) and any installed skill (`git-atomic-commit`, `handoff`, `mermaid-creator`, etc.).
 
 ```powershell
 # Slash command only
@@ -184,9 +180,9 @@ Inline newlines via `` `n `` also work: `-Prompt "Line 1`nLine 2`nLine 3"`.
 
 ```powershell
 # Plan → Execute → Review with slash commands
-.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "plan" -Prompt "Implement user auth" -Name "plan-auth" -SessionId $uuid -ReasoningEffort "none"
-.\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "Execute the plan above" -Name "exec-auth" -SessionId $uuid -ReasoningEffort "none"
-.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "review" -Name "review-auth" -SessionId $uuid -ReasoningEffort "none"
+.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "plan" -Prompt "Implement user auth" -Name "plan-auth" -SessionId $uuid
+.\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "Execute the plan above" -Name "exec-auth" -SessionId $uuid
+.\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "review" -Name "review-auth" -SessionId $uuid
 ```
 ## Custom agent invocation (`-Agent`)
 
@@ -326,7 +322,7 @@ By default the sub-session **inherits** the main session's MCP servers and custo
 - It runs in the same working directory (project-level `.mcp.json`, `.github/mcp.json`, `copilot-instructions.md` are picked up).
 - It uses the same `~/.copilot/` directory (user-level `mcp-config.json`, agents, skills).
 
-To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstructions`. To fully isolate, set `-ConfigDir` (or `$env:COPILOT_HOME`) to a separate config tree.
+To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstructions`. To fully isolate, set `-ConfigDir` (mapped to `$env:COPILOT_HOME` for the sub-process) to a separate config tree.
 
 ## BYOK profile handling
 
@@ -348,6 +344,24 @@ COPILOT_OFFLINE
 If the profile contains `proxyPort`, the script routes the request through the local Moonshot proxy (`https://moonshot.local/v1`) used by `copilot-byok`.
 
 A `-Model` parameter, when provided, takes precedence over the profile's model.
+
+### Reasoning effort per model
+
+The script forwards `--reasoning-effort` (default `high`) only when the resolved profile supports it. If the profile carries `"reasoningEffortSupported": false` (models whose API exposes no controllable levels — e.g., Kimi K2.x, GLM, MiMo, Qwen3.x, MiniMax), the argument is stripped with a warning, mirroring `byok-profile.ps1 run`. The authoritative per-model lookup — which levels a model supports and the recommended default — is the `copilot-byok` skill's `references/reasoning-effort-lookup.md`. For the default profile (`deepseek-v4-flash`), `high` is within the supported `low`/`medium`/`high` range.
+
+## Copilot SDK parity & keeping up
+
+The CLI flag surface, `COPILOT_*` env vars, the .NET SDK (`copilot-sdk-dotnet`), and VS Code `chatLanguageModels.json` are four façades over the same Copilot CLI engine. The single source of truth for how they map is the [capability parity matrix](references/copilot-sdk-parity-matrix.md) — update it whenever a new capability appears in any surface, and link it from new reference material instead of re-documenting equivalence.
+
+To detect drift between this skill's documented surface and the installed CLI, run the parity gate before publishing:
+
+```powershell
+.\scripts\Test-CopilotCliParity.ps1
+```
+
+The gate compares documented flags, env vars, and reasoning-effort levels against `copilot --help` / `copilot help environment`, exits non-zero on drift, and lists new capabilities the CLI gained that the skill does not document yet. After re-verifying, bump `lastVerified` / `verifiedCliVersion` in this skill's frontmatter and the `Verified` column of the matrix.
+
+Historical (v1.0.77, resolved 2026-08-03): `--config-dir` is no longer listed in CLI help; `-ConfigDir` maps to `COPILOT_HOME` for the sub-process (the supported config-override mechanism).
 
 ## Output
 

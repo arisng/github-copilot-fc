@@ -16,7 +16,7 @@ copilot -p "/plan Implement OAuth" --session-id "uuid" -s
 ## Flags relevant to sub-session spawning
 
 | Flag | Purpose |
-|------|---------|
+| --- | --- |
 | `-p, --prompt` | Non-interactive prompt. |
 | `-s, --silent` | Suppress status metadata. |
 | `--resume UUID` | Start or resume a session by ID. |
@@ -24,10 +24,9 @@ copilot -p "/plan Implement OAuth" --session-id "uuid" -s
 | `--name NAME` | Named session (v1.0.52+). |
 | `--agent NAME` | Load a custom agent. |
 | `--model MODEL` | Pin the model. |
-| `--reasoning-effort LEVEL` | none, low, medium, high, xhigh, max. |
+| `--reasoning-effort LEVEL` | none, minimal, low, medium, high, xhigh, max. |
 | `--output-format FORMAT` | `text` or `json` (JSONL). |
 | `--stream MODE` | `on` or `off`. |
-| `--config-dir DIR` | Isolated config directory. |
 | `--allow-all` / `--yolo` | Full permissions. |
 | `--allow-all-tools` | Allow every tool. |
 | `--no-ask-user` | Disable clarification prompts. |
@@ -41,6 +40,7 @@ copilot -p "/plan Implement OAuth" --session-id "uuid" -s
 ## BYOK environment variables
 
 ```text
+COPILOT_HOME                # config root (v1.0.77+; --config-dir was removed)
 COPILOT_PROVIDER_BASE_URL
 COPILOT_PROVIDER_TYPE        # openai (default) | azure | anthropic
 COPILOT_MODEL
@@ -67,7 +67,7 @@ COPILOT_OFFLINE              # true to avoid GitHub services
 ## JSONL event types (`--output-format json`)
 
 | Type | When |
-|------|------|
+| --- | --- |
 | `tool.execution_start` | Tool call begins. |
 | `tool.execution_complete` | Tool call finishes. |
 | `session.task_complete` | Agent reports completion. |
