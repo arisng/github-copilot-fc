@@ -3,7 +3,8 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.10.0
+  version: 0.11.0
+  lastVerified: 2026-08-03
 ---
 
 # Copilot BYOK Provider Configuration
@@ -26,7 +27,7 @@ Use this skill to configure BYOK (Bring Your Own Key) LLM providers for **both G
 - **Manual one-off environment setup**: Read `references/copilot-cli-providers.md`.
 - **API key storage or rotation**: Read `references/api-key-storage.md`.
 - **Token-limit sizing**: Read `references/copilot-cli-providers.md` first, then calculate conservative prompt and output limits.
-- **Reasoning-level configuration**: Read `references/copilot-cli-providers.md`, then apply `--reasoning-effort` per invocation.
+- **Reasoning-level configuration**: Read the grounded per-model lookup `references/reasoning-effort-lookup.md`, then apply `--reasoning-effort` per invocation. Cross-surface mapping (CLI flag ↔ env var ↔ SDK API ↔ VS Code) lives in the `copilot-cli-subsession` skill's [`copilot-sdk-parity-matrix.md`](../copilot-cli-subsession/references/copilot-sdk-parity-matrix.md).
 
 ### VS Code path
 
@@ -121,9 +122,9 @@ Resolution order: `--account` flag → profile `account` pin → `activeAccount`
 
 ## Configure reasoning effort correctly
 
-Use Copilot CLI's `--reasoning-effort` option for model reasoning level control.
+Use Copilot CLI's `--reasoning-effort` option for model reasoning level control. The authoritative per-model lookup — which levels a specific model supports and the recommended default — is `references/reasoning-effort-lookup.md` (OpenCode Go focus; method applies to any BYOK model).
 
-- Supported levels: `none`, `low`, `medium`, `high`, `xhigh`, `max` (per-model subset may vary — e.g., DeepSeek V4 models on OpenCode Go only support `low`, `medium`, `high`).
+- Supported levels: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (per-model subset may vary — e.g., DeepSeek V4 models on OpenCode Go only support `low`, `medium`, `high`; `minimal` is newer, verified in CLI 1.0.77).
 - Apply it per run, for example:
 
 ```powershell
@@ -156,7 +157,7 @@ When using these models, omit `--reasoning-effort` entirely. The model will use 
 
 To check whether a model supports it, try `--reasoning-effort none` (the least demanding level). If that also fails, the model simply doesn't support the feature.
 
-The profile system tracks this per model. Profiles for models that do not support reasoning effort set `"reasoningEffortSupported": false`. The `run` command detects incompatible `--reasoning-effort`/`--effort` arguments, **strips them before forwarding to Copilot CLI**, and displays a clear notice. This prevents the API error.
+The profile system tracks this per model. Profiles for models that do not support reasoning effort set `"reasoningEffortSupported": false`. The `run` command detects incompatible `--reasoning-effort`/`--effort` arguments, **strips them before forwarding to Copilot CLI**, and displays a clear notice. This prevents the API error. Support is derived from the shared no-support model list when the profile flag is absent (hand-added profiles), so `run`/`set-env`/`show` and `Invoke-CopilotCliSubSession.ps1` stay consistent.
 
 Do not claim a dedicated `COPILOT_*` environment variable exists for reasoning effort unless `copilot help environment` in the user's installed CLI version explicitly lists one.
 

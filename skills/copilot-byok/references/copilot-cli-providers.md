@@ -37,6 +37,7 @@ Reasoning level is configured via Copilot CLI option `--reasoning-effort` (alias
 
 Supported levels:
 - `none`
+- `minimal`
 - `low`
 - `medium`
 - `high`

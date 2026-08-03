@@ -113,6 +113,34 @@ function Expand-EnvPlaceholder {
     })
 }
 
+# Models whose API does not expose controllable reasoning-effort levels. This is the
+# single source of truth used by the wizard (add), run, set-env, and show. It mirrors
+# references/reasoning-effort-lookup.md; keep both in sync.
+function Get-NoReasoningEffortModels {
+    return @(
+        'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
+        'glm-5.2', 'glm-5.1', 'glm-5',
+        'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
+        'qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-plus', 'qwen3.5-plus',
+        'minimax-m3', 'minimax-m2.7', 'minimax-m2.5'
+    )
+}
+
+# Derive whether a model supports Copilot CLI --reasoning-effort.
+# A stored profile flag (reasoningEffortSupported) takes precedence when present, but
+# hand-added profiles may omit it, so fall back to the shared model list. This prevents
+# forwarding --reasoning-effort to models that reject it.
+function Test-ReasoningEffortSupported {
+    param($Model, $Profile)
+    if ($Profile -and $Profile.PSObject.Properties.Name -contains 'reasoningEffortSupported') {
+        return [bool]$Profile.reasoningEffortSupported
+    }
+    if ($null -ne $Model -and $Model -in (Get-NoReasoningEffortModels)) {
+        return $false
+    }
+    return $true
+}
+
 function Set-ProviderEnvironment {
     param($Provider)
     $env:COPILOT_PROVIDER_BASE_URL = $Provider.baseUrl
@@ -282,6 +310,9 @@ function Invoke-ProfileShow {
     }
     $p = $config.profiles[$Name]
     $p | ConvertTo-Json -Depth 10
+    $reasoningSupported = Test-ReasoningEffortSupported -Model $p.model -Profile $p
+    Write-Host ""
+    Write-Host "  Reasoning Effort Supported : $reasoningSupported" -ForegroundColor Gray
     $resolved = Resolve-ProfileAccount -Config $config -Profile $p -AccountOverride $null
     if ($resolved) {
         Write-Host ""
@@ -546,14 +577,7 @@ function Invoke-ProfileAdd {
     $offline = $offlineInput -in @('y', 'Y')
 
     # Determine whether the model supports Copilot CLI --reasoning-effort
-    $noReasoningEffortModels = @(
-        'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
-        'glm-5.2', 'glm-5.1', 'glm-5',
-        'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
-        'qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-plus', 'qwen3.5-plus',
-        'minimax-m3', 'minimax-m2.7', 'minimax-m2.5'
-    )
-    $supportsReasoningEffort = $model -notin $noReasoningEffortModels
+    $supportsReasoningEffort = Test-ReasoningEffortSupported -Model $model -Profile $null
 
     $profileEntry = [ordered]@{
         type    = $type
@@ -649,9 +673,9 @@ function Invoke-ProfileRun {
         Write-Host "  (base URL proxied: $originalBaseUrl → https://moonshot.local)" -ForegroundColor DarkYellow
     }
 
-    # Check for reasoning-effort compatibility
+    # Check for reasoning-effort compatibility (flag on profile OR shared model list)
     $hasReasoningArg = ($Arguments | Where-Object { $_ -match '^--(reasoning-effort|effort)(=|$)' }).Count -gt 0
-    $reasoningSupported = if ($p.PSObject.Properties.Name -contains 'reasoningEffortSupported') { $p.reasoningEffortSupported } else { $true }
+    $reasoningSupported = Test-ReasoningEffortSupported -Model $p.model -Profile $p
 
     if ($hasReasoningArg -and $reasoningSupported -eq $false) {
         # Strip both the flag and its value argument
@@ -754,7 +778,7 @@ function Invoke-ProfileSetEnv {
     if ($env:COPILOT_OFFLINE) {
         Write-Host "  COPILOT_OFFLINE           = $($env:COPILOT_OFFLINE)" -ForegroundColor Gray
     }
-    $reasoningSupported = if ($p.PSObject.Properties.Name -contains 'reasoningEffortSupported') { $p.reasoningEffortSupported } else { $true }
+    $reasoningSupported = Test-ReasoningEffortSupported -Model $p.model -Profile $p
     Write-Host "  Reasoning Effort Supported = $reasoningSupported" -ForegroundColor Gray
 }
 
