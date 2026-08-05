@@ -76,11 +76,9 @@ copilot plugin install ./plugins/cli/<name>
 
 For workspace publishing, build the runtime-specific bundle first, then use that bundle as the local install unit instead of the raw source directory:
 
-- CLI: `publish-plugins.ps1` defaults to beta and builds `plugins/cli/.build/<name>-beta/`. Install the resulting local bundle with `copilot plugin install <local_plugin_path>`.
-- VS Code: `publish-plugins.ps1` defaults to beta, building `plugins/vscode/.build/<name>-beta/`, copying that bundle into VS Code's Windows user-data `agentPlugins` location, and registering the published path in `chat.plugins.paths`. For VS Code Insiders, the user-data root includes `C:\Users\ADMIN\AppData\Roaming\Code - Insiders\agentPlugins`.
-- Stable publish or promotion: use `-Channel stable` for an explicit stable publish, or `-Promote` to promote the current beta flow to stable. Stable outputs use `plugins/<runtime>/.build/<name>/`. For CLI, install the stable local bundle with `copilot plugin install <local_plugin_path>`; for VS Code, the publish flow copies into `agentPlugins\<name>\` before registering that published location.
+> ⚠️ **Deprecated (2026-08-05)**: `publish-plugins.ps1` is deprecated. Prefer the native `copilot plugins <options>` CLI (install/list/remove/enable/disable/update/marketplace). Use `build-plugins.ps1` if you only need to produce the local bundle (it embeds instructions and validates the 30K limit) before `copilot plugins install <local_bundle>`.
 
-The CLI **copies** (caches) plugin contents — it does not create a symlink. To pick up local changes after editing, rerun `copilot plugin install` for the official CLI flow. If you're using the workspace bundle flow, rebuild with `publish-plugins.ps1` and then rerun `copilot plugin install <local_plugin_path>`.
+The CLI **copies** (caches) plugin contents — it does not create a symlink. To pick up local changes after editing, rerun `copilot plugins install <spec>` (or `copilot plugin install <local_plugin_path>`) for the official CLI flow. If you're using the workspace bundle flow, rebuild with `build-plugins.ps1` and then rerun `copilot plugins install <local_bundle>`.
 
 ## Where Plugins Are Stored
 
@@ -114,12 +112,12 @@ Plugins load after local user and project customizations, so local overrides alw
 
 Plugins **supplement** the existing publish-script workflow — they do not replace it.
 
-- **Publish scripts** (`scripts/publish/publish-*.ps1`) remain the source of truth for distributing individual artifacts (agents, skills, instructions, hooks) to their standard platform-specific locations.
+- **Publish scripts** (`scripts/publish/publish-*.ps1`) remain the source of truth for distributing individual artifacts (agents, skills, instructions, hooks) to their standard platform-specific locations. `publish-plugins.ps1` is deprecated — use `copilot plugins <options>` for plugin management and `build-plugins.ps1` for bundle-only.
 - **Plugins** bundle multiple artifacts into a single installable unit for distribution to other users or machines.
-- **Bundling is built into the publish flow**: `publish-plugins.ps1` emits self-contained bundles under `plugins/<runtime>/.build/`, using `<name>-beta` for beta or `<name>` for stable, so both channels can exist side by side.
-- **CLI local install is bundle-first**: the prepared CLI bundle under `plugins/cli/.build/` is the handoff point, and the supported install step is `copilot plugin install <local_plugin_path>`. Current local runtimes may cache the installed payload under `_direct/...`, but that is an implementation detail rather than the publish contract.
+- **Bundling**: `build-plugins.ps1` emits self-contained bundles under `plugins/<runtime>/.build/`, using `<name>-beta` for beta or `<name>` for stable, so both channels can exist side by side (legacy `publish-plugins.ps1` also bundled).
+- **CLI local install is bundle-first**: the prepared CLI bundle under `plugins/cli/.build/` is the handoff point, and the supported install step is `copilot plugin install <local_plugin_path>`.
 - **VS Code publish copies then registers**: the prepared VS Code bundle is built under `plugins/vscode/.build/`, copied into VS Code's Windows user-data `agentPlugins` directory (for example `C:\Users\ADMIN\AppData\Roaming\Code - Insiders\agentPlugins\`), and `chat.plugins.paths` is updated to point at that published copy. VS Code does not use the CLI `_direct` install flow.
-- **Stable is an explicit promotion path**: use `publish-plugins.ps1 -Promote` after a beta build is ready, or pass `-Channel stable` when you intentionally want a stable publish.
+- **Stable is an explicit promotion path**: use `build-plugins.ps1 -Promote` after a beta build is ready, or pass `-Channel stable` when you intentionally want a stable publish.
 - **Hook scripts travel with the plugin bundle**: when a plugin declares `hooks`, the build pipeline copies each hook's `hooks/<name>/scripts/` folder into the bundled hook tree so bundled hook manifests can invoke their companion scripts in other workspaces.
 
 Use publish scripts for local development iteration. Use plugins for packaging and sharing complete workflows.

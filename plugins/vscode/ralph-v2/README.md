@@ -4,13 +4,14 @@ Use this plugin when you want Ralph's planning, execution, review, and knowledge
 
 ## Use It
 
-Publish the VS Code plugin bundle from this workspace:
+Build the VS Code plugin bundle from this workspace:
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins ralph-v2
+# Build the local bundle (preferred; publish-plugins.ps1 is deprecated)
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins ralph-v2
 ```
 
-That flow builds the runtime bundle and registers its path in `chat.plugins.paths`.
+That places the VS Code bundle under `plugins/vscode/.build/ralph-v2/`. To make VS Code load it, register that bundle path in the `chat.plugins.paths` setting (the legacy `publish-plugins.ps1 -Runtime vscode` did this automatically, but it is deprecated).
 
 ## What You Get
 

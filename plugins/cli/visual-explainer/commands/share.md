@@ -45,10 +45,11 @@ Use this for previews, reviews, and stakeholder walkthroughs. Use formal deploym
 
 - **Bash-capable shell** with standard utilities: `mktemp`, `cp`, `grep`, `head`
 - **visual-explainer skill installed/published** so `{{skill_dir}}/scripts/share.sh` is available
-- **If running from this repository first time**, publish the skill once:
+- **If running from this repository first time**, install the skill once (Skills CLI preferred; `publish-skills.ps1` is deprecated):
   ```bash
-  pwsh -NoProfile -File scripts/publish/publish-skills.ps1 -Skills "visual-explainer"
+  copilot skill add ./skills/visual-explainer
   ```
+  Legacy fallback: `pwsh -NoProfile -File scripts/publish/publish-skills.ps1 -Skills "visual-explainer"`
 - **deploy-to-vercel skill** - Should be pre-installed. If not: `npx skills add https://github.com/vercel-labs/agent-skills --skill deploy-to-vercel`
 - **Network access** to Vercel
 - **Existing local HTML file** to publish
