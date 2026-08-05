@@ -10,8 +10,8 @@ description: >-
 argument-hint: "What is the sub-session prompt?"
 metadata:
   author: arisng
-  version: 0.4.0
-  lastVerified: 2026-08-03
+  version: 0.6.2
+  lastVerified: 2026-08-05
   verifiedCliVersion: 1.0.77
 ---
 
@@ -114,6 +114,7 @@ $r2 = .\scripts\Invoke-CopilotCliSubSession.ps1 `
 | `-Model` | No | — | Model override. Takes precedence over the BYOK profile's model. |
 | `-ByokProfile` | No | `opencode-go-deepseek-v4-flash` | BYOK profile name from `~/.copilot/byok-profiles.json`. |
 | `-ByokAccount` | No | — | Account override for account-grouped profiles (e.g., multiple OpenCode Go subscriptions). Takes precedence over the profile's `account` pin and the config-level `activeAccount`. When omitted, the profile pin or `activeAccount` is used. |
+| `-CopilotHome` | No | — | **Staging `COPILOT_HOME`** for the sub-process — the explicit opt-in to full config isolation (CLI 1.0.77+: `--config-dir` was removed; `COPILOT_HOME` is the supported override). The **first time** this path is used, the script seeds a minimal staging tree from production `~/.copilot`: `byok-profiles.json` (required) plus `mcp-config.json` when present. Seeding runs **once only** — afterwards production and staging are fully independent; staging is durable and never re-seeded or auto-cleaned (delete the tree manually to reset). Default: production `~/.copilot` (no isolation). Alias: `-ConfigDir` (deprecated). |
 | `-ReasoningEffort` | No | `high` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (per-model subset may vary; `minimal` is newer — verified in CLI 1.0.77). The default BYOK profile (`opencode-go-deepseek-v4-flash`) runs at `high` by default. For the grounded per-model lookup — which levels a model supports and whether to omit the flag — see the `copilot-byok` skill's [`references/reasoning-effort-lookup.md`](../copilot-byok/references/reasoning-effort-lookup.md). |
 | `-WorkingDir` | No | current location | Working directory for the sub-process. |
 | `-JsonOutput` | Switch | off | Emit JSONL instead of plain text. |
@@ -163,7 +164,10 @@ Inline newlines via `` `n `` also work: `-Prompt "Line 1`nLine 2`nLine 3"`.
 
 `-SlashCommand` wraps Copilot CLI's interactive slash commands for non-interactive use. Pass just the command name (no leading `/`) — the script prepends `/` automatically.
 
-**Supported commands**: Any built-in CLI command (`help`, `model`, `init`, `diff`, `pr`, `review`, `plan`, `research`, `delegate`, `rewind`, `compact`, `share`, `allow-all`, `add-dir`, `skills`) and any installed skill (`git-atomic-commit`, `handoff`, `mermaid-creator`, etc.).
+**Supported commands**: Any built-in CLI command (`help`, `init`, `diff`, `pr`, `review`, `plan`, `research`, `delegate`, `rewind`, `compact`, `share`, `allow-all`, `add-dir`, `skills`) and any installed skill (`git-atomic-commit`, `handoff`, `mermaid-creator`, etc.).
+
+> ⚠️ **`model` is excluded from reliable non-interactive use** (verified CLI 1.0.77, 2026-08-03, **BYOK/custom-provider routing**). `-p "/model X"` forwards the text to the *current* model as a prompt — it roleplays the switch and the backend never changes (`model.call_start` stays the same in JSONL).
+> ⚠️ **Scope of this finding**: the roleplay behavior was verified with **BYOK** (custom provider, e.g. OpenCode Go). For **GitHub Copilot Subscription** models it is **unverified** — do not assume `-p "/model X"` is roleplay there, since model selection routes through the GitHub platform rather than a custom endpoint. The only verified in-session switch is the interactive TUI `/model` picker (emits `session.model_change`); the only verified programmatic switch is `-Model` / `--model` at process start (e.g. `-Model kimi-k2.7-code`), which switches the real backend.
 
 ```powershell
 # Slash command only
@@ -322,11 +326,49 @@ By default the sub-session **inherits** the main session's MCP servers and custo
 - It runs in the same working directory (project-level `.mcp.json`, `.github/mcp.json`, `copilot-instructions.md` are picked up).
 - It uses the same `~/.copilot/` directory (user-level `mcp-config.json`, agents, skills).
 
-To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstructions`. To fully isolate, set `-ConfigDir` (mapped to `$env:COPILOT_HOME` for the sub-process) to a separate config tree.
+To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstructions`. To fully isolate, set `-CopilotHome` (mapped to `$env:COPILOT_HOME` for the sub-process) to a separate config tree.
+
+### Staging `COPILOT_HOME` — the skill's testing sandbox (dojo)
+
+`-CopilotHome <path>` is the explicit opt-in to a **staging `COPILOT_HOME`** — a durable, separate config tree that keeps test sub-sessions from polluting the production `~/.copilot/`. The recommended convention is a sibling directory, e.g. `Join-Path $HOME '.copilot-staging'` (derived from `$HOME`, so it works on any machine — never hardcode a user path).
+
+**Why a staging env (dojo vision)**: staging is the designated testing environment for this skill and its ecosystem. Any sub-session spawned with `-CopilotHome` runs fully inside staging — session state, checkpoints, logs, BYOK profile, and MCP config all land there — so you can exercise every supported feature of this skill (custom agents, slash commands, model pinning/switching, session chaining, BYOK profiles, MCP/custom-instructions isolation, reasoning-effort handling) without touching production. Because env vars are process-scoped, the main (root) session keeps running in production `~/.copilot/` while the child works in staging (verified: parent env is never modified).
+
+**Tight feedback loop** (develop the skill safely):
+
+1. **Edit** the artifact under test — e.g. `scripts/Invoke-CopilotCliSubSession.ps1`, this `SKILL.md`, or a referenced skill/agent.
+2. **Stage it** — repo-level skills/agents/hooks are picked up from the working directory (`.github/skills/`, `.github/agents/`, `.github/hooks/`) with **no extra step** (discovery is workspace-relative, independent of `COPILOT_HOME`). Personal-level artifacts can be staged with the publish scripts' `-CopilotHome` override:
+   ```powershell
+   # Agents → <CopilotHome>/agents (skips WSL mirroring)
+   pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -CopilotHome "$HOME\.copilot-staging" -Force
+
+   # Instructions → <CopilotHome>\Code\{Stable|Insiders}\User\prompts (skips WSL)
+   pwsh -NoProfile -File scripts/publish/publish-instructions.ps1 -CopilotHome "$HOME\.copilot-staging" -Force
+
+   # User-level hooks → <CopilotHome>/hooks (skips WSL + VS Code settings mutation)
+   pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome "$HOME\.copilot-staging" -Force
+
+   # Or direct copy for anything else
+   Copy-Item -Recurse "$PWD\skills\copilot-cli-subsession" "$HOME\.copilot-staging\skills\"
+   ```
+3. **Spawn** a sub-session in staging:
+   ```powershell
+   .\scripts\Invoke-CopilotCliSubSession.ps1 -CopilotHome "$HOME\.copilot-staging" -Prompt "test the change"
+   ```
+4. **Observe** — the returned object's `CopilotHome` confirms the child used staging; session artifacts live under `$HOME\.copilot-staging\session-state\<session-uuid>\`.
+5. **Iterate** — repeat 1–4. Staging is never re-seeded and never auto-cleaned, so state persists across iterations; delete the tree to reset.
+
+**Seeding & independence**:
+
+- **One-time seeding**: the first time the staging path is used (its `byok-profiles.json` is missing), the script seeds a minimal functional tree from production — `byok-profiles.json` (required) plus `mcp-config.json` when present. This makes an empty staging dir immediately usable.
+- **Independent envs**: after seeding, production and staging are fully independent. The staging tree is **never re-seeded** (existing files are never overwritten) and **never auto-cleaned** — the user owns its lifecycle. Delete the tree to reset.
+- **What's available in staging**: always the seeded `byok-profiles.json` + `mcp-config.json`, plus repo-level agents/skills/hooks from the working directory; personal-level agents/skills/hooks and `moonshot-proxy` only if staged in (publish scripts accept `-CopilotHome`, or copy manually).
+- **Profile resolution**: with `-CopilotHome`, the BYOK profile is resolved from the staging tree (seeded copy). Production's `byok-profiles.json` is the seed source, not a live fallback — the staged copy is authoritative.
+- **Chaining in staging**: to resume a staging sub-session, pass the **same** `-CopilotHome` plus the same `-SessionId` — session state lives under staging, not production.
 
 ## BYOK profile handling
 
-The script looks up the profile in `~/.copilot/byok-profiles.json` (or `$env:COPILOT_HOME/byok-profiles.json`). The **default profile** is `opencode-go-deepseek-v4-flash`.
+The script looks up the profile in `~/.copilot/byok-profiles.json` (production) or, when `-CopilotHome` is given, the seeded staging tree (`$env:COPILOT_HOME/byok-profiles.json`). The **default profile** is `opencode-go-deepseek-v4-flash`.
 
 It maps profile fields to environment variables:
 
@@ -345,6 +387,10 @@ If the profile contains `proxyPort`, the script routes the request through the l
 
 A `-Model` parameter, when provided, takes precedence over the profile's model.
 
+### Switching models within a sub-session
+
+Verified CLI 1.0.77 (2026-08-03): `-p "/model X"` does **not** switch the backend model (the current model roleplays the switch) — **verified under BYOK/custom-provider routing only**. ⚠️ Do not generalize to **GitHub Copilot Subscription** models: there the CLI selects models via the GitHub platform (not a custom endpoint), and `-p "/model X"` behavior is **unverified** — treat it as unreliable and prefer the interactive TUI `/model` picker, which is the verified in-session switch (it emits `session.model_change` and subsequent calls route to the new model). The verified programmatic switch is `-Model` / `--model` at process start. For OpenCode Go, all models (DeepSeek, GLM, Kimi, MiMo, Qwen3.x, MiniMax, GPT-5.6 Luna) are served through the single OpenAI `chat/completions` endpoint — the `anthropic` type and Responses-only constraints documented earlier were falsified by probe (see `copilot-byok` `references/copilot-cli-providers.md`).
+
 ### Reasoning effort per model
 
 The script forwards `--reasoning-effort` (default `high`) only when the resolved profile supports it. If the profile carries `"reasoningEffortSupported": false` (models whose API exposes no controllable levels — e.g., Kimi K2.x, GLM, MiMo, Qwen3.x, MiniMax), the argument is stripped with a warning, mirroring `byok-profile.ps1 run`. The authoritative per-model lookup — which levels a model supports and the recommended default — is the `copilot-byok` skill's `references/reasoning-effort-lookup.md`. For the default profile (`deepseek-v4-flash`), `high` is within the supported `low`/`medium`/`high` range.
@@ -361,7 +407,7 @@ To detect drift between this skill's documented surface and the installed CLI, r
 
 The gate compares documented flags, env vars, and reasoning-effort levels against `copilot --help` / `copilot help environment`, exits non-zero on drift, and lists new capabilities the CLI gained that the skill does not document yet. After re-verifying, bump `lastVerified` / `verifiedCliVersion` in this skill's frontmatter and the `Verified` column of the matrix.
 
-Historical (v1.0.77, resolved 2026-08-03): `--config-dir` is no longer listed in CLI help; `-ConfigDir` maps to `COPILOT_HOME` for the sub-process (the supported config-override mechanism).
+Historical (v1.0.77, resolved 2026-08-03): `--config-dir` is no longer listed in CLI help; `-CopilotHome` maps to `COPILOT_HOME` for the sub-process (the supported config-override mechanism). The parameter was originally named `-ConfigDir` (deprecated alias retained).
 
 ## Output
 

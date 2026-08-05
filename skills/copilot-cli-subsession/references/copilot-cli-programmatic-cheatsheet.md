@@ -51,6 +51,8 @@ COPILOT_PROVIDER_MAX_OUTPUT_TOKENS
 COPILOT_OFFLINE              # true to avoid GitHub services
 ```
 
+> **Staging isolation (dojo / testing sandbox)**: `-CopilotHome <path>` opts into a durable staging `COPILOT_HOME`. On first use the script seeds a minimal tree from production (`byok-profiles.json` + `mcp-config.json` when present); afterwards the staging env is fully independent — never re-seeded, never auto-cleaned. Use it to test skill features without touching production; repo-level agents/skills/hooks still work (workspace-relative), personal-level ones need a manual copy. Alias: `-ConfigDir` (deprecated).
+
 ## Authentication precedence
 
 1. `COPILOT_GITHUB_TOKEN`
@@ -113,7 +115,6 @@ Pass slash commands directly in `-p`. Works for built-in commands AND installed 
 ```bash
 # Built-in commands
 copilot -p "/help" -s
-copilot -p "/model" -s
 copilot -p "/init" -s
 
 # Skills with arguments
@@ -125,6 +126,9 @@ copilot -p "/plan Implement OAuth middleware" -s
 copilot -p "/research Investigate auth patterns" --session-id "uuid-1" -s
 copilot -p "/plan Based on above research, create implementation plan" --session-id "uuid-1" -s
 ```
+
+> ⚠️ **`/model` does NOT switch models in `-p` mode** (verified CLI 1.0.77, 2026-08-03, **BYOK/custom-provider routing**). The `/model` text is forwarded to the *current* model as a prompt — the model merely roleplays the switch and `model.call_start` stays unchanged in the JSONL.
+> ⚠️ **Scope**: this was verified for **BYOK** (custom provider). For **GitHub Copilot Subscription** models the `-p "/model X"` behavior is **unverified** — routing differs (GitHub platform vs custom endpoint). To actually change the backend model, pass `--model` at process start (e.g. `--model kimi-k2.7-code`) or use `/model` in the interactive TUI. Never trust the model's self-reported identity as evidence of a switch.
 
 ### `Invoke-CopilotCliSubSession.ps1` convenience
 

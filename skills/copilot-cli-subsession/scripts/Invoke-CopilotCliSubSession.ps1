@@ -48,9 +48,15 @@
     config-level 'activeAccount'. When omitted, the profile pin or activeAccount
     is used.
 
-.PARAMETER ConfigDir
-    Isolated Copilot CLI config directory. Mapped to COPILOT_HOME for the
-    sub-process (CLI 1.0.77+ no longer accepts --config-dir).
+.PARAMETER CopilotHome
+    Staging COPILOT_HOME for the sub-process (CLI 1.0.77+ no longer accepts
+    --config-dir; COPILOT_HOME is the supported config-override). Explicit opt-in
+    to full config isolation: the first time this path is used, the script seeds a
+    minimal staging tree from production (~/.copilot) — byok-profiles.json plus
+    mcp-config.json when present. Seeding runs once only; afterwards the staging
+    env is fully independent (never re-seeded, never auto-cleaned; delete the tree
+    manually to reset). Default: production ~/.copilot (no isolation).
+    Alias: -ConfigDir (deprecated).
 
 .PARAMETER WorkingDir
     Working directory for the sub-process (default: current location).
@@ -113,7 +119,8 @@ param(
     [string]$ByokAccount,
 
     [Parameter(Mandatory = $false)]
-    [string]$ConfigDir,
+    [Alias('ConfigDir')]
+    [string]$CopilotHome,
 
     [Parameter(Mandatory = $false)]
     [string]$WorkingDir = (Get-Location).Path,
@@ -161,9 +168,50 @@ function Expand-EnvPlaceholder {
     })
 }
 
+# --- Step 0: Resolve COPILOT_HOME (production default vs staging opt-in) ---
+# Default is the production tree (~/.copilot). Passing -CopilotHome opts into a
+# durable staging home: the first time it is used (byok-profiles.json missing),
+# seed a minimal functional tree from production (byok-profiles.json plus
+# mcp-config.json when present). Seeding happens only once — after that production
+# and staging are fully independent; staging is never re-seeded or auto-cleaned.
+$productionHome = Join-Path $HOME '.copilot'
+$copilotHome = if ($CopilotHome) {
+    $CopilotHome
+} elseif ($env:COPILOT_HOME) {
+    $env:COPILOT_HOME
+} else {
+    $productionHome
+}
+
+if ($CopilotHome -and -not (Test-Path $copilotHome)) {
+    New-Item -ItemType Directory -Path $copilotHome -Force | Out-Null
+    Write-Verbose "Created staging COPILOT_HOME: $copilotHome"
+}
+
+if ($CopilotHome) {
+    $stagingProfile = Join-Path $copilotHome 'byok-profiles.json'
+    if (-not (Test-Path $stagingProfile)) {
+        Write-Host "Seeding staging COPILOT_HOME from production ($productionHome) ..." -ForegroundColor Cyan
+        $prodProfile = Join-Path $productionHome 'byok-profiles.json'
+        if (-not (Test-Path $prodProfile)) {
+            throw "Cannot seed staging: production BYOK profile not found at $prodProfile"
+        }
+        Copy-Item $prodProfile $stagingProfile
+        Write-Host "  copied byok-profiles.json" -ForegroundColor Cyan
+        $prodMcp = Join-Path $productionHome 'mcp-config.json'
+        if (Test-Path $prodMcp) {
+            Copy-Item $prodMcp (Join-Path $copilotHome 'mcp-config.json')
+            Write-Host "  copied mcp-config.json" -ForegroundColor Cyan
+        }
+        Write-Host "Staging COPILOT_HOME ready: $copilotHome (independent from production; agents/skills/hooks are NOT copied — copy manually if needed)" -ForegroundColor Cyan
+    }
+}
+
+$env:COPILOT_HOME = $copilotHome
+
 # --- Step 1: Resolve BYOK profile ---
 if ($ByokProfile) {
-    $configDir = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME '.copilot' }
+    $configDir = $copilotHome
     $profilePath = Join-Path $configDir 'byok-profiles.json'
 
     if (-not (Test-Path $profilePath)) {
@@ -385,17 +433,10 @@ if (-not $pwshCmd) {
 }
 
 # --- Step 5: Ensure COPILOT_HOME is set (config isolation) ---
+# Resolved in Step 0: production ~/.copilot by default; -CopilotHome opts into a
+# seeded staging home. Re-asserted here for clarity (already set in Step 0).
 # CLI 1.0.77+ no longer accepts --config-dir; COPILOT_HOME is the supported
 # config-override mechanism (see references/copilot-sdk-parity-matrix.md F-1).
-# -ConfigDir maps to COPILOT_HOME so full isolation works on current CLI.
-$copilotHome = if ($ConfigDir) {
-    # -ConfigDir is an absolute path; normalize to a directory.
-    $ConfigDir
-} elseif ($env:COPILOT_HOME) {
-    $env:COPILOT_HOME
-} else {
-    Join-Path $HOME '.copilot'
-}
 $env:COPILOT_HOME = $copilotHome
 
 # --- Step 6: Spawn subprocess via pwsh ---
@@ -445,4 +486,5 @@ return [PSCustomObject]@{
     Model         = $env:COPILOT_MODEL
     ByokProfile   = $ByokProfile
     ByokAccount   = $resolvedByokAccount
+    CopilotHome   = $copilotHome
 }
