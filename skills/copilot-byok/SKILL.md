@@ -4,7 +4,7 @@ description: Configure and switch between BYOK (Bring Your Own Key) LLM provider
 metadata:
   author: arisng
   version: 0.12.0
-  lastVerified: 2026-08-03
+  lastVerified: 2026-08-05
 ---
 
 # Copilot BYOK Provider Configuration
@@ -98,6 +98,21 @@ Add `"accountGroup": "opencode"` to each profile that should use the registry (t
 ```
 
 Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-work` to `Invoke-CopilotCliSubSession.ps1`.
+
+### 4. Add the second account in VS Code Chat
+
+VS Code ignores the CLI `accounts` registry — each account is a **separate provider entry** with its own key in secret storage. To add the second account:
+
+1. **Chat: Manage Language Models → Add Models → Custom Endpoint**, name it `OpenCode Go (Work, OpenAI)`, paste the work key, API Type *Chat Completions*. This stores the key and writes a `${input:chat.lm.secret.*}` reference.
+2. Run the helper from the skill's `scripts/` folder — it renames the existing `OpenCode Go (OpenAI|Anthropic)` providers to `(Home, …)` and clones them as `(Work, …)` using the new secret reference:
+
+```powershell
+.\scripts\opencode-vscode-add-work-account.ps1
+```
+
+3. Reload the window (**Developer: Reload Window**); both accounts appear in the model picker.
+
+See `references/copilot-vscode-providers.md` for the full manual table when you need more than two accounts.
 
 ## Read references on demand
 

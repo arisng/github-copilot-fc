@@ -300,6 +300,14 @@ Setup:
 2. Paste the model list from the [OpenAI-compatible](#opencode-go--openai-compatible-models-deepseek-kimi-glm-mimo), [Responses](#opencode-go--responses-api-model-gpt-56-luna), or [Anthropic-compatible](#opencode-go--anthropic-compatible-models-minimax-qwen) section into each provider's `models` array.
 3. Reload the window.
 
+**Automation for the common two-account case** (Home + Work): after the UI step that stores the *work* key (Add Models → Custom Endpoint named `OpenCode Go (Work, OpenAI)`, API Type *Chat Completions*), run the skill's helper to rename existing providers to `(Home, …)` and clone the full model lists as `(Work, …)`:
+
+```powershell
+.\scripts\opencode-vscode-add-work-account.ps1
+```
+
+It backs up `chatLanguageModels.json`, reuses the UI-generated secret reference, and is safe to re-run (it replaces the generated `(Work, …)` entries from fresh `(Home, …)` clones).
+
 Model `name` fields are identical across accounts (e.g. `DeepSeek V4 Flash`), so the provider `name` is what distinguishes Home from Work in the picker. Per-agent model pinning and `chat.*Agent.model` settings still reference model names; choose the account by selecting the corresponding provider in the conversation.
 
 ### Kimi AI Platform (`platform.kimi.ai`)
