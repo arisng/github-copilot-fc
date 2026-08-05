@@ -216,29 +216,25 @@ When multiple sources define the same artifact (e.g., an agent with the same nam
 
 User-level agents in `~/.copilot/agents/` (placed by `publish-agents.ps1`) take precedence over plugin agents. If the same agent exists both as a user-level file and inside a plugin, the user-level copy wins. **Recommendation**: Use one distribution channel per artifact — publish scripts for local development, plugins for team distribution.
 
-See [publish-plugins.ps1](../../../../../scripts/publish/publish-plugins.ps1) for the workspace's plugin installation automation.
+See [build-plugins.ps1](../../../../../scripts/publish/build-plugins.ps1) for the workspace's bundle build automation.
 
 ---
 
-## Publish Script Reference
+## Build Script Reference
 
-The workspace provides `scripts/publish/publish-plugins.ps1` for runtime-scoped bundle publishing:
+> ⚠️ **Deprecated (2026-08-05)**: `publish-plugins.ps1` is deprecated. Prefer the native `copilot plugins <options>` CLI for plugin management; use `scripts/publish/build-plugins.ps1` to produce the local bundle.
+
+The workspace provides `scripts/publish/build-plugins.ps1` for runtime-scoped bundle building:
 
 ```powershell
-# Publish all workspace plugins
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+# Build all workspace plugin bundles
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1
 
-# Publish a specific CLI plugin
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins ralph-v2
+# Build a specific CLI plugin bundle
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins ralph-v2
 
-# Force remains accepted for compatibility
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Force
-
-# Publish a VS Code plugin bundle
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime vscode -Plugins ralph-v2
-
-# Skip WSL installation for CLI publish
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -SkipWSL
+# Select the channel (beta default, or stable)
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins ralph-v2 -Channel stable
 ```
 
 For local CLI installs from this workspace, treat the built CLI bundle as the handoff point:

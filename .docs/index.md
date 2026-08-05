@@ -70,6 +70,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How To Extract Shared Instructions From Agents](how-to/copilot/shared/how-to-extract-shared-instructions-from-agents.md)
 - [How to Persistently Alias `python3` to `python` in PowerShell](how-to/copilot/shared/how-to-persistently-alias-python3-to-python-in-powershell.md)
 - [How to use Copilot FC commands](how-to/copilot/shared/how-to-use-copilot-fc-commands.md)
+- [How to Run the copilot-byok Feature Harness](how-to/copilot/shared/how-to-run-copilot-byok-feature-harness.md)
 - [Smoke Test Publish Scripts](how-to/copilot/shared/smoke-test-publish-scripts.md)
 #### Vscode
 

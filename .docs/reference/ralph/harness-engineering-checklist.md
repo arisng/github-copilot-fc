@@ -172,7 +172,7 @@ Get-Content plugins/cli/ralph-v2/plugin.json | ConvertFrom-Json | Select-Object 
 ### 4b. Build and Publish Scripts
 
 - [ ] `scripts/publish/build-plugins.ps1` exists and contains `Merge-AgentInstructions`, `Build-PluginBundle`, `Invoke-PluginBuild`
-- [ ] `scripts/publish/publish-plugins.ps1` dot-sources `build-plugins.ps1` (no duplicate function definitions)
+- [ ] `scripts/publish/publish-plugins.ps1` (legacy, deprecated) dot-sources `build-plugins.ps1` (no duplicate function definitions)
 - [ ] `$officialMetadataFields` in `build-plugins.ps1` includes `runtime`; does NOT include `strict`
 - [ ] `build-plugins.ps1` has standalone guard: `if ($MyInvocation.InvocationName -ne '.') { Invoke-PluginBuild ... }`
 - [ ] EMBED markers are resolved at build time (not runtime), using `[Regex]::Replace` with script block evaluator

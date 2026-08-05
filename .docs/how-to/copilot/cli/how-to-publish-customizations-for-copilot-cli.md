@@ -85,10 +85,10 @@ When CLI variants exist, the publish flow becomes platform-aware:
 
 ```powershell
 # Publish VS Code variants only
-pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform vscode -Force
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Runtime vscode -Force
 
 # Publish CLI variants only
-pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform cli -Force
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Runtime cli -Force
 
 # Publish both (default)
 pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Force
@@ -102,22 +102,32 @@ See [agent-variant-proposal.md](../../../../reference/copilot/shared/agent-varia
 
 ## Publishing skills
 
-The `publish-skills.ps1` script already targets `~/.copilot/skills/`, which is the CLI's skill discovery path.
+> ⚠️ **Deprecated (2026-08-05)**: `publish-skills.ps1` is deprecated — prefer the **Skills CLI** (`npx skills <options>`), or `copilot skill add <directory>` for local skills.
 
 ### Steps
 
 1. **Publish all skills:**
 
+   ```bash
+   npx skills add <owner>/<repo> --all   # Skills CLI (preferred)
+   ```
+
+   Legacy fallback (deprecated, workspace-to-personal copy only):
+
    ```powershell
    pwsh -NoProfile -File scripts/publish/publish-skills.ps1
    ```
-
-   > Force mode is on by default. Use `-NoForce` to skip existing skills.
 
 2. **Publish specific skills:**
 
    ```powershell
    pwsh -NoProfile -File scripts/publish/publish-skills.ps1 -Skills 'diataxis,beads'
+   ```
+
+   Or with the native CLI for a local skill directory:
+
+   ```bash
+   copilot skill add ./skills/diataxis
    ```
 
 3. **Verify discovery:**
@@ -127,7 +137,7 @@ The `publish-skills.ps1` script already targets `~/.copilot/skills/`, which is t
    # Should list skill directories, each containing SKILL.md
    ```
 
-### What the script does
+### What the legacy script does (deprecated)
 
 - Copies `skills/*/` → `~/.copilot/skills/` (and `.claude/skills/`, `.codex/skills/`)
 - Copies to WSL equivalents if WSL is detected (unless `-SkipWSL`)
@@ -501,10 +511,10 @@ Publish-InstructionsToCopilotCliDirs -ProjectInstructionsPath $projectInstructio
 
 | Script                     | CLI Support                                  | Status                                         |
 | -------------------------- | -------------------------------------------- | ---------------------------------------------- |
-| `publish-agents.ps1`       | Already targets `~/.copilot/agents/`         | ✅ No changes needed                            |
-| `publish-skills.ps1`       | Already targets `~/.copilot/skills/`         | ✅ No changes needed                            |
-| `publish-instructions.ps1` | VS Code only                                 | ⚠️ Needs update (see implementation plan above) |
-| `publish-hooks.ps1`        | Publishes to `.github/hooks/` (works in CLI) | ✅ No changes needed                            |
+| `publish-agents.ps1`       | Already targets `~/.copilot/agents/`         | ✅ No changes needed (supports `-CopilotHome` staging) |
+| `publish-skills.ps1`       | Already targets `~/.copilot/skills/`         | ~~Deprecated~~ — prefer `npx skills <options>` |
+| `publish-instructions.ps1` | VS Code only                                 | ⚠️ Needs update (see implementation plan above; supports `-CopilotHome` staging) |
+| `publish-hooks.ps1`        | Publishes to `.github/hooks/` (works in CLI) | ✅ No changes needed (supports `-CopilotHome` staging) |
 | `publish-prompts.ps1`      | VS Code only, no CLI equivalent              | ℹ️ No changes possible                          |
 | `publish-toolsets.ps1`     | VS Code only, CLI uses flags                 | ℹ️ No changes possible                          |
 

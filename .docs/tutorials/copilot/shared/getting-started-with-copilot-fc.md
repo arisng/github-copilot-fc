@@ -33,10 +33,10 @@ pwsh -NoProfile -File scripts/workspace/run-command.ps1 list
 pwsh -NoProfile -File scripts/workspace/run-command.ps1 "workspace:list-skills"
 ```
 
-1. Run a publishing command:
+1. Run a publishing command (Skills CLI preferred; `publish-skills.ps1` is deprecated):
 
-```powershell
-pwsh -NoProfile -File scripts/publish/publish-skills.ps1
+```bash
+npx skills add <owner>/<repo> --all
 ```
 
 ## Next steps

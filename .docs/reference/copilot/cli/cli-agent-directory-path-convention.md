@@ -49,4 +49,4 @@ Returns 0 matches when all paths are correct.
 
 ## Scope Note
 
-Stale paths in instruction source files (`.instructions.md`) propagate into the `.build/` bundle output because these files are embedded at build time via `<!-- EMBED: filename -->` markers. A stale path fix in source requires a subsequent `publish-plugins.ps1 -Force` run to regenerate the bundle.
+Stale paths in instruction source files (`.instructions.md`) propagate into the `.build/` bundle output because these files are embedded at build time via `<!-- EMBED: filename -->` markers. A stale path fix in source requires a subsequent `build-plugins.ps1 -Plugins <name>` run to regenerate the bundle.

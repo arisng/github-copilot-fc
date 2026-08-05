@@ -15,7 +15,7 @@ promoted_at: 2026-03-03T13:04:46+07:00
 
 ## Goal
 
-Validate that `publish-agents.ps1` and `publish-plugins.ps1` behave correctly after a parameter rename or script change, without requiring a dedicated test environment or a full install of all agents.
+Validate that `publish-agents.ps1` and `build-plugins.ps1` behave correctly after a parameter rename or script change, without requiring a dedicated test environment or a full install of all agents.
 
 ## Prerequisites
 
@@ -36,10 +36,10 @@ $before = Get-ChildItem "$env:USERPROFILE\.copilot\agents" -Recurse -File |
 
 ### Step 2 — Canary Agent Publish (Single Agent Scoped)
 
-Publish only a single lightweight agent (e.g., the Planner — no MCP, no embed dependencies) to validate the `-Platform` parameter path:
+Publish only a single lightweight agent (e.g., the Planner — no MCP, no embed dependencies) to validate the `-Runtime` parameter path:
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Platform cli -Agents "ralph-v2-planner" -Force
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -Runtime cli -Agents "ralph-v2-planner" -Force
 ```
 
 - Expected: `Exit code 0`, `Success: 1 | Failed: 0`
@@ -60,14 +60,38 @@ Only `ralph-v2-planner.agent.md` should appear in the diff output.
 
 ### Step 4 — Plugin Parameter Smoke Test
 
-Test the plugin script's renamed/changed parameter using `-SkipBundle` to skip full bundle regeneration:
+Test the plugin build script's parameter path with a filtered build (avoids a full bundle regeneration):
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Environment windows -SkipBundle
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins ralph-v2
 ```
 
-- Expected: `Exit code 0`, `Done: 1 installed, 0 error(s)`
-- `-SkipBundle` avoids full `.build/` regeneration while still exercising the parameter path and conditional branches.
+- Expected: `Exit code 0`, `Build complete: 1 built, 0 error(s)`
+- Builds only the ralph-v2 bundle under `plugins/cli/.build/` while still exercising the parameter path and conditional branches.
+
+## Staging Smoke Test (`-CopilotHome`)
+
+After adding or changing `-CopilotHome` on the publish scripts, verify it stages into a temp directory without touching production:
+
+```powershell
+$staging = Join-Path $env:TEMP "copilot-staging-smoke-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+
+# Agents → <staging>/agents
+pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -CopilotHome $staging -Agents "nexus" -Force
+
+# Instructions → <staging>\Code\User\prompts (skips WSL)
+pwsh -NoProfile -File scripts/publish/publish-instructions.ps1 -CopilotHome $staging -Instructions "powershell" -Force
+
+# User-level hooks → <staging>/hooks (skips WSL + VS Code settings mutation)
+pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome $staging -Hooks "ralph-tool-logger" -Force
+
+# Verify the tree, then clean up
+Get-ChildItem $staging -Recurse -File | Select-Object FullName
+Remove-Item $staging -Recurse -Force
+```
+
+- Expected: `Exit code 0` each; files land under the staging root, and no production `~/.copilot/` or `%APPDATA%` paths are written.
+- `publish-hooks.ps1` staging mode prints `Staging mode: skipping VS Code settings update` and skips WSL.
 
 ## Backward Compatibility Test
 
@@ -78,5 +102,5 @@ pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -SkipWSL 2>&1 |
     Where-Object { $_ -match "deprecated" }
 ```
 
-- Expected: Output contains the deprecation warning text.
-- This confirms backward-compat shim is intact and points to the correct new parameter name.
+- Expected: Output contains the deprecation warning text (publish-plugins.ps1 is deprecated; prefer `copilot plugins <options>` with `build-plugins.ps1` for bundle-only).
+- This confirms the backward-compat shim is intact and the deprecation banner points to the correct replacement.

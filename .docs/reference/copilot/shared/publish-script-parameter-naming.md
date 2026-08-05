@@ -15,6 +15,8 @@ promoted_at: 2026-03-03T13:04:46+07:00
 
 # Publish Script Parameter Naming Convention
 
+> ⚠️ **Deprecated (2026-08-05)**: `publish-plugins.ps1` is deprecated — prefer the native `copilot plugins <options>` CLI (with `build-plugins.ps1` for bundle-only). The `-Environment`/`-SkipWSL` discussion below is retained for historical context only.
+
 ## Distinction: `-Platform` vs `-Environment`
 
 Two publish scripts in the workspace use different parameters that address **different semantic dimensions**. These must NOT be treated as interchangeable or renamed to match each other:

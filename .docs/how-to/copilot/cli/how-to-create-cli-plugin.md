@@ -95,7 +95,9 @@ For workspace plugins that reference existing artifacts, use relative paths in `
 }
 ```
 
-This is the approach used by the workspace's pilot plugin at [plugins/cli/ralph-v2/plugin.json](../../../../../plugins/cli/ralph-v2/plugin.json). For team distribution, run `publish-plugins.ps1` to create a self-contained bundle — bundling is the default behavior. Use `-SkipBundle` only for development/debugging.
+This is the approach used by the workspace's pilot plugin at [plugins/cli/ralph-v2/plugin.json](../../../../../plugins/cli/ralph-v2/plugin.json). For team distribution, build a self-contained bundle — bundling is the default behavior.
+
+> ⚠️ **Deprecated (2026-08-05)**: `publish-plugins.ps1` is deprecated. Use `scripts/publish/build-plugins.ps1` to produce the local bundle (it embeds instructions and validates the 30K limit), then manage it with the native `copilot plugins <options>` CLI (`install`/`list`/`remove`/`enable`/`disable`/`update`).
 
 ## Step 4: Build a bundle when your plugin uses workspace-relative paths
 
@@ -104,7 +106,7 @@ If your plugin already has a self-contained directory layout, you can install th
 If your `plugin.json` points at workspace-relative paths such as `../../agents/...` or `../../skills/...`, build the bundle first:
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins my-plugin
 ```
 
 That command builds a self-contained bundle at `plugins/cli/.build/my-plugin/`.
@@ -141,10 +143,10 @@ copilot plugin list
 
 The plugin's agents, skills, and other components are now available in your Copilot CLI sessions.
 
-If you want to use the workspace publish automation as a fallback instead of installing the source directory directly, use it to rebuild the runtime-scoped bundle and then install that local bundle with the supported CLI flow:
+If you want to use the workspace build automation as a fallback instead of installing the source directory directly, use it to rebuild the runtime-scoped bundle and then install that local bundle with the supported CLI flow:
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins my-plugin
 ```
 
 ```bash
@@ -161,7 +163,7 @@ The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that demonstrat
 
 1. **Directory**: `plugins/cli/ralph-v2/`
 2. **Manifest**: `plugins/cli/ralph-v2/plugin.json` — references CLI agents, hooks, and selected skills via relative paths
-3. **Build for distribution**: `scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins ralph-v2` creates `plugins/cli/.build/ralph-v2/`
+3. **Build for distribution**: `scripts/publish/build-plugins.ps1 -Plugins ralph-v2` creates `plugins/cli/.build/ralph-v2/`
 4. **Install**: `copilot plugin install ./plugins/cli/.build/ralph-v2`
 5. **Verify**: `copilot plugin list`
 
@@ -195,14 +197,14 @@ copilot plugin install ./plugins/cli/my-plugin
 Or rebuild the bundle and reinstall it:
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Plugins my-plugin -Force
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins my-plugin
 ```
 
 ```bash
 copilot plugin install ./plugins/cli/.build/my-plugin
 ```
 
-> **Note:** Bundling is the default behavior. Use `-SkipBundle` only for development when you want to skip the bundle build step. After any rebuild, re-run `copilot plugin install <path>` and then `copilot plugin list` to verify the updated plugin is the one Copilot CLI sees.
+> **Note:** Bundling is the default behavior. After any rebuild, re-run `copilot plugin install <path>` and then `copilot plugin list` to verify the updated plugin is the one Copilot CLI sees.
 
 ### Temporarily disable a plugin
 
@@ -212,13 +214,13 @@ copilot plugin disable my-plugin
 copilot plugin enable my-plugin
 ```
 
-### Publish all workspace plugins
+### Build all workspace plugins
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1
 ```
 
-See [publish-plugins.ps1](../../../../../scripts/publish/publish-plugins.ps1) for all available parameters.
+See [build-plugins.ps1](../../../../../scripts/publish/build-plugins.ps1) for all available parameters.
 
 ---
 
@@ -229,8 +231,8 @@ Plugins cannot deliver instruction files via `plugin.json` — the `instructions
 The recommended solution is **instruction embedding**: agent source files include `<!-- EMBED: filename -->` markers that are resolved at bundle time by `Merge-AgentInstructions`. This inlines instruction content directly into the agent body, producing self-contained agent files that carry their full workflow, rules, and signal protocol.
 
 ```powershell
-# Publish the CLI plugin (bundling + embedding is default)
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime cli -Plugins my-plugin
+# Build the CLI plugin bundle (bundling + embedding is default)
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins my-plugin
 ```
 
 For agents that are not embedded (e.g., due to size constraints), deliver instruction files separately:

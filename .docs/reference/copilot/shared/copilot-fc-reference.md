@@ -29,7 +29,7 @@ pwsh -NoProfile -File scripts/workspace/run-command.ps1 "skills:publish"
 - `scripts/publish/publish-agents.ps1`
 - `scripts/publish/publish-instructions.ps1`
 - `scripts/publish/publish-prompts.ps1`
-- `scripts/publish/publish-skills.ps1`
+- `scripts/publish/publish-skills.ps1` ~~(deprecated — prefer `npx skills <options>`)~~
 - `scripts/publish/publish-toolsets.ps1`
 - `scripts/publish/publish-artifact.ps1`
 - `scripts/issues/extract-issue-metadata.ps1`

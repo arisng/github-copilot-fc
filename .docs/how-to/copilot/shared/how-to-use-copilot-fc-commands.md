@@ -21,7 +21,13 @@ Use this guide when you need to publish content (agents, prompts, skills) or run
 pwsh -NoProfile -File scripts/workspace/run-command.ps1 "workspace:list-skills"
 ```
 
-1. To publish skills:
+1. To publish skills (preferred: Skills CLI; `publish-skills.ps1` is deprecated):
+
+```bash
+npx skills add <owner>/<repo> --all
+```
+
+Legacy fallback:
 
 ```powershell
 pwsh -NoProfile -File scripts/publish/publish-skills.ps1

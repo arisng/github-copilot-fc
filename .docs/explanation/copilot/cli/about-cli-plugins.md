@@ -146,7 +146,7 @@ For current installation methods, see the [How to Create a CLI Plugin](../../../
 The workspace includes a pilot plugin at `plugins/cli/ralph-v2/` that bundles the ralph-v2 multi-agent orchestration system for Copilot CLI. This pilot demonstrates:
 
 - `plugin.json` manifest with relative paths to existing workspace artifacts
-- Integration with `publish-plugins.ps1` for automated runtime-scoped bundling and publish
+- Integration with `build-plugins.ps1` for automated runtime-scoped bundling (legacy `publish-plugins.ps1` is deprecated — prefer `copilot plugins <options>` for management)
 - Coexistence with existing per-artifact publish scripts
 
 See [plugins/README.md](../../../../../plugins/README.md) for directory layout documentation.
