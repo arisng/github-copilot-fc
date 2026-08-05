@@ -38,12 +38,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Publish Skills",
+            "label": "Publish Skills (legacy; prefer npx skills)",
             "type": "shell",
-            "command": "powershell",
+            "command": "pwsh",
             "args": [
-                "-ExecutionPolicy",
-                "Bypass",
+                "-NoProfile",
                 "-File",
                 "${workspaceFolder}/scripts/publish/publish-skills.ps1"
             ],
