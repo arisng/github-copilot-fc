@@ -59,7 +59,7 @@ Inside Copilot CLI, skill management is exposed through commands such as:
 - `/skills reload`
 - `/skills remove`
 
-Outside the interactive session, this workspace publishes skills with `scripts\publish\publish-skills.ps1`.
+Outside the interactive session, this workspace publishes skills with the Skills CLI — `npx skills <options>` (preferred; `scripts\publish\publish-skills.ps1` is deprecated).
 
 ## When to Use
 

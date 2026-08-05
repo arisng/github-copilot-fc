@@ -34,34 +34,49 @@ Publishing copies skills from `skills/` to personal skill folders. By default it
 3. Choose from:
     - **Publish Skills**: Copy all skills to personal folders
 
-### Via PowerShell Scripts
+### Via PowerShell Scripts (legacy)
+
+> ⚠️ **Deprecated (2026-08-05)**: prefer the **Skills CLI** — `npx skills <options>` — for installing/managing skills. `publish-skills.ps1` is a legacy workspace-to-personal copy and will be removed in a future release.
 
 ```powershell
-# Publish all skills
+# Publish all skills (LEGACY)
 .\scripts\publish\publish-skills.ps1
 
-# Publish specific skills
+# Publish specific skills (LEGACY)
 .\scripts\publish\publish-skills.ps1 -Skills "git-atomic-commit", "issue-md-writer"
 
-# Publish to Copilot, Codex, and Claude
+# Publish to Copilot, Codex, and Claude (LEGACY)
 .\scripts\publish\publish-skills.ps1 -Targets copilot,codex,claude
 
-# Force overwrite
+# Force overwrite (LEGACY)
 .\scripts\publish\publish-skills.ps1 -Force
 ```
 
-### Via Command Line
+### Via the Skills CLI (preferred)
 
 ```bash
-powershell -ExecutionPolicy Bypass -File scripts/publish/publish-skills.ps1
+# Install a skill package from GitHub
+npx skills add <owner>/<repo>
+
+# Install a specific skill from a package
+npx skills add <owner>/<repo> -s <skill-name>
+
+# List installed skills
+npx skills list
+
+# Remove a skill
+npx skills remove <skill>
+
+# Update skills
+npx skills update
 ```
 
 ## Skill Development Workflow
 
 1. **Create/Edit Skills**: Work on skills in `skills/` directory
 2. **Test Locally**: Skills are automatically available in this project
-3. **Publish**: Copy skills to personal folders for global availability
-4. **Re-publish**: Run the publish script again after updates
+3. **Publish**: Install to personal folders for global availability — `npx skills add <owner>/<repo>` (or legacy `publish-skills.ps1`)
+4. **Re-publish**: Run the command again after updates
 
 ## Directory Structure
 
@@ -97,8 +112,9 @@ skills/
 
 ### For Publishing
 
-- Re-run the publish script after changes
-- Use `-Force` only when you intend to overwrite
+- Prefer `npx skills <options>` (Skills CLI) over the legacy `publish-skills.ps1`
+- Re-run the publish command after changes
+- Use `-Force` (legacy script) only when you intend to overwrite
 - Backup your personal skills folder before major operations
 
 ### For Team Collaboration
@@ -124,14 +140,14 @@ skills/
 ### Recovery
 
 ```powershell
-# Force republish all skills
+# Force republish all skills (LEGACY)
 .\scripts\publish\publish-skills.ps1 -Force
 
-# Clean default Copilot target and republish
+# Clean default Copilot target and republish (LEGACY)
 Remove-Item "$env:USERPROFILE\.copilot\skills\*" -Recurse -Force
 .\scripts\publish\publish-skills.ps1
 
-# Clean all supported targets and republish everywhere
+# Clean all supported targets and republish everywhere (LEGACY)
 Remove-Item "$env:USERPROFILE\.claude\skills\*" -Recurse -Force
 Remove-Item "$env:USERPROFILE\.codex\skills\*" -Recurse -Force
 .\scripts\publish\publish-skills.ps1 -Targets copilot,codex,claude

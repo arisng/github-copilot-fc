@@ -425,10 +425,11 @@ Before first use, confirm all prerequisites below:
 
 2. **Visual Explainer skill availability**
   - Ensure this skill is installed/published to the active skill directory so `scripts/share.sh` can be invoked from `{{skill_dir}}`.
-  - In this repository, first-time publish can be done with:
+  - In this repository, first-time install can be done with (Skills CLI preferred; `publish-skills.ps1` is deprecated):
     ```bash
-    pwsh -NoProfile -File scripts/publish/publish-skills.ps1 -Skills "visual-explainer"
+    copilot skill add ./skills/visual-explainer
     ```
+    Legacy fallback: `pwsh -NoProfile -File scripts/publish/publish-skills.ps1 -Skills "visual-explainer"`
 
 3. **deploy-to-vercel skill installed**
   - Install once if missing:
