@@ -13,7 +13,7 @@ Periodically check official documentation for updates on skill capabilities and 
 
 ## Overview
 
-The skills factory provides automated tools to publish skills from the project workspace (`skills/`) to your personal skills directories for global availability. The default target is Copilot (`~/.copilot/skills/`); Codex and Claude can be enabled explicitly.
+The skills factory provides automated tools to publish skills from the project workspace (`skills/`) to your personal skills directories for global availability. The default target is `~/.agents/skills/`; Copilot (`~/.copilot/skills/`), Codex, and Claude can be enabled explicitly.
 
 ### Why `skills/` instead of personal skill folders?
 
@@ -23,7 +23,7 @@ When skill discovery is enabled, tools scan both personal and workspace location
 
 ## Publishing
 
-Publishing copies skills from `skills/` to personal skill folders. By default it publishes to Copilot only. Use `-Targets` to include Codex and Claude.
+Publishing copies skills from `skills/` to personal skill folders. By default it publishes to `~/.agents/skills`. Use `-Targets` to include Copilot, Codex, and Claude.
 
 ## Usage
 
@@ -45,8 +45,8 @@ Publishing copies skills from `skills/` to personal skill folders. By default it
 # Publish specific skills (LEGACY)
 .\scripts\publish\publish-skills.ps1 -Skills "git-atomic-commit", "issue-md-writer"
 
-# Publish to Copilot, Codex, and Claude (LEGACY)
-.\scripts\publish\publish-skills.ps1 -Targets copilot,codex,claude
+# Publish to Agents, Copilot, Codex, and Claude (LEGACY)
+.\scripts\publish\publish-skills.ps1 -Targets agents,copilot,codex,claude
 
 # Force overwrite (LEGACY)
 .\scripts\publish\publish-skills.ps1 -Force
