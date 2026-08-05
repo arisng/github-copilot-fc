@@ -388,6 +388,36 @@ The script prints a structured result object (metadata only — StdOut is writte
 - The sub-session inherits MCP and custom instructions by default; use `-DisableBuiltInMcps` or `-NoCustomInstructions` only when isolation is intended.
 - The sub-process inherits the main session's environment except where the script overrides it.
 
+## Tests (empirical argument audit)
+
+Terminology used here (shim, live mode, KNOWN-GAP, polarity-agnostic, case-ID buckets, dojo, COST
+GUARDRAIL) is defined in the [harness vocabulary glossary](references/glossary.md) — self-contained
+within this skill, so it travels with the skill when published.
+
+`tests/Invoke-CopilotCliSubSession-args-audit.ps1` is an empirical audit harness that executes the real
+script against the seeded staging home (`~/.copilot-staging`, the "dojo") and asserts, for every supported
+argument: the exact CLI argv forwarded to the copilot child (via a shim), the `COPILOT_*` env emitted, the
+9-field return object, and seeding/validation/precedence behaviors. It includes an opt-in live pass
+(`-Live`, cheap models only, COST GUARDRAIL enforced) that probes real sub-sessions: session-state
+`events.jsonl`, `model.call_start`, slash command, custom agent, SessionId chaining, and same/different-family
+model hot-switching and cold-switch resume (`l8`: luna→flash across an exit+resume).
+
+```powershell
+# Shim matrix (zero cost, deterministic)
+pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1
+# Shim matrix + live probes (real keys; needs OPENCODE_API_KEY_WORK in this process)
+pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1 -Live
+# Dispatcher equivalents
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 -Command tests:subsession-audit
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 -Command tests:subsession-audit-live
+```
+
+Exit codes: `0` all passed, `1` any failed, `2` harness/preflight error. Known-gap locks (s4-3, s5-4, s9-4,
+s11-2, l2, ...) report as PASS with a gap label so the harness stays green while documenting behavior.
+Reports land in `scripts/test/.artifacts/copilot-cli-subsession-args-audit/run-<ts>-<pid>/report.md`.
+Evolve cases in `tests/` and re-run on demand; the fixture (`tests/fixtures/byok-profiles.fixture.json`)
+drives throwaway-home cases so production and the dojo are never mutated (verified by isolation gates).
+
 ## References
 
 - [Programmatic Copilot CLI cheatsheet](./references/copilot-cli-programmatic-cheatsheet.md)

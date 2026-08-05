@@ -1,0 +1,42 @@
+{
+  "accounts": {
+    "acct-a": {
+      "label": "Fixture Account A",
+      "keyEnv": "SENTINEL_ACCT_A_KEY"
+    }
+  },
+  "activeAccount": "acct-a",
+  "profiles": {
+    "fixture-openai": {
+      "apiKey": "${SENTINEL_OPENAI_KEY}",
+      "type": "openai",
+      "baseUrl": "https://example.com/v1",
+      "offline": false,
+      "maxPromptTokens": 128000,
+      "model": "fixture-model-1",
+      "maxOutputTokens": 8192
+    },
+    "fixture-offline": {
+      "apiKey": "${SENTINEL_OPENAI_KEY}",
+      "type": "openai",
+      "baseUrl": "https://example.com/v1",
+      "offline": true,
+      "model": "fixture-offline-model",
+      "maxOutputTokens": 4096
+    },
+    "fixture-proxyport": {
+      "apiKey": "${SENTINEL_OPENAI_KEY}",
+      "type": "openai",
+      "baseUrl": "https://example.com/v1",
+      "model": "fixture-proxy-model",
+      "proxyPort": 10999
+    },
+    "fixture-anthropic": {
+      "apiKey": "${SENTINEL_ANTHROPIC_KEY}",
+      "type": "anthropic",
+      "baseUrl": "https://example.com",
+      "offline": false,
+      "model": "fixture-anthropic-model"
+    }
+  }
+}
