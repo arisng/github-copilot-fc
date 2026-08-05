@@ -239,3 +239,81 @@ The report should show:
 ```powershell
 pwsh -NoProfile -File scripts/workspace/run-command.ps1 tests:ralph-cli-smoke
 ```
+
+## copilot-byok feature harness
+
+`scripts/test/copilot-byok-feature-test.ps1` is the deterministic config-level test harness for the `copilot-byok` skill (`skills/copilot-byok/scripts/byok-profile.ps1`). It exercises the skill's behaviors against an isolated staging `COPILOT_HOME` seeded from a hermetic fixture — no real API keys, no production writes.
+
+### What it checks
+
+1. **Staging redirection & isolation** — `list`/`use`/`remove` operate on `COPILOT_HOME` only; the production `~/.copilot/byok-profiles.json` hash stays byte-identical; without `COPILOT_HOME` the script resolves production read-only.
+2. **Profile manager** — `list` line format + `[accountGroup: ...]` suffix, `show` JSON + per-model `Reasoning Effort Supported`, `accounts` list + `[active]` marker, `use` persistence, `add` wizard preset 6 via piped stdin, missing-profile/missing-account error exits, empty-state messages.
+3. **Env emission (`set-env`)** — dot-sourced children prove `COPILOT_PROVIDER_*` / `COPILOT_MODEL` / `COPILOT_OFFLINE` emission, `--account` override resolution, `${ENV}` placeholder expansion, and stale-cleanup when switching from a rich to a minimal profile.
+4. **Reasoning stripping (`run`)** — a fake `copilot.ps1` shim intercepts the child `copilot` invocation and logs args + emitted env; verifies `--reasoning-effort`/`--effort=` stripping for unsupported models, intact forwarding for supported ones, `--account` consumption, and arg preservation.
+5. **Negatives & drift** — malformed JSON exits 1 cleanly, empty JSON normalizes to `No profiles found`, and spec-vs-code drift on `kimi-k3` reasoning support is locked.
+6. **Subsession seeding integration** — `Invoke-CopilotCliSubSession.ps1` seeds a throwaway `COPILOT_HOME` from production when `byok-profiles.json` is missing, skips when present (idempotent), and returns `CopilotHome`/`ExitCode`.
+
+### Known gaps (PASS with gap label)
+
+Current behavior that is locked as a baseline rather than fixed by the harness:
+
+- `t2-6` — wizard preset 6 (OpenCode Go) never prompts for `wireApi`.
+- `t4-7` — `byok run <profile> -p "<prompt>"` breaks: PowerShell param prefix matching binds `-p` to the script's own `-Profile`; use `--prompt` instead.
+- `t4-8` — `Remove-AccountArg` regex `^--account=(.+)$` does not consume an empty `--account=` value, which leaks to `copilot`.
+- `t5-3` — `kimi-k3` is absent from `Get-NoReasoningEffortModels`, so `Test-ReasoningEffortSupported` returns `True` while `reasoning-effort-lookup.md` says to assume no support until probed.
+
+### Report artifacts (byok)
+
+Each run writes under:
+
+`scripts/test/.artifacts/copilot-byok-feature-test/run-<timestamp>-<pid>/`
+
+- `report.md` — human-readable execution checklist with details + evidence links, plus the known-gap list.
+- `summary.json` — machine-readable run + per-test-case state.
+- `inputs.json` — effective inputs (staging home, fixture, production path, flags).
+- `test-cases.json` — checkpoint list.
+- `evidence/` — `<id>.out.txt` / `<id>.err.txt` child captures, `<id>.shim.log` for run cases, and per-case fixture evidence.
+
+### How to read the report
+
+1. `report.md` — `Run overview` (exit code + counts), then `Execution checklist`; start at the first failed row.
+2. `test-cases.json` — checkpoint-by-checkpoint machine state.
+3. `evidence/<failed-id>.out.txt` / `.err.txt` — raw child stdout/stderr for the failure.
+4. `evidence/<failed-id>.shim.log` — the intercepted `copilot` args + emitted provider env for run cases.
+
+### Usage examples
+
+```powershell
+# Default: harness-owned staging under scripts/test/.artifacts/copilot-byok-feature-test/staging
+pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1
+
+# Or from the workspace dispatcher
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 -Command tests:byok-features
+
+# Custom staging home (throwaway temp dir — safe for CI-style runs)
+pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$env:TEMP\byok-staging"
+
+# Explicitly test against the shared dojo and KEEP the injected fixture there
+# so the dojo retains a seeded byok-profiles.json (without -KeepFixture the
+# injected file is removed after the run, leaving the dojo bare)
+pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$env:USERPROFILE\.copilot-staging" -KeepFixture
+```
+
+Exit codes: `0` all pass (known-gap rows count as pass), `1` one or more test failures, `2` harness error (spike gate, timeout, report write).
+
+### How the harness works
+
+- Every case runs in a separate child `pwsh -NoProfile -Command` via `ProcessStartInfo` with `StandardOutput`/`StandardError` redirected as UTF-8; `*>&1` merges the info stream (Write-Host) into stdout so the harness can assert on it.
+- Sentinel keys (`OPENCODE_API_KEY_HOME`/`OPENCODE_API_KEY_WORK`/`OPENAI_API_KEY`) are injected per child — real keys are never inherited.
+- A `copilot.ps1` shim on the child `PATH` (with the real copilot dir scrubbed) records the arguments and provider env that the byok script passes to `copilot`.
+- A spike gate at startup proves stream capture + dot-source `set-env` work before any case runs.
+- The fixture is re-injected before every config case for determinism; the staging file is restored/removed afterwards unless `-KeepFixture`.
+- The harness uses its own staging dir by default and never touches the shared dojo `~/.copilot-staging`. If you point `-StagingHome` at the dojo, add `-KeepFixture` so it keeps a seeded `byok-profiles.json`; otherwise the injected file is removed after the run.
+- Production `~/.copilot/byok-profiles.json` is hashed before/after and asserted unchanged by the isolation cases.
+- `t1-5` (production default resolution) is auto-skipped when no production file exists; `t6-*` subsession cases use throwaway dirs so they never touch `~/.copilot-staging`.
+
+### Dispatcher command (byok)
+
+```powershell
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 tests:byok-features
+```
