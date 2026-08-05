@@ -23,7 +23,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 ### Runtime variants (VS Code vs CLI)
 - Agent files have runtime-specific variants: `agents/<name>/vscode/*.agent.md` and `agents/<name>/cli/*.agent.md`.
 - VS Code agents use `@SubAgentName` mention syntax; CLI agents use `task("AgentName-CLI", "...")`.
-- CLI agents embed instructions at build time via `<!-- EMBED: filename.instructions.md -->` markers (resolved by `publish-plugins.ps1`).
+- CLI agents embed instructions at build time via `<!-- EMBED: filename.instructions.md -->` markers (resolved by `build-plugins.ps1`; legacy `publish-plugins.ps1` also resolved them).
 - CLI agent markdown body limit: **30,000 characters** (YAML frontmatter excluded). Monitor large instruction files.
 - `.plugin-managed` marker in a directory prevents `publish-agents.ps1` and `publish-skills.ps1` from syncing that artifact (plugin system owns it).
 - CLI frontmatter uses `disable-model-invocation: true` (not the retired `infer: false`).
@@ -47,7 +47,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 ### Publishing
 - Publish scripts are source of truth for distribution: `scripts/publish/publish-*.ps1` and router `scripts/publish/publish-artifact.ps1`.
 - Artifact flow: workspace source → specialized publish helper → personal folder (`~/.copilot/`, `%APPDATA%/Code*/`) → optional WSL mirror (via `scripts/publish/wsl-helpers.ps1`).
-- Plugin publishing builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, embeds instructions via marker resolution, validates 30K body limit, then publishes by runtime: CLI bundles are installed from the resulting local bundle with `copilot plugin install <local_plugin_path>` (treat `_direct/...` only as an observed cache location), while VS Code bundles are registered in `chat.plugins.paths`.
+- Plugin publishing builds runtime-scoped bundles under `plugins/<runtime>/.build/<name>/`, embeds instructions via marker resolution, validates 30K body limit, then publishes by runtime: CLI bundles are installed from the resulting local bundle with `copilot plugin install <local_plugin_path>` (treat `_direct/...` only as an observed cache location), while VS Code bundles are registered in `chat.plugins.paths`. `publish-plugins.ps1` is deprecated — prefer `copilot plugins <options>` (and `build-plugins.ps1` for bundle-only).
 - Hooks are authored in `hooks/` and published to `.github/hooks/` via `scripts/publish/publish-hooks.ps1`.
 
 ### Wiki lookup
@@ -59,7 +59,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 
 ### Other workflows
 - Treat scripts as primary workflow entry points; VS Code tasks are optional wrappers over the same scripts.
-- Workspace command dispatcher is `scripts/workspace/run-command.ps1`, with built-in command mapping (no external manifest required). Key commands: `agents:publish`, `skills:publish`, `hooks:publish`, `instructions:publish`, `prompts:publish`, `toolsets:publish`, `issues:reindex`.
+- Workspace command dispatcher is `scripts/workspace/run-command.ps1`, with built-in command mapping (no external manifest required). Key commands: `agents:publish`, `skills:publish`, `hooks:publish`, `instructions:publish`, `prompts:publish`, `toolsets:publish`, `issues:reindex`. The dispatcher forwards `-CopilotHome <dir>` to `agents:publish`, `hooks:publish`, and `instructions:publish` for staging (dojo) publishing.
 - Issue indexing: `scripts/issues/extract-issue-metadata.ps1` reads `{.docs,_docs}/issues/*.md`, supports YAML frontmatter and legacy metadata formats, writes `index.md`.
 - OpenSpec validation: `scripts/openspec/validate-cross-refs.ps1` (dangling requirement IDs), `validate-rfc2119.ps1` (keyword + scenario coverage), `validate-runtime-leaks.ps1` (forbidden runtime-specific terms in specs).
 - Changelog generation: `scripts/changelog/create-weekly-changelog.ps1` — auto-generates from git history, supports raw/conventional formats.
@@ -68,8 +68,9 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Windows PowerShell: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 list`
 - Bash/WSL: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 list`
 - Publish one artifact: `pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name diataxis`
-- Publish all skills: `pwsh -NoProfile -File scripts/publish/publish-skills.ps1`
-- Publish plugin: `pwsh -NoProfile -File scripts/publish/publish-plugins.ps1`
+- Stage artifacts into a test Copilot home (dojo): `pwsh -NoProfile -File scripts/workspace/run-command.ps1 -Command agents:publish -CopilotHome C:\temp\copilot-staging` (also `hooks:publish`, `instructions:publish`; or call the publish scripts directly with `-CopilotHome <dir>`)
+- Publish all skills: `npx skills <options>` (preferred; `publish-skills.ps1` is deprecated — workspace-to-personal copy only, legacy)
+- Publish plugin: `copilot plugins <options>` (preferred; `publish-plugins.ps1` is deprecated — bundle/install flow only, legacy; use `build-plugins.ps1` if you only need the local bundle)
 - Reindex issues: `pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1`
 - Validate specs: `pwsh -NoProfile -File scripts/openspec/validate-cross-refs.ps1`
 - If using VS Code tasks, keep behavior consistent with the commands above; do not add task-only logic.
@@ -95,6 +96,6 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Instruction authoring reference: `create-instructions.prompt.md` (C:\Users\ADMIN\.vscode-insiders\extensions\github.copilot-chat-0.39.2026030507\assets\prompts\create-instructions.prompt.md - this prompt is from VS Code's extension and version-specific, version might be changed overtime).
 - Skill authoring reference: `create-skill.prompt.md` (C:\Users\ADMIN\.vscode-insiders\extensions\github.copilot-chat-0.39.2026030507\assets\prompts\create-skill.prompt.md - this prompt is from VS Code's extension and version-specific, version might be changed overtime).
 - Prompt authoring reference: `create-prompt.prompt.md` (C:\Users\ADMIN\.vscode-insiders\extensions\github.copilot-chat-0.39.2026030507\assets\prompts\create-prompt.prompt.md - this prompt is from VS Code's extension and version-specific, version might be changed overtime).
-- Cross-runtime skill publishing: `scripts/publish/publish-skills.ps1`.
-- Plugin bundling with instruction embedding: `scripts/publish/publish-plugins.ps1`.
+- Cross-runtime skill publishing: `npx skills <options>` (preferred; legacy: `scripts/publish/publish-skills.ps1`).
+- Plugin bundling with instruction embedding: `scripts/publish/publish-plugins.ps1` (legacy, deprecated — prefer `copilot plugins <options>`; `build-plugins.ps1` for bundle-only).
 - OpenSpec behavioral specification: `openspec/specs/ralph-v2-orchestration/orchestration/spec.md`.
