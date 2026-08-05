@@ -107,8 +107,8 @@ The supported local CLI flow is: build the bundle, then install that local bundl
 
 To build the bundle:
 ```powershell
-# Publish via plugin (required for CLI agents)
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1
+# Build the local bundle (preferred; publish-plugins.ps1 is deprecated)
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins ralph-v2
 
 # Or using the artifact publisher:
 pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type plugin -Name ralph-v2
@@ -117,17 +117,18 @@ pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type plugin -Name ra
 After the bundle is ready, install it with the supported local CLI flow:
 
 ```bash
-copilot plugin install <local_plugin_path>
+copilot plugins install <local_bundle_path>   # preferred
+# legacy: copilot plugin install <local_plugin_path>
 ```
 
-For VS Code, prefer the plugin publisher so the Ralph-coupled skills are bundled together:
+For VS Code, the same build produces the VS Code runtime bundle (the build walks both `plugins/cli/` and `plugins/vscode/`):
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-plugins.ps1 -Runtime vscode -Plugins ralph-v2
+pwsh -NoProfile -File scripts/publish/build-plugins.ps1 -Plugins ralph-v2
 ```
 
 VS Code publish builds `plugins/vscode/.build/ralph-v2/` and registers that runtime-scoped bundle path in `chat.plugins.paths`.
 
-Direct `publish-agents.ps1 -Platform vscode` is now a legacy path and should only be used if the required skills have already been published separately.
+Direct `publish-agents.ps1 -Runtime vscode` is now a legacy path and should only be used if the required skills have already been published separately.
 
 ### Runtime Delegation Mapping
 
