@@ -41,9 +41,18 @@
 .PARAMETER SkipWSL
     Skip publishing to WSL (Windows-only mode).
 
+.PARAMETER CopilotHome
+    Override the Copilot home directory used as the publish root (default: ~/.copilot,
+    or $env:COPILOT_HOME when set). Agents publish to <CopilotHome>/agents. When set,
+    WSL mirroring is skipped — use this to stage agents into a test directory (dojo).
+
 .EXAMPLE
     # Publish all agents (both runtimes)
     ./publish-agents.ps1
+
+.EXAMPLE
+    # Stage agents into a test Copilot home (dojo)
+    ./publish-agents.ps1 -CopilotHome C:\temp\copilot-staging -Force
 
 .EXAMPLE
     # Publish VS Code agents only
@@ -73,10 +82,25 @@ param(
     [switch]$Force,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SkipWSL
+    [switch]$SkipWSL,
+
+    [Parameter(Mandatory = $false)]
+    [string]$CopilotHome
 )
 
 . "$PSScriptRoot/wsl-helpers.ps1"
+
+# Resolve the Copilot home: -CopilotHome override > $env:COPILOT_HOME > ~/.copilot
+$resolvedCopilotHome = if ($CopilotHome) {
+    $CopilotHome
+}
+elseif ($env:COPILOT_HOME) {
+    $env:COPILOT_HOME
+}
+else {
+    Join-Path $env:USERPROFILE '.copilot'
+}
+$isStaging = [bool]$CopilotHome
 
 function Get-AgentFiles {
     <#
@@ -180,17 +204,17 @@ function Publish-AgentsToVSCode {
 
     $projectAgentsPath = Join-Path $PSScriptRoot "..\..\agents"
 
-    # All agents (both vscode and cli runtime) publish to ~/.copilot/agents/
+    # All agents (both vscode and cli runtime) publish to <CopilotHome>/agents/
     # VS Code discovers custom agents from this location in user scope.
     $copilotAgentsPaths = @(
-        (Join-Path $env:USERPROFILE ".copilot\agents")
+        (Join-Path $resolvedCopilotHome "agents")
     )
 
     # WSL detection
     $wslAvailable = $false
     $wslHome = $null
 
-    if (-not $SkipWSL) {
+    if (-not $SkipWSL -and -not $isStaging) {
         $wslAvailable = Test-WSLAvailable -WslHome ([ref]$wslHome)
         if ($wslAvailable) {
             Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
@@ -209,7 +233,7 @@ function Publish-AgentsToVSCode {
         foreach ($path in $copilotAgentsPaths) {
             if (-not (Test-Path $path)) {
                 New-Item -ItemType Directory -Path $path -Force | Out-Null
-                Write-Host "Created .copilot/agents directory: $path" -ForegroundColor Green
+                Write-Host "Created agents directory: $path" -ForegroundColor Green
             }
         }
     }
@@ -217,7 +241,7 @@ function Publish-AgentsToVSCode {
         foreach ($path in $copilotAgentsPaths) {
             if (-not (Test-Path $path)) {
                 New-Item -ItemType Directory -Path $path -Force | Out-Null
-                Write-Host "Created .copilot/agents directory: $path" -ForegroundColor Green
+                Write-Host "Created agents directory: $path" -ForegroundColor Green
             }
         }
     }
@@ -277,16 +301,16 @@ function Publish-AgentsToVSCode {
             $exists = Test-Path $destinationPath
 
             if ($exists -and -not $Force) {
-                $overwrite = Read-Host "Agent '$($destFileName -replace '\.agent\.md$')' already exists in .copilot/agents. Overwrite? (y/N)"
+                $overwrite = Read-Host "Agent '$($destFileName -replace '\.agent\.md$')' already exists in agents. Overwrite? (y/N)"
                 if ($overwrite -notmatch "^[Yy]") {
-                    Write-Host "Skipping $($destFileName -replace '\.agent\.md$') for .copilot/agents" -ForegroundColor Yellow
+                    Write-Host "Skipping $($destFileName -replace '\.agent\.md$') for agents" -ForegroundColor Yellow
                     continue
                 }
             }
 
             try {
                 Copy-Item -Path $sourcePath -Destination $destinationPath -Force
-                Write-Host "Published: $($destFileName -replace '\.agent\.md$') [$agentRuntime] to .copilot/agents" -ForegroundColor Green
+                Write-Host "Published: $($destFileName -replace '\.agent\.md$') [$agentRuntime] to $path" -ForegroundColor Green
                 $successCount++
             }
             catch {

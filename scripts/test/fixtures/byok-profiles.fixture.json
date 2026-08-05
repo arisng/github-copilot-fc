@@ -1,0 +1,97 @@
+{
+  "accounts": {
+    "opencode-home": { "label": "OpenCode Zen (Home)", "keyEnv": "OPENCODE_API_KEY_HOME" },
+    "opencode-work": { "label": "OpenCode Zen (Work)", "keyEnv": "OPENCODE_API_KEY_WORK" }
+  },
+  "activeAccount": "opencode-work",
+  "profiles": {
+    "openai-completions": {
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "model": "deepseek-v4-flash",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "offline": false,
+      "maxPromptTokens": 325000,
+      "maxOutputTokens": 64000,
+      "accountGroup": "opencode"
+    },
+    "responses-wire": {
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "model": "gpt-5.6-luna",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "wireApi": "responses",
+      "offline": false,
+      "maxPromptTokens": 200000,
+      "maxOutputTokens": 64000,
+      "accountGroup": "opencode"
+    },
+    "no-reasoning": {
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "model": "kimi-k2.7-code",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "offline": false,
+      "maxPromptTokens": 240000,
+      "maxOutputTokens": 32768,
+      "accountGroup": "opencode"
+    },
+    "no-reasoning-flag": {
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "model": "kimi-k2.6",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "reasoningEffortSupported": false,
+      "offline": false,
+      "maxPromptTokens": 240000,
+      "maxOutputTokens": 32768,
+      "accountGroup": "opencode"
+    },
+    "anthropic-type": {
+      "type": "anthropic",
+      "baseUrl": "https://opencode.ai/zen/go",
+      "model": "qwen3.7-plus",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "offline": false,
+      "maxPromptTokens": 960000,
+      "maxOutputTokens": 32768,
+      "accountGroup": "opencode"
+    },
+    "minimal": {
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "model": "deepseek-v4-flash",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "offline": false,
+      "maxPromptTokens": 96000,
+      "accountGroup": "opencode"
+    },
+    "legacy-api-key": {
+      "type": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "model": "gpt-4.1",
+      "apiKey": "${OPENAI_API_KEY}",
+      "offline": false,
+      "maxPromptTokens": 128000,
+      "maxOutputTokens": 8192
+    },
+    "offline-profile": {
+      "type": "openai",
+      "baseUrl": "http://localhost:11434",
+      "model": "llama3.2",
+      "apiKey": "",
+      "offline": true,
+      "maxPromptTokens": 32768
+    },
+    "drift-kimi-k3": {
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "model": "kimi-k3",
+      "apiKey": "${OPENCODE_API_KEY_WORK}",
+      "offline": false,
+      "maxPromptTokens": 240000,
+      "maxOutputTokens": 32768,
+      "accountGroup": "opencode"
+    }
+  }
+}

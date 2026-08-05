@@ -13,10 +13,25 @@ param(
     [string]$Scope = 'repo-scoped',
 
     [Parameter(Mandatory = $false)]
-    [switch]$UserLevel
+    [switch]$UserLevel,
+
+    [Parameter(Mandatory = $false)]
+    [string]$CopilotHome
 )
 
 . "$PSScriptRoot/wsl-helpers.ps1"
+
+# Resolve the Copilot home: -CopilotHome override > $env:COPILOT_HOME > ~/.copilot
+$resolvedCopilotHome = if ($CopilotHome) {
+    $CopilotHome
+}
+elseif ($env:COPILOT_HOME) {
+    $env:COPILOT_HOME
+}
+else {
+    Join-Path $env:USERPROFILE '.copilot'
+}
+$isStaging = [bool]$CopilotHome
 
 if ($UserLevel) {
     if ($PSBoundParameters.ContainsKey('Scope') -and $Scope -ne 'user-level') {
@@ -620,6 +635,17 @@ function Publish-HooksToWorkspace {
     .PARAMETER UserLevel
         Legacy compatibility switch. Equivalent to `-Scope user-level`.
 
+    .PARAMETER CopilotHome
+        Override the Copilot home directory used as the publish root (default: ~/.copilot,
+        or $env:COPILOT_HOME when set). With `-Scope user-level`, hooks publish to
+        <CopilotHome>/hooks. When set, WSL mirroring and the VS Code settings update
+        (chat.hookFilesLocations) are skipped — use this to stage hooks into a test
+        directory (dojo).
+
+    .EXAMPLE
+        Publish-HooksToWorkspace -Scope user-level -CopilotHome C:\temp\copilot-staging
+        Stages user-level hooks into a test Copilot home without touching VS Code settings.
+
     .EXAMPLE
         Publish-HooksToWorkspace
         Copies all hook files from hooks/ to .github/hooks/.
@@ -640,7 +666,7 @@ function Publish-HooksToWorkspace {
     $repoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
     $projectHooksPath = Join-Path $repoRoot 'hooks'
     $workspaceHooksPath = Join-Path $repoRoot '.github\hooks'
-    $windowsUserHooksPath = Join-Path $env:USERPROFILE '.copilot\hooks'
+    $windowsUserHooksPath = Join-Path $resolvedCopilotHome 'hooks'
     $wslAvailable = $false
     $wslHome = $null
 
@@ -653,7 +679,7 @@ function Publish-HooksToWorkspace {
         Write-Host 'User-level mode copies referenced scripts and rewrites published command paths to full paths.' -ForegroundColor DarkGray
     }
 
-    if ($Scope -eq 'user-level' -and -not $SkipWSL) {
+    if ($Scope -eq 'user-level' -and -not $SkipWSL -and -not $isStaging) {
         $wslAvailable = Test-WSLAvailable -WslHome ([ref]$wslHome)
         if ($wslAvailable) {
             Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
@@ -709,12 +735,14 @@ function Publish-HooksToWorkspace {
 
     $userLevelPosixRoot = if ($wslAvailable) { "$wslHome/.copilot/hooks" } else { $null }
 
+    $windowsUserHooksLabel = if ($isStaging) { $windowsUserHooksPath } else { '~/.copilot/hooks' }
+
     $windowsResult = Publish-UserLevelHookSet `
         -HookFiles $hookFiles `
         -ProjectHooksPath $projectHooksPath `
         -RepoRoot $repoRoot `
         -DestinationRoot $windowsUserHooksPath `
-        -Label '~/.copilot/hooks' `
+        -Label $windowsUserHooksLabel `
         -PosixDestinationRoot $userLevelPosixRoot
     $wslResult = [PSCustomObject]@{
         Published = 0
@@ -734,7 +762,13 @@ function Publish-HooksToWorkspace {
             -UseWSL
     }
 
-    Update-VSCodeHookSettings -WorkspaceHookPath '.github/hooks' -UserHookPath '~/.copilot/hooks' | Out-Null
+    if ($isStaging) {
+        # Staging mode: do not mutate real VS Code settings (chat.hookFilesLocations)
+        Write-Host "Staging mode: skipping VS Code settings update (chat.hookFilesLocations)" -ForegroundColor DarkGray
+    }
+    else {
+        Update-VSCodeHookSettings -WorkspaceHookPath '.github/hooks' -UserHookPath '~/.copilot/hooks' | Out-Null
+    }
 
     $published = $windowsResult.Published + $wslResult.Published
     $skipped = $windowsResult.Skipped + $wslResult.Skipped

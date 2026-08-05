@@ -3,7 +3,8 @@ param(
     [string]$Type,
     [Parameter(Mandatory=$true)]
     [string]$Name,
-    [switch]$Force
+    [switch]$Force,
+    [string]$CopilotHome
 )
 
 # “publish-artifact.ps1” is a thin wrapper around the real publishing helpers.
@@ -17,17 +18,29 @@ param(
 #
 # A `-Force` switch is provided here for helpers that support overwriting existing
 # files, sparing callers from invoking them directly.
+#
+# A `-CopilotHome` value is forwarded to helpers that support the staging override
+# (agent, instruction, hook); other helper types ignore it.
 
 
 # always report that we are about to invoke something, even if the inner script is quiet
 Write-Host "Publishing artifact type '$Type' with name(s) '$Name'..." -ForegroundColor Cyan
 
+function Get-ForwardedArgs {
+    # Builds the argument splat shared by helper invocations that accept -CopilotHome.
+    $forwarded = @{}
+    if ($CopilotHome) { $forwarded['CopilotHome'] = $CopilotHome }
+    return $forwarded
+}
+
 switch ($Type.ToLower()) {
     "agent" {
-        & "$PSScriptRoot/publish-agents.ps1" -Agents $Name
+        $forward = Get-ForwardedArgs
+        & "$PSScriptRoot/publish-agents.ps1" -Agents $Name @forward
     }
     "instruction" {
-        & "$PSScriptRoot/publish-instructions.ps1" -Instructions $Name
+        $forward = Get-ForwardedArgs
+        & "$PSScriptRoot/publish-instructions.ps1" -Instructions $Name @forward
     }
     "prompt" {
         # call the prompt publisher directly using named params.  This avoids
@@ -50,10 +63,11 @@ switch ($Type.ToLower()) {
         & "$PSScriptRoot/publish-toolsets.ps1" -Toolsets $Name
     }
     "hook" {
+        $forward = Get-ForwardedArgs
         if ($Force) {
-            & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name -Force
+            & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name -Force @forward
         } else {
-            & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name
+            & "$PSScriptRoot/publish-hooks.ps1" -Hooks $Name @forward
         }
     }
     "plugin" {

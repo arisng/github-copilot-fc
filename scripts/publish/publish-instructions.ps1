@@ -11,17 +11,26 @@
     Overwrite existing instructions without prompting.
 .PARAMETER SkipWSL
     Skip publishing to WSL VS Code targets.
+.PARAMETER CopilotHome
+    Staging override. When set, instructions publish to <CopilotHome>\Code\User\prompts
+    and <CopilotHome>\Code - Insiders\User\prompts instead of the real %APPDATA% targets,
+    and WSL publishing is skipped. Use this to stage instructions into a test directory (dojo).
 .EXAMPLE
     ./publish-instructions.ps1 -Instructions "powershell","csharp-14" -Force
+.EXAMPLE
+    ./publish-instructions.ps1 -CopilotHome C:\temp\copilot-staging -Force
 #>
 param(
     [string[]]$Instructions,
     [switch]$Force,
-    [switch]$SkipWSL
+    [switch]$SkipWSL,
+    [string]$CopilotHome
 )
 
 # Dot-source shared WSL utility
 . "$PSScriptRoot/wsl-helpers.ps1"
+
+$isStaging = [bool]$CopilotHome
 
 # CLI instructions publishing is intentionally excluded (ISS-002).
 # Concatenating all .instructions.md files into a single copilot-instructions.md
@@ -31,9 +40,13 @@ function Publish-Instructions {
     Write-Host "Publishing instructions..." -ForegroundColor Cyan
 
     $projectInstructionsPath = Join-Path $PSScriptRoot "..\..\instructions"
+
+    # Staging override: -CopilotHome replaces %APPDATA% as the prompts root.
+    # Otherwise publish to the real VS Code user prompts directories.
+    $promptsRoot = if ($isStaging) { $CopilotHome } else { $env:APPDATA }
     $vscodePromptsPaths = @(
-        (Join-Path $env:APPDATA "Code\User\prompts"),
-        (Join-Path $env:APPDATA "Code - Insiders\User\prompts")
+        (Join-Path $promptsRoot "Code\User\prompts"),
+        (Join-Path $promptsRoot "Code - Insiders\User\prompts")
     )
 
     # WSL VS Code prompts paths (relative to WSL home directory)
@@ -45,7 +58,7 @@ function Publish-Instructions {
     # WSL detection
     $wslAvailable = $false
     $wslHome = $null
-    if (-not $SkipWSL) {
+    if (-not $SkipWSL -and -not $isStaging) {
         $wslAvailable = Test-WSLAvailable -WslHome ([ref]$wslHome)
         if ($wslAvailable) {
             Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray

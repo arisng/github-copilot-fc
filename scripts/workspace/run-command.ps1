@@ -9,10 +9,19 @@ function Invoke-CopilotWorkspaceCommand {
     .PARAMETER Command
         The command to execute (use 'list' to see available commands).
 
+    .PARAMETER CopilotHome
+        Optional staging override forwarded to publish commands that support it
+        (agents:publish, hooks:publish, instructions:publish).
+
     .EXAMPLE
         Invoke-CopilotWorkspaceCommand -Command skills:publish-copy
 
         Publishes skills using the copy method.
+
+    .EXAMPLE
+        Invoke-CopilotWorkspaceCommand -Command agents:publish -CopilotHome C:\temp\copilot-staging
+
+        Stages agents into a test Copilot home.
 
     .EXAMPLE
         Invoke-CopilotWorkspaceCommand -Command list
@@ -22,19 +31,26 @@ function Invoke-CopilotWorkspaceCommand {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$Command
+        [string]$Command,
+
+        [Parameter(Mandatory = $false)]
+        [string]$CopilotHome
     )
 
     $repoRoot = Split-Path $PSScriptRoot -Parent
 
+    # Append the staging override to publish commands that support -CopilotHome.
+    $stagingArg = if ($CopilotHome) { " -CopilotHome '$CopilotHome'" } else { '' }
+
     $commands = [ordered]@{
-        'agents:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-agents.ps1'
-        'hooks:publish'        = 'pwsh -NoProfile -File scripts/publish/publish-hooks.ps1'
-        'instructions:publish' = 'pwsh -NoProfile -File scripts/publish/publish-instructions.ps1'
+        'agents:publish'       = "pwsh -NoProfile -File scripts/publish/publish-agents.ps1$stagingArg"
+        'hooks:publish'        = "pwsh -NoProfile -File scripts/publish/publish-hooks.ps1$stagingArg"
+        'instructions:publish' = "pwsh -NoProfile -File scripts/publish/publish-instructions.ps1$stagingArg"
         'prompts:publish'      = 'pwsh -NoProfile -File scripts/publish/publish-prompts.ps1'
         'skills:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-skills.ps1'
         'toolsets:publish'     = 'pwsh -NoProfile -File scripts/publish/publish-toolsets.ps1'
         'tests:ralph-cli-smoke' = 'pwsh -NoProfile -File scripts/test/ralph-v2-cli-smoke.ps1'
+        'tests:byok-features'  = 'pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1'
         'tests:subsession-audit' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1'
         'tests:subsession-audit-live' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1 -Live'
         'issues:reindex'       = 'pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1'
@@ -83,6 +99,16 @@ if ($MyInvocation.InvocationName -ne '.') {
         Invoke-CopilotWorkspaceCommand -Command 'list'
     }
     else {
-        Invoke-CopilotWorkspaceCommand -Command $args[0]
+        # Support both -Command <name> [-CopilotHome <dir>] and positional <name> forms.
+        $commandName = $null
+        $copilotHome = $null
+        for ($i = 0; $i -lt $args.Count; $i++) {
+            switch ($args[$i]) {
+                '-Command' { $commandName = $args[++$i] }
+                '-CopilotHome' { $copilotHome = $args[++$i] }
+                default { if ($null -eq $commandName -and -not $args[$i].StartsWith('-')) { $commandName = $args[$i] } }
+            }
+        }
+        Invoke-CopilotWorkspaceCommand -Command $commandName -CopilotHome $copilotHome
     }
 }
