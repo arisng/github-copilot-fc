@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.11.0
+  version: 0.12.0
   lastVerified: 2026-08-03
 ---
 
@@ -113,9 +113,9 @@ Resolution order: `--account` flag → profile `account` pin → `activeAccount`
 - Prefer `${ENV_VAR}` placeholders over raw API keys in JSON.
 - Treat `openai` as the default provider type for OpenAI-compatible endpoints such as Ollama, vLLM, Foundry Local, and Moonshot.
 - Set `COPILOT_PROVIDER_TYPE=azure` only for Azure OpenAI and `anthropic` only for Anthropic.
-- **OpenCode Go** uses a shared base URL with two possible provider types: `openai` (append `/v1`) for DeepSeek, GLM, Kimi, and MiMo models; `anthropic` (no `/v1` suffix — SDK adds it) for MiniMax and Qwen models. Store the personal OpenCode key as `OPENCODE_API_KEY_HOME` and the work key as `OPENCODE_API_KEY_WORK` — both at **User scope** (never Machine scope).
+- **OpenCode Go** serves all models from the single base URL `https://opencode.ai/zen/go/v1`. Live probe (2026-08-03, CLI 1.0.77): DeepSeek, GLM, Kimi, MiMo, **Qwen3.x and MiniMax all work via `COPILOT_PROVIDER_TYPE=openai` (chat/completions)** — the `anthropic` path is not required. `gpt-5.6-luna` also responds via chat/completions, so the documented "Responses-API only" constraint no longer holds for this gateway (both wire formats work). Store the personal OpenCode key as `OPENCODE_API_KEY_HOME` and the work key as `OPENCODE_API_KEY_WORK` — both at **User scope** (never Machine scope).
 - **CRITICAL: `COPILOT_MODEL` must use the bare model ID** (e.g., `deepseek-v4-flash`), **not** the `opencode-go/` prefix. The prefix is only used in OpenCode TUI config and in Copilot CLI profile names — never in `COPILOT_MODEL`.
-- For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`.
+- For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`. On OpenCode Go both `completions` and `responses` work for `gpt-5.6-luna` (probe 2026-08-03); `responses` remains the recommended default for GPT-5-class.
 - Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.
 - If the model is not in Copilot CLI's built-in catalog, set explicit prompt and output token overrides instead of assuming Copilot will infer them correctly.
 - **Profile `proxyPort` field**: For Kimi models from `https://api.moonshot.ai` (which require `top_p=0.95`), add `"proxyPort": 443` to the profile and the `run` command will auto-start the local proxy and route through `https://moonshot.local/v1`. The proxy strips `top_p` to `0.95` before forwarding to Moonshot.
@@ -150,8 +150,8 @@ it means the model's API does not expose controllable reasoning effort levels. K
 - **GLM** (`glm-5`, `glm-5.1`, `glm-5.2`) — Zhipu AI / OpenCode Go
 - **MiMo** (`mimo-v2.5`, `mimo-v2.5-pro`, `mimo-v2-pro`, `mimo-v2-omni`) — Xiaomi / OpenCode Go
 - **Kimi K2.x** (`kimi-k2.7-code`, `kimi-k2.6`, `kimi-k2.5`) — Moonshot AI / OpenCode Go (thinking is implicit / always-on)
-- **Qwen3.x** (`qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus`) — Alibaba / OpenCode Go (Anthropic-type, implicit thinking)
-- **MiniMax** (`minimax-m3`, `minimax-m2.7`, `minimax-m2.5`) — MiniMax / OpenCode Go (Anthropic-type, implicit thinking)
+- **Qwen3.x** (`qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus`) — Alibaba / OpenCode Go (implicit thinking; `openai` type per 2026-08-03 probe)
+- **MiniMax** (`minimax-m3`, `minimax-m2.7`, `minimax-m2.5`) — MiniMax / OpenCode Go (implicit thinking; `openai` type per 2026-08-03 probe)
 
 When using these models, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.
 
