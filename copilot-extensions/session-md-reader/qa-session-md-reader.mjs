@@ -1038,6 +1038,231 @@ const TC12_RAPID_REFRESH = test("TC12.7", "Rapid refresh clicks are stable", asy
 });
 
 // ========================================================================
+// TC13: Full session name + UUID rendering (fixture-longname)
+// ========================================================================
+const FIXTURE_LONG_NAME = "This is an extremely long session name that must be rendered in full without any truncation happening to it";
+
+const TC13_LONG_NAME = test("TC13.1", "Full session name rendered untruncated in sidebar", async (page) => {
+    await page.goto(BASE + "?instance=qa-longname&sessionUuid=fixture-longname", { waitUntil: "networkidle" });
+    await page.waitForFunction(() => {
+        const lbl = document.getElementById("sessionLabel");
+        return lbl && lbl.textContent.includes("extremely long session name");
+    }, { timeout: 8000 });
+    const title = await page.locator("#sidebarTitle").textContent();
+    const label = await page.locator("#sessionLabel").textContent();
+    assert.equal(title, FIXTURE_LONG_NAME, "sidebarTitle should be the full untruncated session name");
+    assert.equal(label, FIXTURE_LONG_NAME, "sessionLabel should be the full untruncated session name");
+    assert.ok(!title.includes("\u2026"), "sidebarTitle must not be truncated with ellipsis");
+    assert.ok(!label.includes("\u2026"), "sessionLabel must not be truncated with ellipsis");
+});
+
+const TC13_FULL_UUID = test("TC13.2", "Full session UUID shown on a separate line", async (page) => {
+    await page.waitForTimeout(300);
+    const uuidText = await page.locator("#sessionUuidLabel").textContent();
+    assert.equal(uuidText, "fixture-longname", "sessionUuidLabel should show the full session UUID");
+    const uuidVisible = await page.locator("#sessionUuidLabel").isVisible();
+    assert.ok(uuidVisible, "sessionUuidLabel should be visible");
+    const nameBox = await page.locator("#sessionLabel").boundingBox();
+    const uuidBox = await page.locator("#sessionUuidLabel").boundingBox();
+    if (nameBox && uuidBox) {
+        assert.ok(uuidBox.y > nameBox.y, "UUID line should be below the session name line");
+    }
+});
+
+// ========================================================================
+// TC14: Todo tree depth clamping (fixture-deep: root->a->b->c->d->e)
+// ========================================================================
+const TC14_DEPTH_CLAMP = test("TC14.1", "Nodes deeper than max depth flatten at deepest visible level", async (page) => {
+    await page.goto(BASE + "?instance=qa-deep&sessionUuid=fixture-deep", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const flattened = page.locator(".todo-tree-node[data-flattened='true']");
+    const flatCount = await flattened.count();
+    assert.ok(flatCount >= 2, `Expected flattened nodes d,e (got ${flatCount})`);
+    const cMargin = await page.locator('details.todo-tree-node[data-id="c"] > summary').evaluate(el => parseFloat(getComputedStyle(el).marginLeft));
+    for (let i = 0; i < flatCount; i++) {
+        const m = await flattened.nth(i).locator("> summary").evaluate(el => parseFloat(getComputedStyle(el).marginLeft));
+        assert.equal(m, cMargin, `Flattened node ${i} margin should equal deepest visible level margin`);
+    }
+    const margins = new Set();
+    const nodes = page.locator("summary.todo-node-content");
+    const n = await nodes.count();
+    for (let i = 0; i < n; i++) {
+        margins.add(Math.round(await nodes.nth(i).evaluate(el => parseFloat(getComputedStyle(el).marginLeft))));
+    }
+    assert.deepEqual([...margins].sort((a, b) => a - b), [24, 44, 64, 84], "Expected clamped depth margins");
+});
+
+// ========================================================================
+// TC15: Chevron click toggles children without opening details panel
+// ========================================================================
+const TC15_CHEVRON_NO_PANEL = test("TC15.1", "Chevron click toggles children without opening details panel", async (page) => {
+    await page.goto(BASE + "?instance=qa-chev&sessionUuid=fixture-deep", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const rootDetails = page.locator('details.todo-tree-node[data-id="root"]');
+    const wasOpen = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    if (!wasOpen) {
+        await rootDetails.locator("summary").click();
+        await page.waitForTimeout(200);
+    }
+    // Close panel if a previous interaction left it open
+    if (await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false)) {
+        await page.locator(".todo-details-close").click();
+        await page.waitForTimeout(200);
+    }
+    // Click the chevron of the root node
+    await rootDetails.locator("> summary .chevron").click();
+    await page.waitForTimeout(300);
+    const nowOpen = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(!nowOpen, "Root children should collapse after chevron click");
+    const panelOpen = await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false);
+    assert.ok(!panelOpen, "Details panel should NOT open on chevron click");
+    const selected = await page.locator("summary.todo-node-content.selected").count();
+    assert.equal(selected, 0, "No node should be selected on chevron click");
+    // Expand back via chevron
+    await rootDetails.locator("> summary .chevron").click();
+    await page.waitForTimeout(200);
+    const reopened = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(reopened, "Root children should expand again on chevron click");
+    // Positive control: clicking the title (not the chevron) DOES open the panel
+    await rootDetails.locator("> summary .todo-title").click();
+    await page.waitForTimeout(300);
+    const panelOpen2 = await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false);
+    assert.ok(panelOpen2, "Details panel SHOULD open on title click");
+    await page.locator(".todo-details-close").click();
+});
+
+// ========================================================================
+// TC16: Todos progress bar
+// ========================================================================
+const TC16_PROGRESS = test("TC16.1", "Progress bar shows done/total completion", async (page) => {
+    await page.goto(BASE + "?instance=qa-progress&sessionUuid=fixture-progress", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const bar = page.locator(".todo-progress-bar");
+    assert.ok(await bar.count() > 0, "Progress bar should exist");
+    const label = await page.locator(".todo-progress-label").textContent();
+    assert.equal(label.trim(), "3/5 done \u00b7 60%", `Unexpected progress label: "${label}"`);
+    const width = await page.locator(".todo-progress-fill").evaluate(el => parseFloat(el.style.width));
+    assert.ok(Math.abs(width - 60) < 1, `Fill width should be ~60%, got ${width}%`);
+});
+
+const TC16_DEEP_PROGRESS = test("TC16.2", "Progress bar works on deep fixture (1/6 done)", async (page) => {
+    await page.goto(BASE + "?instance=qa-deep2&sessionUuid=fixture-deep", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const label = await page.locator(".todo-progress-label").textContent();
+    assert.equal(label.trim(), "1/6 done \u00b7 17%", `Unexpected label: "${label}"`);
+});
+
+const TC16_EMPTY_NO_BAR = test("TC16.3", "No progress bar when there are no todos", async (page) => {
+    await page.goto(BASE + "?instance=qa-notodos2&sessionUuid=empty", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const barCount = await page.locator(".todo-progress-bar").count();
+    assert.equal(barCount, 0, "Progress bar should be absent when no todos exist");
+});
+
+// ========================================================================
+// TC17: maxTodoDepth config via URL query param
+// ========================================================================
+const TC17_DEPTH_1 = test("TC17.1", "?maxTodoDepth=1 flattens deeper nodes to one nested level", async (page) => {
+    await page.goto(BASE + "?instance=qa-depth1&sessionUuid=fixture-deep&maxTodoDepth=1", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const flattened = await page.locator(".todo-tree-node[data-flattened='true']").count();
+    assert.ok(flattened >= 4, `Expected b,c,d,e flattened with maxTodoDepth=1 (got ${flattened})`);
+    const margins = new Set();
+    const nodes = page.locator("summary.todo-node-content");
+    const n = await nodes.count();
+    for (let i = 0; i < n; i++) {
+        margins.add(Math.round(await nodes.nth(i).evaluate(el => parseFloat(getComputedStyle(el).marginLeft))));
+    }
+    assert.deepEqual([...margins].sort((a, b) => a - b), [24, 44], "With maxTodoDepth=1 expected margins [24, 44]");
+});
+
+// ========================================================================
+// TC18: Sidebar scroll (fixture-files: 1 root + 18 checkpoints + 6 research)
+// ========================================================================
+const TC18_SIDEBAR_SCROLL = test("TC18.1", "Sidebar file list is scrollable when many files", async (page) => {
+    await page.setViewportSize({ width: 1280, height: 400 });
+    await page.goto(BASE + "?instance=qa-files&sessionUuid=fixture-files", { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    const scroll = page.locator(".sidebar-scroll").first();
+    const oy = await scroll.evaluate(el => getComputedStyle(el).overflowY);
+    assert.equal(oy, "auto", ".sidebar-scroll overflow-y should be auto");
+    const dims = await scroll.evaluate(el => ({ sh: el.scrollHeight, ch: el.clientHeight }));
+    assert.ok(dims.sh > dims.ch, `Sidebar should scroll (scrollHeight ${dims.sh} > clientHeight ${dims.ch})`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+});
+
+const TC18_TODOS_INVARIANT = test("TC18.2", "Todos details panel stays pinned while sidebar scrolls", async (page) => {
+    await page.goto(BASE + "?instance=qa-files2&sessionUuid=fixture-progress", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const node = page.locator("summary.todo-node-content").first();
+    if (await node.count() > 0) {
+        await node.click();
+        await page.waitForTimeout(300);
+    }
+    const panel = page.locator("#todoDetailsPanel");
+    const open = await panel.evaluate(el => el.classList.contains("open"));
+    assert.ok(open, "details panel should be open");
+    const box = await panel.boundingBox();
+    const sidebarBox = await page.locator("#sidebar").boundingBox();
+    assert.ok(box && sidebarBox && box.y + box.height <= sidebarBox.y + sidebarBox.height + 2,
+        "details panel stays inside the sidebar viewport");
+    await page.locator(".todo-details-close").click();
+});
+
+// ========================================================================
+// TC19: Folder collapse (fixture-files)
+// ========================================================================
+const TC19_COLLAPSE_HIDES = test("TC19.1", "Clicking a folder hides its files; header count unchanged", async (page) => {
+    await page.goto(BASE + "?instance=qa-files3&sessionUuid=fixture-files", { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    const chkHeader = page.locator(".file-group-header", { hasText: "checkpoints" }).first();
+    await chkHeader.waitFor({ state: "visible", timeout: 5000 });
+    const totalBefore = await page.locator(".file-item").count();
+    assert.equal(totalBefore, 25, "25 file items before collapse");
+    await chkHeader.click();
+    await page.waitForTimeout(300);
+    const visible = await page.locator(".file-item:visible").count();
+    assert.equal(visible, 25 - 18, "18 checkpoints files hidden after collapse");
+    const chkText = (await chkHeader.textContent()).trim();
+    assert.ok(chkText.includes("(18)"), "count (18) preserved while collapsed: " + chkText);
+    const wrapperCollapsed = await chkHeader.evaluate(el => el.closest(".file-group").classList.contains("collapsed"));
+    assert.ok(wrapperCollapsed, ".file-group wrapper should have collapsed class");
+    const headerCollapsed = await chkHeader.evaluate(el => el.classList.contains("collapsed"));
+    assert.ok(headerCollapsed, "header should have collapsed class (chevron rotation)");
+    // expand restores
+    await chkHeader.click();
+    await page.waitForTimeout(300);
+    assert.equal(await page.locator(".file-item:visible").count(), 25, "all files visible after expand");
+});
+
+const TC19_COLLAPSE_PERSISTS = test("TC19.2", "Folder collapse persists across tab switch", async (page) => {
+    const chkHeader = page.locator(".file-group-header", { hasText: "checkpoints" }).first();
+    if (await chkHeader.count() === 0 || await chkHeader.evaluate(el => !el.closest(".file-group").classList.contains("collapsed")).catch(() => true)) {
+        // ensure collapsed state on current page
+        await chkHeader.click();
+        await page.waitForTimeout(200);
+    }
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(300);
+    await page.locator('[data-tab="files"]').click();
+    await page.waitForTimeout(400);
+    const header2 = page.locator(".file-group-header", { hasText: "checkpoints" }).first();
+    const stillCollapsed = await header2.evaluate(el => el.closest(".file-group").classList.contains("collapsed"));
+    assert.ok(stillCollapsed, "checkpoints should remain collapsed after switching tabs");
+    const visible = await page.locator(".file-item:visible").count();
+    assert.equal(visible, 25 - 18, "checkpoints files still hidden after tab switch");
+    await header2.click(); // expand back
+    await page.waitForTimeout(200);
+});
+
+// ========================================================================
 // Main
 // ========================================================================
 async function main() {
@@ -1068,6 +1293,13 @@ async function main() {
             { name: "TC10: Responsive Main Content", tests: [TC10_MAX_WIDTH, TC10_REFLOW, TC10_NO_HSCROLL] },
             { name: "TC11: Pass ID Filter", tests: [TC11_FILTER_BAR, TC11_FILTER_HIDES, TC11_FILTER_ALL, TC11_FILTER_PERSISTS, TC11_FILTER_DETAILS, TC11_FILTER_STYLING, TC11_FILTER_RAPID] },
             { name: "TC12: Inline Tab Refresh", tests: [TC12_REFRESH_BUTTONS, TC12_REFRESH_VISIBILITY, TC12_FILES_REFRESH, TC12_TODOS_REFRESH, TC12_TOC_REFRESH, TC12_LOADING_ANIMATION, TC12_RAPID_REFRESH] },
+            { name: "TC13: Full Session Name & UUID", tests: [TC13_LONG_NAME, TC13_FULL_UUID] },
+            { name: "TC14: Todo Depth Clamp", tests: [TC14_DEPTH_CLAMP] },
+            { name: "TC15: Chevron Click Behavior", tests: [TC15_CHEVRON_NO_PANEL] },
+            { name: "TC16: Todos Progress Bar", tests: [TC16_PROGRESS, TC16_DEEP_PROGRESS, TC16_EMPTY_NO_BAR] },
+            { name: "TC17: maxTodoDepth Config", tests: [TC17_DEPTH_1] },
+            { name: "TC18: Sidebar Scroll", tests: [TC18_SIDEBAR_SCROLL, TC18_TODOS_INVARIANT] },
+            { name: "TC19: Folder Collapse", tests: [TC19_COLLAPSE_HIDES, TC19_COLLAPSE_PERSISTS] },
         ];
 
         // Take an initial screenshot

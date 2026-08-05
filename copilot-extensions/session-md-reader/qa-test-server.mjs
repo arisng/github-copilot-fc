@@ -185,6 +185,108 @@ async function readTodos(sessionUuid) {
     return { todos, deps, tree };
 }
 
+// --- Build a dependency tree from todos + deps (shared by readTodos & fixtures) ---
+function buildTodoTree(todos, deps) {
+    const todoMap = {};
+    for (const t of todos) todoMap[t.id] = { ...t, children: [], hasParents: false };
+    for (const d of deps) {
+        if (todoMap[d.todo_id] && todoMap[d.depends_on]) {
+            todoMap[d.depends_on].children.push(d.todo_id);
+            todoMap[d.todo_id].hasParents = true;
+        }
+    }
+    const roots = todos.filter(t => !todoMap[t.id]?.hasParents).map(t => t.id);
+    function buildTree(nodeId, visited = new Set()) {
+        if (visited.has(nodeId)) return { id: nodeId, title: todoMap[nodeId]?.title || nodeId, status: todoMap[nodeId]?.status || "pending", children: [{ id: "CYCLE", title: "⚠ cycle detected", status: "blocked", children: [] }] };
+        const node = todoMap[nodeId];
+        if (!node) return null;
+        visited.add(nodeId);
+        const treeNode = { id: nodeId, title: node.title, status: node.status, children: [] };
+        for (const childId of node.children) {
+            const child = buildTree(childId, new Set(visited));
+            if (child) treeNode.children.push(child);
+        }
+        return treeNode;
+    }
+    const tree = roots.map(id => buildTree(id)).filter(Boolean);
+    return { todos, deps, tree };
+}
+
+// --- Synthetic fixtures for deterministic QA (independent of any real session) ---
+function fixtureTodos(sessionUuid) {
+    if (sessionUuid === "fixture-deep") {
+        // Chain: root -> a -> b -> c -> d -> e (depth 5 below root).
+        const ids = ["root", "a", "b", "c", "d", "e"];
+        const todos = ids.map((id, i) => ({
+            id,
+            title: "Todo " + id,
+            description: "desc " + id,
+            status: i === 0 ? "done" : i === 1 ? "in_progress" : "pending",
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:00.000Z",
+        }));
+        const deps = [];
+        for (let i = 1; i < ids.length; i++) deps.push({ todo_id: ids[i], depends_on: ids[i - 1] });
+        return buildTodoTree(todos, deps);
+    }
+    if (sessionUuid === "fixture-progress") {
+        // 5 todos, 3 done → 60%.
+        const mk = (id, title, status) => ({
+            id, title, description: "desc " + id, status,
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:00.000Z",
+        });
+        const todos = [
+            mk("alpha-1", "Alpha one", "done"),
+            mk("alpha-2", "Alpha two", "done"),
+            mk("alpha-3", "Alpha three", "done"),
+            mk("alpha-4", "Alpha four", "in_progress"),
+            mk("alpha-5", "Alpha five", "pending"),
+        ];
+        const deps = [
+            { todo_id: "alpha-2", depends_on: "alpha-1" },
+            { todo_id: "alpha-3", depends_on: "alpha-2" },
+        ];
+        return buildTodoTree(todos, deps);
+    }
+    return null;
+}
+
+const FIXTURE_LONG_NAME = "This is an extremely long session name that must be rendered in full without any truncation happening to it";
+function fixtureSessionInfo(sessionUuid) {
+    if (sessionUuid === "fixture-longname") {
+        return {
+            name: FIXTURE_LONG_NAME,
+            repository: "org/repo",
+            branch: "develop",
+        };
+    }
+    if (sessionUuid === "fixture-files") {
+        return {
+            name: "Fixture session with many files and a long name for sidebar scrolling test",
+            repository: "org/repo",
+            branch: "main",
+        };
+    }
+    return null;
+}
+
+// --- Synthetic file-list fixture (deterministic sidebar scroll/collapse QA) ---
+function fixtureFiles(sessionUuid) {
+    if (sessionUuid !== "fixture-files") return null;
+    const files = [];
+    files.push({ fullPath: "", relativePath: "plan.md", fileName: "plan.md", group: "root" });
+    for (let i = 1; i <= 18; i++) {
+        const name = `checkpoint-${String(i).padStart(3, "0")}.md`;
+        files.push({ fullPath: "", relativePath: `checkpoints/${name}`, fileName: name, group: "checkpoints" });
+    }
+    for (let i = 1; i <= 6; i++) {
+        const name = `research-topic-${i}.md`;
+        files.push({ fullPath: "", relativePath: `research/${name}`, fileName: name, group: "research" });
+    }
+    return files;
+}
+
 // --- Markdown rendering ---
 function renderMarkdown(md) {
     const lines = md.split("\n");
@@ -326,7 +428,8 @@ const server = http.createServer(async (req, res) => {
         const sessionUuid = url.searchParams.get("sessionUuid");
         if (!sessionUuid) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid" })); return; }
         try {
-            const files = scanMarkdownFiles(sessionUuid);
+            const fixture = fixtureFiles(sessionUuid);
+            const files = fixture || scanMarkdownFiles(sessionUuid);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ files }));
         } catch (e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
@@ -338,7 +441,9 @@ const server = http.createServer(async (req, res) => {
         const sessionUuid = url.searchParams.get("sessionUuid");
         if (!sessionUuid) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid" })); return; }
         try {
-            const info = readSessionInfo(sessionUuid);
+            let info = readSessionInfo(sessionUuid);
+            const fixture = fixtureSessionInfo(sessionUuid);
+            if (fixture) info = fixture;
             const shortId = sessionUuid.substring(0, 8) + "…" + sessionUuid.slice(-4);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ sessionUuid, shortId, ...info }));
@@ -352,6 +457,13 @@ const server = http.createServer(async (req, res) => {
         const filePath = url.searchParams.get("path");
         if (!sessionUuid || !filePath) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid or path" })); return; }
         try {
+            if (sessionUuid === "fixture-files") {
+                const raw = "# " + filePath + "\n\nSample content for " + filePath + ".\n";
+                const { html, toc } = renderMarkdown(raw);
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ html, toc, raw, filePath }));
+                return;
+            }
             const fullPath = path.join(SESSION_BASE, sessionUuid, filePath);
             const resolved = path.resolve(fullPath);
             const base = path.resolve(path.join(SESSION_BASE, sessionUuid));
@@ -369,7 +481,8 @@ const server = http.createServer(async (req, res) => {
         const sessionUuid = url.searchParams.get("sessionUuid");
         if (!sessionUuid) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid" })); return; }
         try {
-            const data = await readTodos(sessionUuid);
+            const fixture = fixtureTodos(sessionUuid);
+            const data = fixture || await readTodos(sessionUuid);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify(data));
         } catch (e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
@@ -378,8 +491,11 @@ const server = http.createServer(async (req, res) => {
 
     // Serve HTML UI
     const pageSessionUuid = url.searchParams.get("sessionUuid") || "";
-    res.writeHead(200, { "Content-Type": "text/html" });
-    res.end(serveHtml(instanceId, pageSessionUuid));
+    let maxTodoDepth = 3;
+    const qDepth = parseInt(url.searchParams.get("maxTodoDepth"), 10);
+    if (!isNaN(qDepth)) maxTodoDepth = Math.max(0, Math.min(10, qDepth));
+    res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-store, no-cache, must-revalidate" });
+    res.end(serveHtml(instanceId, pageSessionUuid, maxTodoDepth));
 });
 
 // Start and print port
