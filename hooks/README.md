@@ -179,6 +179,9 @@ pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Hooks "security-policy"
 
 # Via the artifact router
 pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type hook -Name "security-policy"
+
+# Stage user-level hooks into a test Copilot home (dojo) — skips WSL + VS Code settings mutation
+pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome C:\temp\copilot-staging
 ```
 
 ## Authoring Guidelines

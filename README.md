@@ -72,7 +72,9 @@ pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1
 # Publish one artifact via router
 pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name diataxis
 
-# Publish all skills
+# Publish all skills (preferred: Skills CLI)
+npx skills <options>
+# Publish all skills (legacy workspace copy)
 pwsh -NoProfile -File scripts/publish/publish-skills.ps1
 ```
 
@@ -90,16 +92,16 @@ Current command map is implemented directly in `scripts/workspace/run-command.ps
 
 ## Publishing Model
 
-Publish scripts are the canonical distribution path:
+Publish scripts are the canonical distribution path (skills/plugins have preferred CLI alternatives):
 
-- `scripts/publish/publish-plugins.ps1`
-- `scripts/publish/publish-agents.ps1`
-- `scripts/publish/publish-hooks.ps1`
-- `scripts/publish/publish-instructions.ps1`
+- `scripts/publish/publish-agents.ps1` (supports `-CopilotHome` staging override)
+- `scripts/publish/publish-hooks.ps1` (supports `-CopilotHome` staging override)
+- `scripts/publish/publish-instructions.ps1` (supports `-CopilotHome` staging override)
 - `scripts/publish/publish-prompts.ps1`
-- `scripts/publish/publish-skills.ps1`
 - `scripts/publish/publish-toolsets.ps1`
 - `scripts/publish/publish-artifact.ps1` (type-based router)
+- ~~`scripts/publish/publish-skills.ps1`~~ **deprecated** — prefer `npx skills <options>` (Skills CLI)
+- ~~`scripts/publish/publish-plugins.ps1`~~ **deprecated** — prefer `copilot plugins <options>` (native CLI; `build-plugins.ps1` for bundle-only)
 
 Publish destination behavior:
 
