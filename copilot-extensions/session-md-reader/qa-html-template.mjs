@@ -1,4 +1,4 @@
-export function serveHtml(instanceId, initialSessionUuid) {
+export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,13 +33,15 @@ export function serveHtml(instanceId, initialSessionUuid) {
   /* Sidebar */
   .sidebar { width: var(--sidebar-width); min-width: var(--sidebar-width); background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; position: relative; }
   .sidebar-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-  .sidebar-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-  .sidebar-header .session-id { font-size: 11px; color: var(--accent-dim); font-family: monospace; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); word-break: break-word; }
+  .sidebar-header .session-id { font-size: 11px; color: var(--accent-dim); font-family: monospace; word-break: break-word; }
+  .sidebar-header .session-uuid { font-size: 10px; color: var(--text-muted); font-family: monospace; word-break: break-all; margin-top: 2px; }
   .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
   .sidebar-tab { flex: 1; padding: 8px; text-align: center; font-size: 12px; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--text-muted); transition: all 0.2s; }
   .sidebar-tab:hover { color: var(--text); background: var(--surface); }
   .sidebar-tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: var(--surface); }
   .sidebar-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 8px 0; }
+  .sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 
   /* File group */
   .file-group { margin-bottom: 4px; }
@@ -47,6 +49,7 @@ export function serveHtml(instanceId, initialSessionUuid) {
   .file-group-header:hover { color: var(--text); }
   .file-group-header svg { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.2s; }
   .file-group-header.collapsed svg { transform: rotate(-90deg); }
+  .file-group.collapsed .file-item { display: none; }
   .file-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 28px; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.15s; border-left: 2px solid transparent; }
   .file-item:hover { color: var(--text); background: var(--surface); }
   .file-item.active { color: var(--accent); background: var(--surface); border-left-color: var(--accent); }
@@ -187,6 +190,28 @@ export function serveHtml(instanceId, initialSessionUuid) {
   }
   .todo-toggle-all:hover { background: var(--surface-hover); color: var(--accent); }
   .todo-toggle-all .icon { font-size: 12px; }
+
+  /* ── Progress bar ── */
+  .todo-progress-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 2px 12px 6px; flex-shrink: 0;
+  }
+  .todo-progress-track {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: var(--surface); border: 1px solid var(--border);
+    overflow: hidden; min-width: 0;
+  }
+  .todo-progress-fill {
+    height: 100%; background: var(--success); border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  .todo-progress-label {
+    font-size: 10px; color: var(--text-muted); white-space: nowrap;
+    font-family: monospace; flex-shrink: 0;
+  }
+
+  /* Nodes flattened below the configured max depth are dimmed */
+  .todo-tree-node[data-flattened="true"] > summary .todo-title { color: var(--text-muted); }
 
   /* ── details/summary tree ── */
   .todo-tree-node { --depth: 0; }
@@ -352,6 +377,7 @@ export function serveHtml(instanceId, initialSessionUuid) {
       <div>
         <h2 id="sidebarTitle">Session Files</h2>
         <div class="session-id" id="sessionLabel">Loading...</div>
+        <div class="session-uuid" id="sessionUuidLabel"></div>
       </div>
     </div>
     <div class="sidebar-tabs">
@@ -399,6 +425,7 @@ export function serveHtml(instanceId, initialSessionUuid) {
 <script>
 const INSTANCE = "${instanceId}";
 let SESSION_UUID = "${initialSessionUuid}";
+const MAX_TODO_DEPTH = ${maxTodoDepth};
 let allFiles = [];
 let currentFilePath = null;
 let currentToc = [];
@@ -437,16 +464,17 @@ async function loadSessionInfo() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.name) {
-            const shortName = data.name.length > 50 ? data.name.substring(0, 47) + "\u2026" : data.name;
-            sessionLabel.textContent = shortName;
-            sidebarTitle.textContent = shortName;
-            document.title = "MD: " + shortName;
-            welcomeTitle.textContent = shortName;
+            sessionLabel.textContent = data.name;
+            sidebarTitle.textContent = data.name;
+            document.title = "MD: " + data.name;
+            welcomeTitle.textContent = data.name;
         } else if (data.shortId) {
             sessionLabel.textContent = data.shortId;
             sidebarTitle.textContent = data.shortId;
             document.title = "MD: " + data.shortId;
         }
+        const uuidEl = document.getElementById("sessionUuidLabel");
+        if (uuidEl) uuidEl.textContent = SESSION_UUID;
         if (data.repository) {
             const repoShort = data.repository.split("/").pop() || data.repository;
             welcomeDesc.textContent = repoShort + (data.branch ? " (" + data.branch + ")" : "") + " \u2014 select a file to view";
@@ -561,7 +589,8 @@ async function loadFiles() {
         fileCountBadge.textContent = "No session selected";
         return;
     }
-    sessionLabel.textContent = SESSION_UUID.substring(0, 12) + "\u2026";
+    const uuidEl = document.getElementById("sessionUuidLabel");
+    if (uuidEl) uuidEl.textContent = SESSION_UUID;
     try {
         const res = await fetch("/api/files?sessionUuid=" + encodeURIComponent(SESSION_UUID));
         const data = await res.json();
@@ -638,12 +667,12 @@ function renderFileList() {
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.localeCompare(b);
     });
 
-    let html = "";
+    let html = '<div class="sidebar-scroll">';
     for (const group of sortedGroups) {
         const fileList = groups[group];
         const groupLabel = group === "root" ? "Root" : group;
         const isActive = groupCollapsed[group] !== false;
-        html += '<div class="file-group">';
+        html += '<div class="file-group' + (!isActive ? ' collapsed' : '') + '">';
         html += '<div class="file-group-header' + (!isActive ? ' collapsed' : '') + '" onclick="toggleGroup(\\'' + group + '\\')">';
         html += '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 4l8 6-8 6z"/></svg>';
         html += groupLabel + ' <span style="font-weight:400;margin-left:4px;opacity:0.6">(' + fileList.length + ')</span>';
@@ -658,6 +687,7 @@ function renderFileList() {
         }
         html += '</div>';
     }
+    html += '</div>';
     sidebarContent.innerHTML = html;
 }
 
@@ -683,7 +713,7 @@ function renderTocTree() {
         html += escapeHtml(h.text);
         html += '</div>';
     }
-    sidebarContent.innerHTML = html;
+    sidebarContent.innerHTML = '<div class="sidebar-scroll">' + html + '</div>';
 }
 
 // --- Render Todos Tree (SVG) ---
@@ -707,9 +737,13 @@ function renderTodosTree() {
         const children = node.children || [];
         const hasChildren = children.length > 0 && children[0]?.id !== "CYCLE";
         const passId = extractPassId(node.id);
+        // Clamp visual depth to the configured max — deeper nodes are flattened
+        // at the deepest visible level (DB data stays unchanged).
+        const visDepth = Math.min(depth, MAX_TODO_DEPTH);
+        const flattened = depth > MAX_TODO_DEPTH ? ' data-flattened="true"' : "";
 
-        let html = '<details open class="todo-tree-node" style="--depth:' + depth + '" data-id="' + escapeHtml(node.id) + '" data-passid="' + escapeHtml(passId) + '">';
-        html += '<summary class="todo-node-content" style="margin-left:' + (24 + depth * 20) + 'px" onclick="onTodoNodeClick(this, \\'' + escapeHtml(node.id) + '\\')">';
+        let html = '<details open class="todo-tree-node" style="--depth:' + visDepth + '" data-id="' + escapeHtml(node.id) + '" data-passid="' + escapeHtml(passId) + '"' + flattened + '>';
+        html += '<summary class="todo-node-content" style="margin-left:' + (24 + visDepth * 20) + 'px" onclick="onTodoNodeClick(event, this, \\'' + escapeHtml(node.id) + '\\')">';
         html += '<span class="chevron"' + (hasChildren ? '' : ' style="visibility:hidden"') + '>▶</span>';
         html += '<span class="todo-status-dot" style="--status-color:' + color + '"></span>';
         html += '<span class="todo-title">' + title + '</span>';
@@ -736,6 +770,18 @@ function renderTodosTree() {
     const uniquePassIds = [...passIds].sort();
 
     let html = '<div class="todo-tree-toolbar"><button class="todo-toggle-all" onclick="toggleAllTodos()"><span class="icon">⊞</span><span id="toggleAllLabel">Collapse All</span></button></div>';
+
+    // Progress bar: completion of all sql todos
+    const allTodos = todosData?.todos || [];
+    const doneCount = allTodos.filter(t => t.status === "done").length;
+    if (allTodos.length > 0) {
+        const pct = Math.round((doneCount / allTodos.length) * 100);
+        html += '<div class="todo-progress-bar">'
+            + '<div class="todo-progress-track"><div class="todo-progress-fill" style="width:' + pct + '%"></div></div>'
+            + '<span class="todo-progress-label">' + doneCount + '/' + allTodos.length + ' done &middot; ' + pct + '%</span>'
+            + '</div>';
+    }
+
     html += '<div class="todo-filter-bar" id="todoFilterBar">';
     html += '<button class="todo-filter-btn active" data-pass="all" onclick="filterTodosByPass(\\'all\\')">All</button>';
     for (const pid of uniquePassIds) {
@@ -809,7 +855,12 @@ function toggleAllTodos() {
 }
 
 // --- Todo node click handler ---
-function onTodoNodeClick(element, todoId) {
+function onTodoNodeClick(event, element, todoId) {
+    // Clicking the chevron toggles the nested items (native details/summary
+    // behavior) — it must NOT open the details panel or change selection.
+    if (event && event.target && event.target.closest && event.target.closest(".chevron")) {
+        return;
+    }
     // Deselect all
     document.querySelectorAll(".todo-node-content").forEach(el => el.classList.remove("selected"));
     element.classList.add("selected");
