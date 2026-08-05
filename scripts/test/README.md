@@ -1,6 +1,17 @@
 # Test Scripts
 
-## Ralph v2 CLI smoke / publish gate
+> **Glossary:** repo-level harness vocabulary (shim, sentinel keys, dojo/staging, isolation gate, spike
+> gate, KNOWN-GAP, exit codes, evidence artifacts) is defined in [GLOSSARY.md](GLOSSARY.md). The
+> subsession argument-audit harness lives **inside its skill** (`skills/copilot-cli-subsession/tests/`),
+> so its vocabulary (case-ID buckets `s*`/`l*`, polarity-agnostic, COST GUARDRAIL, hot/cold-switch) is
+> defined in that skill's own `references/glossary.md` — skills are self-contained.
+>
+> **DEPRECATED (2026-08-05):** the Ralph CLI smoke harness below is no longer an active test harness.
+> The section is kept for history and as the origin of the report/evidence conventions now used by the
+> active harnesses (byok feature harness, subsession argument audit). Do not extend it; the canonical
+> vocabulary lives in [GLOSSARY.md](GLOSSARY.md).
+
+## Ralph v2 CLI smoke / publish gate (DEPRECATED)
 
 `scripts/test/ralph-v2-cli-smoke.ps1` is the deterministic smoke harness for the Ralph-v2 CLI plugin.
 
