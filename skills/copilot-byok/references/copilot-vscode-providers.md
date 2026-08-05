@@ -175,9 +175,9 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
 }
 ```
 
-### OpenCode Go — Responses API models (GPT-5.6 Luna)
+### OpenCode Go — Responses API model (GPT-5.6 Luna)
 
-GPT-5.6 Luna is served **only** through the OpenAI **Responses API** — OpenCode Go exposes no `chat/completions` endpoint for it. VS Code's Custom Endpoint provider supports a third `apiType: "responses"` for exactly this case (select **Responses** when adding via the UI, not Chat Completions).
+GPT-5.6 Luna is served through **both** the OpenAI Responses API (`/v1/responses`) and `chat/completions` — probes 2026-08-03 + re-verified 2026-08-05 (CLI 1.0.78) confirmed both work on OpenCode Go. `apiType: "responses"` is the **recommended** configuration for GPT-5-class models (it matches the CLI profile `wireApi: responses` and was verified end-to-end via the real CLI, exit 0, `model.call_start` = `gpt-5.6-luna`). Use `vendor: "customendpoint"` with `apiType: "responses"` (select **Responses** when adding via the UI). The `chat-completions` apiType also works if you prefer the completions wire.
 
 ```json
 {
@@ -205,11 +205,13 @@ GPT-5.6 Luna is served **only** through the OpenAI **Responses API** — OpenCod
 
 > **Token grounding.** [models.dev](https://models.dev/models/openai/gpt-5.6-luna/) lists the model's theoretical context as 1,050,000 tokens with a 128,000 output limit, but [OpenCode Go prices GPT-5.6 Luna in two per-request tiers split at 272K tokens](https://opencode.ai/docs/go/) (≤272K: $0.20/$1.20 · >272K: $0.40/$1.80 per MTok). The values above (200K input + 64K output = 264K) keep requests inside the cheaper tier and mirror the caps used by the other OpenCode Go OpenAI profiles. VS Code requires `maxInputTokens + maxOutputTokens` to stay within the model's context window — setting the theoretical 1,050,000 here would push requests into the 2x-priced tier and invite gateway compaction failures.
 >
-> `reasoningEffortFormat: "responses"` forwards thinking effort as a nested `reasoning.effort` object (it defaults to that automatically because the URL ends in `/responses`). Note GPT-5.6 Luna data is retained for 30 days under OpenAI policy — it does **not** have Zero Data Retention, so leave `zeroDataRetentionEnabled` unset.
+> `reasoningEffortFormat: "responses"` forwards thinking effort as a nested `reasoning.effort` object (it defaults to that automatically because the URL ends in `/responses`; per the VS Code schema, `responses` = nested `reasoning.effort`, `chat-completions` = top-level `reasoning_effort`). This is the *correct* form — a top-level `reasoning_effort` field on the responses wire is rejected with 400, and `max_prompt_tokens` is likewise rejected on `/v1/responses` (but VS Code does not send it there; see the [CLI wire-format matrix](../copilot-byok/references/copilot-cli-providers.md) for the full curl evidence). Note GPT-5.6 Luna data is retained for 30 days under OpenAI policy — it does **not** have Zero Data Retention, so leave `zeroDataRetentionEnabled` unset.
 
 ### OpenCode Go — Anthropic-compatible models (MiniMax, Qwen)
 
 Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to store the API key, then edit JSON to add all models:
+
+> **Endpoint correction (2026-08-05)**: the [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints) list MiniMax (M3/M2.7/M2.5) and Qwen (3.8 Max/3.7 Max/3.7 Plus/3.6 Plus) at **`https://opencode.ai/zen/go/v1/messages`** with `@ai-sdk/anthropic`. An earlier 2026-08-03 probe reported 401 on `/v1/messages`, but that used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key` (+ `anthropic-version`) headers, which VS Code's `messages` apiType sends automatically. So the 401 was an auth-header artifact, **not** evidence the endpoint is unsupported. The same models also responded on `chat/completions` in that probe, so the gateway tolerates both — but `/v1/messages` is the documented path and the one to configure.
 
 ```json
 {
@@ -295,7 +297,7 @@ To mirror the CLI convention (`opencode-home` / `opencode-work`), create one pro
 Setup:
 
 1. **Chat: Manage Language Models → Add Models → Custom Endpoint** — repeat once per row (6 providers). When prompted, paste the raw API key for that account; VS Code stores it in secret storage and writes a `${input:chat.lm.secret.XXXX}` reference. Never hand-edit `apiKey`.
-2. Paste the model list from the [OpenAI-compatible](#opencode-go--openai-compatible-models-deepseek-kimi-glm-mimo), [Responses](#opencode-go--responses-api-models-gpt-56-luna), or [Anthropic-compatible](#opencode-go--anthropic-compatible-models-minimax-qwen) section into each provider's `models` array.
+2. Paste the model list from the [OpenAI-compatible](#opencode-go--openai-compatible-models-deepseek-kimi-glm-mimo), [Responses](#opencode-go--responses-api-model-gpt-56-luna), or [Anthropic-compatible](#opencode-go--anthropic-compatible-models-minimax-qwen) section into each provider's `models` array.
 3. Reload the window.
 
 Model `name` fields are identical across accounts (e.g. `DeepSeek V4 Flash`), so the provider `name` is what distinguishes Home from Work in the picker. Per-agent model pinning and `chat.*Agent.model` settings still reference model names; choose the account by selecting the corresponding provider in the conversation.
@@ -495,6 +497,8 @@ Paste the full model list from the [OpenCode Go OpenAI](#opencode-go--openai-com
 
 Repeat Step 1 but choose **API Type: Messages** and name it `OpenCode Go (Anthropic)` (or `OpenCode Go (Home, Anthropic)` / `OpenCode Go (Work, Anthropic)` with two accounts). Add the Anthropic-compatible models from the [OpenCode Go Anthropic](#opencode-go--anthropic-compatible-models-minimax-qwen) section.
 
+> GPT-5.6 Luna uses a separate provider — see [OpenCode Go — Responses API model (GPT-5.6 Luna)](#opencode-go--responses-api-model-gpt-56-luna) (API Type: Responses).
+
 ### Step 4: Reload VS Code
 
 After editing `chatLanguageModels.json`, **reload VS Code** (Reload Window command) for changes to take effect.
@@ -508,7 +512,7 @@ All configured models appear in the chat model picker dropdown simultaneously.
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
 | Model not in picker | `toolCalling` not set to `true` | Copilot Chat requires tool calling — set `"toolCalling": true` |
-| 401 errors | Wrong API type for model family | Use `chat-completions` for OpenAI-compatible, `messages` for Anthropic-compatible |
+| 401 errors | Wrong API type for model family | On OpenCode Go use the **documented** endpoint per family: `chat-completions` for DeepSeek/Kimi/GLM/MiMo, `messages` for MiniMax/Qwen (Anthropic Messages API — `x-api-key` auth), `responses` for GPT-5.6 Luna. See [OpenCode Go docs endpoints](https://opencode.ai/docs/go/#endpoints). |
 | Context-limit errors | `maxInputTokens` too high for model | Reduce to match the model's actual context window |
 | Model picker empty | No models configured with `toolCalling: true` | All Copilot Chat models must support tool calling |
 | "Language Models" command missing | Plan tier doesn't support BYOK | Check Copilot plan supports third-party models |

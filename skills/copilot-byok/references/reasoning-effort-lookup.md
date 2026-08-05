@@ -12,9 +12,11 @@ Grounded lookup for **which `--reasoning-effort` level to use for a specific mod
 
 | Model | Bare model ID (`COPILOT_MODEL`) | Provider type | Wire format | Supported levels | Recommended default |
 | --- | --- | --- | --- | --- | --- |
-| GPT-5.6 Luna | `gpt-5.6-luna` | `openai` | `responses` | Full range: `none` … `max` | `high` |
+| GPT-5.6 Luna | `gpt-5.6-luna` | `openai` | `completions` or `responses` | Full range: `none` … `max` | `high` |
 | DeepSeek V4 Flash | `deepseek-v4-flash` | `openai` | `completions` | `low`, `medium`, `high` (no `xhigh` / `max`) | `high` |
 | DeepSeek V4 Pro | `deepseek-v4-pro` | `openai` | `completions` | `low`, `medium`, `high` (no `xhigh` / `max`) | `high` |
+
+> **Wire placement (2026-08-05)**: on the `responses` wire, GPT-5.6 Luna requires the effort **nested** as `reasoning.effort` — a top-level `reasoning_effort` field returns 400. Copilot CLI/VS Code already send the nested form, so `wireApi: responses` works end-to-end. On `completions`, use top-level `reasoning_effort` (all levels incl. `max` verified).
 
 ## OpenCode Go models WITHOUT reasoning-effort support
 
@@ -25,8 +27,8 @@ For these, never pass `--reasoning-effort`; thinking is implicit or always-on.
 | Kimi K2.x (Moonshot AI) | `kimi-k2.7-code`, `kimi-k2.6`, `kimi-k2.5` | `openai` | K2.7 thinking always-on; K2.6/K2.5 implicit |
 | GLM (Zhipu AI) | `glm-5.2`, `glm-5.1`, `glm-5` | `openai` | No controllable levels |
 | MiMo (Xiaomi) | `mimo-v2.5`, `mimo-v2.5-pro`, `mimo-v2-pro`, `mimo-v2-omni` | `openai` | No controllable levels |
-| Qwen3.x (Alibaba) | `qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus` | `anthropic` | Implicit thinking |
-| MiniMax | `minimax-m3`, `minimax-m2.7`, `minimax-m2.5` | `anthropic` | Implicit thinking |
+| Qwen3.x (Alibaba) | `qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus` | `anthropic` (`messages` per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints)) | Implicit thinking |
+| MiniMax | `minimax-m3`, `minimax-m2.7`, `minimax-m2.5` | `anthropic` (`messages` per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints)) | Implicit thinking |
 
 ## OpenCode Go models with UNKNOWN reasoning-effort support
 

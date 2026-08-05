@@ -10,7 +10,7 @@ Quick-reference for configuring Copilot CLI BYOK providers.
 | `COPILOT_MODEL` | Yes | Model identifier. Can also be set via `--model` flag. |
 | `COPILOT_PROVIDER_TYPE` | No | Provider type: `openai`, `azure`, or `anthropic`. Defaults to `openai`. |
 | `COPILOT_PROVIDER_API_KEY` | No | API key. Omit for unauthenticated providers (e.g., local Ollama). |
-| `COPILOT_PROVIDER_WIRE_API` | No | Provider wire format: `completions` (default) or `responses`. Required for GPT-5 class OpenAI models — e.g. OpenCode Go's GPT-5.6 Luna is Responses-API only. |
+| `COPILOT_PROVIDER_WIRE_API` | No | Provider wire format: `completions` (default) or `responses`. GPT-5 class OpenAI models (e.g. OpenCode Go's GPT-5.6 Luna) work on **both** on OpenCode Go (probe 2026-08-03, re-verified 2026-08-05); `responses` is the recommended default for GPT-5-class. On the `responses` wire the reasoning field must be **nested** (`reasoning.effort`, what Copilot CLI sends) — a top-level `reasoning_effort` is rejected with 400. `max_prompt_tokens` is also rejected on the `responses` wire, but the CLI never sends it there (verified end-to-end 2026-08-05, CLI 1.0.78). |
 | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` | No | Override the max prompt token limit Copilot CLI uses for the model. Useful when the model is not in Copilot's built-in catalog. |
 | `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS` | No | Override the max output token limit Copilot CLI uses for the model. |
 | `COPILOT_OFFLINE` | No | Set to `true` to prevent Copilot CLI from contacting GitHub's servers. |
@@ -21,7 +21,7 @@ Quick-reference for configuring Copilot CLI BYOK providers.
 |---------------|---------------------|
 | `openai` | OpenAI, Ollama, vLLM, Foundry Local, OpenCode Go (OpenAI-compatible models), and any OpenAI Chat Completions / Responses API-compatible endpoint (default) |
 | `azure` | Azure OpenAI Service |
-| `anthropic` | Anthropic (Claude models), OpenCode Go (Anthropic-compatible models) |
+| `anthropic` | Anthropic (Claude models), OpenCode Go (Anthropic-compatible models — MiniMax, Qwen; see [OpenCode Go docs endpoints](https://opencode.ai/docs/go/#endpoints)) |
 
 ## Model Requirements
 
@@ -74,7 +74,8 @@ The profile system tracks this per model. Profiles set `"reasoningEffortSupporte
 
 OpenAI-specific note:
 - GPT-5 class models may perform best with `COPILOT_PROVIDER_WIRE_API=responses`.
-- On OpenCode Go, GPT-5.6 Luna is Responses-API **only** — the `completions` wire format fails against it. GPT-5.6-class models also support the full `--reasoning-effort` range including `max`, unlike the GLM/Kimi/MiMo/Qwen/MiniMax families listed above.
+- On OpenCode Go, GPT-5.6 Luna works on **both** `completions` and `responses` (probe 2026-08-03, re-verified 2026-08-05) — the earlier "Responses-API only" constraint was falsified. GPT-5.6-class models also support the full `--reasoning-effort` range including `max`, unlike the GLM/Kimi/MiMo/Qwen/MiniMax families listed above.
+- **Wire-format caveat (2026-08-05 curl probes)**: on the `responses` wire, the reasoning effort must be nested as `reasoning.effort` (what Copilot CLI / VS Code send); a top-level `reasoning_effort` field is rejected with 400. `max_prompt_tokens` is likewise rejected on the `responses` wire — but the CLI does not send it there, so the stored profile (`wireApi: responses` + `maxPromptTokens: 200000`) works end-to-end (verified via real CLI run, exit 0, `model.call_start` = `gpt-5.6-luna`). The `completions` wire accepts all of these fields without caveats.
 
 Version note:
 - Do not assume a `COPILOT_*` environment variable exists for reasoning effort unless it appears in `copilot help environment` for the installed CLI version.
@@ -184,7 +185,7 @@ Older Moonshot models (`kimi-k2`, `moonshot-v1-*`) are deprecated. Use the Kimi 
 
 ## OpenCode Go
 
-OpenCode Go is a subscription-based provider offering reliable access to popular open coding models via a single shared base URL. Models use one of two endpoint formats depending on the model family.
+OpenCode Go is a subscription-based provider offering reliable access to popular open coding models via a single shared base URL. The [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints) list the models by endpoint family: `chat/completions` (DeepSeek, GLM, Kimi, MiMo, Grok, Hy3), `responses` (GPT-5.6 Luna), and `messages` (MiniMax, Qwen). A 2026-08-03 probe confirmed the OpenAI-compatible paths work for the models tested; an early "401 on `/v1/messages`" observation used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key` (+ `anthropic-version`) headers, so that 401 was an auth-header artifact, not evidence the endpoint is unsupported. Use the documented endpoint per family.
 
 ### Prerequisites
 
@@ -203,14 +204,12 @@ OpenCode Go is a subscription-based provider offering reliable access to popular
 https://opencode.ai/zen/go/v1
 ```
 
-This single base URL serves both OpenAI-compatible and Anthropic-compatible models. Copilot CLI automatically appends the correct path based on `COPILOT_PROVIDER_TYPE`.
+This single base URL serves every model. Copilot CLI appends the correct path based on `COPILOT_PROVIDER_TYPE` / `COPILOT_PROVIDER_WIRE_API`.
 
-**Critical base URL pattern:**
-- `COPILOT_PROVIDER_TYPE=openai` + wire API `completions` (default) → use `https://opencode.ai/zen/go/v1` (SDK appends `/chat/completions`)
-- `COPILOT_PROVIDER_TYPE=openai` + wire API `responses` → use `https://opencode.ai/zen/go/v1` (SDK appends `/responses`) — required for GPT-5.6 Luna
-- `COPILOT_PROVIDER_TYPE=anthropic` → use `https://opencode.ai/zen/go` (SDK appends `/v1/messages`)
-
-The Anthropic-type base URL strips the `/v1` because the SDK already adds it.
+**Endpoint per family (per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints)):**
+- `COPILOT_PROVIDER_TYPE=openai` + wire API `completions` (default) → `https://opencode.ai/zen/go/v1/chat/completions` — DeepSeek, GLM, Kimi, MiMo (also verified working for the models probed 2026-08-03)
+- `COPILOT_PROVIDER_TYPE=openai` + wire API `responses` → `https://opencode.ai/zen/go/v1/responses` — GPT-5.6 Luna
+- `COPILOT_PROVIDER_TYPE=anthropic` → `https://opencode.ai/zen/go/v1/messages` — MiniMax (M3/M2.7/M2.5), Qwen (3.8 Max/3.7 Max/3.7 Plus/3.6 Plus). Note: the Messages API authenticates with `x-api-key` (not `Authorization: Bearer`); an early 2026-08-03 Bearer probe returned 401, which was an auth-header artifact, not an unsupported endpoint.
 
 **CRITICAL: `COPILOT_MODEL` must use the bare model ID (e.g., `deepseek-v4-flash`), never the `opencode-go/` prefix.** The `opencode-go/<model-id>` format is used **only** in OpenCode TUI config (`opencode.json`) — not in Copilot CLI's `COPILOT_MODEL`. The prefix in profile names like `opencode-go-deepseek-v4-flash` is just a naming convention for the profile key, not the model value.
 
@@ -222,7 +221,7 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 
 | Model | Bare Model ID (`COPILOT_MODEL`) | Provider Type | Wire Format | Reasoning Effort |
 |-------|-------------------------------|---------------|-------------|-----------------|
-| GPT-5.6 Luna | `gpt-5.6-luna` | `openai` | `responses` | Supported (full range, incl. `max`) |
+| GPT-5.6 Luna | `gpt-5.6-luna` | `openai` | `completions` or `responses` | Supported (full range, incl. `max`) |
 | DeepSeek V4 Flash | `deepseek-v4-flash` | `openai` | `completions` | Supported (`low`, `medium`, `high`) |
 | DeepSeek V4 Pro | `deepseek-v4-pro` | `openai` | `completions` | Supported (`low`, `medium`, `high`) |
 | Kimi K2.7 Code | `kimi-k2.7-code` | `openai` | `completions` | Not supported (thinking always-on) |
@@ -233,11 +232,13 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | GLM-5 | `glm-5` | `openai` | `completions` | Not supported |
 | MiMo-V2.5 (Xiaomi, 1M context) | `mimo-v2.5` | `openai` | `completions` | Not supported |
 | MiMo-V2.5-Pro (Xiaomi, 1M context) | `mimo-v2.5-pro` | `openai` | `completions` | Not supported |
-| Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `completions` | Not supported (implicit thinking) |
-| Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `completions` | Not supported (implicit thinking) |
-| Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `completions` | Not supported (implicit thinking) |
-| MiniMax M3 | `minimax-m3` | `anthropic` | `completions` | Not supported (implicit thinking) |
-| MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `completions` | Not supported (implicit thinking) |
+| Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
+| Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `messages` | Not supported (implicit thinking) |
+| Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
+| MiniMax M3 | `minimax-m3` | `anthropic` | `messages` | Not supported (implicit thinking) |
+| MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `messages` | Not supported (implicit thinking) |
+
+> **Endpoint note (2026-08-05)**: per the [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints), Qwen3.x and MiniMax are listed at `/v1/messages` with `@ai-sdk/anthropic` (provider type `anthropic`, wire `messages`). A 2026-08-03 probe found these models also respond on `openai` / `chat/completions` (gateway tolerates both), but the documented path is `messages`. An early "401 on `/v1/messages`" observation used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key`, so that 401 was an auth-header artifact.
 
 > The model list may change over time. Fetch the current list at any time:
 > ```
@@ -267,11 +268,11 @@ $env:COPILOT_MODEL = 'deepseek-v4-flash'
 copilot
 ```
 
-#### Qwen3.7 Plus (Anthropic-compatible — note: base URL without `/v1` because SDK appends it)
+#### Qwen3.7 Plus (OpenAI-compatible per 2026-08-03 probe)
 
 ```powershell
-$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go'
-$env:COPILOT_PROVIDER_TYPE = 'anthropic'
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
 $env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
 $env:COPILOT_MODEL = 'qwen3.7-plus'
 copilot
@@ -287,9 +288,9 @@ $env:COPILOT_MODEL = 'kimi-k2.7-code'
 copilot
 ```
 
-### GPT-5.6 Luna (Responses API)
+### GPT-5.6 Luna (Responses API — both wire formats verified)
 
-GPT-5.6 Luna is OpenCode Go's cost-efficient GPT-5.6 entry point. Unlike every other OpenCode Go model, it is served **only** through the OpenAI **Responses API** — there is no `chat/completions` endpoint for it, so `COPILOT_PROVIDER_WIRE_API=responses` is mandatory.
+GPT-5.6 Luna is OpenCode Go's cost-efficient GPT-5.6 entry point. Probes 2026-08-03 + 2026-08-05: it responds through **both** the OpenAI Responses API (`/v1/responses`) and `chat/completions` (`/v1/chat/completions`). `COPILOT_PROVIDER_WIRE_API=responses` remains the recommended configuration for GPT-5-class models, but it is no longer mandatory on OpenCode Go. Re-verified 2026-08-05 (CLI 1.0.78) with the real CLI against the stored profile (`responses` wire + `maxPromptTokens: 200000` + `--reasoning-effort high`): exit 0, `model.call_start` = `gpt-5.6-luna`, clean completion.
 
 | Property | Value | Source |
 |----------|-------|--------|
@@ -300,6 +301,17 @@ GPT-5.6 Luna is OpenCode Go's cost-efficient GPT-5.6 entry point. Unlike every o
 | Capabilities | tool calling, reasoning (incl. `max`), structured output; text / image / PDF input | models.dev |
 | Gateway price tiers | ≤ 272K tokens: $0.20 / $1.20 per MTok → > 272K tokens: $0.40 / $1.80 (2x) | [OpenCode Go docs](https://opencode.ai/docs/go/) |
 | Go usage | Lower multiplier — ~2,050 / 5,100 / 10,250 requests per 5-hour / week / month (typical request: 1,000 input + 50,000 cached + 220 output tokens) | OpenCode Go docs |
+
+**Wire-format nuance (2026-08-05 curl matrix).** Raw-API probes of `gpt-5.6-luna`:
+
+| Request | `chat/completions` | `responses` |
+|---------|--------------------|------------|
+| bare (or `max_output_tokens` only) | 200 ✅ | 200 ✅ |
+| + `reasoning_effort` (top-level) | 200 ✅ (`high`/`max`) | **400 ❌** (top-level field is wrong placement) |
+| + nested `reasoning.effort` | — | 200 ✅ (`high`/`low`) |
+| + `max_prompt_tokens` | 200 ✅ | **400 ❌** |
+
+Copilot CLI sends the nested `reasoning.effort` form on the `responses` wire and does not send `max_prompt_tokens` there, so the stored `responses` profile works end-to-end. Hand-rolled callers of `/v1/responses` must use the nested form and omit `max_prompt_tokens`; `chat/completions` accepts all fields without caveats.
 
 **Grounded token overrides.** OpenCode Go prices GPT-5.6 Luna in two per-request tiers split at **272K tokens**. Staying under that boundary avoids both the 2x price and gateway compaction failures — the same gateway-limit discovery process used for DeepSeek V4 Flash (whose empirically validated 325K prompt cap is far below its 1M theoretical context) applies here:
 
