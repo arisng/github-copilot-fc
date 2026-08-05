@@ -22,6 +22,20 @@ param(
     [switch]$SkipWSL
 )
 
+# ============================================================================
+# DEPRECATED (2026-08-05): prefer `npx skills <options>` (the Skills CLI,
+# https://www.npmjs.com/package/skills) for managing skills — e.g.
+#   npx skills add <owner>/<repo>        install a skill package
+#   npx skills list                       list installed skills
+#   npx skills remove <skill>             remove a skill
+#   npx skills update                     update skills
+# For a single local SKILL.md, `copilot skill add <path>` also works natively.
+# This script is retained for workspace-to-personal copy workflows and legacy
+# callers; it prints a deprecation warning and will be removed in a future
+# release. New work should NOT depend on it.
+# ============================================================================
+Write-Warning "DEPRECATED: publish-skills.ps1 is deprecated. Prefer 'npx skills <options>' (see deprecation banner in this script)."
+
 . "$PSScriptRoot/wsl-helpers.ps1"
 
 function Publish-SkillsToPersonal {

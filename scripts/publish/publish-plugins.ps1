@@ -103,6 +103,22 @@ if ($SkipWSL) {
     $Environment = 'windows'
 }
 
+# ============================================================================
+# DEPRECATED (2026-08-05): prefer the native `copilot plugins <options>` CLI
+# (verified in CLI 1.0.77) for plugin management — e.g.
+#   copilot plugins install <spec>        install a plugin (also --skill)
+#   copilot plugins list                  list configured plugins
+#   copilot plugins remove <name>         remove an installed tool
+#   copilot plugins enable|disable <name> toggle a plugin
+#   copilot plugins update [name]         update a plugin
+#   copilot plugins marketplace           manage plugin marketplaces
+# Use `scripts/publish/build-plugins.ps1` if you only need to build the local
+# bundle (plugin.json + embedded instructions) without installing. This script
+# is retained for the workspace bundle→install flow and legacy callers; it
+# prints a deprecation warning and will be removed in a future release.
+# ============================================================================
+Write-Warning "DEPRECATED: publish-plugins.ps1 is deprecated. Prefer 'copilot plugins <options>' (see deprecation banner in this script)."
+
 function Import-BuildPluginFunctions {
     [CmdletBinding()]
     param(
