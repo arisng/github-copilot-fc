@@ -3,8 +3,8 @@ param(
     [string[]]$Skills,
 
     [Parameter(Mandatory = $false)]
-    [ValidateSet('copilot', 'codex', 'claude')]
-    [string[]]$Targets = @('copilot'),
+    [ValidateSet('agents', 'copilot', 'codex', 'claude')]
+    [string[]]$Targets = @('agents'),
 
     # force mode is now the default.  use -NoForce to opt out when you really
     # want to preserve an existing copy instead of overwriting it.
@@ -52,8 +52,8 @@ function Publish-SkillsToPersonal {
         Array of skill names to publish. If empty, publishes all skills.
 
     .PARAMETER Targets
-        Personal skill targets to publish to. Defaults to `copilot` only.
-        Valid values: `copilot`, `codex`, `claude`.
+        Personal skill targets to publish to. Defaults to `agents` only.
+        Valid values: `agents`, `copilot`, `codex`, `claude`.
 
     .PARAMETER Force
         Overwrite existing skills.  This flag is **on by default**; the script
@@ -77,7 +77,7 @@ function Publish-SkillsToPersonal {
         Publishes only the 'diataxis' and 'beads' skills to Copilot.
 
     .EXAMPLE
-        Publish-SkillsToPersonal -Targets copilot,codex,claude
+        Publish-SkillsToPersonal -Targets agents,copilot,codex,claude
 
         Publishes skills to all supported personal targets on Windows and WSL.
 
@@ -109,11 +109,13 @@ function Publish-SkillsToPersonal {
 
     $projectSkillsPath = Join-Path $PSScriptRoot "..\..\skills"
     $windowsTargetMap = [ordered]@{
+        agents  = (Join-Path $env:USERPROFILE '.agents\skills')
         copilot = (Join-Path $env:USERPROFILE '.copilot\skills')
         codex   = (Join-Path $env:USERPROFILE '.codex\skills')
         claude  = (Join-Path $env:USERPROFILE '.claude\skills')
     }
     $wslTargetMap = [ordered]@{
+        agents  = '.agents/skills'
         copilot = '.copilot/skills'
         codex   = '.codex/skills'
         claude  = '.claude/skills'
