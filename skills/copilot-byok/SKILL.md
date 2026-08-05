@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.12.0
+  version: 0.12.1
   lastVerified: 2026-08-05
 ---
 
@@ -104,7 +104,7 @@ Resolution order: `--account` flag → profile `account` pin → `activeAccount`
 VS Code ignores the CLI `accounts` registry — each account is a **separate provider entry** with its own key in secret storage. To add the second account:
 
 1. **Chat: Manage Language Models → Add Models → Custom Endpoint**, name it `OpenCode Go (Work, OpenAI)`, paste the work key, API Type *Chat Completions*. This stores the key and writes a `${input:chat.lm.secret.*}` reference.
-2. Run the helper from the skill's `scripts/` folder — it renames the existing `OpenCode Go (OpenAI|Anthropic)` providers to `(Home, …)` and clones them as `(Work, …)` using the new secret reference:
+2. Run the helper from the skill's `scripts/` folder — it renames the existing `OpenCode Go (OpenAI|Responses|Anthropic)` providers to `(Home, …)` and clones them as `(Work, …)` using the new secret reference:
 
 ```powershell
 .\scripts\opencode-vscode-add-work-account.ps1

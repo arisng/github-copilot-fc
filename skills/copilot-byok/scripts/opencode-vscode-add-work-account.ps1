@@ -8,15 +8,15 @@
       1. VS Code Insiders -> Command Palette -> "Chat: Manage Language Models"
       2. "Add Models" -> "Custom Endpoint"
       3. Name: OpenCode Go (Work, OpenAI) | API key: <work key> | API Type: Chat Completions
+         (or "OpenCode Go (Work, Responses)" / API Type: Responses for gpt-5.6-luna)
       4. This writes a new provider entry whose apiKey is "${input:chat.lm.secret.XXXX}".
-    Then run this script. It renames the two existing "OpenCode Go (OpenAI|Anthropic)"
+    Then run this script. It renames the existing "OpenCode Go (OpenAI|Responses|Anthropic)"
     providers to "(Home, ...)" and clones them into "(Work, ...)" entries, reusing the
     secret reference from the provider you just added (or from -WorkSecretRef).
 .PARAMETER WorkSecretRef
     Optional. The secret reference to use for the Work providers, e.g.
     "${input:chat.lm.secret.abc123}". If omitted, the script looks for an existing
-    provider named "OpenCode Go (Work, OpenAI)" (as created by the UI step) and
-    reuses its secret.
+    "OpenCode Go (Work, ...)" provider (as created by the UI step) and reuses its secret.
 .PARAMETER LmFile
     Optional. Path to chatLanguageModels.json. Defaults to the VS Code Insiders file.
 .EXAMPLE
@@ -52,6 +52,7 @@ function Get-Provider {
 # 1) Rename existing OpenCode providers to (Home, ...)
 $renameMap = @{
     'OpenCode Go (OpenAI)'      = 'OpenCode Go (Home, OpenAI)'
+    'OpenCode Go (Responses)'   = 'OpenCode Go (Home, Responses)'
     'OpenCode Go (Anthropic)'   = 'OpenCode Go (Home, Anthropic)'
 }
 foreach ($k in $renameMap.Keys) {
@@ -62,19 +63,22 @@ foreach ($k in $renameMap.Keys) {
 
 # 2) Determine the work secret reference
 if (-not $WorkSecretRef) {
-    $uiEntry = Get-Provider -Name 'OpenCode Go (Work, OpenAI)'
-    if ($uiEntry -and $uiEntry.apiKey) {
+    $uiEntry = @('OpenCode Go (Work, OpenAI)', 'OpenCode Go (Work, Responses)', 'OpenCode Go (Work, Anthropic)') |
+        ForEach-Object { Get-Provider -Name $_ } |
+        Where-Object { $_ -and $_.apiKey } |
+        Select-Object -First 1
+    if ($uiEntry) {
         $WorkSecretRef = $uiEntry.apiKey
-        Write-Host "Using secret ref from UI-added provider: $WorkSecretRef" -ForegroundColor Gray
+        Write-Host "Using secret ref from UI-added provider '$($uiEntry.name)': $WorkSecretRef" -ForegroundColor Gray
     }
     else {
-        Write-Error "Could not find a 'OpenCode Go (Work, OpenAI)' provider (from the UI step) and -WorkSecretRef was not provided."
+        Write-Error "Could not find an 'OpenCode Go (Work, ...)' provider (from the UI step) and -WorkSecretRef was not provided."
         exit 1
     }
 }
 
 # 3) Clone Home providers into Work providers (replace any pre-existing Work entries)
-foreach ($suffix in @('OpenAI', 'Anthropic')) {
+foreach ($suffix in @('OpenAI', 'Responses', 'Anthropic')) {
     $src = Get-Provider -Name "OpenCode Go (Home, $suffix)"
     if (-not $src) { Write-Warning "OpenCode Go (Home, $suffix) not found; skipping Work clone."; continue }
     $existing = Get-Provider -Name "OpenCode Go (Work, $suffix)"
