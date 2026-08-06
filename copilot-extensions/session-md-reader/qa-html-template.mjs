@@ -34,7 +34,6 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
   .sidebar { width: var(--sidebar-width); min-width: var(--sidebar-width); background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; position: relative; }
   .sidebar-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
   .sidebar-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); word-break: break-word; }
-  .sidebar-header .session-id { font-size: 11px; color: var(--accent-dim); font-family: monospace; word-break: break-word; }
   .sidebar-header .session-uuid { font-size: 10px; color: var(--text-muted); font-family: monospace; word-break: break-all; margin-top: 2px; }
   .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
   .sidebar-tab { flex: 1; padding: 8px; text-align: center; font-size: 12px; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--text-muted); transition: all 0.2s; }
@@ -116,7 +115,6 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
   .sidebar.collapsed { width: 48px; min-width: 48px; }
   .sidebar.collapsed .sidebar-header { padding: 10px 8px; justify-content: center; }
   .sidebar.collapsed .sidebar-header h2,
-  .sidebar.collapsed .sidebar-header .session-id,
   .sidebar.collapsed .sidebar-header div { display: none; }
   .sidebar.collapsed .sidebar-header svg { margin: 0; }
   .sidebar.collapsed .sidebar-tabs { flex-direction: column; border-bottom: none; }
@@ -272,13 +270,16 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
   .todo-details-panel {
     display: none;
     flex-shrink: 0;
+    flex-direction: column;
     background: var(--sidebar-bg);
     border-top: 1px solid var(--border);
-    padding: 12px; height: 350px; max-height: 350px; overflow-y: auto;
+    padding: 12px; height: 350px; max-height: 350px;
+    overflow: hidden;
     font-size: 11px; line-height: 1.5;
   }
-  .todo-details-panel.open { display: block; }
+  .todo-details-panel.open { display: flex; flex-direction: column; }
   .todo-details-header {
+    flex-shrink: 0;
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 8px; padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
@@ -293,16 +294,30 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
     border-radius: 3px; flex-shrink: 0;
   }
   .todo-details-close:hover { background: var(--surface); color: var(--text); }
+  #todoDetailBody {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .todo-details-metadata {
+    flex-shrink: 0;
+    display: flex; flex-direction: column;
+  }
   .todo-details-field {
+    display: flex; align-items: baseline; gap: 4px;
     padding: 3px 0; color: var(--text-muted);
   }
-  .todo-details-field .label { color: var(--text-muted); font-weight: 500; }
+  .todo-details-field .label { color: var(--text-muted); font-weight: 500; flex-shrink: 0; }
   .todo-details-field .value { color: var(--text); word-break: break-word; }
   .todo-details-description {
-    padding: 6px 8px; margin: 4px 0;
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    margin-top: 8px; padding: 8px;
     background: var(--surface); border-radius: 4px;
+  }
+  .todo-details-description #todoDetailDesc {
+    flex: 1; min-height: 0; overflow-y: auto;
     font-size: 10px; color: var(--text-muted); line-height: 1.5;
-    max-height: 80px; overflow-y: auto;
     word-break: break-word; white-space: pre-wrap;
   }
   .todo-details-dep {
@@ -376,7 +391,6 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       <div>
         <h2 id="sidebarTitle">Session Files</h2>
-        <div class="session-id" id="sessionLabel">Loading...</div>
         <div class="session-uuid" id="sessionUuidLabel"></div>
       </div>
     </div>
@@ -441,7 +455,6 @@ const mainContent = document.getElementById("mainContent");
 const welcomeView = document.getElementById("welcomeView");
 const loadingView = document.getElementById("loadingView");
 const renderedContent = document.getElementById("renderedContent");
-const sessionLabel = document.getElementById("sessionLabel");
 const fileCountBadge = document.getElementById("fileCountBadge");
 const activeFileInfo = document.getElementById("activeFileInfo");
 const sidebarTitle = document.getElementById("sidebarTitle");
@@ -464,12 +477,10 @@ async function loadSessionInfo() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.name) {
-            sessionLabel.textContent = data.name;
             sidebarTitle.textContent = data.name;
             document.title = "MD: " + data.name;
             welcomeTitle.textContent = data.name;
         } else if (data.shortId) {
-            sessionLabel.textContent = data.shortId;
             sidebarTitle.textContent = data.shortId;
             document.title = "MD: " + data.shortId;
         }
@@ -585,7 +596,7 @@ document.addEventListener("keydown", (e) => {
 // --- Load file list ---
 async function loadFiles() {
     if (!SESSION_UUID) {
-        sessionLabel.textContent = "No session UUID";
+        sidebarTitle.textContent = "No session UUID";
         fileCountBadge.textContent = "No session selected";
         return;
     }
@@ -801,13 +812,14 @@ function renderTodosTree() {
     html += '<button class="todo-details-close" onclick="closeTodoDetails()">&times;</button>';
     html += '</div>';
     html += '<div id="todoDetailBody">';
+    html += '<div class="todo-details-metadata">';
     html += '<div class="todo-details-field"><span class="label">ID: </span><span class="value" id="todoDetailId"></span></div>';
     html += '<div class="todo-details-field"><span class="label">Status: </span><span class="value" id="todoDetailStatus"></span></div>';
-    html += '<div class="todo-details-field"><span class="label">Description:</span></div>';
-    html += '<div class="todo-details-description" id="todoDetailDesc"></div>';
     html += '<div class="todo-details-field"><span class="label">Created: </span><span class="value" id="todoDetailCreated"></span></div>';
     html += '<div class="todo-details-field"><span class="label">Updated: </span><span class="value" id="todoDetailUpdated"></span></div>';
     html += '<div class="todo-details-field" id="todoDetailDepsContainer" style="display:none"><span class="label">Dependencies: </span><span id="todoDetailDeps"></span></div>';
+    html += '</div>';
+    html += '<div class="todo-details-description"><div id="todoDetailDesc"></div></div>';
     html += '</div></div>';
 
     sidebarContent.innerHTML = html;
@@ -861,6 +873,13 @@ function onTodoNodeClick(event, element, todoId) {
     if (event && event.target && event.target.closest && event.target.closest(".chevron")) {
         return;
     }
+    // Any other click on the row must NOT toggle collapse/expand — only the
+    // chevron does. Suppress the native details/summary toggle (the panel is
+    // opened below). Keyboard activation (Enter/Space on a focused summary)
+    // still toggles natively, which is intentionally left unchanged.
+    if (event && event.preventDefault) {
+        event.preventDefault();
+    }
     // Deselect all
     document.querySelectorAll(".todo-node-content").forEach(el => el.classList.remove("selected"));
     element.classList.add("selected");
@@ -892,7 +911,7 @@ function onTodoNodeClick(event, element, todoId) {
     const depsContainer = document.getElementById("todoDetailDepsContainer");
     const depsEl = document.getElementById("todoDetailDeps");
     if (depNames.length > 0) {
-        depsContainer.style.display = "block";
+        depsContainer.style.display = "flex";
         depsEl.innerHTML = depNames.map(n => '<span class="todo-details-dep">' + escapeHtml(n) + '</span>').join(" ");
     } else {
         depsContainer.style.display = "none";
@@ -1020,7 +1039,7 @@ if (SESSION_UUID) {
     loadFiles();
     loadSessionInfo();
 } else {
-    sessionLabel.textContent = "No session UUID";
+    sidebarTitle.textContent = "No session UUID";
     fileCountBadge.textContent = "Provide sessionUuid to open";
 }
 </script>
