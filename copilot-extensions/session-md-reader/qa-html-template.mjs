@@ -91,6 +91,68 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
   .main em { font-style: italic; }
   .main h1, .main h2, .main h3, .main h4, .main h5, .main h6 { scroll-margin-top: 16px; }
 
+  /* ── Frontmatter metadata card ── */
+  .fm-card {
+    margin: 4px 0 20px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-dim);
+    border-radius: 6px;
+    background: var(--sidebar-bg);
+    overflow: hidden;
+  }
+  .fm-card[open] { margin-bottom: 24px; }
+  .fm-summary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; cursor: pointer; list-style: none;
+    user-select: none; font-size: 12px;
+  }
+  .fm-summary::-webkit-details-marker { display: none; }
+  .fm-summary:hover { background: var(--surface); }
+  .fm-label { font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
+  .fm-count {
+    margin-left: auto; font-size: 10px; color: var(--text-muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1px 8px; flex-shrink: 0;
+  }
+  .fm-chevron { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; flex-shrink: 0; }
+  .fm-card[open] > .fm-summary > .fm-chevron,
+  .fm-group[open] > .fm-group-summary > .fm-chevron { transform: rotate(90deg); }
+  .fm-body {
+    padding: 4px 12px 10px;
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+  }
+  .fm-row {
+    display: flex; gap: 12px; padding: 3px 0;
+    font-size: 12.5px; line-height: 1.5; align-items: baseline;
+    border-bottom: 1px dashed color-mix(in srgb, var(--border) 50%, transparent);
+  }
+  .fm-row:last-child { border-bottom: none; }
+  .fm-key {
+    flex: 0 0 180px; color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11.5px; word-break: break-word; min-width: 0;
+  }
+  .fm-value { flex: 1; color: var(--text); word-break: break-word; min-width: 0; }
+  .fm-null { color: var(--text-muted); font-style: italic; }
+  .fm-bool { color: #7ee787; font-family: monospace; }
+  .fm-num { color: #79c0ff; font-family: monospace; }
+  .fm-url { color: var(--accent); text-decoration: underline; word-break: break-all; }
+  .fm-group { display: block; margin-top: 4px; }
+  .fm-group-summary {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; cursor: pointer; list-style: none;
+    font-size: 12px; color: var(--text); border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  .fm-group-summary::-webkit-details-marker { display: none; }
+  .fm-group-summary:hover { background: var(--surface); }
+  .fm-group-summary .fm-count { margin-left: auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+  .fm-group-body {
+    padding: 2px 4px 6px 14px;
+    border-left: 1px solid color-mix(in srgb, var(--accent-dim) 35%, transparent);
+    margin-left: 6px;
+  }
+
   .loading { display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 16px; color: var(--text-muted); }
   .loading .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }

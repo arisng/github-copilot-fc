@@ -52,10 +52,218 @@ function slugify(text) {
     return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "heading";
 }
 
+// --- Frontmatter YAML parser (dependency-free, nested) ---
+function parseYamlScalar(text) {
+    const t = text.trim();
+    if (t === "" || t === "null" || t === "~") return null;
+    if (t === "true") return true;
+    if (t === "false") return false;
+    if (t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'")))) {
+        return t.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+    }
+    if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+    return t;
+}
+
+function splitTopLevel(text) {
+    const parts = [];
+    let cur = "", inQ = null, depth = 0;
+    for (const ch of text) {
+        if (inQ) { cur += ch; if (ch === inQ) inQ = null; }
+        else if (ch === '"' || ch === "'") { inQ = ch; cur += ch; }
+        else if (ch === "{" || ch === "[") { depth++; cur += ch; }
+        else if (ch === "}" || ch === "]") { depth--; cur += ch; }
+        else if (ch === "," && depth === 0) { parts.push(cur.trim()); cur = ""; }
+        else cur += ch;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    return parts.filter(p => p !== "");
+}
+
+function parseInlineArray(text) {
+    let s = text.trim();
+    if (s.startsWith("[") && s.endsWith("]")) s = s.slice(1, -1);
+    return splitTopLevel(s).map(parseYamlScalar);
+}
+
+function parseInlineObject(text) {
+    let s = text.trim();
+    if (s.startsWith("{") && s.endsWith("}")) s = s.slice(1, -1);
+    const entries = [];
+    for (const p of splitTopLevel(s)) {
+        const m = p.match(/^([^:\s][^:]*):(?:\s*(.*))?$/);
+        if (m) entries.push([m[1].trim(), { type: "scalar", value: parseYamlScalar((m[2] || "").trim()) }]);
+    }
+    return { type: "map", entries };
+}
+
+function parseYamlBlock(text) {
+    const tokens = [];
+    for (const line of text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed === "" || trimmed.startsWith("#")) continue;
+        const m = line.match(/^(\s*)(.*)$/);
+        tokens.push({ indent: m[1].replace(/\t/g, "  ").length, content: m[2] });
+    }
+    let pos = 0;
+    function peek() { return tokens[pos]; }
+
+    function parseNestedValue(parentIndent) {
+        const n = peek();
+        if (!n) return { type: "scalar", value: null };
+        if (n.content.startsWith("-")) {
+            if (n.indent >= parentIndent) return parseSeq(n.indent);
+            return { type: "scalar", value: null };
+        }
+        if (n.indent > parentIndent) return parseNode(n.indent);
+        return { type: "scalar", value: null };
+    }
+
+    function parseNode(minIndent) {
+        const t = peek();
+        if (!t) return { type: "scalar", value: null };
+        if (t.content.startsWith("-")) return parseSeq(minIndent);
+        return parseMap(minIndent);
+    }
+
+    function parseScalarValue(rest) {
+        const r = rest.trim();
+        if (r === "" || r === "null" || r === "~") return parseNestedValue(0);
+        if (r.startsWith("[")) return { type: "seq", items: parseInlineArray(r).map(v => ({ type: "scalar", value: v })) };
+        if (r.startsWith("{")) return parseInlineObject(r);
+        return { type: "scalar", value: parseYamlScalar(r) };
+    }
+
+    function parseMap(minIndent) {
+        const entries = [];
+        while (pos < tokens.length) {
+            const t = tokens[pos];
+            if (t.indent < minIndent) break;
+            if (t.indent > minIndent) { pos++; continue; }
+            const m = t.content.match(/^([^:\s][^:]*):(?:\s*(.*))?$/);
+            if (!m) { pos++; continue; }
+            const key = m[1].trim();
+            const rest = (m[2] || "").trim();
+            pos++;
+            let value;
+            if (rest === "" || rest === "null" || rest === "~") {
+                value = parseNestedValue(minIndent);
+            } else {
+                value = parseScalarValue(rest);
+            }
+            entries.push([key, value]);
+        }
+        return { type: "map", entries };
+    }
+
+    function parseSeq(minIndent) {
+        const items = [];
+        while (pos < tokens.length) {
+            const t = tokens[pos];
+            if (t.indent < minIndent) break;
+            if (t.indent > minIndent) { pos++; continue; }
+            if (!t.content.startsWith("-")) break;
+            const rest = t.content.slice(1).trim();
+            pos++;
+            if (rest === "" || rest === "null" || rest === "~") {
+                items.push(parseNestedValue(minIndent));
+            } else if (rest.startsWith("{")) {
+                items.push(parseInlineObject(rest));
+            } else if (rest.startsWith("[")) {
+                items.push({ type: "seq", items: parseInlineArray(rest).map(v => ({ type: "scalar", value: v })) });
+            } else if (/^[^:\s][^:]*:/.test(rest)) {
+                const itemMap = { type: "map", entries: [] };
+                const m = rest.match(/^([^:\s][^:]*):(?:\s*(.*))?$/);
+                const k = m[1].trim();
+                const r = (m[2] || "").trim();
+                let v;
+                if (r === "" || r === "null" || r === "~") v = parseNestedValue(minIndent);
+                else if (r.startsWith("[")) v = { type: "seq", items: parseInlineArray(r).map(x => ({ type: "scalar", value: x })) };
+                else if (r.startsWith("{")) v = parseInlineObject(r);
+                else v = { type: "scalar", value: parseYamlScalar(r) };
+                itemMap.entries.push([k, v]);
+                while (pos < tokens.length) {
+                    const n = tokens[pos];
+                    if (n.indent <= minIndent) break;
+                    if (n.content.startsWith("-") && n.indent <= minIndent + 1) break;
+                    if (/^[^:\s][^:]*:/.test(n.content)) {
+                        const mm = n.content.match(/^([^:\s][^:]*):(?:\s*(.*))?$/);
+                        const kk = mm[1].trim();
+                        const rr = (mm[2] || "").trim();
+                        pos++;
+                        let vv;
+                        if (rr === "" || rr === "null" || rr === "~") vv = parseNestedValue(n.indent);
+                        else if (rr.startsWith("[")) vv = { type: "seq", items: parseInlineArray(rr).map(x => ({ type: "scalar", value: x })) };
+                        else if (rr.startsWith("{")) vv = parseInlineObject(rr);
+                        else vv = { type: "scalar", value: parseYamlScalar(rr) };
+                        itemMap.entries.push([kk, vv]);
+                    } else break;
+                }
+                items.push(itemMap);
+            } else {
+                items.push({ type: "scalar", value: parseYamlScalar(rest) });
+            }
+        }
+        return { type: "seq", items };
+    }
+
+    if (!tokens.length) return { type: "map", entries: [] };
+    return tokens[0].content.startsWith("-") ? parseSeq(tokens[0].indent) : parseMap(tokens[0].indent);
+}
+
+function formatFmScalar(v) {
+    if (v === null || v === undefined) return '<span class="fm-null">null</span>';
+    if (typeof v === "boolean") return '<span class="fm-bool">' + v + "</span>";
+    if (typeof v === "number") return '<span class="fm-num">' + v + "</span>";
+    const s = String(v);
+    if (/^https?:\/\//.test(s)) return '<span class="fm-url">' + escapeHtml(s) + "</span>";
+    return escapeHtml(s);
+}
+
+function renderFmEntry(key, node) {
+    if (node.type === "map") {
+        let rows = "";
+        for (const [k, v] of node.entries) rows += renderFmEntry(k, v);
+        return '<details class="fm-group"><summary class="fm-group-summary"><span class="fm-chevron">\u25B8</span>' + escapeHtml(key) + '<span class="fm-count">' + node.entries.length + "</span></summary><div class=\"fm-group-body\">" + rows + "</div></details>\n";
+    }
+    if (node.type === "seq") {
+        let rows = "";
+        for (let i = 0; i < node.items.length; i++) rows += renderFmEntry("#" + (i + 1), node.items[i]);
+        return '<details class="fm-group"><summary class="fm-group-summary"><span class="fm-chevron">\u25B8</span>' + escapeHtml(key) + '<span class="fm-count">' + node.items.length + "</span></summary><div class=\"fm-group-body\">" + rows + "</div></details>\n";
+    }
+    return '<div class="fm-row"><span class="fm-key">' + escapeHtml(key) + '</span><span class="fm-value">' + formatFmScalar(node.value) + "</span></div>\n";
+}
+
+function renderFrontmatterCard(fmNode) {
+    const entries = fmNode.entries || [];
+    if (!entries.length) return "";
+    let body = "";
+    for (const [k, v] of entries) body += renderFmEntry(k, v);
+    return '<details class="fm-card"><summary class="fm-summary"><span class="fm-chevron">\u25B8</span><span class="fm-label">Metadata</span><span class="fm-count">' + entries.length + " key" + (entries.length !== 1 ? "s" : "") + '</span></summary><div class="fm-body">' + body + "</div></details>\n";
+}
+
 function renderMarkdown(md) {
     const lines = md.split("\n");
     const parts = [];
     const toc = [];
+    let startIndex = 0;
+
+    // Detect leading YAML frontmatter (--- ... --- or +++ ... +++)
+    const first = lines[0] ? lines[0].trim() : "";
+    if (first === "---" || first === "+++") {
+        for (let j = 1; j < lines.length; j++) {
+            if (lines[j].trim() === first) {
+                const card = renderFrontmatterCard(parseYamlBlock(lines.slice(1, j).join("\n")));
+                if (card) {
+                    parts.push(card);
+                    parts.push("\n");
+                    startIndex = j + 1;
+                }
+                break;
+            }
+        }
+    }
+
     let inCode = false, codeLang = "", codeBuf = [];
 
     // Block state
@@ -119,7 +327,7 @@ function renderMarkdown(md) {
         return text;
     }
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = startIndex; i < lines.length; i++) {
         const raw = lines[i];
 
         // ── Fenced code blocks ──
@@ -417,7 +625,7 @@ async function readTodos(sessionUuid) {
 
 // --- Config ---
 const DEFAULT_MAX_TODO_DEPTH = 3;
-const HTML_VERSION = "2"; // bump to force a fresh canvas render after cache/no-store changes
+const HTML_VERSION = "3"; // bump to force a fresh canvas render after cache/no-store changes
 function normalizeMaxDepth(value) {
     const n = parseInt(value, 10);
     if (isNaN(n)) return DEFAULT_MAX_TODO_DEPTH;
@@ -517,6 +725,68 @@ function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = DEFAULT_MAX_TO
   .main strong { font-weight: 600; color: var(--text); }
   .main em { font-style: italic; }
   .main h1, .main h2, .main h3, .main h4, .main h5, .main h6 { scroll-margin-top: 16px; }
+
+  /* ── Frontmatter metadata card ── */
+  .fm-card {
+    margin: 4px 0 20px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-dim);
+    border-radius: 6px;
+    background: var(--sidebar-bg);
+    overflow: hidden;
+  }
+  .fm-card[open] { margin-bottom: 24px; }
+  .fm-summary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; cursor: pointer; list-style: none;
+    user-select: none; font-size: 12px;
+  }
+  .fm-summary::-webkit-details-marker { display: none; }
+  .fm-summary:hover { background: var(--surface); }
+  .fm-label { font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
+  .fm-count {
+    margin-left: auto; font-size: 10px; color: var(--text-muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1px 8px; flex-shrink: 0;
+  }
+  .fm-chevron { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; flex-shrink: 0; }
+  .fm-card[open] > .fm-summary > .fm-chevron,
+  .fm-group[open] > .fm-group-summary > .fm-chevron { transform: rotate(90deg); }
+  .fm-body {
+    padding: 4px 12px 10px;
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+  }
+  .fm-row {
+    display: flex; gap: 12px; padding: 3px 0;
+    font-size: 12.5px; line-height: 1.5; align-items: baseline;
+    border-bottom: 1px dashed color-mix(in srgb, var(--border) 50%, transparent);
+  }
+  .fm-row:last-child { border-bottom: none; }
+  .fm-key {
+    flex: 0 0 180px; color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11.5px; word-break: break-word; min-width: 0;
+  }
+  .fm-value { flex: 1; color: var(--text); word-break: break-word; min-width: 0; }
+  .fm-null { color: var(--text-muted); font-style: italic; }
+  .fm-bool { color: #7ee787; font-family: monospace; }
+  .fm-num { color: #79c0ff; font-family: monospace; }
+  .fm-url { color: var(--accent); text-decoration: underline; word-break: break-all; }
+  .fm-group { display: block; margin-top: 4px; }
+  .fm-group-summary {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; cursor: pointer; list-style: none;
+    font-size: 12px; color: var(--text); border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  .fm-group-summary::-webkit-details-marker { display: none; }
+  .fm-group-summary:hover { background: var(--surface); }
+  .fm-group-summary .fm-count { margin-left: auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+  .fm-group-body {
+    padding: 2px 4px 6px 14px;
+    border-left: 1px solid color-mix(in srgb, var(--accent-dim) 35%, transparent);
+    margin-left: 6px;
+  }
 
   .loading { display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 16px; color: var(--text-muted); }
   .loading .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
