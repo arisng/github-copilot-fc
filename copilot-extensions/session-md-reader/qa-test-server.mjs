@@ -249,6 +249,20 @@ function fixtureTodos(sessionUuid) {
         ];
         return buildTodoTree(todos, deps);
     }
+    if (sessionUuid === "fixture-desc") {
+        // Single todo with a long multi-line description → description area must scroll.
+        const lines = [];
+        for (let i = 1; i <= 40; i++) lines.push(`Line ${i}: context text for the description of the todo item to force vertical scrolling inside the fixed-height panel.`);
+        const todos = [{
+            id: "long-desc-1",
+            title: "Todo with long description",
+            description: lines.join("\n"),
+            status: "in_progress",
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-02T00:00:00.000Z",
+        }];
+        return buildTodoTree(todos, []);
+    }
     return null;
 }
 

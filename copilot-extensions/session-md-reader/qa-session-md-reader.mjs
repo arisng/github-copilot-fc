@@ -75,8 +75,8 @@ const TC1_LOAD = test("TC1.1", "Page loads without errors", async (page) => {
     assert.equal(errors.length, 0, `Console errors: ${errors.join(", ")}`);
     // Wait for session info to load
     await page.waitForFunction(() => {
-        const lbl = document.getElementById("sessionLabel");
-        return lbl && lbl.textContent !== "Loading..." && lbl.textContent !== "No session UUID";
+        const t = document.getElementById("sidebarTitle");
+        return t && t.textContent !== "Session Files" && t.textContent !== "No session UUID";
     }, { timeout: 8000 });
 });
 
@@ -85,16 +85,11 @@ const TC1_TITLE = test("TC1.2", "document.title starts with 'MD:'", async (page)
     assert.ok(title.startsWith("MD:"), `Expected title to start with "MD:", got "${title}"`);
 });
 
-const TC1_SESSION_LABEL = test("TC1.3", "sessionLabel shows session name", async (page) => {
-    const text = await getText(page, "#sessionLabel");
-    assert.ok(text && text.length > 0, "sessionLabel is empty");
-    assert.ok(text.includes("Zoom") || text.includes("webhook"),
-        `Expected session name about Zoom webhook, got "${text}"`);
-});
-
-const TC1_SIDEBAR_TITLE = test("TC1.4", "sidebarTitle shows session name", async (page) => {
+const TC1_SIDEBAR_TITLE = test("TC1.3", "sidebarTitle shows session name", async (page) => {
     const text = await getText(page, "#sidebarTitle");
     assert.ok(text && text.length > 0, "sidebarTitle is empty");
+    assert.ok(text.includes("Zoom") || text.includes("webhook"),
+        `Expected session name about Zoom webhook, got "${text}"`);
 });
 
 const TC1_WELCOME_TITLE = test("TC1.5", "welcomeTitle shows session name", async (page) => {
@@ -571,7 +566,7 @@ const TC8_SSE = test("TC8.4", "SSE connection to /events established", async (pa
 // TC7: Todo Tree — details/summary behavior (refined)
 // ========================================================================
 
-const TC7_COLLAPSE_TOGGLE = test("TC7.6", "Click summary toggles children (collapse)", async (page) => {
+const TC7_COLLAPSE_TOGGLE = test("TC7.6", "Chevron toggles children; row click does not toggle", async (page) => {
     await page.locator('[data-tab="todos"]').click();
     await page.waitForTimeout(600);
     const parentDetails = page.locator('details.todo-tree-node').filter({ has: page.locator('.chevron') }).first();
@@ -579,14 +574,25 @@ const TC7_COLLAPSE_TOGGLE = test("TC7.6", "Click summary toggles children (colla
     if (exists) {
         const wasOpen = await parentDetails.evaluate(el => el.hasAttribute("open"));
         if (!wasOpen) {
-            await parentDetails.locator("summary").click();
+            await parentDetails.locator("> summary .chevron").click();
             await page.waitForTimeout(300);
         }
-        await parentDetails.locator("summary").click();
+        // Clicking the row body (non-chevron) must NOT toggle collapse — only the chevron may.
+        await parentDetails.locator("> summary .todo-title").click();
+        await page.waitForTimeout(300);
+        const stillOpen = await parentDetails.evaluate(el => el.hasAttribute("open"));
+        assert.ok(stillOpen, "Parent should still be open after a row (non-chevron) click");
+        // Close the details panel opened by the row click
+        if (await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false)) {
+            await page.locator(".todo-details-close").click();
+            await page.waitForTimeout(200);
+        }
+        // Clicking the chevron DOES toggle collapse
+        await parentDetails.locator("> summary .chevron").click();
         await page.waitForTimeout(300);
         const isOpen = await parentDetails.evaluate(el => el.hasAttribute("open"));
-        assert.ok(!isOpen, "Parent details should be closed after click");
-        await parentDetails.locator("summary").click();
+        assert.ok(!isOpen, "Parent details should be closed after chevron click");
+        await parentDetails.locator("> summary .chevron").click();
         await page.waitForTimeout(200);
     }
 });
@@ -616,12 +622,12 @@ const TC7_CHEVRON_ROTATION = test("TC7.8", "Chevron rotates when details opens",
     if (exists) {
         const open = await parent.evaluate(el => el.hasAttribute("open"));
         if (open) {
-            await parent.locator("summary").click();
+            await parent.locator("> summary .chevron").click();
             await page.waitForTimeout(300);
         }
         let transform = await parent.locator('summary .chevron').evaluate(el => getComputedStyle(el).transform);
         const closedIsIdentity = transform === "none" || transform === "matrix(1, 0, 0, 1, 0, 0)";
-        await parent.locator("summary").click();
+        await parent.locator("> summary .chevron").click();
         await page.waitForTimeout(300);
         transform = await parent.locator('summary .chevron').evaluate(el => getComputedStyle(el).transform);
         const openIsRotated = transform !== "none";
@@ -677,10 +683,16 @@ const TC9_TREE_SCROLLS = test("TC9.2", "Tree scrolls independently above panel",
     assert.equal(fg, "1", "Tree container should flex-grow:1");
 });
 
-const TC9_PANEL_OVERFLOW = test("TC9.3", "Panel has overflow-y for scrollable content", async (page) => {
+const TC9_PANEL_OVERFLOW = test("TC9.3", "Panel clips; description area scrolls internally", async (page) => {
     const panel = page.locator("#todoDetailsPanel");
-    const oy = await panel.evaluate(el => getComputedStyle(el).overflowY);
-    assert.ok(oy === "auto" || oy === "scroll", "Panel should have overflow-y for scroll");
+    const poy = await panel.evaluate(el => getComputedStyle(el).overflowY);
+    assert.ok(poy === "hidden" || poy === "clip", `Panel overflow-y should be hidden (clips, scrolls internally), got "${poy}"`);
+    const body = page.locator("#todoDetailBody");
+    const bo = await body.evaluate(el => getComputedStyle(el).overflow);
+    assert.ok(bo.includes("hidden"), `#todoDetailBody should have overflow:hidden, got "${bo}"`);
+    const desc = page.locator("#todoDetailDesc");
+    const doy = await desc.evaluate(el => getComputedStyle(el).overflowY);
+    assert.ok(doy === "auto" || doy === "scroll", `Description area should scroll, got "${doy}"`);
 });
 
 const TC9_CLOSE_BUTTON = test("TC9.4", "Close button hides panel", async (page) => {
@@ -1045,15 +1057,12 @@ const FIXTURE_LONG_NAME = "This is an extremely long session name that must be r
 const TC13_LONG_NAME = test("TC13.1", "Full session name rendered untruncated in sidebar", async (page) => {
     await page.goto(BASE + "?instance=qa-longname&sessionUuid=fixture-longname", { waitUntil: "networkidle" });
     await page.waitForFunction(() => {
-        const lbl = document.getElementById("sessionLabel");
-        return lbl && lbl.textContent.includes("extremely long session name");
+        const t = document.getElementById("sidebarTitle");
+        return t && t.textContent.includes("extremely long session name");
     }, { timeout: 8000 });
     const title = await page.locator("#sidebarTitle").textContent();
-    const label = await page.locator("#sessionLabel").textContent();
     assert.equal(title, FIXTURE_LONG_NAME, "sidebarTitle should be the full untruncated session name");
-    assert.equal(label, FIXTURE_LONG_NAME, "sessionLabel should be the full untruncated session name");
     assert.ok(!title.includes("\u2026"), "sidebarTitle must not be truncated with ellipsis");
-    assert.ok(!label.includes("\u2026"), "sessionLabel must not be truncated with ellipsis");
 });
 
 const TC13_FULL_UUID = test("TC13.2", "Full session UUID shown on a separate line", async (page) => {
@@ -1062,7 +1071,7 @@ const TC13_FULL_UUID = test("TC13.2", "Full session UUID shown on a separate lin
     assert.equal(uuidText, "fixture-longname", "sessionUuidLabel should show the full session UUID");
     const uuidVisible = await page.locator("#sessionUuidLabel").isVisible();
     assert.ok(uuidVisible, "sessionUuidLabel should be visible");
-    const nameBox = await page.locator("#sessionLabel").boundingBox();
+    const nameBox = await page.locator("#sidebarTitle").boundingBox();
     const uuidBox = await page.locator("#sessionUuidLabel").boundingBox();
     if (nameBox && uuidBox) {
         assert.ok(uuidBox.y > nameBox.y, "UUID line should be below the session name line");
@@ -1103,7 +1112,7 @@ const TC15_CHEVRON_NO_PANEL = test("TC15.1", "Chevron click toggles children wit
     const rootDetails = page.locator('details.todo-tree-node[data-id="root"]');
     const wasOpen = await rootDetails.evaluate(el => el.hasAttribute("open"));
     if (!wasOpen) {
-        await rootDetails.locator("summary").click();
+        await rootDetails.locator("> summary .chevron").click();
         await page.waitForTimeout(200);
     }
     // Close panel if a previous interaction left it open
@@ -1130,6 +1139,9 @@ const TC15_CHEVRON_NO_PANEL = test("TC15.1", "Chevron click toggles children wit
     await page.waitForTimeout(300);
     const panelOpen2 = await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false);
     assert.ok(panelOpen2, "Details panel SHOULD open on title click");
+    // ... but a non-chevron click must NOT toggle the collapse state
+    const openAfterTitle = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(openAfterTitle, "Title click should NOT collapse the node (only the chevron toggles)");
     await page.locator(".todo-details-close").click();
 });
 
@@ -1263,6 +1275,154 @@ const TC19_COLLAPSE_PERSISTS = test("TC19.2", "Folder collapse persists across t
 });
 
 // ========================================================================
+// TC20: Collapse toggle only via chevron (regression)
+// ========================================================================
+const TC20_COLLAPSE_ONLY_CHEVRON = test("TC20.1", "Row click never toggles collapse; only the chevron does", async (page) => {
+    await page.goto(BASE + "?instance=qa-onlychev&sessionUuid=fixture-deep", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    const rootDetails = page.locator('details.todo-tree-node[data-id="root"]');
+    const ensureOpen = async () => {
+        if (!(await rootDetails.evaluate(el => el.hasAttribute("open")))) {
+            await rootDetails.locator("> summary .chevron").click();
+            await page.waitForTimeout(200);
+        }
+    };
+    const closePanel = async () => {
+        if (await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false)) {
+            await page.locator(".todo-details-close").click();
+            await page.waitForTimeout(200);
+        }
+    };
+    await ensureOpen();
+    await closePanel();
+
+    // 1) Node starts open. Click the title (body) → panel opens, still open.
+    await rootDetails.locator("> summary .todo-title").click();
+    await page.waitForTimeout(300);
+    let openAfterBodyClick = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(openAfterBodyClick, "Node must stay OPEN after clicking the title");
+    let panelOpen = await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false);
+    assert.ok(panelOpen, "Panel should open on title click");
+    await closePanel();
+
+    // 2) Click the status label (body) → panel opens, still open.
+    await rootDetails.locator("> summary .todo-status-label").click();
+    await page.waitForTimeout(300);
+    openAfterBodyClick = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(openAfterBodyClick, "Node must stay OPEN after clicking the status label");
+    await closePanel();
+
+    // 3) Now collapse via chevron → node closed.
+    await rootDetails.locator("> summary .chevron").click();
+    await page.waitForTimeout(300);
+    const closedAfterChevron = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(!closedAfterChevron, "Chevron click should collapse the node");
+
+    // 4) Click the title while collapsed → panel opens, node STAYS closed.
+    await rootDetails.locator("> summary .todo-title").click();
+    await page.waitForTimeout(300);
+    const stillClosed = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(!stillClosed, "Node must STAY CLOSED after clicking the title while collapsed");
+    panelOpen = await page.locator("#todoDetailsPanel").evaluate(el => el.classList.contains("open")).catch(() => false);
+    assert.ok(panelOpen, "Panel should still open on title click while collapsed");
+    await closePanel();
+
+    // 5) Expand again via chevron → node reopens.
+    await rootDetails.locator("> summary .chevron").click();
+    await page.waitForTimeout(300);
+    const reopened = await rootDetails.evaluate(el => el.hasAttribute("open"));
+    assert.ok(reopened, "Chevron click should expand the node again");
+});
+
+// ========================================================================
+// TC21: Details panel two-section layout (fixture-desc)
+// ========================================================================
+const TC21_SECTIONS = test("TC21.1", "Panel body has metadata + description sections", async (page) => {
+    await page.goto(BASE + "?instance=qa-layout&sessionUuid=fixture-desc", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    await page.locator(".todo-node-content").first().click();
+    await page.waitForTimeout(300);
+    const body = page.locator("#todoDetailBody");
+    const metaCount = await body.locator(".todo-details-metadata").count();
+    const descCount = await body.locator(".todo-details-description").count();
+    assert.equal(metaCount, 1, "metadata section must exist inside #todoDetailBody");
+    assert.equal(descCount, 1, "description section must exist inside #todoDetailBody");
+    const descChild = await body.locator(".todo-details-description #todoDetailDesc").count();
+    assert.equal(descChild, 1, "#todoDetailDesc should live inside the description section");
+    await page.locator(".todo-details-close").click();
+});
+
+const TC21_BODY_FILLS = test("TC21.2", "Body fills panel space; description is scrollable", async (page) => {
+    await page.goto(BASE + "?instance=qa-layout2&sessionUuid=fixture-desc", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    await page.locator(".todo-node-content").first().click();
+    await page.waitForTimeout(300);
+    const body = page.locator("#todoDetailBody");
+    const fg = await body.evaluate(el => getComputedStyle(el).flexGrow);
+    assert.equal(fg, "1", "#todoDetailBody should flex-grow to fill remaining panel space");
+    const mh = await body.evaluate(el => getComputedStyle(el).minHeight);
+    assert.ok(mh === "0px" || parseFloat(mh) === 0, `#todoDetailBody min-height should be 0, got "${mh}"`);
+    const desc = page.locator("#todoDetailDesc");
+    const dims = await desc.evaluate(el => ({ sh: el.scrollHeight, ch: el.clientHeight, oy: getComputedStyle(el).overflowY }));
+    assert.ok(dims.oy === "auto" || dims.oy === "scroll", `description overflow-y should be auto/scroll, got "${dims.oy}"`);
+    assert.ok(dims.sh > dims.ch, `description should overflow (scrollHeight ${dims.sh} > clientHeight ${dims.ch})`);
+    await page.locator(".todo-details-close").click();
+});
+
+const TC21_METADATA_ROWS = test("TC21.3", "Metadata is a list of single-line fields", async (page) => {
+    await page.goto(BASE + "?instance=qa-layout3&sessionUuid=fixture-desc", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    await page.locator(".todo-node-content").first().click();
+    await page.waitForTimeout(300);
+    const meta = page.locator(".todo-details-metadata");
+    const fields = meta.locator(".todo-details-field");
+    const count = await fields.count();
+    assert.ok(count >= 4, `expected ID/Status/Created/Updated rows, got ${count}`);
+    // Each visible field is a flex row with label + value (single logical line).
+    // The Dependencies row is display:none here (fixture-desc has no deps).
+    let visibleRows = 0;
+    for (let i = 0; i < count; i++) {
+        const disp = await fields.nth(i).evaluate(el => getComputedStyle(el).display);
+        if (disp === "none") continue;
+        visibleRows++;
+        assert.equal(disp, "flex", `field ${i} should be display:flex`);
+    }
+    assert.ok(visibleRows >= 4, `expected at least 4 visible metadata rows, got ${visibleRows}`);
+    const depsDisp = await page.locator("#todoDetailDepsContainer").evaluate(el => getComputedStyle(el).display);
+    assert.equal(depsDisp, "none", "deps row should be hidden when the todo has no dependencies");
+    const idVal = await page.locator("#todoDetailId").textContent();
+    assert.ok(idVal === "long-desc-1", `ID metadata value should render, got "${idVal}"`);
+    const statusVal = await page.locator("#todoDetailStatus").textContent();
+    assert.ok(statusVal && statusVal.includes("In Progress"), `Status metadata should render, got "${statusVal}"`);
+    await page.locator(".todo-details-close").click();
+});
+
+const TC21_DESC_MULTILINE = test("TC21.4", "Description shows multi-line scrollable text", async (page) => {
+    await page.goto(BASE + "?instance=qa-layout4&sessionUuid=fixture-desc", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(800);
+    await page.locator(".todo-node-content").first().click();
+    await page.waitForTimeout(300);
+    const desc = page.locator("#todoDetailDesc");
+    const ws = await desc.evaluate(el => getComputedStyle(el).whiteSpace);
+    assert.equal(ws, "pre-wrap", "description should preserve line breaks (white-space: pre-wrap)");
+    const text = await desc.textContent();
+    assert.ok(text.includes("Line 40"), "description should contain the last line of the multi-line text");
+    const lineCount = (text.match(/\n/g) || []).length;
+    assert.ok(lineCount >= 30, `description should have many lines, got ${lineCount}`);
+    // Scrolling works
+    await desc.evaluate(el => { el.scrollTop = 50; });
+    await page.waitForTimeout(100);
+    const st = await desc.evaluate(el => el.scrollTop);
+    assert.ok(st > 0, `description should be scrollable (scrollTop ${st})`);
+    await page.locator(".todo-details-close").click();
+});
+
+// ========================================================================
 // Main
 // ========================================================================
 async function main() {
@@ -1281,7 +1441,7 @@ async function main() {
 
         // Group tests by TC
         const suites = [
-            { name: "TC1: Page Load & Session Name", tests: [TC1_LOAD, TC1_TITLE, TC1_SESSION_LABEL, TC1_SIDEBAR_TITLE, TC1_WELCOME_TITLE, TC1_WELCOME_DESC, TC1_BADGE] },
+            { name: "TC1: Page Load & Session Name", tests: [TC1_LOAD, TC1_TITLE, TC1_SIDEBAR_TITLE, TC1_WELCOME_TITLE, TC1_WELCOME_DESC, TC1_BADGE] },
             { name: "TC2: File Listing & Navigation", tests: [TC2_FILE_GROUPS, TC2_GROUP_TOGGLE, TC2_FILE_CLICK, TC2_ACTIVE_FILE, TC2_CHECKPOINT_FILE, TC2_ACTIVE_INFO] },
             { name: "TC3: TOC Tab", tests: [TC3_TOC_TAB, TC3_TOC_ITEMS, TC3_TOC_CLICK, TC3_BACK_FILES] },
             { name: "TC4: Mermaid Rendering", tests: [TC4_MERMAID_LOAD, TC4_MERMAID_DIVS, TC4_MERMAID_SVG, TC4_MERMAID_THEME, TC4_NO_MERMAID] },
@@ -1300,6 +1460,8 @@ async function main() {
             { name: "TC17: maxTodoDepth Config", tests: [TC17_DEPTH_1] },
             { name: "TC18: Sidebar Scroll", tests: [TC18_SIDEBAR_SCROLL, TC18_TODOS_INVARIANT] },
             { name: "TC19: Folder Collapse", tests: [TC19_COLLAPSE_HIDES, TC19_COLLAPSE_PERSISTS] },
+            { name: "TC20: Collapse Only Via Chevron", tests: [TC20_COLLAPSE_ONLY_CHEVRON] },
+            { name: "TC21: Details Panel Two-Section Layout", tests: [TC21_SECTIONS, TC21_BODY_FILLS, TC21_METADATA_ROWS, TC21_DESC_MULTILINE] },
         ];
 
         // Take an initial screenshot
