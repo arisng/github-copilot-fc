@@ -1423,6 +1423,140 @@ const TC21_DESC_MULTILINE = test("TC21.4", "Description shows multi-line scrolla
 });
 
 // ========================================================================
+// TC22: Frontmatter metadata card (fixture-frontmatter)
+// ========================================================================
+const FM_FIXTURE_URL = BASE + "?instance=qa-fm&sessionUuid=fixture-frontmatter";
+
+async function fmLoadPlan(page) {
+    await page.goto(FM_FIXTURE_URL, { waitUntil: "networkidle" });
+    const planItem = page.locator('.file-item').filter({ hasText: "plan.md" }).first();
+    await planItem.waitFor({ state: "visible", timeout: 8000 });
+    await planItem.click();
+    await page.waitForFunction(() => {
+        const card = document.querySelector(".fm-card");
+        return card && card.textContent.includes("Metadata");
+    }, { timeout: 8000 });
+}
+
+const TC22_CARD_COLLAPSED = test("TC22.1", "Frontmatter card present and collapsed by default", async (page) => {
+    await fmLoadPlan(page);
+    const card = page.locator(".fm-card");
+    assert.equal(await card.count(), 1, "exactly one .fm-card should render");
+    const isOpen = await card.evaluate(el => el.hasAttribute("open"));
+    assert.ok(!isOpen, ".fm-card should be collapsed by default (no open attr)");
+    const summary = await page.locator(".fm-summary").textContent();
+    assert.ok(summary.includes("Metadata"), `summary should say Metadata, got "${summary}"`);
+    const count = await page.locator(".fm-summary .fm-count").textContent();
+    assert.ok(count && parseInt(count, 10) > 0, `summary count should be > 0, got "${count}"`);
+    // Body hidden while collapsed
+    const bodyVisible = await page.locator(".fm-body").isVisible().catch(() => false);
+    assert.ok(!bodyVisible, "fm-body should not be visible while collapsed");
+});
+
+const TC22_EXPAND_ROWS = test("TC22.2", "Clicking summary expands; scalar key/value rows render", async (page) => {
+    await fmLoadPlan(page);
+    await page.locator(".fm-summary").click();
+    await page.waitForTimeout(300);
+    const openNow = await page.locator(".fm-card").evaluate(el => el.hasAttribute("open"));
+    assert.ok(openNow, "card should be open after summary click");
+    const rowCount = await page.locator(".fm-card > .fm-body > .fm-row").count();
+    assert.ok(rowCount >= 3, `expected several top-level scalar rows, got ${rowCount}`);
+    const trackKey = await page.locator(".fm-card > .fm-body > .fm-row .fm-key", { hasText: "track" }).textContent();
+    assert.equal(trackKey.trim(), "track", "key should render 'track'");
+    const trackVal = await page.locator(".fm-card > .fm-body > .fm-row:has(.fm-key:text-is('track')) .fm-value").textContent();
+    assert.equal(trackVal, "sdlc-product", "track value should be sdlc-product");
+    // number value styled
+    const numRow = page.locator(".fm-card > .fm-body > .fm-row:has(.fm-key:text-is('schemaVersion'))");
+    const numVal = await numRow.locator(".fm-value .fm-num").textContent();
+    assert.equal(numVal, "1", "schemaVersion should render as .fm-num 1");
+    // null value styled
+    const nullRow = page.locator(".fm-card > .fm-body > .fm-row:has(.fm-key:text-is('createdAt'))");
+    const nullVal = await nullRow.locator(".fm-value").textContent();
+    assert.ok(nullVal.length > 0, "createdAt value should render");
+});
+
+const TC22_NESTED_OBJECT = test("TC22.3", "Nested object worktree renders as collapsible fm-group", async (page) => {
+    await fmLoadPlan(page);
+    await page.locator(".fm-summary").click();
+    await page.waitForTimeout(300);
+    const worktreeGroup = page.locator(".fm-group-summary", { hasText: "worktree" }).first();
+    assert.equal(await worktreeGroup.count(), 1, "worktree group should exist");
+    // Collapsed by default
+    const groupEl = worktreeGroup.locator("xpath=..");
+    const isOpen = await groupEl.evaluate(el => el.hasAttribute("open"));
+    assert.ok(!isOpen, "worktree group should start collapsed");
+    // Expand it
+    await worktreeGroup.click();
+    await page.waitForTimeout(200);
+    const openNow = await groupEl.evaluate(el => el.hasAttribute("open"));
+    assert.ok(openNow, "worktree group should open after click");
+    const pathRow = worktreeGroup.locator("xpath=..").locator(".fm-row .fm-key", { hasText: "path" });
+    assert.equal(await pathRow.count(), 1, "worktree path row should appear after expand");
+    const pathVal = await pathRow.locator("xpath=..").locator(".fm-value").textContent();
+    assert.ok(pathVal.includes("demo"), `path value should render, got "${pathVal}"`);
+});
+
+const TC22_ARRAY_GROUP = test("TC22.4", "Array group passes shows count and item groups", async (page) => {
+    await fmLoadPlan(page);
+    await page.locator(".fm-summary").click();
+    await page.waitForTimeout(300);
+    const passesGroup = page.locator(".fm-group-summary", { hasText: "passes" }).first();
+    assert.equal(await passesGroup.count(), 1, "passes group should exist");
+    const count = await passesGroup.locator(".fm-count").textContent();
+    assert.equal(count, "2", "passes group count should be 2");
+    await passesGroup.click();
+    await page.waitForTimeout(200);
+    const itemGroups = page.locator(".fm-group:has(.fm-group-summary) .fm-group-summary", { hasText: "#1" });
+    const n1 = await itemGroups.count();
+    assert.ok(n1 >= 1, `passes should contain item groups (#1...), got ${n1}`);
+    // Expand #1 and check its fields
+    const item1 = page.locator(".fm-group-summary", { hasText: "#1" }).first();
+    await item1.click();
+    await page.waitForTimeout(200);
+    const numberKey = item1.locator("xpath=..").locator(".fm-row .fm-key", { hasText: "number" });
+    assert.equal(await numberKey.count(), 1, "#1 should contain a number row");
+    const numVal = await numberKey.locator("xpath=..").locator(".fm-value .fm-num").textContent();
+    assert.equal(numVal, "1", "#1 number value should be 1");
+});
+
+const TC22_NO_STRAY_HR = test("TC22.5", "No stray <hr> from frontmatter fences; TOC clean", async (page) => {
+    await fmLoadPlan(page);
+    // The frontmatter card should be the first child in rendered content
+    const firstEl = await page.locator("#renderedContent > :first-child").evaluate(el => el.className);
+    assert.ok(firstEl.includes("fm-card"), `first rendered element should be .fm-card, got "${firstEl}"`);
+    // No <hr> should precede the card inside renderedContent
+    const hrCountBeforeH1 = await page.locator("#renderedContent > hr").count();
+    assert.equal(hrCountBeforeH1, 0, "no <hr> should appear from frontmatter fences");
+    // TOC should only contain body headings, not frontmatter keys (switch to TOC tab)
+    await page.locator('[data-tab="toc"]').click();
+    await page.waitForTimeout(400);
+    const tocItems = page.locator(".toc-item");
+    const count = await tocItems.count();
+    assert.ok(count >= 2, `expected TOC entries from body headings, got ${count}`);
+    const tocText = await tocItems.allTextContents();
+    const joined = tocText.join(" | ");
+    assert.ok(joined.includes("Plan: Demo Session"), `TOC should include the H1, got "${joined}"`);
+    assert.ok(!joined.toLowerCase().includes("sdlc-product"), "TOC must not include frontmatter key/value content");
+});
+
+const TC22_NO_FRONTMATTER = test("TC22.6", "File without frontmatter renders normally", async (page) => {
+    await page.goto(FM_FIXTURE_URL, { waitUntil: "networkidle" });
+    const plainItem = page.locator('.file-item').filter({ hasText: "plain.md" }).first();
+    await plainItem.waitFor({ state: "visible", timeout: 8000 });
+    await plainItem.click();
+    await page.waitForFunction(() => {
+        const h1 = document.querySelector("#renderedContent h1");
+        return h1 && h1.textContent.includes("Plain File");
+    }, { timeout: 8000 });
+    const cardCount = await page.locator(".fm-card").count();
+    assert.equal(cardCount, 0, "no .fm-card for a file without frontmatter");
+    const hrCount = await page.locator("#renderedContent > hr").count();
+    assert.equal(hrCount, 0, "no stray <hr> in plain file");
+    const itemCount = await page.locator("#renderedContent li").count();
+    assert.ok(itemCount >= 2, "plain file list items should render");
+});
+
+// ========================================================================
 // Main
 // ========================================================================
 async function main() {
@@ -1462,6 +1596,7 @@ async function main() {
             { name: "TC19: Folder Collapse", tests: [TC19_COLLAPSE_HIDES, TC19_COLLAPSE_PERSISTS] },
             { name: "TC20: Collapse Only Via Chevron", tests: [TC20_COLLAPSE_ONLY_CHEVRON] },
             { name: "TC21: Details Panel Two-Section Layout", tests: [TC21_SECTIONS, TC21_BODY_FILLS, TC21_METADATA_ROWS, TC21_DESC_MULTILINE] },
+            { name: "TC22: Frontmatter Metadata Card", tests: [TC22_CARD_COLLAPSED, TC22_EXPAND_ROWS, TC22_NESTED_OBJECT, TC22_ARRAY_GROUP, TC22_NO_STRAY_HR, TC22_NO_FRONTMATTER] },
         ];
 
         // Take an initial screenshot
