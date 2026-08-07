@@ -263,6 +263,21 @@ function fixtureTodos(sessionUuid) {
         }];
         return buildTodoTree(todos, []);
     }
+    if (sessionUuid === "fixture-manytodos") {
+        // ~60 flat todos → todo tree overflows the container so refresh-scroll is testable.
+        const todos = [];
+        for (let i = 1; i <= 60; i++) {
+            todos.push({
+                id: "m" + i,
+                title: "Many todo item number " + i + " with a reasonably long title for overflow",
+                description: "desc " + i,
+                status: i % 3 === 0 ? "done" : i % 3 === 1 ? "in_progress" : "pending",
+                created_at: "2026-01-01T00:00:00.000Z",
+                updated_at: "2026-01-01T00:00:00.000Z",
+            });
+        }
+        return buildTodoTree(todos, []);
+    }
     return null;
 }
 
@@ -285,6 +300,13 @@ function fixtureSessionInfo(sessionUuid) {
     if (sessionUuid === "fixture-frontmatter") {
         return {
             name: "Frontmatter fixture session",
+            repository: "org/demo",
+            branch: "main",
+        };
+    }
+    if (sessionUuid === "fixture-nested") {
+        return {
+            name: "Nested fixture session",
             repository: "org/demo",
             branch: "main",
         };
@@ -313,7 +335,56 @@ function fixtureFiles(sessionUuid) {
         files.push({ fullPath: "", relativePath: "checkpoints/plain.md", fileName: "plain.md", group: "checkpoints" });
         return files;
     }
+    if (sessionUuid === "fixture-nested") {
+        const files = [];
+        files.push({ fullPath: "", relativePath: "plan.md", fileName: "plan.md", group: "root" });
+        files.push({ fullPath: "", relativePath: "checkpoints/index.md", fileName: "index.md", group: "checkpoints" });
+        files.push({ fullPath: "", relativePath: "files/next-steps-plan.md", fileName: "next-steps-plan.md", group: "files" });
+        files.push({ fullPath: "", relativePath: "files/pass-1/pass.md", fileName: "pass.md", group: "files\\pass-1" });
+        files.push({ fullPath: "", relativePath: "files/pass-1/manifests/plan-rev5.md", fileName: "plan-rev5.md", group: "files\\pass-1\\manifests" });
+        files.push({ fullPath: "", relativePath: "files/pass-1/qa/manual-test-scenarios.md", fileName: "manual-test-scenarios.md", group: "files\\pass-1\\qa" });
+        files.push({ fullPath: "", relativePath: "files/pass-2/pass.md", fileName: "pass.md", group: "files\\pass-2" });
+        files.push({ fullPath: "", relativePath: "files/pass-2/research/research-1.md", fileName: "research-1.md", group: "files\\pass-2\\research" });
+        files.push({ fullPath: "", relativePath: "files/pass-2/receipts/review.md", fileName: "review.md", group: "files\\pass-2\\receipts" });
+        files.push({ fullPath: "", relativePath: "files/pass-3/pass.md", fileName: "pass.md", group: "files\\pass-3" });
+        return files;
+    }
     return null;
+}
+
+function fixtureNestedMarkdown(sessionUuid, filePath) {
+    if (sessionUuid !== "fixture-nested") return null;
+    if (filePath === "plan.md" || filePath.endsWith("/plan.md") || filePath.endsWith("\\plan.md")) {
+        return `---
+track: sdlc-product
+currentPass: "2"
+passes:
+  - number: 1
+    planningStatus: ready
+    implementationStatus: completed
+    completedAt: null
+  - number: 2
+    planningStatus: ready
+    implementationStatus: pending
+    completedAt: null
+  - number: 3
+    planningStatus: ready
+    implementationStatus: pending
+    completedAt: null
+---
+
+# Nested Fixture Plan
+
+Body after frontmatter.
+`;
+    }
+    if (/pass-1/.test(filePath)) return "# Pass 1 content\n\nDetail for pass-1.\n";
+    if (/pass-2/.test(filePath)) return "# Pass 2 content\n\nDetail for pass-2.\n";
+    if (/pass-3/.test(filePath)) return "# Pass 3 content\n\nDetail for pass-3.\n";
+    if (/research-1/.test(filePath)) return "# Research 1\n\nResearch note.\n";
+    if (/next-steps/.test(filePath)) return "# Next Steps\n\nPlan notes.\n";
+    if (/index\.md/.test(filePath)) return "# Checkpoint Index\n\nCheckpoint list.\n";
+    return "# " + filePath + "\n\nSample content.\n";
 }
 
 function fixtureMarkdown(sessionUuid, filePath) {
@@ -697,6 +768,38 @@ function scanMarkdownFiles(sessionUuid) {
     return files;
 }
 
+// --- Read the current active pass from plan.md frontmatter (files tab auto-open) ---
+function readActivePass(sessionUuid) {
+    const planPath = path.join(SESSION_BASE, sessionUuid, "plan.md");
+    if (!fs.existsSync(planPath)) return null;
+    try {
+        const raw = readFile(planPath);
+        const lines = raw.split(/\r?\n/);
+        const first = lines[0] ? lines[0].trim() : "";
+        if (first !== "---" && first !== "+++") return null;
+        for (let j = 1; j < lines.length; j++) {
+            if (lines[j].trim() === first) {
+                const node = parseYamlBlock(lines.slice(1, j).join("\n"));
+                const find = (k) => {
+                    for (const [key, val] of node.entries) {
+                        if (key === k && val && val.type === "scalar" && val.value !== null) return String(val.value);
+                    }
+                    return null;
+                };
+                return find("currentPass") ?? find("activePass") ?? find("activePlanningPass");
+            }
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+function fixtureActivePass(sessionUuid) {
+    if (sessionUuid === "fixture-nested") return "2";
+    return null;
+}
+
 // --- Create the HTTP server ---
 import { serveHtml } from "./qa-html-template.mjs";
 
@@ -723,8 +826,9 @@ const server = http.createServer(async (req, res) => {
         try {
             const fixture = fixtureFiles(sessionUuid);
             const files = fixture || scanMarkdownFiles(sessionUuid);
+            const activePass = fixtureActivePass(sessionUuid) ?? readActivePass(sessionUuid);
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ files }));
+            res.end(JSON.stringify({ files, activePass }));
         } catch (e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
         return;
     }
@@ -762,6 +866,13 @@ const server = http.createServer(async (req, res) => {
                 const { html, toc } = renderMarkdown(fixtureRaw);
                 res.writeHead(200, { "Content-Type": "application/json" });
                 res.end(JSON.stringify({ html, toc, raw: fixtureRaw, filePath }));
+                return;
+            }
+            const nestedRaw = fixtureNestedMarkdown(sessionUuid, filePath);
+            if (nestedRaw !== null) {
+                const { html, toc } = renderMarkdown(nestedRaw);
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ html, toc, raw: nestedRaw, filePath }));
                 return;
             }
             const fullPath = path.join(SESSION_BASE, sessionUuid, filePath);

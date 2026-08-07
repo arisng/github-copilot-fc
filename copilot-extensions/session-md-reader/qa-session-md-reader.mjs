@@ -113,27 +113,25 @@ const TC1_BADGE = test("TC1.7", "fileCountBadge shows file count", async (page) 
 // ========================================================================
 // TC2: File Listing & Navigation
 // ========================================================================
-const TC2_FILE_GROUPS = test("TC2.1", "4 file groups present: Root, checkpoints, research, files", async (page) => {
-    const groupHeaders = page.locator(".file-group-header");
-    const count = await groupHeaders.count();
+const TC2_FILE_GROUPS = test("TC2.1", "Nested folders present: checkpoints, research, files, plan.md", async (page) => {
+    const folderHeaders = page.locator(".file-folder-header");
+    const count = await folderHeaders.count();
     const texts = [];
     for (let i = 0; i < count; i++) {
-        texts.push((await groupHeaders.nth(i).textContent()).replace(/\s*\(\d+\)\s*$/, "").trim());
+        texts.push((await folderHeaders.nth(i).textContent()).replace(/\s*\d+\s*$/, "").trim());
     }
-    assert.ok(texts.some(t => /root/i.test(t)), "Missing Root group");
-    assert.ok(texts.some(t => /checkpoints/i.test(t)), "Missing checkpoints group");
-    assert.ok(texts.some(t => /research/i.test(t)), "Missing research group");
-    assert.ok(texts.some(t => /files/i.test(t)), "Missing files group");
+    assert.ok(texts.some(t => /checkpoints/i.test(t)), "Missing checkpoints folder");
+    assert.ok(texts.some(t => /research/i.test(t)), "Missing research folder");
+    assert.ok(texts.some(t => /files/i.test(t)), "Missing files folder");
 });
 
-const TC2_GROUP_TOGGLE = test("TC2.2", "Group collapse/expand toggles file visibility", async (page) => {
+const TC2_GROUP_TOGGLE = test("TC2.2", "Folder collapse/expand toggles file visibility", async (page) => {
     // First ensure we are on files tab and files are loaded
     await page.locator('[data-tab="files"]').click();
     await page.waitForTimeout(500);
-    await page.locator(".file-group-header").first().waitFor({ state: "visible", timeout: 5000 });
-    // Click first group header to collapse it
-    const firstHeader = page.locator(".file-group-header").first();
-    const headerText = await firstHeader.textContent();
+    await page.locator(".file-folder-header").first().waitFor({ state: "visible", timeout: 5000 });
+    // Click first folder header to toggle it
+    const firstHeader = page.locator(".file-folder-header").first();
     await firstHeader.click();
     await page.waitForTimeout(400);
     // Toggle back
@@ -1201,6 +1199,9 @@ const TC18_SIDEBAR_SCROLL = test("TC18.1", "Sidebar file list is scrollable when
     await page.setViewportSize({ width: 1280, height: 400 });
     await page.goto(BASE + "?instance=qa-files&sessionUuid=fixture-files", { waitUntil: "networkidle" });
     await page.waitForTimeout(800);
+    // Expand all folders so the list is long
+    await page.locator(".file-toggle-all").click();
+    await page.waitForTimeout(300);
     const scroll = page.locator(".sidebar-scroll").first();
     const oy = await scroll.evaluate(el => getComputedStyle(el).overflowY);
     assert.equal(oy, "auto", ".sidebar-scroll overflow-y should be auto");
@@ -1234,42 +1235,50 @@ const TC18_TODOS_INVARIANT = test("TC18.2", "Todos details panel stays pinned wh
 const TC19_COLLAPSE_HIDES = test("TC19.1", "Clicking a folder hides its files; header count unchanged", async (page) => {
     await page.goto(BASE + "?instance=qa-files3&sessionUuid=fixture-files", { waitUntil: "networkidle" });
     await page.waitForTimeout(800);
-    const chkHeader = page.locator(".file-group-header", { hasText: "checkpoints" }).first();
+    // fixture-files has no activePass → all folders collapsed by default.
+    const chkHeader = page.locator(".file-folder-header", { hasText: "checkpoints" }).first();
     await chkHeader.waitFor({ state: "visible", timeout: 5000 });
-    const totalBefore = await page.locator(".file-item").count();
-    assert.equal(totalBefore, 25, "25 file items before collapse");
+    // Expand it first, verify children appear, then collapse again.
+    const collapsedInitially = await chkHeader.evaluate(el => el.classList.contains("collapsed"));
+    assert.ok(collapsedInitially, "checkpoints should start collapsed (no activePass)");
     await chkHeader.click();
     await page.waitForTimeout(300);
-    const visible = await page.locator(".file-item:visible").count();
-    assert.equal(visible, 25 - 18, "18 checkpoints files hidden after collapse");
-    const chkText = (await chkHeader.textContent()).trim();
-    assert.ok(chkText.includes("(18)"), "count (18) preserved while collapsed: " + chkText);
-    const wrapperCollapsed = await chkHeader.evaluate(el => el.closest(".file-group").classList.contains("collapsed"));
-    assert.ok(wrapperCollapsed, ".file-group wrapper should have collapsed class");
+    const visibleAfterExpand = await page.locator(".file-item:visible").count();
+    assert.equal(visibleAfterExpand, 19, "18 checkpoints files + plan.md visible after expanding checkpoints");
+    const headerOpen = await chkHeader.evaluate(el => el.classList.contains("open"));
+    assert.ok(headerOpen, "header should have open class after expand");
+    const chkCount = await chkHeader.locator(".file-folder-count").textContent();
+    assert.equal(chkCount, "18", "checkpoints count should be 18");
+    // Collapse again
+    await chkHeader.click();
+    await page.waitForTimeout(300);
+    const visibleAfterCollapse = await page.locator(".file-item:visible").count();
+    assert.equal(visibleAfterCollapse, 1, "only plan.md visible after collapsing checkpoints");
     const headerCollapsed = await chkHeader.evaluate(el => el.classList.contains("collapsed"));
-    assert.ok(headerCollapsed, "header should have collapsed class (chevron rotation)");
-    // expand restores
-    await chkHeader.click();
-    await page.waitForTimeout(300);
-    assert.equal(await page.locator(".file-item:visible").count(), 25, "all files visible after expand");
+    assert.ok(headerCollapsed, "header should have collapsed class after collapse");
 });
 
 const TC19_COLLAPSE_PERSISTS = test("TC19.2", "Folder collapse persists across tab switch", async (page) => {
-    const chkHeader = page.locator(".file-group-header", { hasText: "checkpoints" }).first();
-    if (await chkHeader.count() === 0 || await chkHeader.evaluate(el => !el.closest(".file-group").classList.contains("collapsed")).catch(() => true)) {
-        // ensure collapsed state on current page
-        await chkHeader.click();
+    await page.goto(BASE + "?instance=qa-files4&sessionUuid=fixture-files", { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    const chkHeader = page.locator(".file-folder-header", { hasText: "checkpoints" }).first();
+    await chkHeader.waitFor({ state: "visible", timeout: 5000 });
+    // Ensure checkpoints is collapsed (default) — expand then collapse to force a state
+    if (await chkHeader.evaluate(el => el.classList.contains("collapsed")).catch(() => true)) {
+        await chkHeader.click(); // expand
+        await page.waitForTimeout(200);
+        await chkHeader.click(); // collapse
         await page.waitForTimeout(200);
     }
     await page.locator('[data-tab="todos"]').click();
     await page.waitForTimeout(300);
     await page.locator('[data-tab="files"]').click();
     await page.waitForTimeout(400);
-    const header2 = page.locator(".file-group-header", { hasText: "checkpoints" }).first();
-    const stillCollapsed = await header2.evaluate(el => el.closest(".file-group").classList.contains("collapsed"));
+    const header2 = page.locator(".file-folder-header", { hasText: "checkpoints" }).first();
+    const stillCollapsed = await header2.evaluate(el => el.classList.contains("collapsed"));
     assert.ok(stillCollapsed, "checkpoints should remain collapsed after switching tabs");
     const visible = await page.locator(".file-item:visible").count();
-    assert.equal(visible, 25 - 18, "checkpoints files still hidden after tab switch");
+    assert.equal(visible, 1, "only plan.md visible after tab switch (checkpoints still collapsed)");
     await header2.click(); // expand back
     await page.waitForTimeout(200);
 });
@@ -1541,6 +1550,13 @@ const TC22_NO_STRAY_HR = test("TC22.5", "No stray <hr> from frontmatter fences; 
 
 const TC22_NO_FRONTMATTER = test("TC22.6", "File without frontmatter renders normally", async (page) => {
     await page.goto(FM_FIXTURE_URL, { waitUntil: "networkidle" });
+    // Phase 7: folders start collapsed; expand checkpoints so plain.md is visible.
+    const chk = page.locator('.file-folder-header[data-folder="checkpoints"]');
+    await chk.waitFor({ state: "visible", timeout: 8000 });
+    if (await chk.evaluate(el => el.classList.contains("collapsed"))) {
+        await chk.click();
+        await page.waitForTimeout(400);
+    }
     const plainItem = page.locator('.file-item').filter({ hasText: "plain.md" }).first();
     await plainItem.waitFor({ state: "visible", timeout: 8000 });
     await plainItem.click();
@@ -1554,6 +1570,172 @@ const TC22_NO_FRONTMATTER = test("TC22.6", "File without frontmatter renders nor
     assert.equal(hrCount, 0, "no stray <hr> in plain file");
     const itemCount = await page.locator("#renderedContent li").count();
     assert.ok(itemCount >= 2, "plain file list items should render");
+});
+
+// ========================================================================
+// TC23: Nested folder tree + toggle-all + scroll preservation (fixture-nested)
+// ========================================================================
+const NESTED_URL = BASE + "?instance=qa-nested&sessionUuid=fixture-nested";
+
+async function nestedReady(page) {
+    await page.goto(NESTED_URL, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+}
+
+const TC23_NESTED_RENDER = test("TC23.1", "Nested folder structure renders (files → pass-2 → research)", async (page) => {
+    await nestedReady(page);
+    // files folder must be present
+    const filesFolder = page.locator('.file-folder-header[data-folder="files"]');
+    assert.equal(await filesFolder.count(), 1, "files folder should exist");
+    // active pass (2) auto-opens files/pass-2; its research subfolder exists (collapsed)
+    const pass2Folder = page.locator('.file-folder-header[data-folder="files/pass-2"]');
+    assert.equal(await pass2Folder.count(), 1, "files/pass-2 folder should exist");
+    const researchFolder = page.locator('.file-folder-header[data-folder="files/pass-2/research"]');
+    assert.equal(await researchFolder.count(), 1, "files/pass-2/research folder should exist");
+    const researchCollapsed = await researchFolder.evaluate(el => el.classList.contains("collapsed"));
+    assert.ok(researchCollapsed, "research should start collapsed");
+    // Expand research → deep file appears
+    await researchFolder.click();
+    await page.waitForTimeout(300);
+    const deepFile = page.locator('.file-item[data-path="files/pass-2/research/research-1.md"]');
+    assert.equal(await deepFile.count(), 1, "deep file should appear after expanding research");
+    await deepFile.waitFor({ state: "visible", timeout: 5000 });
+});
+
+const TC23_ACTIVE_PASS_OPEN = test("TC23.2", "Active pass folder + ancestors open by default; others collapsed", async (page) => {
+    await nestedReady(page);
+    const filesOpen = await page.locator('.file-folder-header[data-folder="files"]').evaluate(el => el.classList.contains("open"));
+    assert.ok(filesOpen, "files should be open (ancestor of active pass)");
+    const pass2Open = await page.locator('.file-folder-header[data-folder="files/pass-2"]').evaluate(el => el.classList.contains("open"));
+    assert.ok(pass2Open, "files/pass-2 should be open (active pass)");
+    const pass1Collapsed = await page.locator('.file-folder-header[data-folder="files/pass-1"]').evaluate(el => el.classList.contains("collapsed"));
+    assert.ok(pass1Collapsed, "files/pass-1 should be collapsed (inactive pass)");
+    const chkCollapsed = await page.locator('.file-folder-header[data-folder="checkpoints"]').evaluate(el => el.classList.contains("collapsed"));
+    assert.ok(chkCollapsed, "checkpoints should be collapsed (not a pass folder)");
+});
+
+const TC23_DEEP_TOGGLE = test("TC23.3", "Header click toggles deep folder (backslash regression)", async (page) => {
+    await nestedReady(page);
+    // files/pass-1 is collapsed; its subfolders are not rendered yet
+    const pass1 = page.locator('.file-folder-header[data-folder="files/pass-1"]');
+    const subBefore = await page.locator('.file-folder-header[data-folder="files/pass-1/manifests"]').count();
+    assert.equal(subBefore, 0, "pass-1 subfolders hidden while pass-1 collapsed");
+    await pass1.click();
+    await page.waitForTimeout(300);
+    const pass1Open = await pass1.evaluate(el => el.classList.contains("open"));
+    assert.ok(pass1Open, "pass-1 should open after header click");
+    const manifests = page.locator('.file-folder-header[data-folder="files/pass-1/manifests"]');
+    assert.equal(await manifests.count(), 1, "manifests folder should now render");
+    // manifests collapsed by default → toggle it open (deep path with backslashes in original group)
+    await manifests.click();
+    await page.waitForTimeout(300);
+    const manifestsOpen = await manifests.evaluate(el => el.classList.contains("open"));
+    assert.ok(manifestsOpen, "manifests should open after click (deep toggle works)");
+    const rev5 = page.locator('.file-item[data-path="files/pass-1/manifests/plan-rev5.md"]');
+    assert.equal(await rev5.count(), 1, "plan-rev5.md should be visible after opening manifests");
+});
+
+const TC23_TOGGLE_ALL = test("TC23.4", "Toggle-all button collapses all then expands all; label flips", async (page) => {
+    await nestedReady(page);
+    const btn = page.locator(".file-toggle-all");
+    // fixture-nested starts mixed (files + pass-2 open, rest collapsed) → label "Expand All"
+    const labelBefore = await btn.locator("#fileToggleAllLabel").textContent();
+    assert.equal(labelBefore, "Expand All", `mixed state should promise Expand All, got "${labelBefore}"`);
+    // Click 1 → expand all folders
+    await btn.click();
+    await page.waitForTimeout(300);
+    const collapsedAfter = await page.locator(".file-folder-header.collapsed").count();
+    assert.equal(collapsedAfter, 0, "no folders collapsed after toggle-all expand");
+    const labelExpanded = await btn.locator("#fileToggleAllLabel").textContent();
+    assert.equal(labelExpanded, "Collapse All", "label should read Collapse All after expand-all");
+    // Click 2 → collapse all folders
+    await btn.click();
+    await page.waitForTimeout(300);
+    const openAfter = await page.locator(".file-folder-header.open").count();
+    assert.equal(openAfter, 0, "no folders open after toggle-all collapse");
+    const labelCollapsed = await btn.locator("#fileToggleAllLabel").textContent();
+    assert.equal(labelCollapsed, "Expand All", "label should read Expand All after collapse-all");
+});
+
+const TC23_SCROLL_FILE_CLICK = test("TC23.5", "Clicking a file item does not reset sidebar scroll", async (page) => {
+    await page.setViewportSize({ width: 1280, height: 400 });
+    await page.goto(BASE + "?instance=qa-nested5&sessionUuid=fixture-nested", { waitUntil: "networkidle" });
+    await page.waitForTimeout(1000);
+    // Expand all so the list is long enough to scroll
+    await page.locator(".file-toggle-all").click();
+    await page.waitForTimeout(300);
+    const scroll = page.locator(".sidebar-scroll").first();
+    const dims = await scroll.evaluate(el => ({ sh: el.scrollHeight, ch: el.clientHeight }));
+    assert.ok(dims.sh > dims.ch, `Sidebar should overflow (scrollHeight ${dims.sh} > clientHeight ${dims.ch})`);
+    await scroll.evaluate(el => { el.scrollTop = 150; });
+    await page.waitForTimeout(200);
+    const before = await scroll.evaluate(el => el.scrollTop);
+    assert.ok(before > 0, `scrollTop should be settable (got ${before})`);
+    // Programmatic click (no auto-scroll) on a deep file
+    await page.evaluate(() => {
+        const items = [...document.querySelectorAll(".file-item")];
+        const target = items.find(i => i.textContent.includes("research-1.md"));
+        if (target) target.click();
+    });
+    await page.waitForTimeout(900);
+    const after = await scroll.evaluate(el => el.scrollTop);
+    assert.ok(after > 0, `scrollTop should be preserved (before ${before}, after ${after})`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+});
+
+const TC23_SCROLL_REFRESH = test("TC23.6", "Refresh icon does not reset sidebar scroll (files + todos)", async (page) => {
+    // Files refresh (fixture-nested, tree expanded + small viewport → long list)
+    await page.setViewportSize({ width: 1280, height: 400 });
+    await page.goto(BASE + "?instance=qa-nested6&sessionUuid=fixture-nested", { waitUntil: "networkidle" });
+    await page.waitForTimeout(1000);
+    await page.locator(".file-toggle-all").click();
+    await page.waitForTimeout(300);
+    const scroll = page.locator(".sidebar-scroll").first();
+    const fdims = await scroll.evaluate(el => ({ sh: el.scrollHeight, ch: el.clientHeight }));
+    assert.ok(fdims.sh > fdims.ch, `files list should overflow (sh ${fdims.sh} > ch ${fdims.ch})`);
+    await scroll.evaluate(el => { el.scrollTop = 150; });
+    await page.waitForTimeout(200);
+    const fb = await scroll.evaluate(el => el.scrollTop);
+    await page.locator('.sidebar-tab[data-tab="files"] .tab-refresh-btn').click();
+    await page.waitForTimeout(1000);
+    const fa = await scroll.evaluate(el => el.scrollTop);
+    assert.ok(fa === fb, `files refresh should preserve scroll (before ${fb}, after ${fa})`);
+
+    // Todos refresh (fixture-manytodos → 60 flat todos overflow .todo-tree-container)
+    await page.goto(BASE + "?instance=qa-nested6b&sessionUuid=fixture-manytodos", { waitUntil: "networkidle" });
+    await page.locator('[data-tab="todos"]').click();
+    await page.waitForTimeout(1000);
+    const tScroll = page.locator(".todo-tree-container").first();
+    const tDims = await tScroll.evaluate(el => ({ sh: el.scrollHeight, ch: el.clientHeight }));
+    assert.ok(tDims.sh > tDims.ch, `todo list should overflow (sh ${tDims.sh} > ch ${tDims.ch})`);
+    await tScroll.evaluate(el => { el.scrollTop = 120; });
+    await page.waitForTimeout(200);
+    const tb = await tScroll.evaluate(el => el.scrollTop);
+    await page.locator('.sidebar-tab[data-tab="todos"] .tab-refresh-btn').click();
+    await page.waitForTimeout(1200);
+    const ta = await tScroll.evaluate(el => el.scrollTop);
+    assert.ok(ta === tb, `todos refresh should preserve scroll (before ${tb}, after ${ta})`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+});
+
+const TC23_SCROLL_TAB_SWITCH = test("TC23.7", "Per-tab scroll memory survives tab switching", async (page) => {
+    await page.setViewportSize({ width: 1280, height: 400 });
+    await page.goto(BASE + "?instance=qa-nested7&sessionUuid=fixture-nested", { waitUntil: "networkidle" });
+    await page.waitForTimeout(1000);
+    await page.locator(".file-toggle-all").click();
+    await page.waitForTimeout(300);
+    const scroll = page.locator(".sidebar-scroll").first();
+    const dims = await scroll.evaluate(el => ({ sh: el.scrollHeight, ch: el.clientHeight }));
+    assert.ok(dims.sh > dims.ch, `Sidebar should overflow (scrollHeight ${dims.sh} > clientHeight ${dims.ch})`);
+    await scroll.evaluate(el => { el.scrollTop = 120; });
+    await page.waitForTimeout(200);
+    await page.locator('[data-tab="toc"]').click();
+    await page.waitForTimeout(400);
+    await page.locator('[data-tab="files"]').click();
+    await page.waitForTimeout(500);
+    const restored = await page.locator(".sidebar-scroll").first().evaluate(el => el.scrollTop);
+    assert.ok(restored > 0, `files tab scroll should be restored (got ${restored})`);
+    await page.setViewportSize({ width: 1280, height: 800 });
 });
 
 // ========================================================================
@@ -1597,6 +1779,7 @@ async function main() {
             { name: "TC20: Collapse Only Via Chevron", tests: [TC20_COLLAPSE_ONLY_CHEVRON] },
             { name: "TC21: Details Panel Two-Section Layout", tests: [TC21_SECTIONS, TC21_BODY_FILLS, TC21_METADATA_ROWS, TC21_DESC_MULTILINE] },
             { name: "TC22: Frontmatter Metadata Card", tests: [TC22_CARD_COLLAPSED, TC22_EXPAND_ROWS, TC22_NESTED_OBJECT, TC22_ARRAY_GROUP, TC22_NO_STRAY_HR, TC22_NO_FRONTMATTER] },
+            { name: "TC23: Nested Tree + Toggle-All + Scroll Preservation", tests: [TC23_NESTED_RENDER, TC23_ACTIVE_PASS_OPEN, TC23_DEEP_TOGGLE, TC23_TOGGLE_ALL, TC23_SCROLL_FILE_CLICK, TC23_SCROLL_REFRESH, TC23_SCROLL_TAB_SWITCH] },
         ];
 
         // Take an initial screenshot
