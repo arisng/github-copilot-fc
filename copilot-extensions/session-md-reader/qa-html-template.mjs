@@ -42,14 +42,42 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
   .sidebar-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 8px 0; }
   .sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 
-  /* File group */
-  .file-group { margin-bottom: 4px; }
-  .file-group-header { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); cursor: pointer; user-select: none; }
-  .file-group-header:hover { color: var(--text); }
-  .file-group-header svg { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.2s; }
-  .file-group-header.collapsed svg { transform: rotate(-90deg); }
-  .file-group.collapsed .file-item { display: none; }
-  .file-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 28px; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.15s; border-left: 2px solid transparent; }
+  /* File tree toolbar */
+  .file-tree-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px; flex-shrink: 0;
+  }
+  .file-toggle-all {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border: 1px solid var(--border);
+    border-radius: 5px; cursor: pointer; font-size: 10px;
+    background: var(--surface); color: var(--text-muted); flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .file-toggle-all:hover { background: var(--surface-hover); color: var(--accent); }
+  .file-toggle-all .icon { font-size: 12px; }
+
+  /* Nested folder tree */
+  .file-folder-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 14px 5px 10px; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.3px; color: var(--text-muted); cursor: pointer; user-select: none;
+  }
+  .file-folder-header:hover { color: var(--text); }
+  .file-folder-arrow { width: 11px; height: 11px; flex-shrink: 0; transition: transform 0.2s; }
+  .file-folder-header.collapsed .file-folder-arrow { transform: rotate(-90deg); }
+  .file-folder-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-folder-count {
+    margin-left: auto; font-size: 10px; color: var(--text-muted); font-weight: 400;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0 7px; flex-shrink: 0;
+  }
+  .file-folder-children {
+    position: relative;
+    margin-left: 11px; padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+  .file-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 24px; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.15s; border-left: 2px solid transparent; }
   .file-item:hover { color: var(--text); background: var(--surface); }
   .file-item.active { color: var(--accent); background: var(--surface); border-left-color: var(--accent); }
   .file-item .icon { opacity: 0.6; font-size: 14px; width: 16px; text-align: center; }
@@ -183,7 +211,9 @@ export function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = 3) {
   .sidebar.collapsed .sidebar-tab { font-size: 0; padding: 8px 4px; flex: none; }
   .sidebar.collapsed .sidebar-tab::after { content: attr(data-icon); font-size: 16px; }
   .sidebar.collapsed .sidebar-tab.active { border-bottom: none; border-left: 2px solid var(--accent); }
-  .sidebar.collapsed .file-group,
+  .sidebar.collapsed .file-tree-toolbar,
+  .sidebar.collapsed .file-folder,
+  .sidebar.collapsed .file-item,
   .sidebar.collapsed .toc-item,
   .sidebar.collapsed .active-file-info,
   .sidebar.collapsed .todo-tree-container,
@@ -509,6 +539,34 @@ let activeHeadingId = null;
 let sidebarCollapsed = false;
 let zoomLevel = 1.0;
 let todosData = null;
+let activePass = null;
+
+// Collapse state for the nested folder tree (keyed by normalized path)
+const folderCollapsed = {};
+// Per-tab scroll memory so switching tabs / re-rendering keeps position
+const tabScroll = { files: 0, toc: 0, todos: 0 };
+
+// Replace sidebar content while preserving the scroller's scroll position.
+// scrollSel: CSS selector of the element that actually scrolls inside #sidebarContent.
+function setSidebarContent(html, scrollSel) {
+    const scroller = scrollSel ? sidebarContent.querySelector(scrollSel) : null;
+    const prevTop = scroller ? scroller.scrollTop : 0;
+    sidebarContent.innerHTML = html;
+    const newScroller = scrollSel ? sidebarContent.querySelector(scrollSel) : null;
+    if (newScroller && prevTop) newScroller.scrollTop = prevTop;
+}
+
+function captureTabScroll(tab) {
+    const sel = tab === "todos" ? ".todo-tree-container" : ".sidebar-scroll";
+    const el = sidebarContent.querySelector(sel);
+    if (el) tabScroll[tab] = el.scrollTop;
+}
+
+function restoreTabScroll(tab) {
+    const sel = tab === "todos" ? ".todo-tree-container" : ".sidebar-scroll";
+    const el = sidebarContent.querySelector(sel);
+    if (el && tabScroll[tab]) el.scrollTop = tabScroll[tab];
+}
 
 // --- DOM refs ---
 const sidebarEl = document.getElementById("sidebar");
@@ -605,9 +663,12 @@ function initSidebarResizer() {
 let currentTab = "files";
 let currentFilterPass = "all";
 function switchTab(tab) {
+    if (tab === currentTab) return;
+    captureTabScroll(currentTab);
     currentTab = tab;
     document.querySelectorAll(".sidebar-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
     renderSidebar();
+    restoreTabScroll(tab);
     if (tab === "todos" && !todosData) loadTodos();
 }
 
@@ -668,11 +729,12 @@ async function loadFiles() {
         const res = await fetch("/api/files?sessionUuid=" + encodeURIComponent(SESSION_UUID));
         const data = await res.json();
         allFiles = data.files || [];
+        activePass = data.activePass != null ? String(data.activePass) : null;
         fileCountBadge.textContent = allFiles.length + " markdown file" + (allFiles.length !== 1 ? "s" : "") + " found";
         renderSidebar();
     } catch (e) {
         fileCountBadge.textContent = "Error loading files";
-        sidebarContent.innerHTML = '<div style="padding:20px;color:var(--warning);text-align:center">Failed to load files.<br>Check session UUID.</div>';
+        setSidebarContent('<div style="padding:20px;color:var(--warning);text-align:center">Failed to load files.<br>Check session UUID.</div>', null);
     }
 }
 
@@ -720,60 +782,130 @@ function renderSidebar() {
 
 function renderFileList() {
     if (!allFiles.length) {
-        sidebarContent.innerHTML = '<div class="toc-empty">No markdown files found</div>';
+        setSidebarContent('<div class="toc-empty">No markdown files found</div>', ".sidebar-scroll");
         return;
     }
 
-    // Group files
-    const groups = {};
-    for (const f of allFiles) {
-        const g = f.group === "root" ? "root" : f.group;
-        if (!groups[g]) groups[g] = [];
-        groups[g].push(f);
+    const tree = buildFileTree(allFiles);
+    ensureFolderState(tree);
+
+    // Toolbar: collapse/expand all folders
+    const anyCollapsed = Object.values(folderCollapsed).some(v => v === true);
+    const allLabel = anyCollapsed ? "Expand All" : "Collapse All";
+    let html = '<div class="file-tree-toolbar"><button class="file-toggle-all" onclick="toggleAllFolders()"><span class="icon">&#x229E;</span><span id="fileToggleAllLabel">' + allLabel + '</span></button></div>';
+    html += '<div class="sidebar-scroll">';
+    html += renderFileNode(tree, 0);
+    html += '</div>';
+    setSidebarContent(html, ".sidebar-scroll");
+}
+
+// Build a nested tree of folders + files from relative paths.
+function buildFileTree(files) {
+    const root = { name: "", path: "", dirs: new Map(), files: [] };
+    for (const f of files) {
+        const segs = f.relativePath.split(/[\\\\/]/);
+        let node = root;
+        for (let i = 0; i < segs.length - 1; i++) {
+            const seg = segs[i];
+            if (!node.dirs.has(seg)) node.dirs.set(seg, { name: seg, path: segs.slice(0, i + 1).join("/"), dirs: new Map(), files: [] });
+            node = node.dirs.get(seg);
+        }
+        node.files.push(f);
     }
+    return root;
+}
 
-    // Sort: root first, then alphabetically
-    const groupOrder = ["root", "checkpoints", "research", "files"];
-    const sortedGroups = Object.keys(groups).sort((a, b) => {
-        const ai = groupOrder.indexOf(a);
-        const bi = groupOrder.indexOf(b);
-        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.localeCompare(b);
-    });
+function countNodeFiles(node) {
+    let n = node.files.length;
+    for (const d of node.dirs.values()) n += countNodeFiles(d);
+    return n;
+}
 
-    let html = '<div class="sidebar-scroll">';
-    for (const group of sortedGroups) {
-        const fileList = groups[group];
-        const groupLabel = group === "root" ? "Root" : group;
-        const isActive = groupCollapsed[group] !== false;
-        html += '<div class="file-group' + (!isActive ? ' collapsed' : '') + '">';
-        html += '<div class="file-group-header' + (!isActive ? ' collapsed' : '') + '" onclick="toggleGroup(\\'' + group + '\\')">';
-        html += '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 4l8 6-8 6z"/></svg>';
-        html += groupLabel + ' <span style="font-weight:400;margin-left:4px;opacity:0.6">(' + fileList.length + ')</span>';
+// On first render, default every folder collapsed except the active pass
+// folder and its ancestors (which stay open so the active pass is visible).
+function ensureFolderState(tree) {
+    if (Object.keys(folderCollapsed).length) return;
+    const collect = (node, out) => {
+        for (const d of node.dirs.values()) { out.push(d); collect(d, out); }
+    };
+    const allDirs = [];
+    collect(tree, allDirs);
+    // Find folders whose last path segment is pass-<activePass>
+    const openSet = new Set();
+    if (activePass) {
+        const targetSeg = "pass-" + activePass;
+        for (const d of allDirs) {
+            const segs = d.path.split("/");
+            if (segs[segs.length - 1] === targetSeg) {
+                for (let i = 1; i <= segs.length; i++) openSet.add(segs.slice(0, i).join("/"));
+            }
+        }
+    }
+    for (const d of allDirs) {
+        folderCollapsed[d.path] = openSet.has(d.path) ? false : true;
+    }
+}
+
+function renderFileNode(node, depth) {
+    let html = "";
+    // Folders first (sorted), then files (sorted)
+    const dirs = [...node.dirs.values()].sort((a, b) => a.name.localeCompare(b.name));
+    for (const dir of dirs) {
+        const collapsed = folderCollapsed[dir.path] === true;
+        const total = countNodeFiles(dir);
+        html += '<div class="file-folder" data-folder="' + escapeHtml(dir.path) + '">';
+        html += '<div class="file-folder-header' + (collapsed ? ' collapsed' : ' open') + '" data-folder="' + escapeHtml(dir.path) + '">';
+        html += '<svg class="file-folder-arrow" viewBox="0 0 20 20" fill="currentColor"><path d="M6 4l8 6-8 6z"/></svg>';
+        html += '<span class="file-folder-name">' + escapeHtml(dir.name) + '</span>';
+        html += '<span class="file-folder-count">' + total + '</span>';
         html += '</div>';
-        for (const f of fileList) {
-            const active = currentFilePath === f.relativePath ? ' active' : '';
-            const icon = f.group === "checkpoints" ? "\u{1F4CB}" : f.fileName === "plan.md" ? "\u{1F4D1}" : "\u{1F4C4}";
-            html += '<div class="file-item' + active + '" onclick="loadFile(\\'' + f.relativePath.replace(/\\\\/g, '\\\\\\\\') + '\\')" data-path="' + f.relativePath + '">';
-            html += '<span class="icon">' + icon + '</span>';
-            html += '<span class="name">' + f.fileName + '</span>';
-            html += '</div>';
+        if (!collapsed) {
+            html += '<div class="file-folder-children">' + renderFileNode(dir, depth + 1) + '</div>';
         }
         html += '</div>';
     }
-    html += '</div>';
-    sidebarContent.innerHTML = html;
+    const files = node.files.slice().sort((a, b) => a.fileName.localeCompare(b.fileName));
+    for (const f of files) {
+        const active = currentFilePath === f.relativePath ? ' active' : '';
+        const firstSeg = f.relativePath.split(/[\\\\/]/)[0];
+        const icon = firstSeg === "checkpoints" ? "\u{1F4CB}" : f.fileName === "plan.md" ? "\u{1F4D1}" : "\u{1F4C4}";
+        html += '<div class="file-item' + active + '" onclick="loadFile(\\'' + f.relativePath.replace(/\\\\/g, '\\\\\\\\') + '\\')" data-path="' + escapeHtml(f.relativePath) + '">';
+        html += '<span class="icon">' + icon + '</span>';
+        html += '<span class="name">' + escapeHtml(f.fileName) + '</span>';
+        html += '</div>';
+    }
+    return html;
 }
 
-// Simple group collapse state
-const groupCollapsed = {};
-function toggleGroup(name) {
-    groupCollapsed[name] = groupCollapsed[name] === false ? true : false;
+// --- Folder collapse state + toggle-all (delegated clicks avoid inline-onclick escaping bugs) ---
+function toggleFolder(path) {
+    folderCollapsed[path] = folderCollapsed[path] === true ? false : true;
     renderFileList();
 }
 
+function toggleAllFolders() {
+    // Label promises: if any folder is collapsed, clicking EXPANDS all; else collapses all.
+    const anyCollapsed = Object.values(folderCollapsed).some(v => v === true);
+    for (const k of Object.keys(folderCollapsed)) {
+        folderCollapsed[k] = anyCollapsed ? false : true;
+    }
+    renderFileList();
+}
+
+// Delegated click handler for folder headers (uses data-folder, safe for backslash paths)
+sidebarContent.addEventListener("click", (e) => {
+    const header = e.target.closest ? e.target.closest(".file-folder-header") : null;
+    if (header) {
+        e.preventDefault();
+        e.stopPropagation();
+        const path = header.getAttribute("data-folder");
+        if (path) toggleFolder(path);
+    }
+});
+
 function renderTocTree() {
     if (!currentToc.length) {
-        sidebarContent.innerHTML = '<div class="toc-empty">No headings found in current file</div>';
+        setSidebarContent('<div class="toc-empty">No headings found in current file</div>', ".sidebar-scroll");
         return;
     }
 
@@ -786,16 +918,16 @@ function renderTocTree() {
         html += escapeHtml(h.text);
         html += '</div>';
     }
-    sidebarContent.innerHTML = '<div class="sidebar-scroll">' + html + '</div>';
+    setSidebarContent('<div class="sidebar-scroll">' + html + '</div>', ".sidebar-scroll");
 }
 
 // --- Render Todos Tree (SVG) ---
 function renderTodosTree() {
     const tree = todosData?.tree || [];
     if (!tree.length) {
-        sidebarContent.innerHTML = '<div class="todo-tree-container"><div class="empty-state">'
+        setSidebarContent('<div class="todo-tree-container"><div class="empty-state">'
             + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
-            + '<br>No todos found</div></div>';
+            + '<br>No todos found</div></div>', ".todo-tree-container");
         return;
     }
 
@@ -884,7 +1016,7 @@ function renderTodosTree() {
     html += '<div class="todo-details-description"><div id="todoDetailDesc"></div></div>';
     html += '</div></div>';
 
-    sidebarContent.innerHTML = html;
+    setSidebarContent(html, ".todo-tree-container");
     // Re-apply current filter if set
     if (currentFilterPass && currentFilterPass !== "all") {
         filterTodosByPass(currentFilterPass);
