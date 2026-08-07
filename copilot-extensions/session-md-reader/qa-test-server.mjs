@@ -311,6 +311,13 @@ function fixtureSessionInfo(sessionUuid) {
             branch: "main",
         };
     }
+    if (sessionUuid === "fixture-allfiles") {
+        return {
+            name: "All files fixture session",
+            repository: "org/demo",
+            branch: "main",
+        };
+    }
     return null;
 }
 
@@ -349,6 +356,39 @@ function fixtureFiles(sessionUuid) {
         files.push({ fullPath: "", relativePath: "files/pass-3/pass.md", fileName: "pass.md", group: "files\\pass-3" });
         return files;
     }
+    if (sessionUuid === "fixture-allfiles") {
+        // Mix of markdown + non-markdown files; includes session-internal files
+        // that scanSessionFiles must filter out (events.jsonl, session.db, etc).
+        const files = [];
+        files.push({ fullPath: "", relativePath: "plan.md", fileName: "plan.md", group: "root", size: 120 });
+        files.push({ fullPath: "", relativePath: "workspace.yaml", fileName: "workspace.yaml", group: "root", size: 84 });
+        files.push({ fullPath: "", relativePath: "checkpoints/index.md", fileName: "index.md", group: "checkpoints", size: 90 });
+        files.push({ fullPath: "", relativePath: "files/evidence/screenshot.png", fileName: "screenshot.png", group: "files\\evidence", size: 300 });
+        files.push({ fullPath: "", relativePath: "files/evidence/data.json", fileName: "data.json", group: "files\\evidence", size: 60 });
+        files.push({ fullPath: "", relativePath: "files/scripts/query.sql", fileName: "query.sql", group: "files\\scripts", size: 55 });
+        files.push({ fullPath: "", relativePath: "files/artifacts/app.dll", fileName: "app.dll", group: "files\\artifacts", size: 4200 });
+        // Session-internal files that the scanner must exclude:
+        files.push({ fullPath: "", relativePath: "events.jsonl", fileName: "events.jsonl", group: "root", size: 500 });
+        files.push({ fullPath: "", relativePath: "session.db", fileName: "session.db", group: "root", size: 400 });
+        files.push({ fullPath: "", relativePath: "vscode.metadata.json", fileName: "vscode.metadata.json", group: "root", size: 80 });
+        files.push({ fullPath: "", relativePath: "inuse.12345.lock", fileName: "inuse.12345.lock", group: "root", size: 6 });
+        files.push({ fullPath: "", relativePath: "rewind-file-snapshots/backups/abc123", fileName: "abc123", group: "rewind-file-snapshots\\backups", size: 200 });
+        return files;
+    }
+    return null;
+}
+
+// Deterministic fixture content for fixture-allfiles (typed preview QA)
+function fixtureAllFilesContent(sessionUuid, filePath) {
+    if (sessionUuid !== "fixture-allfiles") return null;
+    const norm = filePath.replace(/\\/g, "/");
+    if (norm === "plan.md") return "---\ncurrentPass: \"1\"\n---\n\n# All Files Plan\n\nMarkdown body.\n";
+    if (norm === "workspace.yaml") return "workspace:\n  path: C:/demo\n  branch: main\n";
+    if (norm === "checkpoints/index.md") return "# Checkpoint Index\n\nList.\n";
+    if (norm === "files/evidence/screenshot.png") return "PNG";
+    if (norm === "files/evidence/data.json") return '{\n  "name": "evidence",\n  "count": 3\n}\n';
+    if (norm === "files/scripts/query.sql") return "SELECT * FROM evidence;\n";
+    if (norm === "files/artifacts/app.dll") return "BINARY";
     return null;
 }
 
@@ -750,7 +790,21 @@ function renderMarkdown(md) {
 }
 
 // --- File scanning ---
-function scanMarkdownFiles(sessionUuid) {
+// --- Session-internal files/dirs excluded from the Files tab (Copilot plumbing) ---
+const SESSION_INTERNAL_DIRS = new Set(["rewind-file-snapshots", ".git", "node_modules", ".copilot"]);
+const SESSION_INTERNAL_ROOT_FILES = new Set(["events.jsonl", "session.db", "vscode.metadata.json"]);
+
+// Image and text extension sets (shared with client icon logic)
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"]);
+const TEXT_EXTS = new Set([
+    "md", "markdown", "txt", "log", "json", "jsonl", "sql", "yaml", "yml", "toml", "ini", "cfg", "conf",
+    "cs", "js", "jsx", "ts", "tsx", "py", "rb", "go", "java", "c", "cpp", "h", "hpp", "csproj", "props",
+    "targets", "editorconfig", "diff", "patch", "xml", "html", "css", "scss", "less", "sh", "ps1", "bat",
+    "cmd", "csv", "tsv", "env", "gitignore", "dockerfile", "makefile", "lock",
+]);
+
+// --- Scan all session files (markdown + every other extension) ---
+function scanSessionFiles(sessionUuid) {
     const dir = path.join(SESSION_BASE, sessionUuid);
     const files = [];
     if (!fs.existsSync(dir)) return files;
@@ -760,13 +814,57 @@ function scanMarkdownFiles(sessionUuid) {
         for (const e of entries) {
             const full = path.join(currentDir, e.name);
             const rel = relPrefix ? path.join(relPrefix, e.name) : e.name;
-            if (e.isDirectory()) walk(full, rel);
-            else if (e.isFile() && /\.md$/i.test(e.name)) files.push({ fullPath: full, relativePath: rel, fileName: e.name, group: relPrefix || "root" });
+            if (e.isDirectory()) {
+                if (SESSION_INTERNAL_DIRS.has(e.name)) continue;
+                walk(full, rel);
+            } else if (e.isFile()) {
+                if (relPrefix == null) {
+                    if (SESSION_INTERNAL_ROOT_FILES.has(e.name)) continue;
+                    if (/\.lock$/i.test(e.name)) continue;
+                }
+                let size = 0;
+                try { size = fs.statSync(full).size; } catch {}
+                files.push({ fullPath: full, relativePath: rel, fileName: e.name, group: relPrefix || "root", size });
+            }
         }
     };
     walk(dir, null);
     return files;
 }
+
+// Classify a file by extension → "markdown" | "text" | "image" | "binary"
+function classifyFile(filePath) {
+    const name = filePath.split(/[\\/]/).pop() || "";
+    const ext = (name.includes(".") ? name.split(".").pop() : name).toLowerCase();
+    if (/\.md$/i.test(name)) return "markdown";
+    if (IMAGE_EXTS.has(ext)) return "image";
+    if (TEXT_EXTS.has(ext)) return "text";
+    return "binary";
+}
+
+// Sniff a buffer for NUL bytes to distinguish text from binary (unknown extensions)
+function fileKindByContent(buffer) {
+    return buffer.includes(0) ? "binary" : "text";
+}
+
+// True when a relative path is Copilot session-internal (excluded from Files tab)
+function isSessionInternalFile(rel) {
+    const segs = rel.split(/[\\/]/);
+    const root = segs[0] || "";
+    if (SESSION_INTERNAL_DIRS.has(root)) return true;
+    if (segs.length === 1) {
+        if (SESSION_INTERNAL_ROOT_FILES.has(root)) return true;
+        if (/\.lock$/i.test(root)) return true;
+    }
+    return false;
+}
+
+const MIME_BY_EXT = {
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+    svg: "image/svg+xml", webp: "image/webp", bmp: "image/bmp", ico: "image/x-icon",
+    json: "application/json", txt: "text/plain", log: "text/plain", csv: "text/csv",
+    md: "text/markdown", yaml: "text/yaml", yml: "text/yaml", xml: "application/xml",
+};
 
 // --- Read the current active pass from plan.md frontmatter (files tab auto-open) ---
 function readActivePass(sessionUuid) {
@@ -825,7 +923,8 @@ const server = http.createServer(async (req, res) => {
         if (!sessionUuid) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid" })); return; }
         try {
             const fixture = fixtureFiles(sessionUuid);
-            const files = fixture || scanMarkdownFiles(sessionUuid);
+            const scanned = fixture || scanSessionFiles(sessionUuid);
+            const files = scanned.filter(f => !isSessionInternalFile(f.relativePath));
             const activePass = fixtureActivePass(sessionUuid) ?? readActivePass(sessionUuid);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ files, activePass }));
@@ -848,41 +947,104 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // API: get file content
+    // API: get file content (typed by extension)
     if (url.pathname === "/api/file") {
         const sessionUuid = url.searchParams.get("sessionUuid");
         const filePath = url.searchParams.get("path");
         if (!sessionUuid || !filePath) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid or path" })); return; }
         try {
+            // fixture-allfiles typed content
+            const allRaw = fixtureAllFilesContent(sessionUuid, filePath);
+            if (allRaw !== null) {
+                const kind = classifyFile(filePath);
+                const size = fixtureFiles(sessionUuid).find(f => (f.relativePath.replace(/\\/g, "/")) === filePath.replace(/\\/g, "/"))?.size || allRaw.length;
+                if (kind === "markdown") {
+                    const { html, toc } = renderMarkdown(allRaw);
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ kind, html, toc, raw: allRaw, filePath, size }));
+                } else if (kind === "image" || kind === "binary") {
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ kind, filePath, size }));
+                } else {
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ kind, raw: allRaw, filePath, size }));
+                }
+                return;
+            }
             if (sessionUuid === "fixture-files") {
                 const raw = "# " + filePath + "\n\nSample content for " + filePath + ".\n";
                 const { html, toc } = renderMarkdown(raw);
                 res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ html, toc, raw, filePath }));
+                res.end(JSON.stringify({ kind: "markdown", html, toc, raw, filePath }));
                 return;
             }
             const fixtureRaw = fixtureMarkdown(sessionUuid, filePath);
             if (fixtureRaw !== null) {
                 const { html, toc } = renderMarkdown(fixtureRaw);
                 res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ html, toc, raw: fixtureRaw, filePath }));
+                res.end(JSON.stringify({ kind: "markdown", html, toc, raw: fixtureRaw, filePath }));
                 return;
             }
             const nestedRaw = fixtureNestedMarkdown(sessionUuid, filePath);
             if (nestedRaw !== null) {
                 const { html, toc } = renderMarkdown(nestedRaw);
                 res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ html, toc, raw: nestedRaw, filePath }));
+                res.end(JSON.stringify({ kind: "markdown", html, toc, raw: nestedRaw, filePath }));
                 return;
             }
             const fullPath = path.join(SESSION_BASE, sessionUuid, filePath);
             const resolved = path.resolve(fullPath);
             const base = path.resolve(path.join(SESSION_BASE, sessionUuid));
             if (!resolved.startsWith(base)) throw new Error("Invalid path");
-            const raw = readFile(resolved);
-            const { html, toc } = renderMarkdown(raw);
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ html, toc, raw, filePath }));
+            const size = fs.statSync(resolved).size;
+            const kind = classifyFile(filePath);
+            if (kind === "markdown") {
+                const raw = readFile(resolved);
+                const { html, toc } = renderMarkdown(raw);
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind, html, toc, raw, filePath, size }));
+            } else if (kind === "text") {
+                const raw = readFile(resolved);
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind, raw, filePath, size }));
+            } else {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind, filePath, size }));
+            }
+        } catch (e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+        return;
+    }
+
+    // API: stream raw file bytes (images / binary) with proper Content-Type
+    if (url.pathname === "/api/raw") {
+        const sessionUuid = url.searchParams.get("sessionUuid");
+        const filePath = url.searchParams.get("path");
+        if (!sessionUuid || !filePath) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid or path" })); return; }
+        try {
+            // fixture-allfiles: return a tiny valid 1x1 PNG for image paths
+            if (sessionUuid === "fixture-allfiles") {
+                const norm = filePath.replace(/\\/g, "/");
+                if (norm === "files/evidence/screenshot.png") {
+                    // 1x1 transparent PNG
+                    const b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+                    const buf = Buffer.from(b64, "base64");
+                    res.writeHead(200, { "Content-Type": "image/png", "Content-Length": buf.length });
+                    res.end(buf);
+                    return;
+                }
+                res.writeHead(404, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Not found" }));
+                return;
+            }
+            const fullPath = path.join(SESSION_BASE, sessionUuid, filePath);
+            const resolved = path.resolve(fullPath);
+            const base = path.resolve(path.join(SESSION_BASE, sessionUuid));
+            if (!resolved.startsWith(base)) throw new Error("Invalid path");
+            const buf = fs.readFileSync(resolved);
+            const ext = (path.extname(filePath) || "").replace(".", "").toLowerCase();
+            const mime = MIME_BY_EXT[ext] || "application/octet-stream";
+            res.writeHead(200, { "Content-Type": mime, "Content-Length": buf.length });
+            res.end(buf);
         } catch (e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
         return;
     }

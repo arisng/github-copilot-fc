@@ -105,7 +105,7 @@ const TC1_WELCOME_DESC = test("TC1.6", "welcomeDesc contains repo+branch", async
 
 const TC1_BADGE = test("TC1.7", "fileCountBadge shows file count", async (page) => {
     const text = await getText(page, "#fileCountBadge");
-    assert.ok(text.includes("markdown file"), `Expected file count, got "${text}"`);
+    assert.ok(text.includes("file"), `Expected file count, got "${text}"`);
     assert.ok(text.includes("7") || text.includes("found"),
         `Expected ~7 files, got "${text}"`);
 });
@@ -1739,6 +1739,125 @@ const TC23_SCROLL_TAB_SWITCH = test("TC23.7", "Per-tab scroll memory survives ta
 });
 
 // ========================================================================
+// TC24: All files shown (non-markdown) + typed previews (fixture-allfiles)
+// ========================================================================
+const ALLFILES_URL = BASE + "?instance=qa-allfiles&sessionUuid=fixture-allfiles";
+
+async function allfilesReady(page) {
+    await page.goto(ALLFILES_URL, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+}
+
+async function allfilesExpandAll(page) {
+    // fixture-allfiles has no activePass → all folders collapsed; expand all
+    const btn = page.locator(".file-toggle-all");
+    await btn.waitFor({ state: "visible", timeout: 5000 });
+    const label = await btn.locator("#fileToggleAllLabel").textContent();
+    if (label === "Expand All") {
+        await btn.click();
+        await page.waitForTimeout(400);
+    }
+}
+
+const TC24_NON_MD_VISIBLE = test("TC24.1", "Non-markdown files appear in the file tree", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    for (const name of ["workspace.yaml", "data.json", "query.sql", "screenshot.png", "app.dll"]) {
+        const item = page.locator('.file-item').filter({ hasText: name }).first();
+        assert.equal(await item.count(), 1, `file item "${name}" should exist`);
+        await item.waitFor({ state: "visible", timeout: 4000 });
+    }
+});
+
+const TC24_INTERNAL_EXCLUDED = test("TC24.2", "Session-internal files are excluded from the tree", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    for (const name of ["events.jsonl", "session.db", "vscode.metadata.json", "inuse.12345.lock"]) {
+        const n = await page.locator('.file-item').filter({ hasText: name }).count();
+        assert.equal(n, 0, `internal file "${name}" must not be in the tree`);
+    }
+    const rewind = await page.locator('.file-folder-header').filter({ hasText: "rewind-file-snapshots" }).count();
+    assert.equal(rewind, 0, "rewind-file-snapshots folder must not be in the tree");
+});
+
+const TC24_CODE_VIEW = test("TC24.3", "Clicking a json/sql file renders a code block", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    const jsonItem = page.locator('.file-item').filter({ hasText: "data.json" }).first();
+    await jsonItem.click();
+    await page.waitForTimeout(800);
+    const code = page.locator("#renderedContent .code-view");
+    await code.waitFor({ state: "visible", timeout: 5000 });
+    const txt = await code.textContent();
+    assert.ok(txt.includes('"name"'), "json raw text should be shown in the code block");
+    assert.ok(txt.includes("evidence"), "json content should include evidence");
+    const headingCount = await page.locator("#renderedContent h1").count();
+    assert.equal(headingCount, 0, "code view should have no h1 headings");
+});
+
+const TC24_IMAGE_VIEW = test("TC24.4", "Clicking a png renders an inline image from /api/raw", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    const pngItem = page.locator('.file-item').filter({ hasText: "screenshot.png" }).first();
+    await pngItem.click();
+    await page.waitForTimeout(800);
+    const img = page.locator("#renderedContent .image-view img");
+    await img.waitFor({ state: "visible", timeout: 5000 });
+    const src = await img.getAttribute("src");
+    assert.ok(src && src.includes("/api/raw"), `img src should reference /api/raw, got "${src}"`);
+    const naturalW = await img.evaluate(el => el.naturalWidth);
+    assert.ok(naturalW > 0, `image should load (naturalWidth ${naturalW})`);
+});
+
+const TC24_BINARY_NOTICE = test("TC24.5", "Clicking a dll shows a binary cannot-preview notice", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    const dllItem = page.locator('.file-item').filter({ hasText: "app.dll" }).first();
+    await dllItem.click();
+    await page.waitForTimeout(800);
+    const notice = page.locator("#renderedContent .binary-notice");
+    await notice.waitFor({ state: "visible", timeout: 5000 });
+    const txt = await notice.textContent();
+    assert.ok(txt.includes("Cannot preview binary file"), `binary notice expected, got "${txt}"`);
+    const h1 = await page.locator("#renderedContent h1").count();
+    assert.equal(h1, 0, "binary notice should have no h1 headings");
+});
+
+const TC24_MD_REGRESSION = test("TC24.6", "Markdown files still render as markdown", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    const planItem = page.locator('.file-item').filter({ hasText: "plan.md" }).first();
+    await planItem.click();
+    await page.waitForTimeout(1000);
+    const h1 = page.locator("#renderedContent h1");
+    await h1.waitFor({ state: "visible", timeout: 5000 });
+    const txt = await h1.textContent();
+    assert.ok(txt.includes("All Files Plan"), `markdown h1 expected, got "${txt}"`);
+    const codeCount = await page.locator("#renderedContent .code-view").count();
+    assert.equal(codeCount, 0, "markdown should not render as code-view");
+});
+
+const TC24_BADGE_TEXT = test("TC24.7", "fileCountBadge says files found (not markdown files)", async (page) => {
+    await allfilesReady(page);
+    const text = await getText(page, "#fileCountBadge");
+    assert.ok(text && text.includes("file") && text.includes("found"), `badge should say files found, got "${text}"`);
+    assert.ok(!text.includes("markdown"), `badge should not say markdown, got "${text}"`);
+});
+
+const TC24_WORKSPACE_YAML = test("TC24.8", "workspace.yaml shows as a code view", async (page) => {
+    await allfilesReady(page);
+    await allfilesExpandAll(page);
+    const yamlItem = page.locator('.file-item').filter({ hasText: "workspace.yaml" }).first();
+    await yamlItem.click();
+    await page.waitForTimeout(800);
+    const code = page.locator("#renderedContent .code-view");
+    await code.waitFor({ state: "visible", timeout: 5000 });
+    const txt = await code.textContent();
+    assert.ok(txt.includes("workspace:"), `workspace.yaml content expected, got "${txt}"`);
+    assert.ok(txt.includes("branch"), "workspace.yaml should include branch key");
+});
+
+// ========================================================================
 // Main
 // ========================================================================
 async function main() {
@@ -1780,6 +1899,7 @@ async function main() {
             { name: "TC21: Details Panel Two-Section Layout", tests: [TC21_SECTIONS, TC21_BODY_FILLS, TC21_METADATA_ROWS, TC21_DESC_MULTILINE] },
             { name: "TC22: Frontmatter Metadata Card", tests: [TC22_CARD_COLLAPSED, TC22_EXPAND_ROWS, TC22_NESTED_OBJECT, TC22_ARRAY_GROUP, TC22_NO_STRAY_HR, TC22_NO_FRONTMATTER] },
             { name: "TC23: Nested Tree + Toggle-All + Scroll Preservation", tests: [TC23_NESTED_RENDER, TC23_ACTIVE_PASS_OPEN, TC23_DEEP_TOGGLE, TC23_TOGGLE_ALL, TC23_SCROLL_FILE_CLICK, TC23_SCROLL_REFRESH, TC23_SCROLL_TAB_SWITCH] },
+            { name: "TC24: All Files + Typed Previews", tests: [TC24_NON_MD_VISIBLE, TC24_INTERNAL_EXCLUDED, TC24_CODE_VIEW, TC24_IMAGE_VIEW, TC24_BINARY_NOTICE, TC24_MD_REGRESSION, TC24_BADGE_TEXT, TC24_WORKSPACE_YAML] },
         ];
 
         // Take an initial screenshot
