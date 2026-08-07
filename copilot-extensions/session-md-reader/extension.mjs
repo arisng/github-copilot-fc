@@ -1,5 +1,5 @@
 // Extension: session-md-reader
-// Browse and render markdown files from a Copilot CLI session directory
+// Browse and render all files from a Copilot CLI session directory
 // Adds a "Session Markdown Reader" canvas with collapsible TOC
 
 import http from "node:http";
@@ -436,7 +436,21 @@ function renderMarkdown(md) {
     return { html: parts.join(""), toc };
 }
 
-function scanMarkdownFiles(sessionUuid) {
+// --- Session-internal files/dirs excluded from the Files tab (Copilot plumbing) ---
+const SESSION_INTERNAL_DIRS = new Set(["rewind-file-snapshots", ".git", "node_modules", ".copilot"]);
+const SESSION_INTERNAL_ROOT_FILES = new Set(["events.jsonl", "session.db", "vscode.metadata.json"]);
+
+// Image and text extension sets (shared with client icon logic)
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"]);
+const TEXT_EXTS = new Set([
+    "md", "markdown", "txt", "log", "json", "jsonl", "sql", "yaml", "yml", "toml", "ini", "cfg", "conf",
+    "cs", "js", "jsx", "ts", "tsx", "py", "rb", "go", "java", "c", "cpp", "h", "hpp", "csproj", "props",
+    "targets", "editorconfig", "diff", "patch", "xml", "html", "css", "scss", "less", "sh", "ps1", "bat",
+    "cmd", "csv", "tsv", "env", "gitignore", "dockerfile", "makefile", "lock",
+]);
+
+// --- Scan all session files (markdown + every other extension) ---
+function scanSessionFiles(sessionUuid) {
     const dir = path.join(SESSION_BASE, sessionUuid);
     const files = [];
     if (!fs.existsSync(dir)) return files;
@@ -448,18 +462,47 @@ function scanMarkdownFiles(sessionUuid) {
             const full = path.join(currentDir, e.name);
             const rel = relPrefix ? path.join(relPrefix, e.name) : e.name;
             if (e.isDirectory()) {
-                // Skip .copilot session internal files like events.jsonl, session.db etc
-                // but recurse into checkpoints, research, files
+                // Skip session-internal directories (rewind snapshots, vcs, deps, .copilot)
+                if (SESSION_INTERNAL_DIRS.has(e.name)) continue;
                 walk(full, rel);
-            } else if (e.isFile() && /\.md$/i.test(e.name)) {
+            } else if (e.isFile()) {
+                // Skip root-level session-internal files and lock files
+                if (relPrefix == null) {
+                    if (SESSION_INTERNAL_ROOT_FILES.has(e.name)) continue;
+                    if (/\.lock$/i.test(e.name)) continue;
+                }
+                let size = 0;
+                try { size = fs.statSync(full).size; } catch {}
                 const group = relPrefix || "root";
-                files.push({ fullPath: full, relativePath: rel, fileName: e.name, group });
+                files.push({ fullPath: full, relativePath: rel, fileName: e.name, group, size });
             }
         }
     };
     walk(dir, null);
     return files;
 }
+
+// Classify a file by extension → "markdown" | "text" | "image" | "binary"
+function classifyFile(filePath) {
+    const name = filePath.split(/[\\/]/).pop() || "";
+    const ext = (name.includes(".") ? name.split(".").pop() : name).toLowerCase();
+    if (/\.md$/i.test(name)) return "markdown";
+    if (IMAGE_EXTS.has(ext)) return "image";
+    if (TEXT_EXTS.has(ext)) return "text";
+    return "binary";
+}
+
+// Sniff a buffer for NUL bytes to distinguish text from binary (unknown extensions)
+function fileKindByContent(buffer) {
+    return buffer.includes(0) ? "binary" : "text";
+}
+
+const MIME_BY_EXT = {
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+    svg: "image/svg+xml", webp: "image/webp", bmp: "image/bmp", ico: "image/x-icon",
+    json: "application/json", txt: "text/plain", log: "text/plain", csv: "text/csv",
+    md: "text/markdown", yaml: "text/yaml", yml: "text/yaml", xml: "application/xml",
+};
 
 function readFile(filePath) {
     if (!fs.existsSync(filePath)) throw new Error("File not found");
@@ -652,7 +695,7 @@ async function readTodos(sessionUuid) {
 
 // --- Config ---
 const DEFAULT_MAX_TODO_DEPTH = 3;
-const HTML_VERSION = "4"; // bump to force a fresh canvas render after cache/no-store changes
+const HTML_VERSION = "5"; // bump to force a fresh canvas render after cache/no-store changes
 function normalizeMaxDepth(value) {
     const n = parseInt(value, 10);
     if (isNaN(n)) return DEFAULT_MAX_TODO_DEPTH;
@@ -918,6 +961,26 @@ function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = DEFAULT_MAX_TO
     overflow-x: auto; border: 1px solid var(--border);
   }
 
+  /* ── Non-markdown previews (code / image / binary) ── */
+  .main .code-view {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; margin: 12px 0; overflow: auto; max-height: 70vh;
+    font-family: var(--mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 12px; line-height: 1.6; color: var(--text); white-space: pre; word-break: normal;
+  }
+  .main .code-view code { font-family: inherit; }
+  .main .image-view { padding: 12px 0; }
+  .main .image-view img {
+    max-width: 100%; height: auto; border-radius: 8px;
+    border: 1px solid var(--border); background: #0d0d12; display: block;
+  }
+  .main .binary-notice {
+    margin: 12px 0; padding: 28px 20px; text-align: center;
+    border: 1px dashed var(--border); border-radius: 8px; color: var(--text-muted);
+  }
+  .main .binary-notice p { margin: 4px 0; }
+  .main .binary-notice .meta { font-size: 12px; opacity: 0.7; word-break: break-all; }
+
   /* ── Todo tree styles ── */
   .todo-tree-container {
     padding: 4px 0; flex: 1; overflow-y: auto;
@@ -1165,7 +1228,7 @@ function serveHtml(instanceId, initialSessionUuid, maxTodoDepth = DEFAULT_MAX_TO
     <div class="welcome" id="welcomeView">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       <h1 id="welcomeTitle">Session Markdown Reader</h1>
-      <p id="welcomeDesc">Select a markdown file from the sidebar to browse its content. The TOC tab shows auto-generated headings.</p>
+      <p id="welcomeDesc">Select a file from the sidebar to browse its content. Markdown files get rich rendering with Mermaid diagrams; other files show a code, image, or binary preview. The TOC tab shows auto-generated headings for markdown.</p>
       <div class="files-count" id="fileCountBadge">Scanning files...</div>
       <p style="margin-top:20px;font-size:12px;color:var(--text-muted);opacity:0.7">
         <kbd style="background:var(--surface);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">Ctrl+B</kbd> sidebar &middot;
@@ -1202,6 +1265,15 @@ let sidebarCollapsed = false;
 let zoomLevel = 1.0;
 let todosData = null;
 let activePass = null;
+
+// Extension sets for per-file icons (image / text)
+const CLIENT_IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"]);
+const CLIENT_TEXT_EXTS = new Set([
+    "md", "markdown", "txt", "log", "json", "jsonl", "sql", "yaml", "yml", "toml", "ini", "cfg", "conf",
+    "cs", "js", "jsx", "ts", "tsx", "py", "rb", "go", "java", "c", "cpp", "h", "hpp", "csproj", "props",
+    "targets", "editorconfig", "diff", "patch", "xml", "html", "css", "scss", "less", "sh", "ps1", "bat",
+    "cmd", "csv", "tsv", "env", "gitignore", "dockerfile", "makefile", "lock",
+]);
 
 // Collapse state for the nested folder tree (keyed by normalized path)
 const folderCollapsed = {};
@@ -1393,7 +1465,7 @@ async function loadFiles() {
         const data = await res.json();
         allFiles = data.files || [];
         activePass = data.activePass != null ? String(data.activePass) : null;
-        fileCountBadge.textContent = allFiles.length + " markdown file" + (allFiles.length !== 1 ? "s" : "") + " found";
+        fileCountBadge.textContent = allFiles.length + " file" + (allFiles.length !== 1 ? "s" : "") + " found";
         renderSidebar();
     } catch (e) {
         fileCountBadge.textContent = "Error loading files";
@@ -1445,7 +1517,7 @@ function renderSidebar() {
 
 function renderFileList() {
     if (!allFiles.length) {
-        setSidebarContent('<div class="toc-empty">No markdown files found</div>', ".sidebar-scroll");
+        setSidebarContent('<div class="toc-empty">No files found</div>', ".sidebar-scroll");
         return;
     }
 
@@ -1531,7 +1603,15 @@ function renderFileNode(node, depth) {
     for (const f of files) {
         const active = currentFilePath === f.relativePath ? ' active' : '';
         const firstSeg = f.relativePath.split(/[\\\\/]/)[0];
-        const icon = firstSeg === "checkpoints" ? "\u{1F4CB}" : f.fileName === "plan.md" ? "\u{1F4D1}" : "\u{1F4C4}";
+        let icon;
+        if (firstSeg === "checkpoints") icon = "\u{1F4CB}";
+        else if (f.fileName === "plan.md") icon = "\u{1F4D1}";
+        else {
+            const ext = (f.fileName.includes(".") ? f.fileName.split(".").pop() : f.fileName).toLowerCase();
+            if (CLIENT_IMAGE_EXTS.has(ext)) icon = "\u{1F5BC}";
+            else if (/\.md$/i.test(f.fileName) || CLIENT_TEXT_EXTS.has(ext)) icon = "\u{1F4C4}";
+            else icon = "\u{1F4CE}";
+        }
         html += '<div class="file-item' + active + '" onclick="loadFile(\\'' + f.relativePath.replace(/\\\\/g, '\\\\\\\\') + '\\')" data-path="' + escapeHtml(f.relativePath) + '">';
         html += '<span class="icon">' + icon + '</span>';
         html += '<span class="name">' + escapeHtml(f.fileName) + '</span>';
@@ -1814,16 +1894,37 @@ async function loadFile(relativePath) {
         const res = await fetch("/api/file?sessionUuid=" + encodeURIComponent(SESSION_UUID) + "&path=" + encodeURIComponent(relativePath));
         if (!res.ok) throw new Error("Failed to load");
         const data = await res.json();
-        currentToc = data.toc || [];
-        renderedContent.innerHTML = data.html;
+        currentToc = [];
+        let typeLabel = "";
+
+        if (data.kind === "markdown") {
+            currentToc = data.toc || [];
+            renderedContent.innerHTML = data.html;
+            typeLabel = "markdown";
+            runMermaid();
+        } else if (data.kind === "text") {
+            renderedContent.innerHTML = '<pre class="code-view"><code>' + escapeHtml(data.raw || "") + '</code></pre>';
+            typeLabel = "text";
+        } else if (data.kind === "image") {
+            const rawUrl = "/api/raw?sessionUuid=" + encodeURIComponent(SESSION_UUID) + "&path=" + encodeURIComponent(relativePath);
+            renderedContent.innerHTML = '<div class="image-view"><img src="' + rawUrl + '" alt="' + escapeHtml(relativePath) + '"></div>';
+            typeLabel = "image";
+        } else {
+            const kb = data.size ? Math.max(1, Math.round(data.size / 1024)) : 0;
+            renderedContent.innerHTML = '<div class="binary-notice"><p>Cannot preview binary file</p><p class="meta">' + escapeHtml(relativePath) + ' &middot; ' + kb + ' KB</p></div>';
+            typeLabel = "binary";
+        }
+
         renderedContent.style.display = "block";
         loadingView.style.display = "none";
 
-        // Update active file info
-        activeFileInfo.innerHTML = '<span class="path">' + escapeHtml(relativePath) + '</span><span class="sep">|</span><span class="hcount">' + currentToc.length + ' heading' + (currentToc.length !== 1 ? "s" : "") + '</span>';
-
-        // Run Mermaid on new content
-        runMermaid();
+        // Update active file info (headings only meaningful for markdown)
+        if (data.kind === "markdown") {
+            activeFileInfo.innerHTML = '<span class="path">' + escapeHtml(relativePath) + '</span><span class="sep">|</span><span class="hcount">' + currentToc.length + ' heading' + (currentToc.length !== 1 ? "s" : "") + '</span>';
+        } else {
+            const kb = data.size ? Math.max(1, Math.round(data.size / 1024)) : 0;
+            activeFileInfo.innerHTML = '<span class="path">' + escapeHtml(relativePath) + '</span><span class="sep">|</span><span class="hcount">' + typeLabel + ' &middot; ' + kb + ' KB</span>';
+        }
 
         // Re-render sidebar to show active state
         renderSidebar();
@@ -1923,12 +2024,12 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // API: list markdown files
+    // API: list session files (all types)
     if (url.pathname === "/api/files") {
         const sessionUuid = url.searchParams.get("sessionUuid");
         if (!sessionUuid) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid" })); return; }
         try {
-            const files = scanMarkdownFiles(sessionUuid);
+            const files = scanSessionFiles(sessionUuid);
             const activePass = readActivePass(sessionUuid);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ files, activePass }));
@@ -1939,7 +2040,7 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // API: get file content & render
+    // API: get file content & render (typed by extension)
     if (url.pathname === "/api/file") {
         const sessionUuid = url.searchParams.get("sessionUuid");
         const filePath = url.searchParams.get("path");
@@ -1950,10 +2051,47 @@ const server = http.createServer(async (req, res) => {
             const resolved = path.resolve(fullPath);
             const base = path.resolve(path.join(SESSION_BASE, sessionUuid));
             if (!resolved.startsWith(base)) throw new Error("Invalid path");
-            const raw = readFile(resolved);
-            const { html, toc } = renderMarkdown(raw);
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ html, toc, raw, filePath }));
+            const size = fs.statSync(resolved).size;
+            const kind = classifyFile(filePath);
+            if (kind === "markdown") {
+                const raw = readFile(resolved);
+                const { html, toc } = renderMarkdown(raw);
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind, html, toc, raw, filePath, size }));
+            } else if (kind === "text") {
+                const raw = readFile(resolved);
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind, raw, filePath, size }));
+            } else if (kind === "image") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind, filePath, size }));
+            } else {
+                // binary
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ kind: "binary", filePath, size }));
+            }
+        } catch (e) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: stream raw file bytes (images / binary) with proper Content-Type
+    if (url.pathname === "/api/raw") {
+        const sessionUuid = url.searchParams.get("sessionUuid");
+        const filePath = url.searchParams.get("path");
+        if (!sessionUuid || !filePath) { res.writeHead(400); res.end(JSON.stringify({ error: "Missing sessionUuid or path" })); return; }
+        try {
+            const fullPath = path.join(SESSION_BASE, sessionUuid, filePath);
+            const resolved = path.resolve(fullPath);
+            const base = path.resolve(path.join(SESSION_BASE, sessionUuid));
+            if (!resolved.startsWith(base)) throw new Error("Invalid path");
+            const buf = fs.readFileSync(resolved);
+            const ext = (path.extname(filePath) || "").replace(".", "").toLowerCase();
+            const mime = MIME_BY_EXT[ext] || "application/octet-stream";
+            res.writeHead(200, { "Content-Type": mime, "Content-Length": buf.length });
+            res.end(buf);
         } catch (e) {
             res.writeHead(500, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: e.message }));
@@ -2007,7 +2145,7 @@ const port = server.address().port;
 const canvas = createCanvas({
     id: "session-md-reader",
     displayName: "Session Markdown Reader",
-    description: "Browse and render all markdown files in a Copilot CLI session directory. Features: collapsible sidebar, Mermaid diagram rendering, keyboard shortcuts, zoom controls, and todo dependency tree visualization.",
+    description: "Browse and render all files in a Copilot CLI session directory. Features: collapsible sidebar, Mermaid diagram rendering, keyboard shortcuts, zoom controls, and todo dependency tree visualization.",
     inputSchema: {
         type: "object",
         properties: {
@@ -2027,7 +2165,7 @@ const canvas = createCanvas({
     actions: [
         {
             name: "refresh_files",
-            description: "Re-scan the session directory for markdown files and reload the current selection.",
+            description: "Re-scan the session directory and reload the current selection.",
             inputSchema: {
                 type: "object",
                 properties: {
