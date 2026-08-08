@@ -10,5 +10,5 @@ This folder contains the actual VS Code `.toolsets.jsonc` files used by this wor
 
 ## Relationship to the Inventory
 
-- `tools/inventory.md` explains the important tool concepts across runtimes.
+- `tools/inventory.yaml` explains the important tool concepts across runtimes.
 - The `.toolsets.jsonc` files in `toolsets/` are the concrete VS Code runtime artifacts.

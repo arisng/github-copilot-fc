@@ -1,0 +1,334 @@
+# Tools Inventory
+#
+# This file is the primary cross-runtime inventory for important tools and
+# tool namespaces used when authoring Copilot custom agents and related tool
+# access in this workspace. It is the single source of truth (SSOT) for tool
+# concepts, aliases, defaults, and runtime caveats.
+#
+# Field semantics:
+#   official_alias   Conceptual cross-runtime alias used in agent `tools:`
+#                    frontmatter. Omitted (with a note) for entries whose alias
+#                    is "runtime-specific".
+#   cli / vscode / github_copilot
+#                    Runtime spellings. `[]` = verified no equivalent.
+#                    `"runtime-dependent"` sentinel = present but not a
+#                    guaranteed built-in. Qualifiers like "(closest)" live in
+#                    `notes`.
+#   default          Closed enum: enabled if available | enabled if configured
+#                    | runtime-dependent | n/a
+#   sources          Canonical doc URLs (https://docs.github.com/...) plus
+#                    workspace-relative paths (tools/vscode/toolsets/...).
+
+schema_version: "1.0"
+last_verified: "2026-08-08"
+cli_version: "1.0.79-5"
+cli_help_source: "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+
+categories:
+  - id: core-built-in
+  - id: limited-applicability
+  - id: builtin-mcp
+  - id: runtime-only
+  - id: custom-mcp
+  - id: utility
+
+tools:
+  - id: execute
+    category: core-built-in
+    description: Shell command execution.
+    official_alias: ["execute", "shell"]
+    cli: ["bash", "powershell"]
+    vscode: ["execute/runInTerminal", "execute/getTerminalOutput"]
+    github_copilot: ["execute"]
+    default: "enabled if available"
+    notes: Runtime naming differs; execution approval may still apply. The CLI command reference also documents shell-session helpers (read_*, write_*, stop_*, list_*); see copilot-cli-shell-session-family for the fuller concrete surface. The CLI-frontmatter alias surface is `bash`/`powershell` (see .docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md), distinct from this conceptual alias.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - ".docs/reference/copilot/cli/copilot-cli-customization-matrix.md"
+      - "tools/vscode/toolsets/workspace-terminal.toolsets.jsonc"
+
+  - id: read
+    category: core-built-in
+    description: File reading and inspection.
+    official_alias: ["read"]
+    cli: ["view"]
+    vscode: ["read/readFile", "read/problems", "read/terminalLastCommand", "read/terminalSelection"]
+    github_copilot: ["read"]
+    default: "enabled if available"
+    notes: VS Code splits read-like behavior across multiple tools. In CLI permissions, this also lines up with the read(...) permission kind. The CLI-frontmatter alias surface is `view` (see .docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md), distinct from this conceptual alias.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/workspace-read.toolsets.jsonc"
+
+  - id: edit
+    category: core-built-in
+    description: File and directory modification.
+    official_alias: ["edit"]
+    cli: ["edit"]
+    vscode: ["edit/createDirectory", "edit/createFile", "edit/editFiles"]
+    github_copilot: ["edit"]
+    default: "enabled if available"
+    notes: In CLI agent frontmatter, edit is still the conceptual allowlist alias. The concrete built-in CLI file-write surface also includes create and apply_patch; see copilot-cli-file-write-family. The CLI-frontmatter alias surface is `edit` (see .docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md).
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/workspace-edit.toolsets.jsonc"
+
+  - id: search
+    category: core-built-in
+    description: Repository and code search.
+    official_alias: ["search"]
+    cli: ["grep", "rg", "glob"]
+    vscode: ["search/codebase", "search/changes"]
+    github_copilot: ["search"]
+    default: "enabled if available"
+    notes: search is the cross-runtime concept, while the current CLI command reference exposes concrete built-ins grep (or rg) and glob. The CLI-frontmatter alias set documented in .docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md is the agent tools allowlist surface, distinct from this conceptual alias.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/workspace-search.toolsets.jsonc"
+
+  - id: agent
+    category: core-built-in
+    description: Delegation to another custom agent or subagent.
+    official_alias: ["agent", "Task"]
+    cli: ["task"]
+    vscode: ["agent"]
+    github_copilot: ["agent"]
+    default: "enabled if available"
+    notes: CLI wrappers commonly use task as the runtime spelling. The documented CLI built-in companion tools are read_agent and list_agents; see copilot-cli-agent-management-family.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+
+  - id: web
+    category: limited-applicability
+    description: Web fetch and search concept.
+    official_alias: ["web"]
+    cli: ["web_fetch"]
+    vscode: ["web", "fetch_content", "brave_summarizer", "brave_web_search"]
+    github_copilot: ["web"]
+    default: "enabled if available"
+    notes: The current CLI command reference documents the concrete built-in as web_fetch. Broader web search in this workspace is still commonly provided by MCP servers such as Brave rather than a generic built-in web search tool.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/web.toolsets.jsonc"
+
+  - id: todo
+    category: limited-applicability
+    description: Structured task-list tool concept.
+    official_alias: ["todo"]
+    cli: ["update_todo"]
+    vscode: ["todo"]
+    github_copilot: ["todo"]
+    default: "enabled if available"
+    notes: The current CLI command reference documents the concrete built-in as update_todo. GitHub's custom-agent docs still note that todo is not supported in cloud agent today, so keep the concept separate from GitHub.com behavior.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+
+  - id: github-namespace
+    category: builtin-mcp
+    description: GitHub MCP namespace for repository operations.
+    official_alias: ["github/*"]
+    cli: ["github/*"]
+    vscode: ["search_repositories"]
+    github_copilot: ["github/*"]
+    default: "enabled if available"
+    notes: Treat namespace-level access separately from core built-ins. In agent tools frontmatter, the namespace is github/*; in current CLI flags and docs, the built-in MCP server is referred to as github-mcp-server. The VS Code surface is the GitHub extension / MCP tools; search_repositories is an example tool.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/github-research.toolsets.jsonc"
+
+  - id: playwright-namespace
+    category: builtin-mcp
+    description: Browser automation MCP namespace.
+    official_alias: ["playwright/*"]
+    cli: ["runtime-dependent"]
+    vscode: ["runtime-dependent"]
+    github_copilot: ["playwright/*"]
+    default: "runtime-dependent"
+    notes: GitHub's custom-agent docs list playwright/* as an out-of-the-box namespace for Copilot cloud agent. The current CLI command reference does not list Playwright among the built-in CLI MCP servers, so do not treat it as a guaranteed CLI built-in unless the runtime/environment explicitly provides it.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+
+  - id: copilot-cli-shell-session-family
+    category: runtime-only
+    description: Concrete CLI shell and shell-session tools.
+    official_alias: ["execute"]
+    cli: ["bash", "powershell", "read_bash", "read_powershell", "write_bash", "write_powershell", "stop_bash", "stop_powershell", "list_bash", "list_powershell"]
+    vscode: ["runInTerminal", "getTerminalOutput", "awaitTerminal", "killTerminal"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if available"
+    notes: These are the concrete built-ins accepted by --available-tools / --excluded-tools. On Windows, the PowerShell spellings are the native path. Conceptually maps to the execute alias; permission kind is shell.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/workspace-terminal.toolsets.jsonc"
+
+  - id: copilot-cli-file-write-family
+    category: runtime-only
+    description: Concrete CLI file read/write tools.
+    official_alias: ["read", "edit"]
+    cli: ["view", "create", "edit", "apply_patch"]
+    vscode: ["readFile", "createFile", "createDirectory", "editFiles"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if available"
+    notes: apply_patch is model-dependent but officially documented, so it must stay in the inventory for approvals, hooks, and agent reviews. Permission kinds are read and write.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/workspace-read.toolsets.jsonc"
+      - "tools/vscode/toolsets/workspace-edit.toolsets.jsonc"
+
+  - id: copilot-cli-agent-management-family
+    category: runtime-only
+    description: Concrete CLI subagent management tools.
+    official_alias: ["agent"]
+    cli: ["task", "read_agent", "list_agents"]
+    vscode: ["agent"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if available"
+    notes: Keep task as the main cross-runtime delegation concept, but document the background-agent management tools alongside it.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+
+  - id: copilot-cli-search-and-fetch-family
+    category: runtime-only
+    description: Concrete CLI search and web-fetch tools.
+    official_alias: ["search", "web"]
+    cli: ["grep", "rg", "glob", "web_fetch"]
+    vscode: ["search/codebase", "search/changes", "web"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if available"
+    notes: In this workspace, richer web search still usually comes from MCP servers such as Brave; web_fetch is the documented built-in fetch capability.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+      - "tools/vscode/toolsets/workspace-search.toolsets.jsonc"
+      - "tools/vscode/toolsets/web.toolsets.jsonc"
+
+  - id: copilot-cli-orchestration-and-state-family
+    category: runtime-only
+    description: Concrete CLI built-ins for skills, prompting, documentation lookup, memory, task state, and experimental querying/refactoring.
+    cli: ["skill", "ask_user", "report_intent", "show_file", "fetch_copilot_cli_documentation", "update_todo", "store_memory", "task_complete", "exit_plan_mode", "sql", "lsp"]
+    vscode: []
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if available"
+    notes: official_alias is runtime-specific. sql and lsp are explicitly marked experimental in the current CLI command reference. The VS Code surface is partially split across editor, memory, and runtime tooling.
+    sources:
+      - "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
+
+  - id: microsoftdocs-namespace
+    category: custom-mcp
+    description: Microsoft Learn documentation access.
+    official_alias: ["microsoftdocs/*"]
+    cli: ["microsoftdocs/*"]
+    vscode: ["microsoftdocs/mcp"]
+    github_copilot: ["microsoftdocs/*"]
+    default: "enabled if configured"
+    notes: Requires MCP availability in the target runtime/environment.
+    sources:
+      - "tools/vscode/toolsets/devlibs.toolsets.jsonc"
+
+  - id: deepwiki-namespace
+    category: custom-mcp
+    description: DeepWiki repository documentation access.
+    official_alias: ["deepwiki/*"]
+    cli: ["deepwiki/*"]
+    vscode: ["deepwiki", "ask_question"]
+    github_copilot: ["deepwiki/*"]
+    default: "enabled if configured"
+    notes: Treat DeepWiki as a research namespace rather than a core built-in.
+    sources:
+      - "tools/vscode/toolsets/github-research.toolsets.jsonc"
+
+  - id: context7-docs
+    category: custom-mcp
+    description: Library documentation retrieval.
+    cli: ["mcp_docker/get-library-docs", "mcp_docker/resolve-library-id"]
+    vscode: ["get-library-docs", "resolve-library-id"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if configured"
+    notes: official_alias is runtime-specific. This workspace currently uses Context7-style docs access in runtime-specific forms.
+    sources:
+      - "tools/vscode/toolsets/devlibs.toolsets.jsonc"
+
+  - id: brave-web-search
+    category: custom-mcp
+    description: Brave web search and summarization.
+    cli: ["mcp_docker/brave_web_search", "mcp_docker/brave_summarizer"]
+    vscode: ["brave_web_search", "brave_summarizer"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if configured"
+    notes: official_alias is runtime-specific. Useful for research-oriented toolsets; not a core built-in.
+    sources:
+      - "tools/vscode/toolsets/web.toolsets.jsonc"
+
+  - id: fetch-content
+    category: custom-mcp
+    description: Direct page-content fetch.
+    cli: ["mcp_docker/fetch_content"]
+    vscode: ["fetch_content"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if configured"
+    notes: official_alias is runtime-specific. Keep separate from general web search in toolset design.
+    sources:
+      - "tools/vscode/toolsets/web.toolsets.jsonc"
+
+  - id: sequentialthinking
+    category: utility
+    description: Sequential reasoning helper.
+    cli: ["mcp_docker/sequentialthinking"]
+    vscode: ["sequentialthinking"]
+    github_copilot: ["runtime-dependent"]
+    default: "enabled if configured"
+    notes: official_alias is runtime-specific. Workspace utility often used in planner/research toolsets.
+    sources:
+      - "tools/vscode/toolsets/utils.toolsets.jsonc"
+
+  - id: workspace-terminal-family
+    category: runtime-only
+    description: VS Code terminal and test helper family used by the workspace terminal toolset.
+    cli: ["bash"]
+    vscode: ["runInTerminal", "getTerminalOutput", "awaitTerminal", "killTerminal", "runTests", "testFailure"]
+    github_copilot: ["execute"]
+    default: "runtime-dependent"
+    notes: official_alias is runtime-specific. This is the concrete VS Code execution surface that sits underneath the cross-runtime execute concept. CLI closest equivalent is bash; GitHub Copilot closest equivalent is execute.
+    sources:
+      - "tools/vscode/toolsets/workspace-terminal.toolsets.jsonc"
+
+  - id: vscode-memory
+    category: runtime-only
+    description: VS Code memory helper.
+    cli: []
+    vscode: ["vscode/memory"]
+    github_copilot: []
+    default: "n/a"
+    notes: official_alias is runtime-specific. VS Code-only concept; no direct CLI equivalent.
+    sources:
+      - "tools/vscode/toolsets/utils.toolsets.jsonc"
+
+  - id: filesystem-readonly-family
+    category: runtime-only
+    description: VS Code filesystem-readonly tool family.
+    cli: ["view", "search"]
+    vscode: ["directory_tree", "list_allowed_directories", "list_directory_with_sizes", "list_directory", "search_files", "read_multiple_files", "get_file_info", "read_text_file"]
+    github_copilot: ["read", "search"]
+    default: "runtime-dependent"
+    notes: official_alias is runtime-specific. Represents a VS Code-only grouping of fine-grained filesystem tools. CLI closest equivalents are view and search; GitHub Copilot closest equivalents are read and search.
+    sources:
+      - "tools/vscode/toolsets/filesystem-read.toolsets.jsonc"
+
+  - id: github-gist-family
+    category: runtime-only
+    description: Gist management tool family.
+    cli: []
+    vscode: ["create_gist", "get_gist", "list_gists", "update_gist"]
+    github_copilot: ["runtime-dependent"]
+    default: "runtime-dependent"
+    notes: official_alias is runtime-specific. Current workspace has a VS Code toolset for Gist operations; other runtimes may not have equivalent built-ins.
+    sources:
+      - "tools/vscode/toolsets/github-gist.toolsets.jsonc"
