@@ -14,6 +14,8 @@ promoted_at: 2026-03-03T13:04:46+07:00
 
 # Copilot CLI Agent: Valid Tool Aliases
 
+> **Relationship to the workspace inventory:** This reference documents the CLI-frontmatter alias surface (`bash`, `view`, `edit`, `search`, `mcp_SERVERNAME_TOOLNAME`). The workspace's cross-runtime inventory (`tools/inventory.yaml`) uses broader *conceptual* `official_alias` values (e.g. `execute`, `read`, `agent`) that are distinct from this CLI alias set. Consult the inventory for runtime spellings and caveats; use this page when authoring CLI agent `tools:` frontmatter.
+
 ## Canonical Tool List
 
 The official Copilot CLI tool aliases are:
