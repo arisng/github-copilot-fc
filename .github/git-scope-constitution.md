@@ -17,7 +17,7 @@ This repository is a **customization factory** for GitHub Copilot customizations
 | `prompts/`            | Prompt Templates      | `.prompt.md` files                 |
 | `skills/`             | Skill Libraries       | `SKILL.md` + supporting scripts    |
 | `scripts/`            | Automation            | `.ps1`, `.py` scripts              |
-| `tools/`              | Tools Inventory       | `inventory.md`, runtime toolsets   |
+| `tools/`              | Tools Inventory       | `inventory.yaml`, runtime toolsets   |
 | `plugins/`            | Copilot CLI Plugins   | `plugin.json` + local components   |
 | `copilot-sdk/`        | SDK Documentation     | `.md` docs                         |
 | `copilot-extensions/` | Copilot CLI Extensions| `.mjs`, `.json`, `package.json`    |
