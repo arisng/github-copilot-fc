@@ -187,7 +187,7 @@ Behavioral specifications for the Ralph v2 multi-agent system live under `opensp
 - Workspace authoring rules: `.github/copilot-instructions.md`
 - Git scope governance: `.github/git-scope-constitution.md`, `.github/git-scope-inventory.md`
 - Skills-specific guidance: `skills/README.md`
-- Tools inventory: `tools/inventory.md`
+- Tools inventory: `tools/inventory.yaml`
 - Ralph v2 system docs: `agents/ralph-v2/README.md`
 - OpenSpec configuration: `openspec/config.yaml`
 
