@@ -50,12 +50,61 @@ Set the environment variable `OPENROUTER_API_KEY` to your OpenRouter key.
 
 ### VS Code Chat
 
-In VS Code, use **Chat: Manage Language Models → Add Models → Custom Endpoint**:
-- Name: OpenRouter (or specific model)
+#### Quick Add via UI
+
+Use **Chat: Manage Language Models → Add Models → Custom Endpoint**:
+- Name: OpenRouter (Floor)
 - API Key: your OpenRouter key
 - API Type: Chat Completions
 - API URL: `https://openrouter.ai/api/v1/chat/completions`
 - Model ID: e.g., `deepseek/deepseek-v4-pro:floor`
+
+#### Ready-to-Use JSON Config
+
+Add this provider entry to `chatLanguageModels.json` (open via **Chat: Manage Language Models → Edit in settings.json** or directly at `%APPDATA%\Code - Insiders\User\chatLanguageModels.json`):
+
+```json
+{
+	"name": "OpenRouter (Floor)",
+	"vendor": "customendpoint",
+	"apiKey": "${input:chat.lm.secret.73b04361}",
+	"apiType": "chat-completions",
+	"models": [
+		{
+			"id": "deepseek/deepseek-v4-pro:floor",
+			"name": "DeepSeek V4 Pro (Floor)",
+			"url": "https://openrouter.ai/api/v1/chat/completions",
+			"toolCalling": true,
+			"vision": false,
+			"streaming": true,
+			"maxInputTokens": 325000,
+			"maxOutputTokens": 64000,
+			"thinking": true,
+			"supportsReasoningEffort": [
+				"low",
+				"medium",
+				"high"
+			]
+		},
+		{
+			"id": "deepseek/deepseek-v4-flash-0731:floor",
+			"name": "DeepSeek V4 Flash 0731 (Floor)",
+			"url": "https://openrouter.ai/api/v1/chat/completions",
+			"toolCalling": true,
+			"vision": false,
+			"streaming": true,
+			"maxInputTokens": 325000,
+			"maxOutputTokens": 64000,
+			"thinking": true,
+			"supportsReasoningEffort": [
+				"low",
+				"medium",
+				"high"
+			]
+		}
+	]
+}
+```
 
 ## Notes
 
