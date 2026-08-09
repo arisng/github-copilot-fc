@@ -877,7 +877,7 @@ $review = & .\scripts\invoke-copilot.ps1 `
 [^3]: `github/copilot-cli` changelog — exit code behavior (v0.0.354), `--silent` (v0.0.365), `--output-format json` (v1.0.54), `--reasoning-effort` (v1.0.60)
 [^4]: Copilot CLI env reference — `copilot help environment` + BYOK docs
 [^5]: `arisng/github-copilot-fc:.docs/reference/copilot/cli/copilot-cli-agent-frontmatter-schema.md:36` — agent model field ignored by CLI
-[^6]: `arisng/github-copilot-fc:skills/copilot-byok/references/copilot-cli-providers.md:34-62` — reasoning effort levels
+[^6]: `arisng/github-copilot-fc:skills/copilot-byok/references/shared/reasoning-effort-lookup.md` — reasoning effort levels and per-model support
 [^7]: `arisng/github-copilot-fc:skills/copilot-byok/scripts/byok-profile.ps1:114-160` — `Set-ProviderEnvironment` function
 [^8]: `arisng/github-copilot-fc:skills/copilot-byok` — SKILL.md + references with BYOK rules
 [^9]: [GitHub Docs — Create Custom Agents for CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-custom-agents-for-cli)
