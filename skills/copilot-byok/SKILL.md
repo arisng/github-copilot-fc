@@ -1,6 +1,6 @@
 ---
 name: copilot-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
   version: 0.12.1
@@ -122,6 +122,8 @@ See `references/copilot-vscode-providers.md` for the full manual table when you 
   - Read when the user wants to configure BYOK models in **VS Code Chat**. VS Code uses a completely different mechanism (`chatLanguageModels.json`) and ignores `COPILOT_PROVIDER_*` env vars. This reference covers multi-provider setup, per-agent model pinning via `.agent.md` frontmatter, agent-specific model settings, and the full model-to-VS-Code mapping from `byok-profiles.json`.
 - `references/api-key-storage.md`
   - Read when the user needs secure key storage, persistent Windows environment variables, key rotation, or `${ENV_VAR}` placeholder guidance.
+- `references/openrouter.md`
+  - Read when configuring OpenRouter as a provider. Covers environment variables, profile setup, and VS Code configuration for accessing models via OpenRouter's OpenAI-compatible API.
 
 ## Apply these operating rules
 
