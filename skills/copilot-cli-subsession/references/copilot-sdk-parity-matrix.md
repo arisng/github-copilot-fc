@@ -21,14 +21,14 @@ Single source of truth for **which surface exposes which sub-session capability*
 | Non-interactive prompt | `-p, --prompt` | `SendAsync`, `SendAndWaitAsync` | — | `-p, --prompt` present. |
 | Custom agent | `--agent <name>` | `SessionConfig.CustomAgents` | — | `--agent` present. Plugin-qualified `plugin:agent` in CLI. |
 | Model | `--model`; `COPILOT_MODEL` | `SessionConfig.Model`; `ProviderConfig` | model `id` | `--model` present; `COPILOT_MODEL` documented in `copilot help environment`. `-Model` takes precedence over profile model in the sub-session script. |
-| Reasoning effort | `--reasoning-effort` / alias `--effort`; levels `none, minimal, low, medium, high, xhigh, max` | **Not documented in SDK skill** ⚠ gap | `supportsReasoningEffort`, `reasoningEffortFormat` | v1.0.77 choices: `"none", "minimal", "low", "medium", "high", "xhigh", "max"` — note `minimal` is newer than the skill's original list. Per-model subset is grounded in `copilot-byok/references/reasoning-effort-lookup.md`. No `COPILOT_*` env var exists for it. |
+| Reasoning effort | `--reasoning-effort` / alias `--effort`; levels `none, minimal, low, medium, high, xhigh, max` | **Not documented in SDK skill** ⚠ gap | `supportsReasoningEffort`, `reasoningEffortFormat` | v1.0.77 choices: `"none", "minimal", "low", "medium", "high", "xhigh", "max"` — note `minimal` is newer than the skill's original list. Per-model subset is grounded in `copilot-byok/references/shared/reasoning-effort-lookup.md`. No `COPILOT_*` env var exists for it. |
 | Permissions | `--allow-all`, `--no-ask-user`, `--allow-tool`, `--deny-tool`, `--allow-url`, `--deny-url`; `COPILOT_ALLOW_ALL` | `SessionConfig.OnPermissionRequest` | — | All present in v1.0.77; `--allow-all` = tools+paths+urls. `COPILOT_ALLOW_ALL=true` documented. |
 | MCP servers | `--disable-builtin-mcps`, `--additional-mcp-config`, `--disable-mcp-server` | `SessionConfig.McpServers` | — | `--additional-mcp-config` and `--disable-mcp-server` are newer (v1.0.77). Sub-session script currently only forwards `--disable-builtin-mcps`. |
 | Custom instructions | `--no-custom-instructions`; `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` | — | — | `--no-custom-instructions` present; `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` documented. |
 | Streaming | `--stream on\|off` | `SessionConfig.Streaming`; `AssistantMessageDeltaEvent` | `streaming` | `--stream` choices `on`/`off` present. Sub-session script forces `--stream off` for programmatic capture. |
 | Structured output | `--output-format text\|json` (JSONL) | `session.Events` (UserMessageEvent, AssistantMessageEvent, ToolExecution*, SessionIdleEvent, SessionErrorEvent) | — | `--output-format` choices `text`/`json` present. |
 | BYOK provider | `COPILOT_PROVIDER_BASE_URL`, `_TYPE`, `_API_KEY`, `_WIRE_API`, `_MAX_PROMPT_TOKENS`, `_MAX_OUTPUT_TOKENS`, `_OFFLINE` | `SessionConfig.Provider` → `ProviderConfig` | Custom endpoint vendor (`chat-completions` / `responses` / `messages` apiType) | All documented in `copilot help environment`. Newer: `COPILOT_PROVIDER_BEARER_TOKEN`, `_TRANSPORT` (http\|websockets), `_MODEL_ID`, `_WIRE_MODEL`, `_HEADERS`, `_AZURE_API_VERSION`. `copilot-byok` is the grounding owner. |
-| Token limits | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS`, `_MAX_OUTPUT_TOKENS` | — | `maxInputTokens`, `maxOutputTokens` | Grounded sizing in `copilot-byok` (`reasoning-effort-lookup.md`, `copilot-cli-providers.md`). |
+| Token limits | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS`, `_MAX_OUTPUT_TOKENS` | — | `maxInputTokens`, `maxOutputTokens` | Grounded sizing in `copilot-byok` (`shared/reasoning-effort-lookup.md`, `shared/environment-variables.md`). |
 | Working directory | `-C <dir>`; sub-session script `-WorkingDir` | `CopilotClientOptions.Cwd` | — | `-C` present in v1.0.77. |
 | Attachments | `--attachment <path>` | `MessageOptions.Attachments` (file/directory) | — | `--attachment` present (non-interactive only). |
 | Config isolation | `COPILOT_HOME` env var (`--config-dir` removed in v1.0.77) | `CopilotClientOptions.CliPath` | — | Sub-session `-CopilotHome` maps to `COPILOT_HOME` (F-1 resolved; deprecated alias `-ConfigDir`) and seeds a minimal staging tree (`byok-profiles.json` + `mcp-config.json` when present) on first use. Staging doubles as the skill's testing sandbox (dojo): durable, independent of production, process-scoped so the root session stays in production. |
@@ -48,9 +48,9 @@ Single source of truth for **which surface exposes which sub-session capability*
 
 - [Copilot CLI feature verification audit](copilot-cli-feature-verification-audit.md) — empirical verification of every CLI feature claimed by the copilot skills (CLI 1.0.77, 2026-08-03) + findings.
 - [copilot-cli-subsession cheatsheet](copilot-cli-programmatic-cheatsheet.md) — flag-level invocation reference.
-- [copilot-byok reasoning-effort lookup](../copilot-byok/references/reasoning-effort-lookup.md) — per-model reasoning-effort support (authoritative).
-- [copilot-byok CLI providers](../copilot-byok/references/copilot-cli-providers.md) — BYOK env vars and provider examples.
-- [copilot-sdk-dotnet API reference](../copilot-sdk-dotnet/references/api-reference.md) — SDK API surface.
+- [copilot-byok reasoning-effort lookup](../../copilot-byok/references/shared/reasoning-effort-lookup.md) — per-model reasoning-effort support (authoritative).
+- [copilot-byok CLI env vars](../../copilot-byok/references/shared/environment-variables.md) — BYOK env vars and provider examples.
+- [copilot-sdk-dotnet API reference](../../copilot-sdk-dotnet/references/api-reference.md) — SDK API surface.
 - [.docs customization matrix](../../../.docs/reference/copilot/cli/copilot-cli-customization-matrix.md) — cross-runtime compatibility of agent/hook/prompt artifacts (different concern: artifact formats, not capability parity).
 
 ## Grounding

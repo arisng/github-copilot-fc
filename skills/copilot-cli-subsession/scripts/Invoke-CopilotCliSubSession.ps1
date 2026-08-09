@@ -64,7 +64,7 @@
 .PARAMETER ReasoningEffort
     Reasoning level: none | minimal | low | medium | high | xhigh | max.  Default: 'high'.
     Forwarded to the sub-process only when the resolved BYOK profile supports it
-    (grounded in copilot-byok references/reasoning-effort-lookup.md).
+    (grounded in copilot-byok references/shared/reasoning-effort-lookup.md).
 
 .PARAMETER JsonOutput
     Emit JSONL output instead of plain text.
@@ -306,7 +306,7 @@ if ($ByokProfile) {
 }
 
 # Ground reasoning-effort forwarding in the resolved profile (per-model support is
-# documented in the copilot-byok skill's references/reasoning-effort-lookup.md).
+# documented in the copilot-byok skill's references/shared/reasoning-effort-lookup.md).
 # The profile flag takes precedence when present, but hand-added profiles may omit
 # it, so fall back to the shared no-support model list (mirrors byok-profile.ps1).
 $noReasoningEffortModels = @(
@@ -366,7 +366,7 @@ if ($ReasoningEffort) {
         [void]$cliArgs.Add($ReasoningEffort)
     }
     else {
-        Write-Warning "Stripped --reasoning-effort '$ReasoningEffort' for model '$($provider.model)' — the API does not expose controllable reasoning-effort levels. See copilot-byok references/reasoning-effort-lookup.md."
+        Write-Warning "Stripped --reasoning-effort '$ReasoningEffort' for model '$($provider.model)' — the API does not expose controllable reasoning-effort levels. See copilot-byok references/shared/reasoning-effort-lookup.md."
     }
 }
 
