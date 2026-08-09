@@ -85,7 +85,7 @@ Current behavior locked as baseline — fix these in the skill, not the harness:
 - **t2-6** — wizard preset 6 (OpenCode Go) never prompts for `wireApi`.
 - **t4-7** — `byok run <profile> -p "<prompt>"` breaks: PowerShell param prefix matching binds `-p` to the script's `-Profile`; use `--prompt`.
 - **t4-8** — `Remove-AccountArg` regex `^--account=(.+)$` does not consume an empty `--account=`, which leaks to `copilot`.
-- **t5-3** — `kimi-k3` is absent from `Get-NoReasoningEffortModels`; `Test-ReasoningEffortSupported` returns `True` while `reasoning-effort-lookup.md` says assume no support until probed.
+- **t5-3** — `kimi-k3` is absent from `Get-NoReasoningEffortModels`; `Test-ReasoningEffortSupported` returns `True` while `shared/reasoning-effort-lookup.md` says assume no support until probed.
 
 ## Notes and gotchas
 
