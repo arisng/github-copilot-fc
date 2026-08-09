@@ -1,6 +1,6 @@
-# API Key Storage Guide
+# API Key Storage Guide (shared)
 
-Never paste real API keys directly into `byok-profiles.json`. The `apiKey` field supports `${ENV_VAR}` syntax — the profile manager resolves the variable at runtime.
+Applies to every provider. Never paste real API keys directly into `byok-profiles.json`. The `apiKey` field supports `${ENV_VAR}` syntax — the profile manager resolves the variable at runtime.
 
 Use an environment variable placeholder in your profile:
 
@@ -109,7 +109,7 @@ When you have more than one subscription for the same provider (for example, **t
 }
 ```
 
-The registry stores **environment variable names only** — never key values. Switch the default with `use <account>` or override per session with `run <profile> --account <account>`. See `copilot-cli-providers.md` for the full reference.
+The registry stores **environment variable names only** — never key values. Switch the default with `use <account>` or override per session with `run <profile> --account <account>`. See [`shared/copilot-cli-accounts.md`](copilot-cli-accounts.md) for the full reference.
 
 ## Checklist
 

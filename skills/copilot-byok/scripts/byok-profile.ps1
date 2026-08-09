@@ -115,7 +115,7 @@ function Expand-EnvPlaceholder {
 
 # Models whose API does not expose controllable reasoning-effort levels. This is the
 # single source of truth used by the wizard (add), run, set-env, and show. It mirrors
-# references/reasoning-effort-lookup.md; keep both in sync.
+# references/shared/reasoning-effort-lookup.md; keep both in sync.
 function Get-NoReasoningEffortModels {
     return @(
         'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
@@ -340,7 +340,7 @@ function Invoke-ProfileAccounts {
     $config = Get-ProfileConfig
     $accounts = $config.accounts
     if (-not $accounts -or $accounts.Count -eq 0) {
-        Write-Host "No accounts defined. Add an 'accounts' section to $profilePath (see references/copilot-cli-providers.md)." -ForegroundColor Yellow
+        Write-Host "No accounts defined. Add an 'accounts' section to $profilePath (see references/shared/copilot-cli-accounts.md)." -ForegroundColor Yellow
         return
     }
 
