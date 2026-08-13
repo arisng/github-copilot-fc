@@ -116,6 +116,45 @@ Findings from live inspection of OpenRouter model pages and API docs.
 - **maxOutputTokens:** 65,536 (per OpenRouter model page)
 - Same recommended token values as 0731 above apply.
 
+### Empirical Token-Cap Audit (2026-08-13)
+
+Live probes via `POST https://openrouter.ai/api/v1/chat/completions` (Completions wire, `temperature=0`, `max_tokens=16`) against `:floor` routing and forced per-provider endpoints. The gateway enforces **no** `max_prompt_tokens` cap — the effective limit is the routed upstream provider's context window.
+
+| Model route | Probed prompt tokens | Result | Routed provider (ctx) |
+|-------------|---------------------|--------|------------------------|
+| `deepseek-v4-flash-0731:floor` | 137K | OK | deepinfra (1M) |
+| `deepseek-v4-flash-0731:floor` | 204K | OK | DeepInfra (1M) |
+| `deepseek-v4-flash-0731:floor` | 266K | OK | DeepInfra (1M) |
+| `deepseek-v4-flash-0731:floor` | 348K | OK | DeepInfra (1M) |
+| `deepseek-v4-flash-0731:floor` | 512K | OK | DeepInfra (1M) |
+| `deepseek-v4-flash-0731:floor` | 717K | OK | DeepInfra (1M) |
+| `deepseek-v4-flash-0731:floor` | 389K | OK | DeepInfra (1M) |
+| `deepseek-v4-flash-0731` (default) | 154K | OK | Cloudflare (384K) |
+| `deepseek-v4-flash-0731` (default) | 205K | OK | Inceptron (1M) |
+| `deepseek-v4-flash-0731` (default) | 246K | OK | SiliconFlow (1M) |
+| `deepseek-v4-flash-0731` forced `AkashML` | 138K | **ERR** 131072-token cap | akashml/fp8 (131,072) |
+| `deepseek-v4-pro:floor` | 205K | OK | StreamLake (1M) |
+| `deepseek-v4-pro:floor` | 307K | OK | StreamLake (1M) |
+| `deepseek-v4-pro:floor` | 410K | OK | StreamLake (1M) |
+| `deepseek-v4-pro:floor` | 256K | OK | StreamLake (1M) |
+| `deepseek-v4-pro:floor` | 276K | OK | StreamLake (1M) |
+
+**Findings**
+
+1. **No gateway cap.** Both models handle several hundred K tokens with no provider-level `400` (contrast with the OpenCode Go ~300K gateway cap). Probed ceiling on the live floor route: **>717K (flash)** and **>410K (pro)**; both pull the 1M-context window when the prompt demands it.
+2. **`:floor` self-selects capable providers.** OpenRouter only routes to providers whose context window satisfies the request (prompt + max_tokens). Observed floor providers all expose full 1M context (DeepInfra, StreamLake, DigitalOcean, Baidu). This is why large prompts always succeed.
+3. **The binding constraint is the smallest floor pool member**, which varies by market conditions and is not reliably predictable:
+   - **Flash 0731 pool** min: `akashml/fp8` at **131,072** (also Decart / OpenInference / Sail / CoreWeave at 262,144).
+   - **Pro pool** min: `baseten/fp4` at **262,144** (also Together at 512,000).
+   - Forcing AkashML above 131K returns: `This endpoint's maximum context length is 131072 tokens.`
+4. **`maxOutputTokens` 64,000 stays safe** for both — every floor provider reports ≥131K max completion, leaving ample headroom.
+
+**Conclusion / updated recommendation**
+
+The previously documented `maxPromptTokens: 200,000` for both OpenRouter DeepSeek V4 profiles is **empirically validated and safe** — it succeeded on every route and provider tested. Given the ~1M real headroom and floor routing that self-selects capable providers, 200K is conservative; you could raise both to **300,000** for a comfortable margin above the smallest floor members (AkashML 131K / BaseTen 262K) with no behavior change on current routes. Keep 200K if you prefer the most conservative, cost-bounded profile. `maxOutputTokens` remains 64,000.
+
+**Note:** today (2026-08-13) OpenRouter also lists a new GA release `deepseek/deepseek-v4-pro-0813` (`context_length: 1,048,576`, `max_completion_tokens: 384,000`, efforts `max|high|low`). The audited `deepseek-v4-pro` slug above remains valid.
+
 ### Reasoning Effort Notes
 
 OpenRouter's model page for **both** V4 Pro and V4 Flash lists only `high` and `xhigh` (with `xhigh` mapping to max reasoning). However, the **DeepSeek native API docs** clarify:
