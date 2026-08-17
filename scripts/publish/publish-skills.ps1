@@ -18,6 +18,15 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$NoForce,
 
+    # OPT-IN: publish skills to WSL personal folders. WSL publishing is OFF by
+    # default (2026-08) — Windows-only is the standard flow for this workspace.
+    # Explicitly pass -IncludeWSL to mirror skills into the WSL home.
+    [Parameter(Mandatory = $false)]
+    [switch]$IncludeWSL,
+
+    # DEPRECATED backward-compatible alias for opting OUT of WSL publishing.
+    # Kept so existing callers of -SkipWSL keep working; the default behaviour
+    # is now equivalent to -SkipWSL anyway.
     [Parameter(Mandatory = $false)]
     [switch]$SkipWSL
 )
@@ -46,7 +55,8 @@ function Publish-SkillsToPersonal {
     .DESCRIPTION
         Copies skills from the workspace skills/ folder to the user's personal
         skills folders (.claude, .codex, .copilot) for reuse across all projects.
-        Automatically detects and publishes to WSL if available.
+        Publishes to Windows only by default; mirrors to WSL only when
+        -IncludeWSL is explicitly passed (opt-in, 2026-08).
 
     .PARAMETER Skills
         Array of skill names to publish. If empty, publishes all skills.
@@ -63,13 +73,18 @@ function Publish-SkillsToPersonal {
         Prevent overwriting existing skills.  This is the opposite of -Force and
         is provided so that callers can explicitly disable the default behaviour.
 
+    .PARAMETER IncludeWSL
+        OPT-IN: mirror skills into WSL personal folders. WSL publishing is off
+        by default (2026-08); pass this switch to explicitly enable it.
+
     .PARAMETER SkipWSL
-        Skip publishing to WSL (Windows-only mode).
+        DEPRECATED: backward-compatible no-op alias. WSL publishing is already
+        skipped by default; kept so existing callers continue to work.
 
     .EXAMPLE
         Publish-SkillsToPersonal
 
-        Copies all skills from the workspace to personal folders (Windows and WSL if available).
+        Copies all skills from the workspace to personal folders (Windows only).
 
     .EXAMPLE
         Publish-SkillsToPersonal -Skills diataxis,beads
@@ -79,17 +94,18 @@ function Publish-SkillsToPersonal {
     .EXAMPLE
         Publish-SkillsToPersonal -Targets agents,copilot,codex,claude
 
-        Publishes skills to all supported personal targets on Windows and WSL.
+        Publishes skills to all supported personal targets on Windows only.
 
     .EXAMPLE
         Publish-SkillsToPersonal -Force
 
-        Overwrites existing skills in both Windows and WSL.
+        Overwrites existing skills on Windows.
 
     .EXAMPLE
-        Publish-SkillsToPersonal -SkipWSL
+        Publish-SkillsToPersonal -IncludeWSL
 
-        Publishes skills to Windows only, skipping WSL.
+        Publishes skills to Windows and mirrors them into WSL personal folders
+        (opt-in; WSL is skipped by default).
     #>
 
     # interpret the combination of Force/NoForce switches
@@ -137,7 +153,11 @@ function Publish-SkillsToPersonal {
     $wslAvailable = $false
     $wslHome = $null
 
-    if (-not $SkipWSL) {
+    if ($SkipWSL) {
+        Write-Warning "-SkipWSL is deprecated (2026-08): WSL publishing is now opt-in. Omit -SkipWSL (default is Windows-only); pass -IncludeWSL to mirror to WSL."
+    }
+
+    if ($IncludeWSL -and -not $SkipWSL) {
         $wslAvailable = Test-WSLAvailable -WslHome ([ref]$wslHome)
         if ($wslAvailable) {
             Write-Host "WSL detected at home: $wslHome" -ForegroundColor DarkGray
@@ -145,6 +165,9 @@ function Publish-SkillsToPersonal {
         else {
             Write-Host "WSL not available, skipping WSL publishing" -ForegroundColor Yellow
         }
+    }
+    else {
+        Write-Host "WSL publishing skipped (opt-in via -IncludeWSL)" -ForegroundColor DarkGray
     }
 
     # Ensure project skills directory exists
@@ -248,10 +271,10 @@ function Publish-SkillsToPersonal {
 
     Write-Host "Skill publishing completed." -ForegroundColor Cyan
     if ($wslAvailable) {
-        Write-Host "Published to both Windows and WSL." -ForegroundColor Cyan
+        Write-Host "Published to Windows and WSL." -ForegroundColor Cyan
     }
     else {
-        Write-Host "Published to Windows only (WSL not detected)." -ForegroundColor Cyan
+        Write-Host "Published to Windows only (WSL publishing is opt-in via -IncludeWSL)." -ForegroundColor Cyan
     }
 }
 
