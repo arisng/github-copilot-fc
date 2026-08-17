@@ -65,7 +65,7 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 | copilot-cli (Win)  | `%USERPROFILE%/.copilot/skills/<name>/SKILL.md`             | Direct directory copy (recursive)          |
 | copilot-cli (WSL)  | `~/.copilot/skills/<name>/SKILL.md`                         | WSL cross-copy (`wsl bash -c "cp -r ..."`) |
 
-**Script:** `scripts/publish/publish-skills.ps1` — targets all destinations including WSL. Also publishes to `~/.claude/skills/` and `~/.codex/skills/` for cross-assistant compatibility. Uses `-SkipWSL` opt-out. **Deprecated (2026-08-05)** — prefer the Skills CLI (`npx skills <options>`) or `copilot skill add <directory>` for local skills.
+**Script:** `scripts/publish/publish-skills.ps1` — targets personal skill folders on Windows; WSL mirroring is **opt-in** via `-IncludeWSL` (off by default since 2026-08). Also publishes to `~/.claude/skills/` and `~/.codex/skills/` for cross-assistant compatibility. **Deprecated (2026-08-05)** — prefer the Skills CLI (`npx skills <options>`) or `copilot skill add <directory>` for local skills.
 
 > **Note:** VS Code loads skills from the same `~/.copilot/skills/` personal path, not from the `%APPDATA%/Code/User/prompts/` directory. Skills are runtime-agnostic in both format and discovery path.
 
