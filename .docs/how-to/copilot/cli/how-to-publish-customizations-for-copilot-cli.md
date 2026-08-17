@@ -62,7 +62,7 @@ The `publish-agents.ps1` script already targets `~/.copilot/agents/`, making age
 ### What the script does
 
 - Copies `agents/*.agent.md` → `~/.copilot/agents/` (Windows)
-- Copies to WSL `~/.copilot/agents/` if WSL is detected (unless `-SkipWSL`)
+  - WSL mirroring is opt-in and off by default (2026-08); args publishers follow the workspace WSL policy
 - Also publishes to VS Code user prompts directories (dual-target)
 
 ### Frontmatter differences
@@ -140,7 +140,7 @@ See [agent-variant-proposal.md](../../../../reference/copilot/shared/agent-varia
 ### What the legacy script does (deprecated)
 
 - Copies `skills/*/` → `~/.copilot/skills/` (and `.claude/skills/`, `.codex/skills/`)
-- Copies to WSL equivalents if WSL is detected (unless `-SkipWSL`)
+- Windows-only by default; WSL mirroring is opt-in via `-IncludeWSL` (off by default, 2026-08)
 - Each skill folder is copied as-is (preserving `SKILL.md`, `scripts/`, `references/`)
 
 ---
