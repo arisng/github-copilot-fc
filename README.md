@@ -113,7 +113,7 @@ Publish destination behavior:
   - `%USERPROFILE%/.claude/skills`
   - `%USERPROFILE%/.codex/skills`
   - `%USERPROFILE%/.copilot/skills`
-  - Optional WSL equivalents (unless `-SkipWSL`)
+  - WSL equivalents are **NOT** published by default (2026-08): WSL mirroring is opt-in via the `-IncludeWSL` switch and is discouraged for regular use.
 
 Wildcard patterns are supported by helpers for name selection. Quote patterns to avoid shell expansion.
 

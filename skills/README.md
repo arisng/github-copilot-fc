@@ -25,6 +25,8 @@ When skill discovery is enabled, tools scan both personal and workspace location
 
 Publishing copies skills from `skills/` to personal skill folders. By default it publishes to `~/.agents/skills`. Use `-Targets` to include Copilot, Codex, and Claude.
 
+> **WSL policy (2026-08)**: skills are **never** published to WSL by default. Windows personal folders are the canonical targets. WSL mirroring is opt-in only (`-IncludeWSL`) and not needed for routine publishing — do not pass it unless there is a specific reason to mirror to a Linux environment.
+
 ## Usage
 
 ### Via VS Code Tasks (Recommended)
