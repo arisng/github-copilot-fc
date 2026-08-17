@@ -1,3 +1,5 @@
+
+
 # Copilot FC
 
 Copilot FC is a workspace-first factory for authoring and publishing Copilot customization artifacts.
@@ -31,6 +33,7 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 - `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
 - `skills/`: skill factory source; publish from here to personal skill folders.
 - `tools/`: cross-runtime tools inventory, tool docs, and VS Code toolsets under `tools/vscode/toolsets/`.
+- `copilot-extensions/`: custom Copilot extensions and companion tooling.
 - `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
 - `scripts/`: automation entry points:
   - `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
