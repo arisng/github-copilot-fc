@@ -67,7 +67,7 @@ Print a structured summary showing all targets:
 Files processed: N
 VS Code targets: X published, Y failed
 CLI targets (Mode): X published, Y failed
-WSL targets: X published, Y failed (or "skipped (-SkipWSL)")
+WSL targets: X published, Y failed (or "skipped, opt-in only")
 ```
 
 ## Standard Parameters
@@ -76,7 +76,8 @@ Add these parameters consistently across all multi-runtime publish scripts:
 
 | Parameter | Type | Default | Purpose |
 |-----------|------|---------|---------|
-| `-SkipWSL` | Switch | `$false` | Opt out of WSL targets (always-on by default) |
+| `-IncludeWSL` | Switch | `$false` | Opt IN to WSL targets (off by default for skills since 2026-08) |
+| `-SkipWSL` | Switch | `$false` | Deprecated no-op alias (skills); `-Environment windows` (plugins) |
 | `-Mode` | ValidateSet | Varies | Select delivery mechanism variant (only for artifacts with multiple delivery options) |
 | `-Force` | Switch | `$false` | Skip overwrite confirmation prompts |
 
