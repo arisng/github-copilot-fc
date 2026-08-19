@@ -1,7 +1,6 @@
 ---
 name: github-pr-media
 description: "Upload a local image or video file to GitHub's user-attachments API and embed the returned hosted URL in a pull request description or comment. Use when asked to add screenshots, before/after images, diagrams, screen recordings, or other media to a PR/issue body or comment. Triggers on requests like \"attach this screenshot to the PR\", \"add the before/after images\", \"embed this recording in the description\", or when a PR body needs visual evidence of a UI change. Does NOT handle remote URLs, image generation, or text-only diffs."
-user-invocable: false
 metadata:
    version: 0.2.2
 ---
