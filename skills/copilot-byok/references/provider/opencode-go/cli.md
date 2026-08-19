@@ -53,6 +53,14 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | MiniMax M3 | `minimax-m3` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `messages` | Not supported (implicit thinking) |
 
+> **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a hard ceiling of **1,048,576 tokens** (prompt + output combined) — confirmed by a 400 error at 1.05M tokens. Unlike DeepSeek V4 models (which cap at ~325K raw tokens despite 1M theoretical), MiMo-V2.5 passes through the full gateway limit: 1M prompt tokens succeeded, 1.05M was rejected. Output is unconstrained by the API (tested up to 1M `max_tokens`). Practical limits:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 980,000 | Safe under 1,048,576 ceiling; leaves 68K for output |
+> | `maxOutputTokens` | 64,000 | Practical for coding tasks; well under combined ceiling |
+> | Combined budget | 1,044,000 | Stays under 1,048,576 hard limit |
+
 > **Endpoint note (2026-08-05)**: per the [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints), Qwen3.x and MiniMax are listed at `/v1/messages` with `@ai-sdk/anthropic` (provider type `anthropic`, wire `messages`). A 2026-08-03 probe found these models also respond on `openai` / `chat/completions` (gateway tolerates both), but the documented path is `messages`. An early "401 on `/v1/messages`" observation used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key`, so that 401 was an auth-header artifact.
 
 > The model list may change over time. Fetch the current list at any time:
@@ -80,6 +88,33 @@ $env:COPILOT_PROVIDER_TYPE = 'openai'
 $env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
 $env:COPILOT_MODEL = 'qwen3.7-plus'
 copilot
+```
+
+### MiMo-V2.5 (OpenAI-compatible, 1M context)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'mimo-v2.5'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 980000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
+copilot
+```
+
+Profile entry:
+
+```json
+"opencode-go-mimo-v25": {
+  "apiKey": "${OPENCODE_API_KEY_WORK}",
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 980000,
+  "model": "mimo-v2.5",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 64000
+}
 ```
 
 ### Kimi K2.7 Code (OpenAI-compatible)

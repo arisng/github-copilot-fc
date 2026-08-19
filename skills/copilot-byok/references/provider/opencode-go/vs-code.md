@@ -116,8 +116,8 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "toolCalling": true,
       "vision": true,
       "streaming": true,
-      "maxInputTokens": 960000,
-      "maxOutputTokens": 32768,
+      "maxInputTokens": 980000,
+      "maxOutputTokens": 64000,
       "thinking": true
     },
     {
@@ -127,13 +127,15 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "toolCalling": true,
       "vision": false,
       "streaming": true,
-      "maxInputTokens": 960000,
-      "maxOutputTokens": 32768,
+      "maxInputTokens": 980000,
+      "maxOutputTokens": 64000,
       "thinking": true
     }
   ]
 }
 ```
+
+> **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a **1,048,576-token hard ceiling** (prompt + output combined). MiMo-V2.5 passes through the full gateway limit — 1M prompt tokens succeeded, 1.05M returned 400. Unlike DeepSeek V4 (~325K effective), MiMo-V2.5 has no gateway compaction below its theoretical 1M window. The values above (980K input + 64K output = 1,044K) stay safely under the ceiling. `maxOutputTokens: 64000` is practical for coding tasks; the model accepts output limits up to 1M at the API level.
 
 ### OpenCode Go — Responses API model (GPT-5.6 Luna)
 

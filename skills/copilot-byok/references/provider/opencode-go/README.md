@@ -21,7 +21,7 @@ Shared facts that apply to both harnesses (and every provider) live in [`../../s
   - `responses` — GPT-5.6 Luna
   - `messages` — MiniMax (M3/M2.7/M2.5), Qwen (3.8 Max/3.7 Max/3.7 Plus/3.6 Plus); Anthropic Messages API, authenticates with `x-api-key` (not `Authorization: Bearer`)
 - **CRITICAL: `COPILOT_MODEL` must use the bare model ID** (e.g., `deepseek-v4-flash`), **not** the `opencode-go/` prefix. The prefix is only used in OpenCode TUI config and in Copilot CLI profile names — never in `COPILOT_MODEL` or VS Code model `id`.
-- **Gateway-enforced token limits** are often lower than the model's theoretical context window (e.g. DeepSeek V4 Flash: 1M theoretical vs ~325K effective) — see [`shared/environment-variables.md`](../../shared/environment-variables.md) "Provider-enforced limits".
+- **Gateway-enforced token limits** are often lower than the model's theoretical context window (e.g. DeepSeek V4 Flash: 1M theoretical vs ~325K effective) — see [`shared/environment-variables.md`](../../shared/environment-variables.md) "Provider-enforced limits". Exception: **MiMo-V2.5** passes through the full 1,048,576-token gateway ceiling (empirical 2026-08-19).
 - **Key env vars** (User scope): `OPENCODE_API_KEY_HOME` (personal), `OPENCODE_API_KEY_WORK` (work) — see [`../shared/api-key-storage.md`](../../shared/api-key-storage.md).
 - **Reasoning effort support varies per model family** — GLM, MiMo, Kimi K2.x, Qwen3.x, MiniMax do not support it; DeepSeek V4 Flash/Pro support `low|medium|high`; GPT-5.6 Luna supports the full range. See [`../shared/reasoning-effort-lookup.md`](../../shared/reasoning-effort-lookup.md).
 
