@@ -8,4 +8,5 @@ todos.db
 .playwright-cli/
 **/node_modules/
 .agent-handoffs/
+**/evals/samples/
 *.log

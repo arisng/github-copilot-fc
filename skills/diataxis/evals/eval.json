@@ -1,0 +1,62 @@
+{
+  "skill": "diataxis",
+  "objective": "evaluate documentation",
+  "cases": [
+    {
+      "id": "case-01",
+      "prompt": "create documentation",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "structural",
+          "description": "word count under 800",
+          "passes_when": "word_count < 800"
+        },
+        {
+          "id": "A2",
+          "type": "coverage",
+          "description": "contains Tutorials",
+          "passes_when": "contains(\"Tutorials\")"
+        },
+        {
+          "id": "A3",
+          "type": "structural",
+          "description": "has sections",
+          "passes_when": "heading_count >= 5"
+        }
+      ]
+    },
+    {
+      "id": "case-02",
+      "prompt": "nearby prompt",
+      "expected_trigger": false,
+      "assertions": []
+    },
+    {
+      "id": "case-03",
+      "prompt": "another prompt",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "A4",
+          "type": "formatting",
+          "description": "no long sentences",
+          "passes_when": "no_sentence_exceeds(30)"
+        },
+        {
+          "id": "A5",
+          "type": "structural",
+          "description": "has section",
+          "passes_when": "section_present(\"The Four Categories\")"
+        },
+        {
+          "id": "A6",
+          "type": "coverage",
+          "description": "mentions Explanation",
+          "passes_when": "contains(\"Explanation\")"
+        }
+      ]
+    }
+  ]
+}
