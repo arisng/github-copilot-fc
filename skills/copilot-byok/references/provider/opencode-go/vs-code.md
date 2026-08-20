@@ -130,12 +130,40 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "maxInputTokens": 980000,
       "maxOutputTokens": 64000,
       "thinking": true
+    },
+    {
+      "id": "hy3",
+      "name": "Hy3",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": false,
+      "streaming": true,
+      "maxInputTokens": 184000,
+      "maxOutputTokens": 64000,
+      "thinking": true,
+      "supportsReasoningEffort": ["high"]
+    },
+    {
+      "id": "muse-spark-1.2-contributor",
+      "name": "Muse Spark 1.2 Contributor",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": true,
+      "streaming": true,
+      "maxInputTokens": 909504,
+      "maxOutputTokens": 131072,
+      "thinking": true,
+      "supportsReasoningEffort": ["minimal", "low", "medium", "high", "xhigh"]
     }
   ]
 }
 ```
 
 > **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a **1,048,576-token hard ceiling** (prompt + output combined). MiMo-V2.5 passes through the full gateway limit — 1M prompt tokens succeeded, 1.05M returned 400. Unlike DeepSeek V4 (~325K effective), MiMo-V2.5 has no gateway compaction below its theoretical 1M window. The values above (980K input + 64K output = 1,044K) stay safely under the ceiling. `maxOutputTokens: 64000` is practical for coding tasks; the model accepts output limits up to 1M at the API level.
+
+> **Hy3 token grounding (2026-08-20).** Hy3 has a 256K context window with 64K max output tokens. The values above (184K input + 64K output = 248K) stay safely under the context window. Hy3 supports reasoning effort with `high` and `no_think` modes; the `no_think` mode maps to `none` in Copilot CLI.
+
+> **Muse Spark 1.2 Contributor token grounding (2026-08-20).** Muse Spark 1.2 Contributor has a 1M context window with 131K max output tokens. The contributor tier is heavily discounted but Meta uses your data for training. The values above (909K input + 131K output = 1,040K) stay safely under the 1,048,576 ceiling. Muse Spark supports reasoning effort with five levels: `minimal`, `low`, `medium`, `high`, `xhigh` (medium is default).
 
 ### OpenCode Go — Responses API model (GPT-5.6 Luna)
 

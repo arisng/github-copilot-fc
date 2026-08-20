@@ -52,6 +52,8 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | MiniMax M3 | `minimax-m3` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `messages` | Not supported (implicit thinking) |
+| Hy3 (Tencent, 256K context) | `hy3` | `openai` | `completions` | Supported (`high` only; `no_think` maps to `none`) |
+| Muse Spark 1.2 Contributor (Meta, 1M context) | `muse-spark-1.2-contributor` | `openai` | `completions` | Supported (`minimal`, `low`, `medium`, `high`, `xhigh`) |
 
 > **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a hard ceiling of **1,048,576 tokens** (prompt + output combined) — confirmed by a 400 error at 1.05M tokens. Unlike DeepSeek V4 models (which cap at ~325K raw tokens despite 1M theoretical), MiMo-V2.5 passes through the full gateway limit: 1M prompt tokens succeeded, 1.05M was rejected. Output is unconstrained by the API (tested up to 1M `max_tokens`). Practical limits:
 >
@@ -60,6 +62,22 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 > | `maxPromptTokens` | 980,000 | Safe under 1,048,576 ceiling; leaves 68K for output |
 > | `maxOutputTokens` | 64,000 | Practical for coding tasks; well under combined ceiling |
 > | Combined budget | 1,044,000 | Stays under 1,048,576 hard limit |
+
+> **Hy3 token grounding (2026-08-20).** Hy3 has a 256K context window with 64K max output tokens. Conservative token overrides:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 184,000 | 256K - 64K output - 8K safety buffer |
+> | `maxOutputTokens` | 64,000 | Matches model's max output |
+> | Combined budget | 248,000 | Stays under 256K context window |
+
+> **Muse Spark 1.2 Contributor token grounding (2026-08-20).** Muse Spark 1.2 Contributor has a 1M context window with 131K max output tokens. The contributor tier is heavily discounted but Meta uses your data for training. Conservative token overrides:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 909,504 | 1,048,576 - 131,072 output - 8,000 safety buffer |
+> | `maxOutputTokens` | 131,072 | Matches model's max output |
+> | Combined budget | 1,040,576 | Stays under 1,048,576 context window |
 
 > **Endpoint note (2026-08-05)**: per the [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints), Qwen3.x and MiniMax are listed at `/v1/messages` with `@ai-sdk/anthropic` (provider type `anthropic`, wire `messages`). A 2026-08-03 probe found these models also respond on `openai` / `chat/completions` (gateway tolerates both), but the documented path is `messages`. An early "401 on `/v1/messages`" observation used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key`, so that 401 was an auth-header artifact.
 
@@ -186,6 +204,60 @@ Profile entry (stored in `~/.copilot/byok-profiles.json`, account-grouped so `--
   "model": "gpt-5.6-luna",
   "accountGroup": "opencode",
   "maxOutputTokens": 64000
+}
+```
+
+### Hy3 (Tencent, 256K context)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'hy3'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 184000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
+copilot --reasoning-effort high
+```
+
+Profile entry:
+
+```json
+"opencode-go-hy3": {
+  "apiKey": "${OPENCODE_API_KEY_WORK}",
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 184000,
+  "model": "hy3",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 64000
+}
+```
+
+### Muse Spark 1.2 Contributor (Meta, 1M context, discounted tier)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'muse-spark-1.2-contributor'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 909504
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 131072
+copilot --reasoning-effort medium
+```
+
+Profile entry:
+
+```json
+"opencode-go-muse-spark-1.2-contributor": {
+  "apiKey": "${OPENCODE_API_KEY_WORK}",
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 909504,
+  "model": "muse-spark-1.2-contributor",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 131072
 }
 ```
 

@@ -30,7 +30,12 @@ For these, never pass `--reasoning-effort`; thinking is implicit or always-on. F
 
 ## OpenCode Go models with UNKNOWN reasoning-effort support
 
-These appear in the live catalog (`https://opencode.ai/zen/go/v1/models`, 2026-08-03) but are not yet classified: `kimi-k3`, `qwen3.8-max`, `hy3`, `hy3-preview`, `grok-4.5`. The catalog exposes no reasoning-effort metadata, so probe before use (start with `--reasoning-effort none`) and record the result in [`provider/opencode-go/cli.md`](../provider/opencode-go/cli.md).
+These appear in the live catalog (`https://opencode.ai/zen/go/v1/models`, 2026-08-03) but are not yet classified: `kimi-k3`, `qwen3.8-max`, `hy3-preview`, `grok-4.5`. The catalog exposes no reasoning-effort metadata, so probe before use (start with `--reasoning-effort none`) and record the result in [`provider/opencode-go/cli.md`](../provider/opencode-go/cli.md).
+
+## OpenCode Go models with CLASSIFIED reasoning-effort support (2026-08-20)
+
+- **Hy3** (`hy3`): Supports `high` and `no_think` modes. `no_think` maps to `none` in Copilot CLI. Conservative recommendation: use `--reasoning-effort high` for complex tasks.
+- **Muse Spark 1.2 Contributor** (`muse-spark-1.2-contributor`): Supports `minimal`, `low`, `medium`, `high`, `xhigh` levels. Default is `medium`.
 
 ## Verify for any model (not just OpenCode Go)
 
