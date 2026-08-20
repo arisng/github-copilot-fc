@@ -77,3 +77,40 @@ When a human rejects a perfect-scoring output, log the failure and ask:
 Start with 10 to 25 high-signal assertions, not an exhaustive wall of rules.
 
 Add a new assertion only after a real failure teaches you what the suite missed.
+
+## Machine-parseable assertion syntax
+
+The `Invoke-EvalSuite.ps1` script evaluates `passes_when` expressions using a whitelist-based dispatcher. **`Invoke-Expression` is never used.** Expressions must match one of the patterns below to be evaluated.
+
+### Supported expression patterns
+
+| Pattern | Example | What it checks |
+|---------|---------|---------------|
+| `word_count < N` | `word_count < 150` | Whitespace-delimited word count |
+| `word_count > N` | `word_count > 50` | Whitespace-delimited word count |
+| `word_count == N` | `word_count == 100` | Exact word count |
+| `paragraph_count <= N` | `paragraph_count <= 3` | Double-newline-separated blocks |
+| `heading_count >= N` | `heading_count >= 2` | Lines matching `^#{1,6}\s` |
+| `sentence_count <= N` | `sentence_count <= 10` | Approximate split on `[.!?]+\s` |
+| `no_sentence_exceeds(N)` | `no_sentence_exceeds(18)` | Max word count per sentence |
+| `paragraph_1_sentence_count == N` | `paragraph_1_sentence_count == 1` | Sentences in first paragraph |
+| `contains("text")` | `contains("required section")` | Case-insensitive substring |
+| `not_contains("text")` | `not_contains("forbidden phrase")` | Inverse of contains |
+| `matches_regex("pattern")` | `matches_regex("^#\s+\w+")` | Full-string regex match |
+| `section_present("heading")` | `section_present("Installation")` | Case-insensitive heading match |
+| `json_valid == true` | `json_valid == true` | Output parses as valid JSON |
+| `heading_order("H1","H2")` | `heading_order("Installation","Usage")` | Headings appear in order |
+
+### Grammar rules
+
+- Format: `<metric><op><value>` or `<function>(<args>)` or `<metric> == <value>`
+- Operators: `<`, `>`, `<=`, `>=`, `==`
+- String arguments: double-quoted, matched greedily between first `("` and last `")`
+- No nesting or boolean combinators (`AND`/`OR`) in v1 — keep assertions atomic
+- Unparseable expressions → status `skipped` with `reason: "unparseable_expression"` (not a failure)
+
+### Limitations
+
+- Sentence splitting is approximate (splits on `.!?` + whitespace; abbreviations like "e.g." may cause false splits)
+- Evaluators are designed for prose/documentation output; code-generation skills would need additional evaluators
+- Use `evals/samples/<case-id>.md` files for output samples that assertions evaluate against

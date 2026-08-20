@@ -21,9 +21,10 @@ Freeze one layer while optimizing the other.
 1. Copy `assets/activation-matrix-template.md`.
 2. Fill it with prompts that should trigger and prompts that should not trigger.
 3. Measure where the current description fails.
-4. Rewrite the description with more precise triggers and exclusions.
-5. Re-run the same prompt matrix.
-6. Keep the new description only if the error rate improves.
+4. Run the activation audit: `pwsh -NoProfile -File scripts/Measure-ActivationAccuracy.ps1 -SkillDir <target>` to capture baseline.
+5. Rewrite the description with more precise triggers and exclusions.
+6. Re-run the same prompt matrix and activation audit.
+7. Verify improvement: `pwsh -NoProfile -File scripts/Compare-AuditDelta.ps1 -BeforeReport before.json -AfterReport after.json`. Keep the new description only if accuracy improves with no regressions.
 
 ### Activation heuristics
 
@@ -37,11 +38,13 @@ Freeze one layer while optimizing the other.
 1. Copy `assets/eval-template.json` to `evals/eval.json`.
 2. Translate output quality goals into binary assertions.
 3. Separate subjective requirements into a human review list.
-4. Make one rule change in `SKILL.md` or a referenced file.
-5. Re-run the eval suite.
-6. Keep the change if the score improves.
-7. Revert the change if the score drops or if new conflicts appear.
-8. Log human-rejected perfect scores in the continuous eval log.
+4. Run the structural audit: `pwsh -NoProfile -File scripts/Test-SkillStructure.ps1 -SkillDir <target>`.
+5. Run the execution audit to capture baseline: `pwsh -NoProfile -File scripts/Invoke-EvalSuite.ps1 -SkillDir <target> -OutputSamplesDir <target>/evals/samples`.
+6. Make one rule change in `SKILL.md` or a referenced file.
+7. Re-run the eval suite after the change.
+8. Verify improvement: `pwsh -NoProfile -File scripts/Compare-AuditDelta.ps1 -BeforeReport before.json -AfterReport after.json`. Keep the change only if score improves with no regressions.
+9. Revert the change if the score drops or if new conflicts appear.
+10. Log human-rejected perfect scores in the continuous eval log.
 
 ## Guardrails
 
@@ -88,20 +91,30 @@ graph TD
     A[Existing skill] --> B{Which problem?}
     B -->|Triggers are wrong| C[Activation loop]
     B -->|Output is wrong| D[Execution loop]
-    C --> E[Edit description only]
-    E --> F[Run activation matrix]
-    F --> G{Accuracy improved?}
-    G -->|Yes| H[Keep description]
-    G -->|No| I[Try a different description]
-    I --> F
-    D --> J[Edit one rule only]
-    J --> K[Run eval suite]
-    K --> L{Score improved?}
-    L -->|Yes| M[Keep change]
-    L -->|No| N[Revert change]
-    M --> O{Human rejects perfect score?}
-    N --> J
-    O -->|Yes| P[Add to continuous eval log]
-    O -->|No| J
-    P --> J
+
+    subgraph "Activation Loop"
+        C --> E[Edit description only]
+        E --> F[Run activation matrix]
+        F --> F2[Run Measure-ActivationAccuracy.ps1]
+        F2 --> G{Accuracy improved?}
+        G -->|Yes| H[Keep description]
+        G -->|No| I[Try a different description]
+        I --> F
+    end
+
+    subgraph "Execution Loop"
+        D --> J[Edit one rule only]
+        J --> J2[Run Invoke-EvalSuite.ps1]
+        J2 --> K{Score improved?}
+        K -->|Yes| L[Run Compare-AuditDelta.ps1]
+        K -->|No| N[Revert change]
+        L --> L2{Delta passed?}
+        L2 -->|Yes| M[Keep change]
+        L2 -->|No| N
+        N --> J
+        M --> O{Human rejects perfect score?}
+        O -->|Yes| P[Add to continuous eval log]
+        O -->|No| J
+        P --> J
+    end
 ```
