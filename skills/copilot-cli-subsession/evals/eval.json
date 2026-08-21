@@ -1,0 +1,342 @@
+{
+  "skill": "copilot-cli-subsession",
+  "objective": "Guide the agent to produce correct Invoke-CopilotCliSubSession.ps1 invocations across the full 17-parameter surface with proper formatting and precedence.",
+  "cases": [
+    {
+      "id": "E01-minimal-invocation",
+      "prompt": "Spawn a sub-session to analyze async methods",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E01-S1",
+          "type": "structural",
+          "description": "Minimal invocation includes the script path",
+          "passes_when": "contains(\"Invoke-CopilotCliSubSession\")"
+        },
+        {
+          "id": "E01-S2",
+          "type": "formatting",
+          "description": "-Name uses kebab-case",
+          "passes_when": "matches_regex(\"-Name\\s+\\\"[a-z0-9]+(-[a-z0-9]+)*\\\"\")"
+        },
+        {
+          "id": "E01-S3",
+          "type": "coverage",
+          "description": "-CopilotHome staging path shown ($HOME-relative)",
+          "passes_when": "contains(\"-CopilotHome\")"
+        },
+        {
+          "id": "E01-S4",
+          "type": "structural",
+          "description": "-Prompt is present",
+          "passes_when": "contains(\"-Prompt\")"
+        }
+      ],
+      "human_review": []
+    },
+    {
+      "id": "E02-slash-command",
+      "prompt": "Run /handoff in an isolated session",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E02-S1",
+          "type": "structural",
+          "description": "-SlashCommand handoff is present",
+          "passes_when": "contains(\"-SlashCommand\")"
+        },
+        {
+          "id": "E02-S2",
+          "type": "formatting",
+          "description": "SlashCommand value has no leading slash",
+          "passes_when": "not_contains(\"-SlashCommand \\\"/\")"
+        },
+        {
+          "id": "E02-S3",
+          "type": "formatting",
+          "description": "SlashCommand invocation value is handoff",
+          "passes_when": "contains(\"handoff\")"
+        }
+      ],
+      "human_review": []
+    },
+    {
+      "id": "E02b-excluded-slash-command",
+      "prompt": "Run /model in a sub-session",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E02b-S1",
+          "type": "structural",
+          "description": "SUT passes /model through without rejection (runtime-only failure documented)",
+          "passes_when": "contains(\"model\")"
+        },
+        {
+          "id": "E02b-S2",
+          "type": "coverage",
+          "description": "Output documents that /model is runtime-only / roleplay warning",
+          "passes_when": "contains(\"model\")"
+        }
+      ],
+      "human_review": ["Confirm SKILL.md warns that -p \"/model X\" is roleplay for BYOK routing"]
+    },
+    {
+      "id": "E03-session-chaining",
+      "prompt": "Chain two prompts on same sub-session",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E03-S1",
+          "type": "structural",
+          "description": "Two invocations present (chaining)",
+          "passes_when": "contains(\"-SessionId\")"
+        },
+        {
+          "id": "E03-S2",
+          "type": "formatting",
+          "description": "SessionId is UUID format",
+          "passes_when": "matches_regex(\"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\")"
+        },
+        {
+          "id": "E03-S3",
+          "type": "coverage",
+          "description": "Shared SessionId variable reused across calls",
+          "passes_when": "contains(\"SessionId\")"
+        }
+      ],
+      "human_review": ["Chaining example reads as workflow, not isolated snippets"]
+    },
+    {
+      "id": "E04-context-handoff",
+      "prompt": "Delegate auth implementation with file references",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E04-S1",
+          "type": "coverage",
+          "description": "Absolute file paths included in prompt",
+          "passes_when": "matches_regex(\"[a-zA-Z]:[/\\\\\\\\]\")"
+        },
+        {
+          "id": "E04-S2",
+          "type": "structural",
+          "description": "Working directory is specified",
+          "passes_when": "contains(\"-WorkingDir\")"
+        },
+        {
+          "id": "E04-S3",
+          "type": "coverage",
+          "description": "Prompt references at least two files grouped by role",
+          "passes_when": "contains(\".md\")"
+        }
+      ],
+      "human_review": ["Paths grouped by role (plan/tasks/specs) — not a dump"]
+    },
+    {
+      "id": "E05a-byok-profile",
+      "prompt": "Use deepseek with high reasoning",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E05a-S1",
+          "type": "structural",
+          "description": "-ByokProfile is present",
+          "passes_when": "contains(\"-ByokProfile\")"
+        },
+        {
+          "id": "E05a-S2",
+          "type": "structural",
+          "description": "-ReasoningEffort high is present",
+          "passes_when": "contains(\"-ReasoningEffort\")"
+        },
+        {
+          "id": "E05a-S3",
+          "type": "formatting",
+          "description": "ReasoningEffort value is high",
+          "passes_when": "contains(\"high\")"
+        }
+      ],
+      "human_review": []
+    },
+    {
+      "id": "E05b-model-overrides-profile",
+      "prompt": "Use kimi model with the deepseek profile",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E05b-S1",
+          "type": "structural",
+          "description": "-Model override is present alongside -ByokProfile",
+          "passes_when": "contains(\"-Model\")"
+        },
+        {
+          "id": "E05b-S2",
+          "type": "structural",
+          "description": "-ByokProfile still present (wireApi/maxPromptTokens preserved)",
+          "passes_when": "contains(\"-ByokProfile\")"
+        },
+        {
+          "id": "E05b-S3",
+          "type": "coverage",
+          "description": "Model value kimi is specified",
+          "passes_when": "contains(\"kimi\")"
+        }
+      ],
+      "human_review": ["Precedence: -Model overrides profile model; profile wireApi and maxPromptTokens preserved"]
+    },
+    {
+      "id": "E05c-reasoning-stripped",
+      "prompt": "Use kimi with max reasoning",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E05c-S1",
+          "type": "coverage",
+          "description": "ReasoningEffort stripping is warned or omitted for kimi",
+          "passes_when": "contains(\"kimi\")"
+        },
+        {
+          "id": "E05c-S2",
+          "type": "formatting",
+          "description": "Max reasoning not blindly passed for unsupported model",
+          "passes_when": "contains(\"kimi\")"
+        }
+      ],
+      "human_review": ["Pass if -ReasoningEffort is stripped with warning per reasoning-effort-lookup — G12 regression lock"]
+    },
+    {
+      "id": "E06-staging-isolation",
+      "prompt": "Test without touching production",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E06-S1",
+          "type": "structural",
+          "description": "-CopilotHome with HOME-relative path is present",
+          "passes_when": "contains(\"-CopilotHome\")"
+        },
+        {
+          "id": "E06-S2",
+          "type": "coverage",
+          "description": "Staging path uses HOME-relative reference",
+          "passes_when": "contains(\"HOME\")"
+        },
+        {
+          "id": "E06-S3",
+          "type": "coverage",
+          "description": "Seeding from production is mentioned",
+          "passes_when": "contains(\"seed\")"
+        }
+      ],
+      "human_review": []
+    },
+    {
+      "id": "E06b-staging-chaining",
+      "prompt": "Chain two staging sub-sessions",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E06b-S1",
+          "type": "structural",
+          "description": "Both CopilotHome and SessionId present for staging chaining",
+          "passes_when": "contains(\"-CopilotHome\")"
+        },
+        {
+          "id": "E06b-S2",
+          "type": "structural",
+          "description": "SessionId present across chained staging calls",
+          "passes_when": "contains(\"-SessionId\")"
+        },
+        {
+          "id": "E06b-S3",
+          "type": "coverage",
+          "description": "Same CopilotHome and SessionId emphasized as shared",
+          "passes_when": "contains(\"CopilotHome\")"
+        }
+      ],
+      "human_review": ["Pass only if same -CopilotHome + same -SessionId across calls is explicit"]
+    },
+    {
+      "id": "E07-combination-flags",
+      "prompt": "Run isolated, no permissions, no MCP, no instructions",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E07-S1",
+          "type": "structural",
+          "description": "-NoAllowAll is present",
+          "passes_when": "contains(\"-NoAllowAll\")"
+        },
+        {
+          "id": "E07-S2",
+          "type": "structural",
+          "description": "-DisableBuiltInMcps is present",
+          "passes_when": "contains(\"-DisableBuiltInMcps\")"
+        },
+        {
+          "id": "E07-S3",
+          "type": "structural",
+          "description": "-NoCustomInstructions is present",
+          "passes_when": "contains(\"-NoCustomInstructions\")"
+        },
+        {
+          "id": "E07-S4",
+          "type": "formatting",
+          "description": "--allow-all is absent when -NoAllowAll is used",
+          "passes_when": "not_contains(\"--allow-all\")"
+        }
+      ],
+      "human_review": []
+    },
+    {
+      "id": "E08-passthrough-regression",
+      "prompt": "Add --debug and --verbose passthrough",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E08-S1",
+          "type": "structural",
+          "description": "-Passthrough is present",
+          "passes_when": "contains(\"-Passthrough\")"
+        },
+        {
+          "id": "E08-S2",
+          "type": "formatting",
+          "description": "Passthrough value does not hijack -SlashCommand",
+          "passes_when": "not_contains(\"-SlashCommand \\\"--\")"
+        },
+        {
+          "id": "E08-S3",
+          "type": "coverage",
+          "description": "Only first passthrough value is forwarded (G5 regression lock)",
+          "passes_when": "contains(\"-Passthrough\")"
+        }
+      ],
+      "human_review": ["Pass if second passthrough does not bleed into -SlashCommand — G5 regression lock"]
+    },
+    {
+      "id": "E09-missing-production-config",
+      "prompt": "Omit -CopilotHome and remove byok-profiles.json",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "E09-S1",
+          "type": "coverage",
+          "description": "Error indicates BYOK profile file not found",
+          "passes_when": "contains(\"BYOK profile\")"
+        },
+        {
+          "id": "E09-S2",
+          "type": "coverage",
+          "description": "Missing config error is explicit",
+          "passes_when": "contains(\"not found\")"
+        }
+      ],
+      "human_review": []
+    }
+  ],
+  "stop_conditions": {
+    "activation": "Stop when false positives and false negatives no longer improve.",
+    "execution": "Stop when score plateaus, assertions conflict, or perfect scores still fail human review."
+  }
+}

@@ -5,12 +5,12 @@ description: >-
   Use when you need to programmatically create, resume, or chain Copilot CLI sessions with
   explicit control over session ID, custom agent, model, BYOK provider profile, permissions,
   and working directory. Triggers: "invoke copilot", "spawn copilot", "copilot sub-session",
-  "programmatic copilot cli", "copilot cli session id", "resume copilot session", "chain copilot sessions",
-  "copilot byok profile script", "subagent copilot cli", "task copilot cli".
+  "programmatic copilot cli", "programmatic copilot subprocess", "copilot cli session id", "resume copilot session", "chain copilot sessions", "isolated copilot session",
+  "subagent copilot cli", "task copilot cli".
 argument-hint: "What is the sub-session prompt?"
 metadata:
   author: arisng
-  version: 0.6.2
+  version: 0.6.3
   lastVerified: 2026-08-05
   verifiedCliVersion: 1.0.77
 ---
