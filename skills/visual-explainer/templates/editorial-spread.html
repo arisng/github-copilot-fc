@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editorial Spread — Reference Template</title>
+<!--
+  Reference template for the visual-explainer skill: editorial spread / booklet layout.
+  Warm paper palette — distinctly different from rose (data-table) and teal (mermaid) templates.
+  Key patterns demonstrated:
+  - Two-page spread layout (cover + content page)
+  - Warm paper palette with oklch colors
+  - Serif display font for headlines, system font for body, monospace for labels
+  - Paper cards with subtle shadows and slight rotation
+  - Eyebrow/kicker headers with dot indicators
+  - Stats grid for key metrics
+  - Table of contents with dotted leaders
+  - Two-column layout with drop cap and numbered steps
+  - Pullquote component
+  - Exercise/callout section
+  - Page footers with section name and page number
+  - Both light and dark themes via prefers-color-scheme
+  - Responsive design for mobile
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME ============ */
+  :root {
+    --font-display: 'Instrument Serif', 'Charter', Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Mono', 'Segoe UI Mono', monospace;
+
+    --bg: oklch(98% 0.004 95);
+    --surface: oklch(100% 0.002 95);
+    --surface-2: oklch(97% 0.006 95);
+    --fg: oklch(20% 0.018 70);
+    --muted: oklch(48% 0.012 70);
+    --border: oklch(90% 0.006 95);
+    --accent: oklch(52% 0.10 28);
+    --accent-dim: oklch(52% 0.10 28 / 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: oklch(18% 0.008 70);
+      --surface: oklch(22% 0.012 70);
+      --surface-2: oklch(25% 0.010 70);
+      --fg: oklch(92% 0.008 95);
+      --muted: oklch(65% 0.008 70);
+      --border: oklch(35% 0.008 70);
+      --accent: oklch(65% 0.12 28);
+      --accent-dim: oklch(65% 0.12 28 / 0.15);
+    }
+  }
+
+  /* ============ RESET + BASE ============ */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--fg);
+    background:
+      radial-gradient(120% 90% at 50% 0%, oklch(92% 0.004 95), transparent 62%),
+      radial-gradient(100% 80% at 85% 100%, oklch(77% 0.009 95), transparent 66%),
+      var(--bg);
+    font-family: var(--font-body);
+    padding: 64px 40px;
+    display: flex;
+    gap: 44px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* ============ PAPER CARDS ============ */
+  .page {
+    width: 600px;
+    height: 860px;
+    padding: 44px 46px 34px;
+    background: var(--surface);
+    border-radius: 2px;
+    box-shadow:
+      0 1px 2px oklch(22% 0.02 70 / 0.06),
+      0 26px 52px oklch(22% 0.02 70 / 0.16);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .page.left { transform: rotate(-0.6deg); }
+  .page.right { transform: rotate(0.6deg); background: var(--surface-2); }
+
+  .page-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font: 10.5px/1 var(--font-mono);
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* ============ EYEBROW (KICKER) ============ */
+  .eyebrow {
+    font: 10.5px/1 var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow .left { display: flex; align-items: center; gap: 10px; }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+
+  /* ============ COVER PAGE ============ */
+  .cover .title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 60px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    margin: 40px 0 0;
+  }
+  .cover .title .line { display: block; }
+  .cover .title .light { font-weight: 400; }
+  .cover .title .accent { font-weight: 500; font-style: italic; color: var(--accent); }
+
+  .cover .author {
+    font: 11px/1 var(--font-mono);
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 22px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cover .author b { color: var(--fg); font-weight: 500; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin: 30px 0 34px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stats .stat { padding: 18px 22px 18px 0; }
+  .stats .stat + .stat { padding-left: 22px; border-left: 1px solid var(--border); }
+  .stats .num { font: 700 34px/1 var(--font-display); letter-spacing: -0.01em; }
+  .stats .lbl {
+    font: 10px/1.5 var(--font-mono);
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 8px;
+    max-width: 16ch;
+  }
+
+  .cover .inside {
+    font: 500 30px/1 var(--font-display);
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+  }
+
+  .toc {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 40px;
+    row-gap: 13px;
+  }
+  .toc .item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font: 15px/1.4 var(--font-display);
+    color: var(--fg);
+  }
+  .toc .item .leader { flex: 1; border-bottom: 1px dotted var(--muted); transform: translateY(-3px); margin: 0 4px; }
+  .toc .item .pn { font: 10.5px/1 var(--font-mono); color: var(--muted); letter-spacing: 0.08em; }
+
+  .sticker {
+    position: absolute;
+    top: 34px;
+    right: 34px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    transform: rotate(14deg);
+  }
+
+  /* ============ SPREAD PAGE ============ */
+  .spread .subtitle {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 42px;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+    margin: 40px 0 0;
+    max-width: 18ch;
+  }
+  .spread .deck {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 18px 0 0;
+    max-width: 52ch;
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .columns .lead {
+    margin: 0;
+    font: 15px/1.65 var(--font-body);
+    color: var(--fg);
+  }
+  .columns .lead::first-letter {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 0.8;
+    padding: 5px 8px 0 0;
+    float: left;
+    color: var(--fg);
+  }
+
+  .steps { display: flex; flex-direction: column; }
+  .steps .row {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 12px;
+    align-items: baseline;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .steps .row:first-child { padding-top: 0; }
+  .steps .row .n { font: 500 11px/1 var(--font-mono); color: var(--accent); letter-spacing: 0.06em; }
+  .steps .row .body { font: 14px/1.55 var(--font-body); color: var(--fg); }
+  .steps .row .body b { font-weight: 600; }
+
+  .pullquote {
+    margin: 38px 0 0 auto;
+    width: 76%;
+    text-align: right;
+  }
+  .pullquote .q {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 30px;
+    line-height: 1.22;
+    letter-spacing: -0.01em;
+    color: var(--accent);
+    margin: 0;
+  }
+  .pullquote .by {
+    display: block;
+    margin-top: 14px;
+    font: 10.5px/1 var(--font-mono);
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .exercise {
+    margin-top: 30px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+  }
+  .exercise .label {
+    font: 10.5px/1 var(--font-mono);
+    color: var(--fg);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .exercise .text {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--fg);
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1320px) {
+    body { padding: 40px 24px; gap: 32px; }
+  }
+  @media (max-width: 680px) {
+    body { padding: 32px 16px; gap: 28px; }
+    .page { width: 100%; height: auto; min-height: 860px; padding: 34px 28px 28px; }
+    .cover .title { font-size: 48px; }
+    .columns { grid-template-columns: 1fr; }
+    .pullquote { width: 100%; margin-top: 28px; text-align: right; }
+    .toc { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- COVER PAGE -->
+  <article class="page left cover" data-od-id="cover">
+    <header class="eyebrow">
+      <div class="left"><span class="dot"></span><!-- EYEBROW_TEXT --></div>
+    </header>
+
+    <h1 class="title" data-od-id="cover-title">
+      <!-- TITLE_LINES: wrap each line in <span class="line">, use .light for unaccented words, .accent for highlighted word -->
+      <span class="line"><span class="light">The</span> Creator's</span>
+      <span class="line">Style <span class="light">&amp;</span> Format</span>
+      <span class="line"><span class="accent">guide</span></span>
+    </h1>
+
+    <div class="author">By <b><!-- AUTHOR_NAME --></b> · <!-- AUTHOR_ROLE --></div>
+
+    <div class="stats">
+      <!-- Repeat for each stat: -->
+      <div class="stat"><div class="num"><!-- STAT_NUM --></div><div class="lbl"><!-- STAT_LABEL --></div></div>
+      <div class="stat"><div class="num"><!-- STAT_NUM --></div><div class="lbl"><!-- STAT_LABEL --></div></div>
+      <div class="stat"><div class="num"><!-- STAT_NUM --></div><div class="lbl"><!-- STAT_LABEL --></div></div>
+    </div>
+
+    <h2 class="inside"><!-- SECTION_HEADING --></h2>
+
+    <div class="toc" data-od-id="toc">
+      <!-- Repeat for each TOC item: -->
+      <div class="item"><span class="name"><!-- TOC_ITEM --></span><span class="leader"></span><span class="pn"><!-- PAGE_NUM --></span></div>
+      <div class="item"><span class="name"><!-- TOC_ITEM --></span><span class="leader"></span><span class="pn"><!-- PAGE_NUM --></span></div>
+      <div class="item"><span class="name"><!-- TOC_ITEM --></span><span class="leader"></span><span class="pn"><!-- PAGE_NUM --></span></div>
+      <div class="item"><span class="name"><!-- TOC_ITEM --></span><span class="leader"></span><span class="pn"><!-- PAGE_NUM --></span></div>
+    </div>
+
+    <div class="sticker" aria-hidden="true"></div>
+
+    <footer class="page-footer"><span><!-- SECTION_NAME --></span><span><!-- PAGE_INFO --></span></footer>
+  </article>
+
+  <!-- SPREAD PAGE -->
+  <article class="page right spread" data-od-id="spread">
+    <header class="eyebrow">
+      <div class="left"><span class="dot"></span><!-- CHAPTER_INFO --></div>
+      <div class="right"><!-- CHAPTER_META --></div>
+    </header>
+
+    <h2 class="subtitle"><!-- SUBTITLE_HTML --></h2>
+    <p class="deck"><!-- DECK_TEXT --></p>
+
+    <div class="columns">
+      <p class="lead"><!-- LEAD_TEXT --></p>
+
+      <div class="steps">
+        <!-- Repeat for each step: -->
+        <div class="row"><span class="n"><!-- STEP_NUM --></span><span class="body"><b><!-- STEP_TITLE --></b> <!-- STEP_DESC --></span></div>
+        <div class="row"><span class="n"><!-- STEP_NUM --></span><span class="body"><b><!-- STEP_TITLE --></b> <!-- STEP_DESC --></span></div>
+        <div class="row"><span class="n"><!-- STEP_NUM --></span><span class="body"><b><!-- STEP_TITLE --></b> <!-- STEP_DESC --></span></div>
+      </div>
+    </div>
+
+    <div class="pullquote" data-od-id="pullquote">
+      <p class="q"><!-- PULLQUOTE_TEXT --></p>
+      <span class="by">— <!-- PULLQUOTE_AUTHOR --></span>
+    </div>
+
+    <div class="exercise" data-od-id="exercise">
+      <span class="label"><!-- EXERCISE_LABEL --></span>
+      <span class="text"><!-- EXERCISE_TEXT --></span>
+    </div>
+
+    <footer class="page-footer"><span><!-- SECTION_NAME --></span><span><!-- PAGE_INFO --></span></footer>
+  </article>
+
+</body>
+</html>

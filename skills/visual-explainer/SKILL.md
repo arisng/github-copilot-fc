@@ -2,7 +2,7 @@
 name: visual-explainer
 description: Generate beautiful, self-contained HTML pages that visually explain systems, code changes, plans, and data. Use when the user asks for a diagram, architecture overview, diff review, plan review, project recap, comparison table, or any visual explanation of technical concepts. Also use proactively when you are about to render a complex ASCII table (4+ rows or 3+ columns) — present it as a styled HTML page instead.
 metadata:
-  version: 0.1.1
+  version: 0.2.1
   author: arisng
 ---
 
@@ -110,6 +110,7 @@ Vary the choice each time. If the last diagram was dark and technical, make the 
 - For flowcharts, sequence diagrams, ER, state machines, mind maps, class diagrams, C4: read `./templates/mermaid-flowchart.html`
 - For data tables, comparisons, audits, feature matrices: read `./templates/data-table.html`
 - For slide deck presentations (when `--slides` flag is present or `/generate-slides` is invoked): read `./templates/slide-deck.html` and `./references/slide-patterns.md`
+- For editorial spreads, booklets, magazine-style layouts with cover + content pages: read `./templates/editorial-spread.html`
 - For prose-heavy publishable pages (READMEs, articles, blog posts, essays): read the "Prose Page Elements" section in `./references/css-patterns.md` and "Typography by Content Voice" in `./references/libraries.md`
 
 **For CSS/layout patterns and SVG connectors**, read `./references/css-patterns.md`.
@@ -131,6 +132,7 @@ Vary the choice each time. If the last diagram was dark and technical, make the 
 | Class diagram | **Mermaid** | Inheritance, composition, aggregation lines with automatic routing |
 | C4 architecture | **Mermaid** | Use `graph TD` + `subgraph` for C4 (not native `C4Context` — it ignores themes) |
 | Data table | HTML `<table>` | Semantic markup, accessibility, copy-paste behavior |
+| Editorial spread / booklet | CSS two-page layout | Magazine-style presentation with cover + content spread |
 | Timeline | CSS (central line + cards) | Simple linear layout doesn't need a layout engine |
 | Dashboard | CSS Grid + Chart.js | Card grid with embedded charts |
 
@@ -302,6 +304,24 @@ Cell content:
 - Use `<code>` for technical references within cells
 - Secondary detail text in `<small>` with dimmed color
 - Keep numeric columns right-aligned with `tabular-nums`
+
+### Editorial Spread / Booklet Layouts
+Use the editorial spread template for magazine-style presentations with cover + content pages. The reference template at `./templates/editorial-spread.html` demonstrates all patterns below.
+
+**Use when:** Presenting guidebooks, style manuals, chapter-based content, or any multi-page document that benefits from a tactile, paper-like feel. The two-page spread creates visual rhythm and hierarchy that single-page layouts can't achieve.
+
+**Key components:**
+- **Cover page**: Large serif title with mixed weights, author line, stats grid (3 metrics), table of contents with dotted leaders
+- **Spread page**: Subtitle + deck text, two-column layout (lead text with drop cap + numbered steps), pullquote, exercise/callout section
+- **Paper cards**: Subtle shadows, slight rotation (-0.6°/0.6°), warm surface colors
+- **Eyebrow headers**: Monospace uppercase with dot indicators
+- **Page footers**: Section name + page number in monospace
+
+**Color palette:** Warm paper tones (oklch colors), terracotta accent for highlights. Supports both light and dark themes.
+
+**Typography:** Serif display font for headlines (Instrument Serif, Charter, Georgia), system font for body, monospace for labels.
+
+**Responsive behavior:** On mobile (<680px), pages stack vertically, columns collapse to single column, TOC becomes single column.
 
 ### Timeline / Roadmap Views
 Vertical or horizontal timeline with a central line (CSS pseudo-element). Phase markers as circles on the line. Content cards branching left/right (alternating) or all to one side. Date labels on the line. Color progression from past (muted) to future (vivid).
