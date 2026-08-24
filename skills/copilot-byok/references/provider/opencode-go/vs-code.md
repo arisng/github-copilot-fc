@@ -154,6 +154,18 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "maxOutputTokens": 131072,
       "thinking": true,
       "supportsReasoningEffort": ["minimal", "low", "medium", "high", "xhigh"]
+    },
+    {
+      "id": "ox-alpha-free",
+      "name": "Ox Alpha Free",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": true,
+      "streaming": true,
+      "maxInputTokens": 980000,
+      "maxOutputTokens": 131072,
+      "thinking": true,
+      "supportsReasoningEffort": ["low", "medium", "high", "max"]
     }
   ]
 }
@@ -164,6 +176,8 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
 > **Hy3 token grounding (2026-08-20).** Hy3 has a 256K context window with 64K max output tokens. The values above (184K input + 64K output = 248K) stay safely under the context window. Hy3 supports reasoning effort with `high` and `no_think` modes; the `no_think` mode maps to `none` in Copilot CLI.
 
 > **Muse Spark 1.2 Contributor token grounding (2026-08-20).** Muse Spark 1.2 Contributor has a 1M context window with 131K max output tokens. The contributor tier is heavily discounted but Meta uses your data for training. The values above (909K input + 131K output = 1,040K) stay safely under the 1,048,576 ceiling. Muse Spark supports reasoning effort with five levels: `minimal`, `low`, `medium`, `high`, `xhigh` (medium is default).
+
+> **Ox Alpha Free token grounding (empirical 2026-08-24).** Ox Alpha Free is a free reasoning model with a 1M context window and 131K max output tokens. The model supports tool calling, vision, streaming, and reasoning effort (full range). The values above (980K input + 131K output = 1,111K) exceed the context window; the OpenCode Go gateway may enforce a lower effective limit. Use these values as a starting point and reduce if you encounter 400 errors.
 
 ### OpenCode Go — Responses API model (GPT-5.6 Luna)
 

@@ -54,6 +54,7 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | Hy3 (Tencent, 256K context) | `hy3` | `openai` | `completions` | Supported (`high` only; `no_think` maps to `none`) |
 | Muse Spark 1.2 Contributor (Meta, 1M context) | `muse-spark-1.2-contributor` | `openai` | `completions` | Supported (`minimal`, `low`, `medium`, `high`, `xhigh`) |
+| Ox Alpha Free (free for limited time) | `ox-alpha-free` | `openai` | `completions` | Supported (full range, incl. `max`) |
 
 > **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a hard ceiling of **1,048,576 tokens** (prompt + output combined) — confirmed by a 400 error at 1.05M tokens. Unlike DeepSeek V4 models (which cap at ~325K raw tokens despite 1M theoretical), MiMo-V2.5 passes through the full gateway limit: 1M prompt tokens succeeded, 1.05M was rejected. Output is unconstrained by the API (tested up to 1M `max_tokens`). Practical limits:
 >
@@ -78,6 +79,16 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 > | `maxPromptTokens` | 909,504 | 1,048,576 - 131,072 output - 8,000 safety buffer |
 > | `maxOutputTokens` | 131,072 | Matches model's max output |
 > | Combined budget | 1,040,576 | Stays under 1,048,576 context window |
+
+> **Ox Alpha Free token grounding (empirical 2026-08-24).** Ox Alpha Free is a free reasoning model with a 1M context window and 131K max output tokens. The model supports tool calling, vision, streaming, and reasoning effort (full range). Conservative token overrides:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 980,000 | 1,048,576 - 131,072 output - 37,504 safety buffer |
+> | `maxOutputTokens` | 131,072 | Matches model's max output |
+> | Combined budget | 1,111,072 | Exceeds context window; see note |
+>
+> **Note:** The combined budget exceeds the 1,048,576 context window. The OpenCode Go gateway may enforce a lower effective limit. Use these values as a starting point and reduce if you encounter 400 errors.
 
 > **Endpoint note (2026-08-05)**: per the [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints), Qwen3.x and MiniMax are listed at `/v1/messages` with `@ai-sdk/anthropic` (provider type `anthropic`, wire `messages`). A 2026-08-03 probe found these models also respond on `openai` / `chat/completions` (gateway tolerates both), but the documented path is `messages`. An early "401 on `/v1/messages`" observation used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key`, so that 401 was an auth-header artifact.
 
@@ -256,6 +267,33 @@ Profile entry:
   "offline": false,
   "maxPromptTokens": 909504,
   "model": "muse-spark-1.2-contributor",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 131072
+}
+```
+
+### Ox Alpha Free (free for limited time)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'ox-alpha-free'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 980000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 131072
+copilot --reasoning-effort high
+```
+
+Profile entry:
+
+```json
+"opencode-go-ox-alpha-free": {
+  "apiKey": "${OPENCODE_API_KEY_WORK}",
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 980000,
+  "model": "ox-alpha-free",
   "accountGroup": "opencode",
   "maxOutputTokens": 131072
 }
