@@ -1,0 +1,182 @@
+{
+  "audit_type": "execution",
+  "skill": "machina-authoring",
+  "objective": "Author valid, high-scoring Machina machine JSON files and use the bundled machina.py CLI to validate/score them deterministically.",
+  "mode": "full",
+  "total_assertions": 20,
+  "passed": 20,
+  "skipped": 0,
+  "effective_total": 20,
+  "score": "20/20",
+  "pass_rate": 1.0,
+  "cases": [
+    {
+      "id": "case-01-generate-machine",
+      "prompt": "Write a Machina machine JSON for a refund workflow with a retry limit on the refund attempt.",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "structural",
+          "expression": "matches_regex(\"(?m)^```json\")",
+          "status": "pass"
+        },
+        {
+          "id": "A2",
+          "type": "coverage",
+          "expression": "contains(\"2.0.0\")",
+          "status": "pass"
+        },
+        {
+          "id": "A3",
+          "type": "coverage",
+          "expression": "contains(\"scenarios\")",
+          "status": "pass"
+        },
+        {
+          "id": "A4",
+          "type": "coverage",
+          "expression": "contains(\"initial\")",
+          "status": "pass"
+        }
+      ],
+      "passed": 4,
+      "total": 4
+    },
+    {
+      "id": "case-02-explain-low-score",
+      "prompt": "Why does my machine score only 74? Context: it is copilot-extensions/machina-simulator/simulator/samples/machina-order.json, which reports two review gaps (actions-used, state-naming) and one auto gap (spec-version).",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "coverage",
+          "expression": "contains(\"actions-used\")",
+          "status": "pass"
+        },
+        {
+          "id": "A2",
+          "type": "coverage",
+          "expression": "contains(\"state-naming\")",
+          "status": "pass"
+        },
+        {
+          "id": "A3",
+          "type": "domain-bound",
+          "expression": "contains(\"auto gap\")",
+          "status": "pass"
+        }
+      ],
+      "passed": 3,
+      "total": 3
+    },
+    {
+      "id": "case-03-how-to-validate-score",
+      "prompt": "How do I validate and compliance-score my machine JSON before opening it in the simulator?",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "coverage",
+          "expression": "contains(\"scripts/machina.py\")",
+          "status": "pass"
+        },
+        {
+          "id": "A2",
+          "type": "structural",
+          "expression": "contains(\"validate\")",
+          "status": "pass"
+        },
+        {
+          "id": "A3",
+          "type": "structural",
+          "expression": "contains(\"--text\")",
+          "status": "pass"
+        },
+        {
+          "id": "A4",
+          "type": "formatting",
+          "expression": "contains(\"```powershell\")",
+          "status": "pass"
+        }
+      ],
+      "passed": 4,
+      "total": 4
+    },
+    {
+      "id": "case-04-add-retry-guard",
+      "prompt": "Add retry guards to this state machine JSON so the RETRY_PAY loop can't run forever.",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "domain-bound",
+          "expression": "contains(\"compare\")",
+          "status": "pass"
+        },
+        {
+          "id": "A2",
+          "type": "domain-bound",
+          "expression": "contains(\"lt\")",
+          "status": "pass"
+        },
+        {
+          "id": "A3",
+          "type": "coverage",
+          "expression": "matches_regex(\"(retry|attempt)[_a-z]*\")",
+          "status": "pass"
+        },
+        {
+          "id": "A4",
+          "type": "formatting",
+          "expression": "not_contains(\"eval(\")",
+          "status": "pass"
+        }
+      ],
+      "passed": 4,
+      "total": 4
+    },
+    {
+      "id": "case-05-fix-validation-errors",
+      "prompt": "This machine JSON fails validation - the initial points nowhere and one target doesn't exist. Fix it so it validates.",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "coverage",
+          "expression": "contains(\"initial\")",
+          "status": "pass"
+        },
+        {
+          "id": "A2",
+          "type": "coverage",
+          "expression": "contains(\"target\")",
+          "status": "pass"
+        },
+        {
+          "id": "A3",
+          "type": "structural",
+          "expression": "matches_regex(\"(?m)^```json\")",
+          "status": "pass"
+        }
+      ],
+      "passed": 3,
+      "total": 3
+    },
+    {
+      "id": "case-06-simulator-ui-negative",
+      "prompt": "Modify state-machine-simulator.html to improve the graph layout and restyle the compliance modal.",
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "domain-bound",
+          "expression": "not_contains(\"spec_version\")",
+          "status": "pass"
+        },
+        {
+          "id": "A2",
+          "type": "domain-bound",
+          "expression": "not_contains(\"UPPER_SNAKE\")",
+          "status": "pass"
+        }
+      ],
+      "passed": 2,
+      "total": 2
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "skill": "machina-authoring",
+  "objective": "Author valid, high-scoring Machina machine JSON files and use the bundled machina.py CLI to validate/score them deterministically.",
+  "notes": "Assertion constraints: evaluator engine evaluates single-call expressions only (compound '&&' parses in syntax-only mode but returns 'skip' in full mode), and json_valid == true cannot pass against markdown output samples because ConvertFrom-Json receives the whole document. Code-output validity is therefore approximated with matches_regex on fenced json blocks.",
+  "cases": [
+    {
+      "id": "case-01-generate-machine",
+      "prompt": "Write a Machina machine JSON for a refund workflow with a retry limit on the refund attempt.",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "structural",
+          "description": "Response includes a fenced JSON code block (proxy for machine-as-code delivery)",
+          "passes_when": "matches_regex(\"(?m)^```json\")"
+        },
+        { "id": "A2", "type": "coverage", "description": "Machine declares spec_version 2.0.0 explicitly", "passes_when": "contains(\"2.0.0\")" },
+        { "id": "A3", "type": "coverage", "description": "Machine declares at least one scenario entry point", "passes_when": "contains(\"scenarios\")" },
+        { "id": "A4", "type": "coverage", "description": "Machine declares an initial state", "passes_when": "contains(\"initial\")" }
+      ],
+      "human_review": [
+        "fenced JSON parses and models a realistic refund workflow",
+        "retry loop has a compare-lt guard against a context counter"
+      ]
+    },
+    {
+      "id": "case-02-explain-low-score",
+      "prompt": "Why does my machine score only 74? Context: it is copilot-extensions/machina-simulator/simulator/samples/machina-order.json, which reports two review gaps (actions-used, state-naming) and one auto gap (spec-version).",
+      "expected_trigger": true,
+      "assertions": [
+        { "id": "A1", "type": "coverage", "description": "Explanation names the failing review check actions-used", "passes_when": "contains(\"actions-used\")" },
+        { "id": "A2", "type": "coverage", "description": "Explanation names the failing review check state-naming", "passes_when": "contains(\"state-naming\")" },
+        { "id": "A3", "type": "domain-bound", "description": "Distinguishes auto gaps (apply-able) from review gaps needing manual fixes", "passes_when": "contains(\"auto gap\")" }
+      ],
+      "human_review": [
+        "advice matches per-check guidance in references/machine-quality.md",
+        "does not recommend embedding code strings in transitions"
+      ]
+    },
+    {
+      "id": "case-03-how-to-validate-score",
+      "prompt": "How do I validate and compliance-score my machine JSON before opening it in the simulator?",
+      "expected_trigger": true,
+      "assertions": [
+        { "id": "A1", "type": "coverage", "description": "Response gives the bundled script invocation path scripts/machina.py", "passes_when": "contains(\"scripts/machina.py\")" },
+        { "id": "A2", "type": "structural", "description": "Response shows the validate command", "passes_when": "contains(\"validate\")" },
+        { "id": "A3", "type": "structural", "description": "Response shows the score command summary flag", "passes_when": "contains(\"--text\")" },
+        { "id": "A4", "type": "formatting", "description": "Commands are presented in a code block, not prose-only", "passes_when": "contains(\"```powershell\")" }
+      ],
+      "human_review": [
+        "workflow order is validate first, then score",
+        "mentions targeting >=90 / Excellent"
+      ]
+    },
+    {
+      "id": "case-04-add-retry-guard",
+      "prompt": "Add retry guards to this state machine JSON so the RETRY_PAY loop can't run forever.",
+      "expected_trigger": true,
+      "assertions": [
+        { "id": "A1", "type": "domain-bound", "description": "Uses the scorer-recognized compare guard type", "passes_when": "contains(\"compare\")" },
+        { "id": "A2", "type": "domain-bound", "description": "Guard uses the lt operator against a counter", "passes_when": "contains(\"lt\")" },
+        { "id": "A3", "type": "coverage", "description": "Introduces/uses a context counter named retry or attempts", "passes_when": "matches_regex(\"(retry|attempt)[_a-z]*\")" },
+        { "id": "A4", "type": "formatting", "description": "No embedded executable code strings in the declarative JSON", "passes_when": "not_contains(\"eval(\")" }
+      ],
+      "human_review": [
+        "guard threshold is sensible (e.g., < 3)",
+        "increment action wired on the looping transition"
+      ]
+    },
+    {
+      "id": "case-05-fix-validation-errors",
+      "prompt": "This machine JSON fails validation — the initial points nowhere and one target doesn't exist. Fix it so it validates.",
+      "expected_trigger": true,
+      "assertions": [
+        { "id": "A1", "type": "coverage", "description": "Response addresses initial-state resolution explicitly", "passes_when": "contains(\"initial\")" },
+        { "id": "A2", "type": "coverage", "description": "Response addresses dangling transition targets explicitly", "passes_when": "contains(\"target\")" },
+        { "id": "A3", "type": "structural", "description": "Fixed machine is delivered as a fenced JSON block", "passes_when": "matches_regex(\"(?m)^```json\")" }
+      ],
+      "human_review": [
+        "all transition targets resolve to existing state keys",
+        "no unrelated rewrites of the user's machine"
+      ]
+    },
+    {
+      "id": "case-06-simulator-ui-negative",
+      "prompt": "Modify state-machine-simulator.html to improve the graph layout and restyle the compliance modal.",
+      "expected_trigger": false,
+      "assertions": [
+        { "id": "A1", "type": "domain-bound", "description": "Response does not inject machine-authoring field guidance (spec_version)", "passes_when": "not_contains(\"spec_version\")" },
+        { "id": "A2", "type": "domain-bound", "description": "Response does not inject naming-convention rules (UPPER_SNAKE)", "passes_when": "not_contains(\"UPPER_SNAKE\")" }
+      ],
+      "human_review": [
+        "response routes to simulator maintenance rather than machine authoring"
+      ]
+    }
+  ],
+  "stop_conditions": {
+    "activation": "Stop when false positives and false negatives no longer improve.",
+    "execution": "Stop when score plateaus, assertions conflict, or perfect scores still fail human review."
+  }
+}

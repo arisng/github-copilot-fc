@@ -1,0 +1,21 @@
+{
+  "audit_type": "activation",
+  "skill_dir": "C:\\Workplace\\Agents\\github-copilot-fc\\skills\\machina-authoring",
+  "threshold": 80.0,
+  "total_rows": 18,
+  "evaluated_rows": 18,
+  "pending_count": 0,
+  "positive_prompts": 10,
+  "negative_prompts": 8,
+  "true_positives": 10,
+  "false_positives": 0,
+  "true_negatives": 8,
+  "false_negatives": 0,
+  "accuracy": 100.0,
+  "precision": 100.0,
+  "recall": 100.0,
+  "false_positive_rate": 0.0,
+  "false_negative_rate": 0.0,
+  "passed": true,
+  "warnings": []
+}
