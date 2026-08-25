@@ -1,0 +1,2364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Machina · State Machine Simulator</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f7f7f7;
+      --surface-warm: #eeeeee;
+      --fg: #111111;
+      --fg-2: #3a3a3a;
+      --muted: #707070;
+      --meta: #111111;
+      --border: #d9d9d9;
+      --border-soft: #eeeeee;
+      --accent: #111111;
+      --accent-on: #ffffff;
+      --accent-hover: color-mix(in oklab, var(--accent), black 8%);
+      --accent-active: color-mix(in oklab, var(--accent), black 14%);
+      --success: #168a46;
+      --warn: #b7791f;
+      --danger: #c53030;
+
+      --accent-soft: color-mix(in oklab, var(--accent) 8%, transparent);
+      --fg-soft:     color-mix(in oklab, var(--fg) 5%, transparent);
+      --danger-soft: color-mix(in oklab, var(--danger) 12%, transparent);
+      --success-text: color-mix(in oklch, var(--success) 72%, var(--fg));
+      --warn-text:    color-mix(in oklch, var(--warn) 58%, var(--fg));
+      --danger-text:  color-mix(in oklch, var(--danger) 60%, var(--fg));
+
+      --font-display: "Helvetica Neue", Arial, sans-serif;
+      --font-body:    "Helvetica Neue", Arial, sans-serif;
+      --font-mono:    "SF Mono", ui-monospace, Menlo, monospace;
+
+      --fs-body: 14px;
+      --fs-meta: 12px;
+      --gap-xs: 8px;
+      --gap-sm: 12px;
+      --gap-md: 20px;
+      --gap-lg: 32px;
+      --radius: 8px;
+      --radius-lg: 12px;
+
+      --motion-fast: 150ms;
+      --motion-base: 240ms;
+      --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+      --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
+      --elev-raised: 0 16px 40px rgba(0, 0, 0, 0.10);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      line-height: 1.5;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    svg { display: block; }
+    button { font: inherit; cursor: pointer; color: inherit; background: none; border: 0; }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, h4 { margin: 0; text-wrap: balance; }
+    p { margin: 0; text-wrap: pretty; }
+    select, input, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    svg :focus-visible { box-shadow: none; }
+
+    /* ─── topbar ─────────────────────────────────────────────── */
+    .topbar {
+      height: 56px;
+      flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding-inline: 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      position: relative; z-index: 5;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand .logo { font-family: var(--font-mono); font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+    .brand .logo-mark {
+      width: 24px; height: 24px; border-radius: 6px;
+      display: grid; place-items: center;
+      background: var(--accent); color: var(--accent-on);
+      font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    }
+    .brand .tagline { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+    .topbar-right { display: flex; align-items: center; gap: var(--gap-md); }
+
+    /* ─── app shell ──────────────────────────────────────────── */
+    .app {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr) 372px;
+      flex: 1;
+      min-height: 0;
+    }
+    .panel {
+      display: flex; flex-direction: column;
+      min-height: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .panel-inspector { border-right: 0; border-left: 1px solid var(--border); }
+    .panel-title {
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* ─── schema panel ───────────────────────────────────────── */
+    .schema-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field > label { font-size: 12px; color: var(--muted); font-family: var(--font-mono); letter-spacing: 0.03em; }
+    .select, .input, .textarea {
+      width: 100%; padding: 9px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface); color: var(--fg); font-size: 14px;
+    }
+    .select:focus, .input:focus, .textarea:focus { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
+    .editor {
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+      min-height: 300px; resize: none; tab-size: 2;
+      white-space: pre; overflow: auto;
+    }
+    .schema-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .editor-msg { font-family: var(--font-mono); font-size: 12px; padding: 10px 12px; border-radius: var(--radius); line-height: 1.5; }
+    .editor-msg.ok { background: var(--accent-soft); color: var(--success-text); }
+    .editor-msg.err { background: var(--danger-soft); color: var(--danger); }
+
+    /* ─── buttons ────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 9px 16px; border-radius: var(--radius);
+      border: 1px solid transparent; font-size: 13px; font-weight: 500;
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), transform 0.05s ease;
+      min-height: 36px;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+    .btn-primary { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: transparent; color: var(--fg); border-color: var(--border); }
+    .btn-secondary:hover { border-color: var(--fg); }
+    .btn-ghost { background: transparent; color: var(--muted); padding-inline: 8px; }
+    .btn-ghost:hover { color: var(--fg); }
+
+    /* ─── stage ──────────────────────────────────────────────── */
+    .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .stage-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+    }
+    .stage-titles { min-width: 0; }
+    .stage-machine { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .stage-headline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+    .stage-scenario {
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      padding: 3px 11px; border-radius: 999px;
+      background: var(--accent); color: var(--accent-on);
+      white-space: nowrap;
+    }
+    .crumb { font-family: var(--font-mono); font-size: 13px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .crumb .sep { color: var(--muted); }
+    .crumb .cur { color: var(--fg); font-weight: 600; }
+
+    .pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid var(--border); color: var(--muted); background: var(--surface); }
+    .tag { display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .pill.ok { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 35%, var(--border)); background: var(--accent-soft); }
+    .pill.ok .dot { background: var(--success); box-shadow: 0 0 0 3px var(--accent-soft); animation: blink 1.4s ease-in-out infinite; }
+    .pill.done { color: var(--muted); }
+    .pill.done .dot { background: var(--muted); }
+    @keyframes blink { 50% { opacity: 0.35; } }
+
+    .canvas {
+      flex: 1; min-height: 0; position: relative;
+      display: grid; place-items: center;
+      padding: 20px;
+      background-color: var(--surface);
+      background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+      background-size: 22px 22px;
+      overflow: hidden; cursor: grab; touch-action: none;
+    }
+    .canvas.dragging { cursor: grabbing; }
+    #graph { width: 100%; height: 100%; }
+
+    /* ─── graph zoom / pan controls ──────────────────────────── */
+    .zoom-controls {
+      position: absolute; right: 16px; bottom: 16px; z-index: 4;
+      display: flex; align-items: center; gap: 2px;
+      padding: 4px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    }
+    .zbtn {
+      width: 32px; height: 32px; border-radius: 7px;
+      display: grid; place-items: center;
+      color: var(--fg); font-size: 16px; line-height: 1; font-weight: 500;
+      transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+    }
+    .zbtn:hover { background: var(--fg-soft); color: var(--fg); }
+    .zbtn:active { transform: scale(0.93); }
+    .zbtn-fit { width: auto; padding: 0 11px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .spacing-controls {
+      position: absolute; right: 16px; bottom: 60px; z-index: 4;
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    }
+    .spacing-label {
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); padding: 0 7px 0 5px;
+    }
+    .spacing-controls .mode { min-height: 28px; padding: 0 10px; font-size: 10.5px; }
+    .zoom-scale {
+      min-width: 46px; text-align: center;
+      font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+    .zoom-divider { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+    .graph-notice {
+      position: absolute; left: 16px; top: 16px; z-index: 4;
+      max-width: 400px;
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 10px 12px; border-radius: var(--radius);
+      background: color-mix(in oklch, var(--warn) 14%, var(--surface));
+      color: var(--warn-text); border: 1px solid color-mix(in oklch, var(--warn) 35%, var(--border));
+      font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;
+    }
+    .graph-notice > span { flex: 1; }
+    .graph-legend {
+      position: absolute; left: 16px; bottom: 16px; z-index: 4;
+      display: flex; flex-direction: column; gap: 5px;
+      padding: 10px 12px; border-radius: var(--radius);
+      background: var(--bg); border: 1px solid var(--border);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+      font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-2);
+    }
+    .graph-legend .legend-title { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
+    .graph-legend .legend-row { display: flex; align-items: center; gap: 8px; }
+    .graph-legend .lg-line { width: 20px; height: 0; display: inline-block; }
+    .graph-legend .lg-main { border-top: 2.5px solid var(--accent); }
+    .graph-legend .lg-alt { border-top: 1.5px dashed var(--border); }
+    .graph-legend .lg-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .graph-legend .lg-start { background: var(--success); }
+    .graph-legend .lg-end { background: var(--bg); border: 2px solid var(--accent); }
+
+    /* ─── graph elements ─────────────────────────────────────── */
+    .edge { fill: none; stroke: var(--border); stroke-width: 1.7; stroke-dasharray: 4 5; }
+    .edge-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+    .edge.traversed { stroke: color-mix(in oklch, var(--accent) 45%, var(--border)); stroke-width: 2; stroke-dasharray: none; }
+    .edge.pathway { stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: none; }
+    .edge.selected-path { stroke: var(--success); stroke-width: 2.6; stroke-dasharray: none; }
+    .edge.active { stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 7 8; animation: dashflow 0.5s linear infinite; }
+    .edge.hover { stroke: var(--fg-2); stroke-width: 2.6; }
+    @keyframes dashflow { to { stroke-dashoffset: -15; } }
+    .edge-label {
+      fill: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em;
+      paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round;
+    }
+    .edge-label.traversed { fill: var(--fg-2); }
+    .edge-label.pathway { fill: var(--accent); }
+    .edge-label.selected-path { fill: var(--success); }
+    .edge-label.active { fill: var(--accent); }
+    .edge-label.hover { fill: var(--fg); stroke-width: 6px; }
+    .node { cursor: pointer; transition: transform var(--motion-base) var(--ease-standard); }
+    .node rect.body { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; }
+    .node text.name { fill: var(--fg); font-family: var(--font-body); font-size: 14px; font-weight: 600; text-anchor: middle; }
+    .node text.sub { fill: var(--muted); font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em; text-anchor: middle; }
+    .node text.cnt { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+    .node .halo { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0; transform: scale(1); transform-origin: 0 0; }
+    .node .final-dot { fill: var(--muted); }
+    .node .start-mark { fill: var(--success); stroke: var(--bg); stroke-width: 2; opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); }
+    .node .end-mark { opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); }
+    .node.is-start .start-mark { opacity: 1; }
+    .node.is-end .end-mark { opacity: 1; }
+    .node.is-start rect.body { stroke: color-mix(in oklch, var(--success) 55%, var(--border)); }
+    .node:hover rect.body { stroke: var(--fg-2); stroke-width: 1.9; }
+    .node:focus { outline: none; }
+    .node:focus-visible rect.body { stroke: var(--accent); stroke-width: 2.4; }
+    .node.pathway rect.body { stroke: color-mix(in oklch, var(--accent) 45%, var(--border)); }
+    .node.selected-path rect.body { stroke: var(--success); stroke-width: 2.2; }
+    .node.selected-path text.name { fill: var(--fg); }
+    .node.is-visited rect.body { stroke: color-mix(in oklch, var(--muted) 55%, var(--border)); }
+    .node.is-visited text.name { fill: var(--muted); }
+    .node.is-active rect.body { stroke: var(--accent); stroke-width: 2.2; filter: drop-shadow(0 0 6px var(--accent-soft)); }
+    .node.is-active text.name { fill: var(--fg); }
+    .node.is-active .halo { animation: ring 2.4s ease-out infinite; }
+    .node.pop .halo { animation: ringpop 0.6s ease-out forwards; }
+    @keyframes ring { 0% { opacity: 0.55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.65); } }
+    @keyframes ringpop { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(2.05); } }
+    .comet { fill: var(--accent); }
+
+    /* ─── transport ──────────────────────────────────────────── */
+    .transport {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 12px 20px; border-top: 1px solid var(--border);
+    }
+    .transport-group { display: flex; align-items: center; gap: 6px; }
+    .tbtn {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: grid; place-items: center;
+      border: 1px solid var(--border); background: var(--surface); color: var(--fg);
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), transform 0.05s ease;
+    }
+    .tbtn:hover { border-color: var(--fg); background: var(--fg-soft); }
+    .tbtn:active { transform: scale(0.96); }
+    .tbtn svg { width: 20px; height: 20px; }
+    .tbtn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+    .tbtn-primary:hover { background: var(--accent-hover); border-color: transparent; }
+    .tbtn-primary.is-playing { background: var(--fg); border-color: var(--fg); color: var(--accent-on); }
+    .transport-speed { display: flex; align-items: center; gap: 12px; }
+    .transport-speed label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .transport-speed input[type="range"] { width: 120px; accent-color: var(--accent); }
+    .speed-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); width: 54px; text-align: right; }
+    .transport-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .transport-modes { display: flex; align-items: center; gap: 6px; }
+    .mode {
+      display: inline-flex; align-items: center; gap: 7px;
+      min-height: 36px; padding: 0 13px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+      transition: color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard);
+    }
+    .mode svg { width: 16px; height: 16px; }
+    .mode:hover { color: var(--fg); border-color: var(--fg); }
+    .mode[aria-pressed="true"] { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+    .mode .ic-check { display: none; }
+    .mode[aria-pressed="true"] .ic-check { display: inline-block; }
+    .mode[aria-pressed="true"] .ic-loop { display: none; }
+    .mode-divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+    .mode-action { border-color: transparent; background: transparent; }
+    .mode-action:hover { border-color: var(--border); background: var(--surface); color: var(--fg); }
+
+    /* ─── inspector ──────────────────────────────────────────── */
+    .insp-body { padding: 16px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; min-height: 0; }
+    .insp-section { display: flex; flex-direction: column; gap: 8px; }
+    .insp-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .insp-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .btn-sm { padding: 4px 10px; min-height: 28px; font-size: 12px; }
+    .scen-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); padding: 2px 0 4px; }
+    .scen-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+    .scen-row {
+      display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+      padding: 6px 8px; border-radius: 6px; border: 1px solid transparent;
+      font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--fg-2);
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+    }
+    .scen-row:hover { background: var(--fg-soft); }
+    .scen-row.selected { background: color-mix(in oklch, var(--success) 10%, transparent); border-color: color-mix(in oklch, var(--success) 40%, var(--border)); color: var(--fg); }
+    .scen-tag { flex: 0 0 auto; font-size: 8.5px; font-weight: 600; letter-spacing: 0.06em; line-height: 1; padding: 3px 5px; border-radius: 4px; }
+    .scen-tag-ui { background: var(--accent); color: var(--accent-on); }
+    .scen-tag-api { border: 1px solid var(--border); color: var(--muted); background: var(--surface); }
+    .scen-idx { flex: 0 0 auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .scen-path { word-break: break-word; }
+    .scen-final { color: var(--success-text); font-weight: 600; }
+    .insp-group { border-top: 1px solid var(--border); }
+    .insp-group summary {
+      list-style: none; user-select: none;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; cursor: pointer;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    }
+    .insp-group summary::-webkit-details-marker { display: none; }
+    .insp-group summary:hover { color: var(--fg); }
+    .insp-group summary .insp-chevron { width: 14px; height: 14px; transition: transform var(--motion-fast) var(--ease-standard); }
+    .insp-group:not([open]) summary .insp-chevron { transform: rotate(-90deg); }
+    .insp-group .insp-group-body { padding: 0 0 4px; display: flex; flex-direction: column; gap: 20px; }
+    .state-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+    .state-card .st-name { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+    .state-card .st-type { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+    .state-card .st-desc { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .ctx { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ctx td { padding: 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .ctx td:last-child { border-bottom: 0; }
+    .ctx .k { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-right: 12px; white-space: nowrap; }
+    .ctx .v { font-family: var(--font-mono); font-size: 12.5px; word-break: break-all; }
+    .ctx .v .num, .ctx .v .bool { color: var(--fg-2); }
+    .evts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .evt {
+      padding: 8px 14px; border-radius: var(--radius);
+      font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.04em;
+      border: 1px solid var(--border); background: var(--surface); color: var(--fg);
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+    }
+    .evt-on:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .evt-blocked { color: var(--muted); border-style: dashed; opacity: 0.7; cursor: not-allowed; }
+    .empty { font-size: 12.5px; color: var(--muted); }
+    .loglist { list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: 12px; }
+    .loglist li {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 7px 0; border-bottom: 1px solid var(--border);
+    }
+    .loglist li:first-child { color: var(--fg); }
+    .loglist li:first-child .lg-evt { color: var(--accent); }
+    .lg-time { color: var(--muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+    .lg-evt { font-weight: 600; flex: 0 0 auto; }
+    .lg-path { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ─── coverage + cycle analysis ──────────────────────────── */
+    .cov-score { display: flex; align-items: center; gap: 14px; }
+    .cov-num { font-family: var(--font-mono); font-size: 30px; font-weight: 600; color: var(--success-text); line-height: 1; }
+    .cov-bar { flex: 1; height: 8px; background: var(--border-soft); border-radius: 999px; overflow: hidden; }
+    .cov-bar > span { display: block; height: 100%; background: var(--success); border-radius: 999px; }
+    .cov-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+    .cov-metric { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-mono); font-size: 11.5px; padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
+    .cov-metric .k { color: var(--muted); }
+    .cov-metric .v { font-variant-numeric: tabular-nums; }
+    .cov-matrix-wrap { overflow-x: auto; padding-bottom: 2px; }
+    .cov-matrix { border-collapse: collapse; font-family: var(--font-mono); }
+    .cov-matrix th.col { writing-mode: vertical-rl; transform: rotate(180deg); height: 90px; width: 15px; font-size: 8.5px; font-weight: 400; color: var(--muted); padding: 0 3px; text-align: left; }
+    .cov-matrix th.row-label { text-align: right; padding-right: 6px; font-size: 9px; font-weight: 400; color: var(--muted); white-space: nowrap; max-width: 86px; overflow: hidden; text-overflow: ellipsis; }
+    .cov-cell { width: 15px; height: 15px; border: 1px solid var(--border-soft); }
+    .cov-cell.on { background: var(--success); }
+    .cov-cell.off { background: var(--danger); }
+    .cov-legend { display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+    .cov-legend i { width: 10px; height: 10px; display: inline-block; margin-right: 5px; border: 1px solid var(--border); vertical-align: -1px; }
+    .cov-legend i.on { background: var(--success); }
+    .cov-legend i.off { background: var(--danger); }
+    .cov-matrix th.hl { color: var(--fg); font-weight: 600; }
+    .cov-matrix.dim .cov-cell { opacity: 0.22; }
+    .cov-matrix.dim .cov-cell.hl { opacity: 1; }
+    .cov-cell.path-hl { box-shadow: inset 0 0 0 2px var(--success); }
+    .cov-list { display: flex; flex-direction: column; gap: 6px; }
+    .cov-item { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); line-height: 1.5; }
+    .cyc { display: flex; flex-direction: column; gap: 4px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
+    .cyc-path { font-family: var(--font-mono); font-size: 11px; line-height: 1.5; }
+    .cyc-note { font-size: 11px; color: var(--muted); }
+    .sev { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; align-self: flex-start; }
+    .sev.critical { background: var(--danger); color: var(--accent-on); }
+    .sev.high { background: var(--danger-soft); color: var(--danger-text); }
+    .sev.medium { background: color-mix(in oklab, var(--warn) 16%, transparent); color: var(--warn-text); }
+    .cp-box { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--fg-soft); }
+    .cp-meta { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .cp-guard { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5; color: var(--fg-2); }
+    .cp-guard .cp-evt { color: var(--fg); font-weight: 600; }
+    .cp-guard .cp-else { color: var(--warn-text); }
+
+    /* ─── modal ──────────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 50;
+      background: color-mix(in oklch, var(--fg) 32%, transparent);
+      display: grid; place-items: center; padding: 24px;
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      width: min(720px, 100%); max-height: 86vh; display: flex; flex-direction: column;
+      box-shadow: var(--elev-raised); outline: none;
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+    .modal-head h3 { font-size: 16px; font-weight: 600; }
+    .modal-head-actions { display: flex; align-items: center; gap: 8px; }
+    .limit-note { font-size: 11.5px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--border); border-radius: var(--radius); background: var(--fg-soft); line-height: 1.5; }
+    .limit-note + .limit-note { margin-top: 6px; }
+    .notice-close { flex: 0 0 auto; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
+    .notice-close:hover { color: var(--fg); background: var(--fg-soft); }
+    .modeb-hint { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; border: 1px solid color-mix(in oklch, var(--warn) 35%, var(--border)); border-radius: var(--radius); background: color-mix(in oklch, var(--warn) 12%, transparent); color: var(--warn-text); font-size: 11.5px; line-height: 1.5; }
+    .modeb-hint span { flex: 1; }
+    .modal-body { flex: 1; min-height: 0; padding: 22px; overflow-y: auto; }
+    .modal-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); background: var(--bg); flex: 0 0 auto; }
+    .modal-body .lead { color: var(--muted); font-size: 14px; max-width: 60ch; }
+    .spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 18px 0; }
+    .spec-table th, .spec-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .spec-table th { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+    .spec-table td:first-child { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; color: var(--fg); }
+    .code-block {
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+      background: var(--fg-soft); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; overflow-x: auto; white-space: pre;
+    }
+
+    /* ─── toast ──────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--fg); color: var(--accent-on);
+      padding: 10px 18px; border-radius: var(--radius);
+      font-family: var(--font-mono); font-size: 12.5px;
+      opacity: 0; pointer-events: none; transition: opacity var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard); z-index: 60;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--danger); }
+
+    /* ─── tab bar (tablet / mobile primary nav) ───────────────── */
+    .tabbar {
+      display: none;
+      background: var(--bg);
+      flex: 0 0 auto;
+      border-top: 1px solid var(--border);
+      z-index: 6;
+    }
+    .tab {
+      flex: 1;
+      display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      min-height: 58px;
+      color: var(--muted);
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+      position: relative;
+      transition: color var(--motion-fast) var(--ease-standard);
+    }
+    .tab svg { width: 22px; height: 22px; }
+    .tab:hover { color: var(--fg); }
+    .tab[aria-selected="true"] { color: var(--accent); }
+    .tab::after {
+      content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+      background: var(--accent); opacity: 0;
+      transition: opacity var(--motion-fast) var(--ease-standard);
+    }
+    .tab[aria-selected="true"]::after { opacity: 1; }
+
+    /* ─── file bar + empty state ─────────────────────────────── */
+    .file-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--fg-soft); }
+    .file-name { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dirty-dot { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warn-text); }
+    .dirty-dot::before { content: "●"; margin-right: 4px; font-size: 8px; vertical-align: 1px; }
+    .empty-state { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: var(--surface); background-image: radial-gradient(circle, var(--border) 1px, transparent 1px); background-size: 22px 22px; padding: 24px; }
+    .empty-state[hidden] { display: none; }
+    .empty-state-inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; max-width: 380px; }
+    .empty-state-inner .es-mark { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: var(--accent); color: var(--accent-on); font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+    .empty-state-inner h2 { font-size: 18px; font-weight: 600; }
+    .empty-state-inner p { color: var(--muted); font-size: 13.5px; }
+
+    /* ─── compliance ─────────────────────────────────────────── */
+    .cmp-score { display: flex; align-items: center; gap: 18px; }
+    .cmp-num { font-family: var(--font-mono); font-size: 40px; font-weight: 600; line-height: 1; color: var(--success); }
+    .cmp-num.med { color: var(--warn); }
+    .cmp-num.low { color: var(--danger); }
+    .cmp-score-meta { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+    .cmp-grade { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg); }
+    .cmp-spec-ver { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+    .cmp-bar { height: 8px; background: var(--border-soft); border-radius: 999px; overflow: hidden; }
+    .cmp-bar > span { display: block; height: 100%; border-radius: 999px; }
+    .cmp-banner { margin: 16px 0 0; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--fg-soft); font-size: 13px; line-height: 1.5; }
+    .cmp-banner.danger { border-color: color-mix(in oklch, var(--danger) 35%, var(--border)); background: var(--danger-soft); color: var(--danger); }
+    .cmp-banner.upgrade { border-color: color-mix(in oklch, var(--warn) 35%, var(--border)); background: color-mix(in oklch, var(--warn) 12%, transparent); }
+    .cmp-banner .btn-sm { margin-left: 6px; vertical-align: 2px; }
+    .cmp-section-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; }
+    .cmp-cats { display: flex; flex-direction: column; gap: 6px; }
+    .cmp-cat { display: flex; align-items: center; gap: 12px; font-family: var(--font-mono); font-size: 12px; }
+    .cmp-cat .cat-name { width: 168px; color: var(--muted); }
+    .cmp-cat .cat-bar { flex: 1; height: 6px; background: var(--border-soft); border-radius: 999px; overflow: hidden; }
+    .cmp-cat .cat-bar > span { display: block; height: 100%; border-radius: 999px; }
+    .cmp-cat .cat-score { width: 56px; text-align: right; font-variant-numeric: tabular-nums; color: var(--fg-2); }
+    .cmp-gap { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+    .cmp-gap-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cmp-gap-name { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; color: var(--fg); }
+    .cmp-gap-rem { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+    .badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+    .badge-auto { background: color-mix(in oklch, var(--success) 16%, transparent); color: var(--success-text); }
+    .badge-review { background: var(--fg-soft); color: var(--muted); border: 1px solid var(--border); }
+    .sev.blocking { background: var(--danger); color: var(--accent-on); }
+    .sev.warn { background: color-mix(in oklch, var(--warn) 16%, transparent); color: var(--warn); }
+    .sev.info { background: var(--fg-soft); color: var(--muted); border: 1px solid var(--border); }
+    .cmp-empty { font-size: 13px; color: var(--muted); padding: 8px 0; line-height: 1.5; }
+    .diff-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+    .diff-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; cursor: pointer; }
+    .diff-item:hover { background: var(--fg-soft); }
+    .diff-item input { margin-top: 3px; }
+    .diff-item .diff-label { font-weight: 500; color: var(--fg); }
+    .diff-item .diff-detail { color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; }
+    .spec-versions { display: flex; gap: 8px; margin-bottom: 16px; }
+    .spec-ver { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: var(--font-mono); font-size: 12px; transition: color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard); }
+    .spec-ver:hover { color: var(--fg); border-color: var(--fg); }
+    .spec-ver.active { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+    .spec-changes { margin: 4px 0 0; }
+    .spec-changes-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+    .spec-changes-list { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+
+    /* ─── responsive ─────────────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .app { display: block; order: 2; }
+      .panel, .stage { display: none; }
+      .panel.tab-active, .stage.tab-active { display: flex; height: 100%; }
+      .panel { border-right: 0; border-left: 0; }
+      .panel-inspector { border-left: 0; }
+      .editor { min-height: 200px; }
+      .transport { flex-wrap: wrap; }
+      .tabbar { display: flex; order: 3; }
+    }
+    @media (max-width: 767px) {
+      .topbar { padding-inline: 14px; }
+      .brand .tagline { display: none; }
+      .canvas { padding: 12px; }
+      .graph-legend { display: none; }
+    }
+
+    /* ─── reduced motion ──────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+      .node .halo, .node.pop .halo, .pill.ok .dot, .edge.active { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar" data-od-id="topbar">
+    <div class="brand">
+      <span class="logo-mark">M</span>
+      <span class="logo">Machina</span>
+      <span class="tagline" id="app-tagline">state machine simulator</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" id="btn-spec-top">Schema spec</button>
+    </div>
+  </header>
+
+  <nav class="tabbar" data-od-id="tabbar" role="tablist" aria-label="Primary navigation">
+    <button class="tab" id="tab-stage" role="tab" aria-selected="true" aria-controls="stage" data-tab="stage">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>
+      <span>Simulate</span>
+    </button>
+    <button class="tab" id="tab-schema" role="tab" aria-selected="false" aria-controls="schema-panel" data-tab="schema">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 4C6 4 5 5 5 7v3c0 1.5-1 2-1 2s1 .5 1 2v3c0 2 1 3 3 3M16 4c2 0 3 1 3 3v3c0 1.5 1 2 1 2s-1 .5-1 2v3c0 2-1 3-3 3"/></svg>
+      <span>Schema</span>
+    </button>
+    <button class="tab" id="tab-inspector" role="tab" aria-selected="false" aria-controls="inspector-panel" data-tab="inspector">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span>Inspector</span>
+    </button>
+  </nav>
+
+  <div class="app" data-od-id="app">
+    <aside class="panel panel-schema" id="schema-panel" role="tabpanel" aria-labelledby="tab-schema" data-od-id="schema-panel">
+      <div class="panel-title">Schema <span class="tag" id="schema-spec-tag">no file</span></div>
+      <div class="schema-body">
+        <div class="file-bar" data-od-id="file-bar">
+          <span class="file-name" id="file-name">No file open</span>
+          <span class="dirty-dot" id="dirty-indicator" hidden>unsaved</span>
+        </div>
+        <div class="schema-actions">
+          <button class="btn btn-secondary" id="btn-open" data-od-id="open-file">Open…</button>
+          <button class="btn btn-secondary" id="btn-save" data-od-id="save-file">Save</button>
+          <button class="btn btn-ghost" id="btn-save-as" data-od-id="save-as-file">Save as</button>
+        </div>
+        <div class="modeb-hint" id="modeb-hint" hidden data-od-id="modeb-hint">
+          <span>Read-only mode — not served over localhost/HTTPS, so Save downloads a copy instead of overwriting. Serve over localhost/HTTPS for in-place save.</span>
+          <button class="notice-close" id="modeb-hint-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="field">
+          <label for="scenario-select">Scenarios</label>
+          <select class="select" id="scenario-select"></select>
+        </div>
+        <div class="field" style="flex: 1; min-height: 0; display: flex;">
+          <label for="editor">Definition · paste / edit</label>
+          <textarea class="textarea editor" id="editor" spellcheck="false" placeholder='Paste a machine definition…'></textarea>
+        </div>
+        <div class="editor-msg" id="editor-msg" hidden aria-live="polite"></div>
+        <div class="schema-actions">
+          <button class="btn btn-primary" id="btn-apply">Apply · ingest</button>
+          <button class="btn btn-secondary" id="btn-copy">Copy schema</button>
+          <button class="btn btn-secondary" id="btn-compliance" data-od-id="compliance">Compliance</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage" id="stage" role="tabpanel" aria-labelledby="tab-stage" data-od-id="stage">
+      <div class="stage-head">
+        <div class="stage-titles">
+          <div class="stage-headline">
+            <span class="stage-machine" id="stage-machine">order-fulfillment</span>
+            <span class="stage-scenario" id="stage-scenario">New order</span>
+          </div>
+          <div class="crumb" id="stage-path"></div>
+        </div>
+        <span class="pill" id="stage-status"><span class="dot"></span>idle</span>
+      </div>
+      <div class="canvas" id="canvas">
+        <div class="empty-state" id="empty-state" data-od-id="empty-state">
+          <div class="empty-state-inner">
+            <div class="es-mark">M</div>
+            <h2>Open a schema to begin</h2>
+            <p>Load a state-machine definition (.json) from your filesystem to simulate, inspect, and score it.</p>
+            <button class="btn btn-primary" id="btn-open-empty" data-od-id="open-empty">Open schema</button>
+          </div>
+        </div>
+        <svg id="graph" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="State graph"></svg>
+        <div class="graph-notice" id="graph-notice" hidden data-od-id="graph-notice" aria-live="polite">
+          <span id="graph-notice-text"></span>
+          <button class="notice-close" id="graph-notice-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="graph-legend" data-od-id="graph-legend">
+          <div class="legend-title">Legend</div>
+          <div class="legend-row"><span class="lg-line lg-main"></span>Main path</div>
+          <div class="legend-row"><span class="lg-line lg-alt"></span>Other transitions</div>
+          <div class="legend-row"><span class="lg-dot lg-start"></span>Start state</div>
+          <div class="legend-row"><span class="lg-dot lg-end"></span>End state</div>
+        </div>
+        <div class="zoom-controls" data-od-id="zoom-controls">
+          <button class="zbtn" id="btn-zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
+          <span class="zoom-scale" id="zoom-scale">100%</span>
+          <button class="zbtn" id="btn-zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
+          <span class="zoom-divider"></span>
+          <button class="zbtn zbtn-fit" id="btn-fit" title="Fit to view" aria-label="Fit to view">Fit</button>
+        </div>
+        <div class="spacing-controls" data-od-id="spacing-controls">
+          <span class="spacing-label">Spacing</span>
+          <button class="mode" id="spacing-compact" aria-pressed="false" data-spacing="0.7" title="Compact — tighter node spacing">Compact</button>
+          <button class="mode" id="spacing-normal" aria-pressed="true" data-spacing="1" title="Normal — default node spacing">Normal</button>
+          <button class="mode" id="spacing-spacious" aria-pressed="false" data-spacing="1.4" title="Spacious — looser node spacing">Spacious</button>
+        </div>
+      </div>
+      <div class="transport" data-od-id="transport">
+        <div class="transport-group">
+          <button class="tbtn" id="btn-back" title="Step back (←)" aria-label="Step back">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2.3v14H6zM19 5.6v12.8L9.6 12z"/></svg>
+          </button>
+          <button class="tbtn tbtn-primary" id="btn-play" title="Play / pause (space)" aria-label="Play">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg>
+          </button>
+          <button class="tbtn" id="btn-next" title="Step forward (→)" aria-label="Step forward">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2.3v14H16zM5 5.6v12.8L14.4 12z"/></svg>
+          </button>
+          <button class="tbtn" id="btn-reset" title="Reset" aria-label="Reset">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3v5h-5"/></svg>
+          </button>
+        </div>
+        <div class="transport-right">
+          <div class="transport-modes">
+            <button class="mode" id="btn-loop" aria-pressed="false" title="Toggle repeat — loop the simulation when it reaches a terminal state">
+              <svg class="ic-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>
+              <span>Loop</span>
+            </button>
+            <span class="mode-divider"></span>
+            <button class="mode mode-action" id="btn-shuffle" title="Shuffle to a random scenario now">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+              <span>Shuffle</span>
+            </button>
+          </div>
+          <div class="transport-speed">
+            <label for="speed">Speed</label>
+            <input type="range" id="speed" min="1" max="10" value="5" />
+            <span class="speed-val" id="speed-val">880ms</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="panel panel-inspector" id="inspector-panel" role="tabpanel" aria-labelledby="tab-inspector" data-od-id="inspector-panel">
+      <div class="panel-title">Inspector</div>
+      <div class="insp-body">
+        <div class="insp-section">
+          <div class="insp-label">Current state</div>
+          <div class="state-card" id="insp-state"></div>
+        </div>
+        <div class="insp-section">
+          <div class="insp-label">Context · initial conditions</div>
+          <table class="ctx" id="insp-context"></table>
+        </div>
+        <div class="insp-section">
+          <div class="insp-label">Transitions</div>
+          <div class="evts" id="insp-events"></div>
+        </div>
+        <div class="insp-section">
+          <div class="insp-label">History</div>
+          <ol class="loglist" id="insp-log"></ol>
+        </div>
+        <details class="insp-group" open data-od-id="analysis-group">
+          <summary data-od-id="analysis-toggle">
+            <span>Analysis</span>
+            <svg class="insp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="insp-group-body">
+            <div class="insp-section">
+              <div class="insp-label">Coverage</div>
+              <div id="insp-coverage"></div>
+            </div>
+            <div class="insp-section" data-od-id="scenarios-section">
+              <div class="insp-row">
+                <span class="insp-label">Scenarios</span>
+                <button class="btn btn-secondary btn-sm" id="btn-gen-scenarios" data-od-id="gen-scenarios" title="Generate every possible path from each entry point (UI · API) to a terminal state">Generate</button>
+              </div>
+              <div id="insp-scenarios"></div>
+            </div>
+            <div class="insp-section">
+              <div class="insp-label">Cycle analysis</div>
+              <div id="insp-analysis"></div>
+            </div>
+            <div class="insp-section" data-od-id="limits-section">
+              <div class="insp-label">Limits</div>
+              <div class="limit-note">Graph renders the first 40 states; larger machines are truncated (use the editor or Inspector for the full definition).</div>
+              <div class="limit-note">Interactive coverage matrix shows for ≤16 states; larger machines show metrics only.</div>
+              <div class="limit-note">Opened without localhost/HTTPS, Save downloads a copy instead of overwriting in place.</div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </aside>
+  </div>
+
+  <div class="modal-backdrop" id="spec-modal" hidden>
+    <div class="modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="spec-modal-title">
+      <div class="modal-head">
+        <h3 id="spec-modal-title">Machine schema</h3>
+        <div class="modal-head-actions">
+          <button class="btn btn-secondary" id="btn-copy-spec" data-od-id="copy-spec">Copy JSON Schema</button>
+          <button class="btn btn-secondary" id="btn-copy-spec-md" data-od-id="copy-spec-md">Copy Markdown</button>
+          <button class="btn btn-ghost" id="btn-close-spec">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="spec-versions" id="spec-versions" role="tablist" aria-label="Spec versions"></div>
+        <p class="lead" id="spec-lead">A minimal, deterministic JSON schema for finite state machines. Guards and actions are declarative — there is no code evaluation — so a machine is safe to share, paste, version, and ingest. Concepts are compatible with SCXML and XState.</p>
+        <div id="spec-changes"></div>
+        <table class="spec-table" id="spec-table">
+          <thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>id</td><td>string</td><td>Stable machine identifier.</td></tr>
+            <tr><td>name</td><td>string</td><td>Human-readable label.</td></tr>
+            <tr><td>version</td><td>string</td><td>Machine's own version (distinct from spec_version).</td></tr>
+            <tr><td>initial</td><td>string</td><td>Default initial state key.</td></tr>
+            <tr><td>context</td><td>object</td><td>Initial extended state (the default initial conditions).</td></tr>
+            <tr><td>scenarios[]</td><td>array</td><td>Named entry points. Each overrides <code>initial</code> and <code>context</code>: <code>{ id, label, initial?, context?, interface? }</code>, where <code>interface</code> ∈ <code>UI</code> · <code>API</code>.</td></tr>
+            <tr><td>states</td><td>object</td><td>Keyed by state id: <code>{ type?, description?, entry?, exit?, on? }</code>.</td></tr>
+            <tr><td>state.type</td><td>"atomic" | "final"</td><td>Terminal states are <code>final</code>.</td></tr>
+            <tr><td>state.on</td><td>object</td><td>Event map: <code>{ EVENT: { target, guard?, actions?, description? } }</code>.</td></tr>
+            <tr><td>action</td><td>object</td><td><code>{ type: "assign", key, value }</code> or <code>{ type: "increment", key }</code>.</td></tr>
+            <tr><td>guard</td><td>object</td><td><code>{ type: "compare", key, op, value }</code>. <code>op</code> ∈ eq · neq · lt · lte · gt · gte. A string <code>value</code> resolves against context.</td></tr>
+            <tr><td>coverage</td><td>object</td><td>Optional analysis metadata: <code>metrics</code>, <code>state_coverage</code>, <code>edge_coverage</code>, <code>uncovered_paths</code>, <code>recommendations</code>. Drives the coverage matrix and cycle analysis.</td></tr>
+            <tr><td>cycle_prevention</td><td>object</td><td>Optional guards against infinite loops: <code>max_retry_limit</code>, <code>timeout_seconds</code>, and declarative <code>guards</code> — an array of <code>{ event, guard, else_target }</code>.</td></tr>
+          </tbody>
+        </table>
+        <h4 style="font-size: 13px; margin: 4px 0 10px;">Conventions</h4>
+        <p class="lead" style="font-size: 13px;" id="spec-conventions">Event names UPPER_SNAKE · state keys kebab-case · values may reference context keys by name.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="compliance-modal" hidden>
+    <div class="modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="compliance-title">
+      <div class="modal-head">
+        <h3 id="compliance-title">Compliance</h3>
+        <button class="btn btn-ghost" id="btn-close-compliance">Close</button>
+      </div>
+      <div class="modal-body" id="compliance-content"></div>
+      <div class="modal-foot" id="compliance-actions"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script type="module">
+import {
+  SPEC_REGISTRY,
+  LATEST_SPEC_VERSION,
+  specRank,
+  detectSpecVersion,
+  getPath,
+  setPath,
+  resolveValue,
+  evalGuard,
+  applyActions,
+  detectCycles,
+  reachableStates,
+  isTerminalState,
+  isUpperSnake,
+  isKebab,
+  humanize,
+  capFirst,
+  pass,
+  fail,
+  COMPLIANCE_CHECKS,
+  gradeFor,
+  runCompliance,
+  buildRecommendations,
+  buildCoverageBlock,
+  cycleCounterKey,
+  buildCyclePrevention,
+  deriveScenarios,
+  addDescriptions,
+  markFinals,
+  autoPatchItems,
+  buildSpecJsonSchema,
+  buildSpecMarkdown,
+} from "/engine.mjs";
+
+
+    /* ── app version (single source of truth) ───────────────────
+       v0.3.1 · 2026-08-24 · fix spacing control (canvas pointer capture)
+       v0.3.0 · 2026-08-24 · graph density control + markdown spec copy +
+         generated markers + version model + Mode B hint + in-app limits docs */
+    const APP_VERSION = '0.3.1';
+const $ = id => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const clone = x => JSON.parse(JSON.stringify(x));
+const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MODAL_TRIGGER = { 'spec-modal': 'btn-spec-top', 'compliance-modal': 'btn-compliance' }
+
+    function openModal(id) {
+      $(id).hidden = false;
+      const m = $(id).querySelector('.modal');
+      if (m) m.focus({ preventScroll: true });
+    }
+function closeModal(id) {
+      $(id).hidden = true;
+      const t = $(MODAL_TRIGGER[id]);
+      if (t) t.focus();
+    }
+function attachModalTraps() {
+      ['spec-modal', 'compliance-modal'].forEach(id => {
+        $(id).addEventListener('keydown', e => {
+          if (e.key !== 'Tab') return;
+          const focusables = Array.from($(id).querySelectorAll('.modal button, .modal input, .modal select, .modal textarea, .modal [href], .modal [tabindex]:not([tabindex="-1"])'));
+          if (!focusables.length) return;
+          const first = focusables[0], last = focusables[focusables.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
+      });
+    }
+const NODE_W = 168, NODE_H = 62, PADX = 96, PADY = 112, COLW = 256, ROWGAP = 148;
+const MAX_GRAPH_STATES = 40;
+let spacing = 1;
+let machine, stateKey, context, initialSnapshot, history, log, playing, speedMs, scenarioId, loopMode;
+let edgeMap = {}
+, nodeEls = {}
+, nodePos = {}
+, graphVisible = [];
+function currentState() { return machine.states[stateKey]; }
+function hasOutgoing(s) { const st = machine.states[s]; return !!(st.on && Object.keys(st.on).length); }
+function enabledEvents() {
+      const st = currentState();
+      return Object.keys(st.on || {}).map(evt => ({
+        evt, tr: st.on[evt], enabled: !st.on[evt].guard || evalGuard(st.on[evt].guard, context)
+      }));
+    }
+function isTerminal() {
+      const st = currentState();
+      return st.type === 'final' || !hasOutgoing(stateKey);
+    }
+function scenarioLabel() {
+      const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
+      return sc ? (sc.label || sc.id) : 'Default';
+    }
+function updateStatusBadge() {
+      if (!machine) return;
+      const final = isTerminal();
+      let label = 'idle', cls = '';
+      if (playing) { label = 'running'; cls = 'ok'; }
+      else if (final) { label = 'terminal'; cls = 'done'; }
+      const p = $('stage-status');
+      p.className = 'pill' + (cls ? ' ' + cls : '');
+      p.innerHTML = '<span class="dot"></span>' + label;
+    }
+const LS_KEY = 'machina.v1';
+function persist() {
+      const data = { loop: loopMode, speed: $('speed') ? $('speed').value : '5', spacing: spacing };
+      try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
+    }
+function restorePersisted() {
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) {}
+      if (!data) return;
+      if (data.speed != null) {
+        $('speed').value = data.speed;
+        speedMs = speedToMs(Number(data.speed));
+        $('speed-val').textContent = speedMs + 'ms';
+      }
+      if (data.loop) { loopMode = true; $('btn-loop').setAttribute('aria-pressed', 'true'); }
+      if (data.spacing != null) setSpacing(Number(data.spacing));
+    }
+function loadMachine(m, scId) {
+      machine = m;
+      generatedScenarios = generateScenarios();
+      let sc = generatedScenarios.find(s => s.id === scId);
+      if (!sc && generatedScenarios.length) {
+        sc = generatedScenarios.find(s => s.start === m.initial) || generatedScenarios[0];
+      }
+      scenarioId = sc ? sc.id : null;
+      initialSnapshot = {
+        state: sc ? (sc.initial ?? m.initial) : m.initial,
+        context: clone(Object.assign({}, m.context || {}, (sc && sc.context) || {}))
+      };
+      stateKey = initialSnapshot.state;
+      context = clone(initialSnapshot.context);
+      history = [{ state: stateKey, context: clone(context) }];
+      log = [];
+      setPlaying(false);
+      showEmptyState();
+      updateFileBar();
+      syncScenarioSelect();
+      syncEditor();
+      renderGraph();
+      updateUI();
+      renderAnalysisPanel();
+      applyScenarioSelection();
+      persist();
+    }
+function applyScenario(scId) {
+      setPlaying(false);
+      resetTo(scId, true);
+    }
+function resetTo(scId, render) {
+      if (scId != null) scenarioId = scId;
+      const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
+      initialSnapshot = {
+        state: sc ? (sc.initial ?? machine.initial) : machine.initial,
+        context: clone(Object.assign({}, machine.context || {}, (sc && sc.context) || {}))
+      };
+      stateKey = initialSnapshot.state;
+      context = clone(initialSnapshot.context);
+      history = [{ state: stateKey, context: clone(context) }];
+      log = [];
+      syncScenarioSelect();
+      if (render) updateGraphLayout();
+      updateUI();
+      applyScenarioSelection();
+      persist();
+    }
+function restart() {
+      resetTo(scenarioId, false);
+    }
+let timer = null;
+function setPlaying(on) {
+      if (!machine) return;
+      playing = on;
+      if (timer) { clearInterval(timer); timer = null; }
+      if (on) {
+        if (!enabledEvents().some(e => e.enabled)) {
+          if (loopMode) restart();
+          else { playing = false; updateUI(); return; }
+        }
+        timer = setInterval(() => fireNext(), speedMs);
+      }
+      const b = $('btn-play');
+      b.classList.toggle('is-playing', playing);
+      b.innerHTML = playing
+        ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.4z"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg>';
+      b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      updateStatusBadge();
+    }
+function scenarioNextEvent() {
+      const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
+      if (!sc) return null;
+      const step = history.length - 1;
+      if (step < sc.events.length && history[history.length - 1].state === sc.states[step]) {
+        return sc.events[step];
+      }
+      return null;
+    }
+function fireNext() {
+      if (!machine) return;
+      let evt = null;
+      const guided = scenarioNextEvent();
+      if (guided) {
+        const g = enabledEvents().find(e => e.evt === guided && e.enabled);
+        if (g) evt = g.evt;
+      }
+      if (!evt) {
+        const e = enabledEvents().find(e => e.enabled);
+        if (e) evt = e.evt;
+      }
+      if (evt) { fireEvent(evt); return; }
+      if (playing) {
+        if (loopMode) restart();
+        else setPlaying(false);
+      }
+    }
+function fireEvent(evt) {
+      if (!machine) return;
+      const st = currentState();
+      const tr = st.on && st.on[evt];
+      if (!tr) return;
+      if (tr.guard && !evalGuard(tr.guard, context)) { toast('Guard blocked: ' + evt, true); return; }
+      const from = stateKey;
+      applyActions(st.exit || [], context);
+      applyActions(tr.actions || [], context);
+      const target = tr.target;
+      const tst = machine.states[target];
+      stateKey = target;
+      applyActions(tst.entry || [], context);
+      history.push({ state: target, context: clone(context), event: evt });
+      log.unshift({ ts: Date.now(), event: evt, from, to: target });
+      animateTransition(from, evt, target);
+      updateUI();
+      if (playing && isTerminal()) {
+        if (loopMode) restart();
+        else setPlaying(false);
+      }
+    }
+function stepBack() {
+      if (!machine || history.length <= 1) return;
+      setPlaying(false);
+      history.pop();
+      const prev = history[history.length - 1];
+      stateKey = prev.state;
+      context = clone(prev.context);
+      log.unshift({ ts: Date.now(), event: 'BACK', from: prev.state, to: prev.state });
+      updateUI();
+    }
+function resetAll() {
+      if (!machine) return;
+      setPlaying(false);
+      resetTo(scenarioId, false);
+    }
+function computeLayout(statesList) {
+      const states = statesList || Object.keys(machine.states);
+      const depth = {};
+      const q = [initialSnapshot.state]; depth[initialSnapshot.state] = 0;
+      while (q.length) {
+        const s = q.shift();
+        const st = machine.states[s];
+        for (const tr of Object.values(st.on || {})) {
+          if (tr.target && machine.states[tr.target] && depth[tr.target] === undefined) {
+            depth[tr.target] = depth[s] + 1; q.push(tr.target);
+          }
+        }
+      }
+      let maxD = 0; states.forEach(s => { if (depth[s] !== undefined) maxD = Math.max(maxD, depth[s]); });
+      states.forEach(s => { if (depth[s] === undefined) depth[s] = maxD + 1; });
+      const layers = {};
+      states.forEach(s => { (layers[depth[s]] = layers[depth[s]] || []).push(s); });
+      const depths = Object.keys(layers).map(Number).sort((a, b) => a - b);
+      const cols = depths.length;
+      const maxLen = Math.max(...depths.map(d => layers[d].length));
+      const dense = cols > 4;
+      const colw = (dense ? 224 : COLW) * spacing;
+      const padx = PADX;
+      const VW = Math.max(1000, padx * 2 + (cols - 1) * colw + 40);
+      const rowGap = ROWGAP * spacing;
+      const VH = Math.max(560, PADY * 2 + (maxLen - 1) * rowGap + 40);
+      const pos = {};
+      const startX = (VW - (cols - 1) * colw) / 2;
+      depths.forEach((d, ci) => {
+        const layer = layers[d];
+        const cx = startX + ci * colw;
+        const n = layer.length;
+        const gap = Math.min(rowGap, (VH - 2 * PADY) / Math.max(n, 1));
+        const total = (n - 1) * gap;
+        layer.forEach((s, i) => {
+          pos[s] = { x: cx, y: (VH / 2) + (i - (n - 1) / 2) * gap };
+        });
+      });
+      return { pos, VW, VH };
+    }
+function el(tag, attrs, parent) {
+      const e = document.createElementNS(SVGNS, tag);
+      if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+      if (parent) parent.appendChild(e);
+      return e;
+    }
+function drawEdge(p0, p1) {
+      const x0 = p0.x, y0 = p0.y, x1 = p1.x, y1 = p1.y;
+      if (x0 === x1 && y0 === y1) {
+        return { d: `M ${x0} ${y0 - NODE_H / 2} C ${x0 - 34} ${y0 - NODE_H / 2 - 46}, ${x0 + 34} ${y0 - NODE_H / 2 - 46}, ${x0} ${y0 - NODE_H / 2}`, label: { dx: 0, dy: -14, anchor: 'middle' } };
+      }
+      if (Math.abs(x1 - x0) <= 2) {
+        const down = y1 > y0;
+        const lo = Math.min(y0, y1), hi = Math.max(y0, y1);
+        let skip = false;
+        for (const q of Object.values(nodePos)) {
+          if (q.x === x0 && q.y > lo && q.y < hi) { skip = true; break; }
+        }
+        const sy = y0 + (down ? NODE_H / 2 : -NODE_H / 2);
+        const ey = y1 + (down ? -NODE_H / 2 : NODE_H / 2);
+        if (skip) {
+          const xr = x0 + NODE_W / 2;
+          const bend = 48;
+          return { d: `M ${xr} ${sy} C ${xr + bend} ${sy}, ${xr} ${down ? ey - 14 : ey + 14}, ${xr} ${ey}`, label: { x: xr + bend + 10, y: (sy + ey) / 2, anchor: 'start', vertical: true } };
+        }
+        return { d: `M ${x0} ${sy} C ${x0 + 30} ${sy}, ${x0 + 30} ${ey}, ${x0} ${ey}`, label: { x: x0, y: (sy + ey) / 2, anchor: 'middle', vertical: true } };
+      }
+      if (x1 > x0 + 2) {
+        const sx = x0 + NODE_W / 2, sy = y0, ex = x1 - NODE_W / 2, ey = y1;
+        const dx = (ex - sx) * 0.5;
+        return { d: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${ex - dx} ${ey}, ${ex} ${ey}`, label: { dx: 0, dy: -12, anchor: 'middle' } };
+      }
+      const sy = y0 + NODE_H / 2, ey = y1 + NODE_H / 2, bend = 64;
+      return { d: `M ${x0} ${sy} C ${x0} ${sy + bend}, ${x1} ${ey + bend}, ${x1} ${ey}`, label: { dx: 0, dy: 20, anchor: 'middle' } };
+    }
+function setLabel(rec) {
+      const L = rec.geo.label;
+      if (L.vertical) {
+        rec.label.setAttribute('x', L.x);
+        rec.label.setAttribute('y', L.y);
+      } else {
+        const mid = rec.path.getPointAtLength(rec.len / 2);
+        rec.label.setAttribute('x', mid.x + (L.dx || 0));
+        rec.label.setAttribute('y', mid.y + (L.dy || 0));
+      }
+      rec.label.setAttribute('text-anchor', L.anchor);
+    }
+let viewScale = 1, viewTx = 0, viewTy = 0;
+const VIEW_MIN = 0.15, VIEW_MAX = 4;
+function applyView() {
+      const vp = $('viewport');
+      if (vp) vp.setAttribute('transform', `translate(${viewTx} ${viewTy}) scale(${viewScale})`);
+      const zl = $('zoom-scale');
+      if (zl) zl.textContent = Math.round(viewScale * 100) + '%';
+    }
+function resetView() { viewScale = 1; viewTx = 0; viewTy = 0; applyView(); }
+function toViewCoords(clientX, clientY) {
+      const svg = $('graph');
+      const pt = svg.createSVGPoint();
+      pt.x = clientX; pt.y = clientY;
+      const ctm = svg.getScreenCTM();
+      return ctm ? pt.matrixTransform(ctm.inverse()) : pt;
+    }
+function clampViewScale(s) { return Math.min(VIEW_MAX, Math.max(VIEW_MIN, s)); }
+function zoomAt(vx, vy, factor) {
+      const ns = clampViewScale(viewScale * factor);
+      const f = ns / viewScale;
+      viewTx = vx - (vx - viewTx) * f;
+      viewTy = vy - (vy - viewTy) * f;
+      viewScale = ns;
+      applyView();
+    }
+function zoomCenter(factor) {
+      const svg = $('graph');
+      const r = svg.getBoundingClientRect();
+      const p = toViewCoords(r.left + r.width / 2, r.top + r.height / 2);
+      zoomAt(p.x, p.y, factor);
+    }
+function renderGraph() {
+      if (!machine) return;
+      const svg = $('graph');
+      svg.innerHTML = '';
+      edgeMap = {}; nodeEls = {};
+      const defs = el('defs', null, svg);
+      const arrow = el('marker', { id: 'arrow', viewBox: '0 0 10 10', refX: '9', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse' }, defs);
+      el('path', { d: 'M0,0 L10,5 L0,10 z', fill: 'var(--muted)' }, arrow);
+      const glow = el('filter', { id: 'cometGlow', x: '-200%', y: '-200%', width: '500%', height: '500%' }, defs);
+      el('feGaussianBlur', { stdDeviation: '2.6', result: 'b' }, glow);
+      const merge = el('feMerge', null, glow);
+      el('feMergeNode', { in: 'b' }, merge);
+      el('feMergeNode', { in: 'SourceGraphic' }, merge);
+      const allStates = Object.keys(machine.states);
+      const truncated = allStates.length > MAX_GRAPH_STATES;
+      const visibleStates = truncated ? allStates.slice(0, MAX_GRAPH_STATES) : allStates;
+      const visible = new Set(visibleStates);
+      graphVisible = visibleStates;
+      const layout = computeLayout(visibleStates);
+      nodePos = layout.pos;
+      svg.setAttribute('viewBox', `0 0 ${layout.VW} ${layout.VH}`);
+
+      const viewportG = el('g', { id: 'viewport' }, svg);
+      const edgesG = el('g', { class: 'edges' }, viewportG);
+      const nodesG = el('g', { class: 'nodes' }, viewportG);
+      const labelsG = el('g', { class: 'labels' }, viewportG);
+      resetView();
+      updateGraphNotice(truncated, allStates.length, visibleStates.length);
+
+      for (const [from, st] of Object.entries(machine.states)) {
+        if (!visible.has(from)) continue;
+        for (const [evt, tr] of Object.entries(st.on || {})) {
+          if (!visible.has(tr.target)) continue;
+          const geo = drawEdge(layout.pos[from], layout.pos[tr.target]);
+          const path = el('path', { d: geo.d, class: 'edge', 'marker-end': 'url(#arrow)' }, edgesG);
+          const hit = el('path', { d: geo.d, class: 'edge-hit' }, edgesG);
+          const len = path.getTotalLength();
+          const label = el('text', { class: 'edge-label' }, labelsG);
+          label.textContent = evt;
+          const rec = { path, hit, label, len, from, evt, to: tr.target, geo };
+          edgeMap[from + '\u0000' + evt] = rec;
+          setLabel(rec);
+          hit.addEventListener('click', e => { e.stopPropagation(); onEdgeClick(from, evt); });
+          hit.addEventListener('mouseenter', () => { path.classList.add('hover'); label.classList.add('hover'); });
+          hit.addEventListener('mouseleave', () => { path.classList.remove('hover'); label.classList.remove('hover'); });
+        }
+      }
+
+      for (const key of visibleStates) {
+        const st = machine.states[key];
+        const p = layout.pos[key];
+        const g = el('g', { class: 'node', transform: `translate(${p.x},${p.y})` }, nodesG);
+        g.setAttribute('tabindex', '0');
+        g.setAttribute('role', 'button');
+        g.setAttribute('aria-label', key + (st.type === 'final' ? ' (final state)' : ' state'));
+        el('circle', { class: 'halo', r: 44 }, g);
+        el('rect', { class: 'body', x: -NODE_W / 2, y: -NODE_H / 2, width: NODE_W, height: NODE_H, rx: 12 }, g);
+        if (st.type === 'final') el('circle', { class: 'final-dot', cx: NODE_W / 2 - 16, cy: -NODE_H / 2 + 16, r: 4 }, g);
+        el('text', { class: 'cnt', x: -NODE_W / 2 + 16, y: -NODE_H / 2 + 16 }, g);
+        el('circle', { class: 'start-mark', cx: -NODE_W / 2, cy: 0, r: 5 }, g);
+        const endMark = el('g', { class: 'end-mark' }, g);
+        el('circle', { cx: NODE_W / 2, cy: 0, r: 6, fill: 'var(--bg)', stroke: 'var(--accent)', 'stroke-width': 2 }, endMark);
+        el('circle', { cx: NODE_W / 2, cy: 0, r: 2.5, fill: 'var(--accent)' }, endMark);
+        const name = el('text', { class: 'name', x: 0, y: 2 }, g);
+        name.textContent = key;
+        const nOut = Object.keys(st.on || {}).length;
+        const sub = el('text', { class: 'sub', x: 0, y: 20 }, g);
+        sub.textContent = st.type === 'final' ? 'final' : (nOut + ' event' + (nOut === 1 ? '' : 's'));
+        if (st.description) el('title', null, g).textContent = st.description;
+        g.addEventListener('click', e => { e.stopPropagation(); jumpToState(key); });
+        g.addEventListener('keydown', e => nodeKeydown(e, key));
+        nodeEls[key] = g;
+      }
+      renderPathway();
+    }
+let graphNoticeDismissed = false;
+function updateGraphNotice(truncated, total, shown) {
+      const n = $('graph-notice');
+      if (!truncated || graphNoticeDismissed) { n.hidden = true; return; }
+      n.hidden = false;
+      $('graph-notice-text').textContent = 'Limit: graph renders the first ' + shown + ' of ' + total + ' states. Use the Inspector to walk the full definition.';
+    }
+function updateGraphLayout() {
+      if (!Object.keys(nodeEls).length) { renderGraph(); return; }
+      const layout = computeLayout(graphVisible);
+      nodePos = layout.pos;
+      $('graph').setAttribute('viewBox', `0 0 ${layout.VW} ${layout.VH}`);
+      for (const [key, g] of Object.entries(nodeEls)) {
+        const p = layout.pos[key];
+        if (p) g.setAttribute('transform', `translate(${p.x},${p.y})`);
+      }
+      for (const rec of Object.values(edgeMap)) {
+        const geo = drawEdge(nodePos[rec.from], nodePos[rec.to]);
+        rec.geo = geo;
+        rec.path.setAttribute('d', geo.d);
+        rec.hit.setAttribute('d', geo.d);
+        rec.len = rec.path.getTotalLength();
+        setLabel(rec);
+      }
+      renderPathway();
+    }
+function setSpacing(f) {
+      spacing = f;
+      document.querySelectorAll('.spacing-controls .mode').forEach(b => {
+        b.setAttribute('aria-pressed', String(Number(b.dataset.spacing) === f));
+      });
+      updateGraphLayout();
+      persist();
+    }
+function onEdgeClick(from, evt) {
+      if (from === stateKey) { setPlaying(false); fireEvent(evt); }
+      else toast('Transition "' + evt + '" starts at ' + from + ' — not the current state', true);
+    }
+function nodeKeydown(e, key) {
+      let axis = null, sign = 0;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); jumpToState(key); return; }
+      else if (e.key === 'ArrowRight') { axis = 'x'; sign = 1; }
+      else if (e.key === 'ArrowLeft')  { axis = 'x'; sign = -1; }
+      else if (e.key === 'ArrowDown')  { axis = 'y'; sign = 1; }
+      else if (e.key === 'ArrowUp')    { axis = 'y'; sign = -1; }
+      else return;
+      e.preventDefault(); e.stopPropagation();
+      const next = neighborNode(key, axis, sign);
+      if (next && nodeEls[next]) nodeEls[next].focus();
+    }
+function neighborNode(key, axis, sign) {
+      const p = nodePos[key]; if (!p) return null;
+      let best = null, bestDist = Infinity;
+      for (const [k, q] of Object.entries(nodePos)) {
+        if (k === key) continue;
+        const along = axis === 'x' ? (q.x - p.x) : (q.y - p.y);
+        if (along === 0 || Math.sign(along) !== sign) continue;
+        const perp = axis === 'x' ? Math.abs(q.y - p.y) : Math.abs(q.x - p.x);
+        const dist = Math.abs(along) + perp * 1.8;
+        if (dist < bestDist) { bestDist = dist; best = k; }
+      }
+      return best;
+    }
+function jumpToState(key) {
+      if (key === stateKey) return;
+      const idx = history.map(h => h.state).lastIndexOf(key);
+      if (idx === -1) { toast('State "' + key + '" has not been reached in this run', true); return; }
+      setPlaying(false);
+      history = history.slice(0, idx + 1);
+      stateKey = key;
+      context = clone(history[history.length - 1].context);
+      log.unshift({ ts: Date.now(), event: 'JUMP', from: key, to: key });
+      updateUI();
+    }
+function markTrail() {
+      for (const rec of Object.values(edgeMap)) { rec.path.classList.remove('traversed'); rec.label.classList.remove('traversed'); }
+      for (let i = 1; i < history.length; i++) {
+        const h = history[i];
+        if (!h.event) continue;
+        const rec = edgeMap[history[i - 1].state + '\u0000' + h.event];
+        if (rec) { rec.path.classList.add('traversed'); rec.label.classList.add('traversed'); }
+      }
+    }
+function computePathway() {
+      const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
+      if (sc) {
+        const edges = [];
+        for (let i = 0; i < sc.states.length - 1; i++) edges.push(sc.states[i] + '\u0000' + (sc.events[i] || ''));
+        return { nodes: sc.states.slice(), edges };
+      }
+      const init = machine.initial;
+      const scCtx = clone(Object.assign({}, machine.context || {}));
+      const nodes = [init], edges = [];
+      const seen = new Set();
+      let cur = init;
+      for (let i = 0; i < MAX_GRAPH_STATES; i++) {
+        const st = machine.states[cur];
+        if (!st) break;
+        let evt = null, target = null;
+        for (const e of Object.keys(st.on || {})) {
+          const tr = st.on[e];
+          if (!tr.guard || evalGuard(tr.guard, scCtx)) { evt = e; target = tr.target; break; }
+        }
+        if (evt == null || target == null || !machine.states[target]) break;
+        if (seen.has(cur + '\u0000' + target)) break;
+        seen.add(cur + '\u0000' + target);
+        edges.push(cur + '\u0000' + evt);
+        nodes.push(target);
+        cur = target;
+      }
+      return { nodes, edges };
+    }
+function renderPathway() {
+      const { nodes, edges } = computePathway();
+      const nodeSet = new Set(nodes), edgeSet = new Set(edges);
+      const startKey = nodes[0];
+      const endKey = nodes[nodes.length - 1];
+      for (const [k, g] of Object.entries(nodeEls)) {
+        g.classList.toggle('pathway', nodeSet.has(k));
+        g.classList.toggle('is-start', k === startKey);
+        g.classList.toggle('is-end', k === endKey);
+      }
+      for (const [key, rec] of Object.entries(edgeMap)) {
+        rec.path.classList.toggle('pathway', edgeSet.has(key));
+        rec.label.classList.toggle('pathway', edgeSet.has(key));
+      }
+    }
+function animateTransition(from, evt, target) {
+      const key = from + '\u0000' + evt;
+      const edge = edgeMap[key];
+      if (edge) {
+        edge.path.classList.add('active');
+        edge.label && edge.label.classList.add('active');
+        const vp = $('viewport') || $('graph');
+        if (!REDUCED_MOTION) {
+          const dot = el('circle', { class: 'comet', r: 5, filter: 'url(#cometGlow)' }, vp);
+          const len = edge.len;
+          const start = performance.now(), dur = 430;
+          function frame(now) {
+            let t = (now - start) / dur; if (t > 1) t = 1;
+            const p = edge.path.getPointAtLength(t * len);
+            dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y);
+            if (t < 1) requestAnimationFrame(frame);
+            else {
+              dot.remove();
+              edge.path.classList.remove('active');
+              edge.label && edge.label.classList.remove('active');
+            }
+          }
+          requestAnimationFrame(frame);
+        } else {
+          setTimeout(() => {
+            edge.path.classList.remove('active');
+            edge.label && edge.label.classList.remove('active');
+          }, 240);
+        }
+      }
+      const tn = nodeEls[target];
+      if (tn) { tn.classList.add('pop'); setTimeout(() => tn.classList.remove('pop'), 620); }
+    }
+function fmtTime(ts) {
+      const d = new Date(ts);
+      return [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
+    }
+function updateUI() {
+      if (!machine) return;
+      const visits = {};
+      history.forEach(h => { visits[h.state] = (visits[h.state] || 0) + 1; });
+      for (const [k, n] of Object.entries(nodeEls)) {
+        const active = k === stateKey;
+        const visited = visits[k] > 0;
+        n.classList.toggle('is-active', active);
+        n.classList.toggle('is-visited', visited && !active);
+        const cnt = n.querySelector('.cnt');
+        if (cnt) cnt.textContent = visits[k] > 1 ? visits[k] : '';
+      }
+      markTrail();
+      $('stage-machine').textContent = (machine.name || machine.id) + ' · v' + (machine.version || '1.0.0');
+      $('stage-scenario').textContent = scenarioLabel();
+      const path = history.map(h => h.state);
+      $('stage-path').innerHTML = path
+        .map((s, i) => i === path.length - 1 ? `<span class="cur">${s}</span>` : `${s} <span class="sep">→</span> `)
+        .join('');
+
+      updateStatusBadge();
+
+      renderStateCard();
+      renderContext();
+      renderEvents();
+      renderLog();
+    }
+function renderStateCard() {
+      const st = currentState();
+      const type = st.type === 'final' ? 'final state' : 'atomic state';
+      $('insp-state').innerHTML =
+        `<div class="st-name">${stateKey}</div>` +
+        `<div class="st-type">${type}</div>` +
+        (st.description ? `<div class="st-desc">${st.description}</div>` : '');
+    }
+function renderContext() {
+      const c = $('insp-context'); c.innerHTML = '';
+      const keys = Object.keys(context);
+      if (!keys.length) { c.innerHTML = '<tr><td class="v">—</td></tr>'; return; }
+      keys.forEach(k => {
+        const tr = document.createElement('tr');
+        const tdK = document.createElement('td'); tdK.className = 'k'; tdK.textContent = k;
+        const tdV = document.createElement('td'); tdV.className = 'v';
+        const v = context[k];
+        if (typeof v === 'number') tdV.innerHTML = `<span class="num">${v}</span>`;
+        else if (typeof v === 'boolean') tdV.innerHTML = `<span class="bool">${v}</span>`;
+        else tdV.textContent = typeof v === 'string' ? v : JSON.stringify(v);
+        tr.appendChild(tdK); tr.appendChild(tdV); c.appendChild(tr);
+      });
+    }
+function renderEvents() {
+      const c = $('insp-events'); c.innerHTML = '';
+      const st = currentState();
+      const on = st.on || {};
+      const evts = Object.keys(on);
+      if (!evts.length) { c.innerHTML = '<div class="empty">No outgoing transitions</div>'; return; }
+      evts.forEach(evt => {
+        const tr = on[evt];
+        const ok = !tr.guard || evalGuard(tr.guard, context);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'evt ' + (ok ? 'evt-on' : 'evt-blocked');
+        b.textContent = evt;
+        if (tr.guard) b.title = ok ? 'Guard passes · ' + guardText(tr.guard) : 'Guard blocks · ' + guardText(tr.guard);
+        b.addEventListener('click', () => fireEvent(evt));
+        c.appendChild(b);
+      });
+    }
+function guardText(g) {
+      const ops = { eq: '=', neq: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥' };
+      return `${g.key} ${ops[g.op] || g.op} ${resolveValue(g.value, context)}`;
+    }
+function renderLog() {
+      const ol = $('insp-log'); ol.innerHTML = '';
+      log.forEach(e => {
+        const li = document.createElement('li');
+        const t = document.createElement('span'); t.className = 'lg-time'; t.textContent = fmtTime(e.ts);
+        const ev = document.createElement('span'); ev.className = 'lg-evt'; ev.textContent = e.event;
+        const p = document.createElement('span'); p.className = 'lg-path';
+        p.textContent = e.event === 'BACK' ? '↩ ' + e.to : (e.event === 'JUMP' ? '↪ ' + e.to : `${e.from} → ${e.to}`);
+        li.appendChild(t); li.appendChild(ev); li.appendChild(p);
+        ol.appendChild(li);
+      });
+    }
+function shortCode(s) {
+      const parts = s.split(/[_-]+/).filter(Boolean);
+      if (parts.length <= 1) return s;
+      return parts.map(p => p.slice(0, 3)).join('_');
+    }
+function buildShortCodes(states) {
+      const map = {}, used = {};
+      states.forEach(s => {
+        let code = shortCode(s);
+        if (used[code]) {
+          let i = 1;
+          while (used[code + '_' + i]) i++;
+          code = code + '_' + i;
+        }
+        used[code] = true;
+        map[s] = code;
+      });
+      return map;
+    }
+function attachMatrixHover(matrix) {
+      matrix.addEventListener('mouseover', e => {
+        const td = e.target.closest('td[data-r]');
+        if (!td) return;
+        const r = td.dataset.r, c = td.dataset.c;
+        matrix.classList.add('dim');
+        matrix.querySelectorAll('td[data-r]').forEach(t => {
+          t.querySelector('.cov-cell').classList.toggle('hl', t.dataset.r === r || t.dataset.c === c);
+        });
+        matrix.querySelectorAll('th[data-r], th[data-c]').forEach(th => {
+          th.classList.toggle('hl', (th.dataset.r && th.dataset.r === r) || (th.dataset.c && th.dataset.c === c));
+        });
+      });
+      matrix.addEventListener('mouseleave', () => {
+        matrix.classList.remove('dim');
+        matrix.querySelectorAll('.hl').forEach(el => el.classList.remove('hl'));
+      });
+    }
+function renderCoverage() {
+      const box = $('insp-coverage');
+      const cov = machine.coverage;
+      if (!cov) {
+        box.innerHTML = '<div class="empty">No coverage metadata embedded. Run Compliance → “Generate missing” to add it.</div>';
+        return;
+      }
+      const m = cov.metrics || {};
+      const states = Object.keys(cov.state_coverage || {}).length ? Object.keys(cov.state_coverage) : Object.keys(machine.states);
+      const edges = cov.edge_coverage || {};
+      const idx = {};
+      for (const e of Object.values(edges)) {
+        const k = e.from + '\u0000' + e.to;
+        if (!idx[k]) idx[k] = { covered: true, count: 0 };
+        idx[k].count++;
+        if (e.covered === false) idx[k].covered = false;
+      }
+      const pct = typeof m.coverage_percentage === 'number' ? m.coverage_percentage : 0;
+      let html = '<div class="cov-score"><div class="cov-num">' + pct + '%</div><div class="cov-bar"><span style="width:' + pct + '%"></span></div></div>';
+      html += '<div class="cov-metrics">';
+      const metrics = [
+        ['States', m.total_states != null ? m.total_states : states.length],
+        ['Finals', m.final_states != null ? m.final_states : '—'],
+        ['Transitions', m.total_transitions != null ? m.total_transitions : '—'],
+        ['Unique paths', m.unique_paths != null ? m.unique_paths : '—'],
+        ['Max paths', m.theoretical_max_paths != null ? m.theoretical_max_paths : '—'],
+        ['Cyclomatic', m.cyclomatic_complexity != null ? m.cyclomatic_complexity : '—'],
+        ['Complexity', m.complexity_score != null ? m.complexity_score : '—']
+      ];
+      metrics.forEach(([k, v]) => { html += '<div class="cov-metric"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'; });
+      html += '</div>';
+      if (states.length <= 16) {
+        const codes = buildShortCodes(states);
+        matrixStateOrder = states;
+        html += '<div class="cov-matrix-wrap"><table class="cov-matrix"><thead><tr><th class="row-label"></th>';
+        states.forEach((s, ci) => { html += '<th class="col" data-c="' + ci + '" title="' + s + '">' + codes[s] + '</th>'; });
+        html += '</tr></thead><tbody>';
+        states.forEach((s, ri) => {
+          html += '<tr><th class="row-label" data-r="' + ri + '" title="' + s + '">' + codes[s] + '</th>';
+          states.forEach((t, ci) => {
+            const cell = idx[s + '\u0000' + t];
+            const cls = cell ? (cell.covered ? 'on' : 'off') : 'empty';
+            const tt = cell ? (s + ' → ' + t + (cell.covered ? ' · covered' : ' · uncovered')) : '';
+            html += '<td data-r="' + ri + '" data-c="' + ci + '"><div class="cov-cell ' + cls + '" title="' + tt + '"></div></td>';
+          });
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        html += '<div class="cov-legend"><span><i class="on"></i>covered</span><span><i class="off"></i>uncovered</span><span><i></i>none</span></div>';
+      } else {
+        html += '<div class="limit-note">Limit: interactive matrix shows for ≤16 states — this machine has ' + states.length + '. Metrics above still apply.</div>';
+      }
+      if (cov.uncovered_paths && cov.uncovered_paths.length) {
+        html += '<div class="cov-list">' + cov.uncovered_paths.map(p => '<div class="cov-item">× ' + p + '</div>').join('') + '</div>';
+      }
+      if (cov.recommendations && cov.recommendations.length) {
+        html += '<div class="cov-list">' + cov.recommendations.map(p => '<div class="cov-item">→ ' + p + '</div>').join('') + '</div>';
+      }
+      box.innerHTML = html;
+      const matrix = box.querySelector('.cov-matrix');
+      if (matrix) attachMatrixHover(matrix);
+    }
+function renderCyclePrevention() {
+      const cp = machine.cycle_prevention;
+      if (!cp || typeof cp !== 'object') return '';
+      let html = '<div class="cp-box">';
+      const meta = [];
+      if (cp.max_retry_limit != null) meta.push('max retries ' + cp.max_retry_limit);
+      if (cp.timeout_seconds != null) meta.push('timeout ' + cp.timeout_seconds + 's');
+      if (meta.length) html += '<div class="cp-meta">' + meta.join(' · ') + '</div>';
+      (Array.isArray(cp.guards) ? cp.guards : []).forEach(g => {
+        const gtxt = g.guard ? guardText(g.guard) : '';
+        html += '<div class="cp-guard"><span class="cp-evt">' + g.event + '</span>' +
+          (gtxt ? ' guarded · ' + gtxt : '') +
+          (g.else_target ? ' · <span class="cp-else">else → ' + g.else_target + '</span>' : '') + '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+function renderCycles() {
+      const box = $('insp-analysis');
+      let html = renderCyclePrevention();
+      const cycles = detectCycles(machine);
+      if (!cycles.length) {
+        html += '<div class="empty">No cycles detected — every path terminates.</div>';
+      } else {
+        cycles.forEach(c => {
+          html += '<div class="cyc">';
+          html += '<span class="sev ' + c.severity.toLowerCase() + '">' + c.severity + '</span>';
+          html += '<div class="cyc-path">' + c.cycle.join(' → ') + '</div>';
+          html += '<div class="cyc-note">' + c.recommendation + '</div>';
+          html += '</div>';
+        });
+      }
+      box.innerHTML = html;
+    }
+function renderAnalysisPanel() {
+      if (!machine) return;
+      renderCoverage();
+      renderScenarios();
+      renderCycles();
+    }
+let generatedScenarios = null;
+let matrixStateOrder = [];
+function getEntryPoints() {
+      const entries = [], seen = new Set();
+      (machine.scenarios || []).forEach(sc => {
+        if (sc.initial && machine.states[sc.initial] && !seen.has(sc.initial)) {
+          entries.push({ state: sc.initial, interface: sc.interface === 'UI' ? 'UI' : 'API', label: sc.label || sc.id, context: sc.context });
+          seen.add(sc.initial);
+        }
+      });
+      if (machine.initial && machine.states[machine.initial] && !seen.has(machine.initial)) {
+        entries.push({ state: machine.initial, interface: 'API', label: 'default', context: undefined });
+      }
+      return entries;
+    }
+function generateScenarios() {
+      const states = machine.states;
+      const isEnd = s => {
+        const st = states[s];
+        return !!st && (st.type === 'final' || !st.on || !Object.keys(st.on).length);
+      };
+      const MAX_DEPTH = 24, MAX_SCEN = 500, MAX_VISITS = 2;
+      const raw = [];
+      function dfs(state, sPath, ePath, depth, visits) {
+        if (raw.length >= MAX_SCEN) return;
+        if (depth > MAX_DEPTH) return;
+        const st = states[state];
+        const evts = Object.keys((st && st.on) || {});
+        if (isEnd(state)) raw.push({ states: sPath.slice(), events: ePath.slice() });
+        for (const evt of evts) {
+          const tr = st.on[evt];
+          const target = tr && tr.target;
+          if (!target || !states[target]) continue;
+          const v = visits[target] || 0;
+          if (v >= MAX_VISITS) continue;
+          visits[target] = v + 1;
+          sPath.push(target); ePath.push(evt);
+          dfs(target, sPath, ePath, depth + 1, visits);
+          sPath.pop(); ePath.pop();
+          visits[target] = v;
+        }
+      }
+
+      const entries = getEntryPoints();
+      for (const e of entries) {
+        const visits = { [e.state]: 1 };
+        dfs(e.state, [e.state], [], 0, visits);
+      }
+
+      const seen = new Set(), scenarios = [];
+      for (const p of raw) {
+        const key = p.states.join('\u0000');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const entry = entries.find(e => e.state === p.states[0]);
+        scenarios.push({
+          id: 'gen-' + scenarios.length,
+          initial: p.states[0],
+          context: entry ? entry.context : undefined,
+          startLabel: entry ? entry.label : p.states[0],
+          start: p.states[0],
+          startInterface: entry ? entry.interface : 'API',
+          end: p.states[p.states.length - 1],
+          states: p.states,
+          events: p.events,
+          steps: p.states.length
+        });
+      }
+
+      const baseCount = {}, baseSeen = {};
+      scenarios.forEach(sc => { const b = sc.startLabel + ' → ' + sc.end; baseCount[b] = (baseCount[b] || 0) + 1; });
+      scenarios.forEach(sc => {
+        const b = sc.startLabel + ' → ' + sc.end;
+        sc.label = baseCount[b] > 1 ? b + ' (' + ((baseSeen[b] = (baseSeen[b] || 0) + 1)) + ')' : b;
+      });
+      return scenarios;
+    }
+function scenarioCoverage(scenarios) {
+      const total = Object.values(machine.states).reduce((n, st) => n + Object.keys(st.on || {}).length, 0);
+      const covered = new Set();
+      scenarios.forEach(sc => {
+        for (let i = 0; i < sc.states.length - 1; i++) covered.add(sc.states[i] + '\u0000' + sc.states[i + 1]);
+      });
+      return { total, covered: covered.size, pct: total ? Math.round((covered.size / total) * 1000) / 10 : 0 };
+    }
+function runGeneration() {
+      if (!machine) return;
+      generatedScenarios = generateScenarios();
+      if (!generatedScenarios.find(s => s.id === scenarioId)) {
+        const sc = generatedScenarios.find(s => s.start === machine.initial) || generatedScenarios[0];
+        scenarioId = sc ? sc.id : null;
+        if (sc) {
+          initialSnapshot = {
+            state: sc.initial ?? machine.initial,
+            context: clone(Object.assign({}, machine.context || {}, sc.context || {}))
+          };
+          stateKey = initialSnapshot.state;
+          context = clone(initialSnapshot.context);
+          history = [{ state: stateKey, context: clone(context) }];
+          log = [];
+        }
+      }
+      setPlaying(false);
+      syncScenarioSelect();
+      renderScenarios();
+      applyScenarioSelection();
+      persist();
+      if (generatedScenarios.length) toast('Generated ' + generatedScenarios.length + ' scenario' + (generatedScenarios.length === 1 ? '' : 's'));
+      else toast('No terminal states — no scenarios generated', true);
+    }
+function renderScenarios() {
+      const box = $('insp-scenarios');
+      if (!box) return;
+      const cov = scenarioCoverage(generatedScenarios || []);
+      let html = '<div class="scen-meta"><span>' + generatedScenarios.length + ' scenario' + (generatedScenarios.length === 1 ? '' : 's') + '</span><span>' + cov.covered + '/' + cov.total + ' transitions · ' + cov.pct + '%</span></div>';
+      if (!generatedScenarios.length) {
+        box.innerHTML = html + '<div class="empty">No terminal states reachable from any entry point.</div>';
+        return;
+      }
+      html += '<div class="scen-list">';
+      generatedScenarios.forEach((sc, i) => {
+        const body = sc.states.slice(0, -1).join(' → ');
+        const pathHtml = (body ? body + ' → ' : '') + '<span class="scen-final">' + sc.end + '</span>';
+        html += '<button type="button" class="scen-row' + (scenarioId === sc.id ? ' selected' : '') + '" data-scen-idx="' + i + '" data-od-id="scenario-' + i + '">' +
+          '<span class="scen-tag scen-tag-' + sc.startInterface.toLowerCase() + '">' + sc.startInterface + '</span>' +
+          '<span class="scen-idx">' + String(i + 1).padStart(2, '0') + '</span>' +
+          '<span class="scen-path">' + pathHtml + '</span></button>';
+      });
+      html += '</div>';
+      box.innerHTML = html;
+      box.querySelectorAll('.scen-row').forEach(btn => {
+        btn.addEventListener('click', () => selectScenario(Number(btn.dataset.scenIdx)));
+      });
+    }
+function selectScenario(idx) {
+      const sc = generatedScenarios[idx];
+      if (sc) applyScenario(sc.id);
+    }
+function applyScenarioSelection() {
+      clearPathHighlight();
+      const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
+      if (sc) {
+        for (let i = 0; i < sc.states.length - 1; i++) {
+          const rec = edgeMap[sc.states[i] + '\u0000' + (sc.events[i] || '')];
+          if (rec) { rec.path.classList.add('selected-path'); rec.label.classList.add('selected-path'); }
+        }
+        sc.states.forEach(s => { if (nodeEls[s]) nodeEls[s].classList.add('selected-path'); });
+        highlightMatrixPath(sc.states);
+      }
+      const box = $('insp-scenarios');
+      if (box) box.querySelectorAll('.scen-row').forEach(btn => {
+        const row = generatedScenarios[Number(btn.dataset.scenIdx)];
+        btn.classList.toggle('selected', !!row && row.id === scenarioId);
+      });
+    }
+function clearPathHighlight() {
+      for (const rec of Object.values(edgeMap)) { rec.path.classList.remove('selected-path'); rec.label.classList.remove('selected-path'); }
+      for (const g of Object.values(nodeEls)) g.classList.remove('selected-path');
+      highlightMatrixPath([]);
+    }
+function highlightMatrixPath(pathStates) {
+      const matrix = document.querySelector('#insp-coverage .cov-matrix');
+      if (!matrix) return;
+      const idx = {};
+      matrixStateOrder.forEach((s, i) => { idx[s] = i; });
+      const pairs = new Set();
+      for (let i = 0; i < pathStates.length - 1; i++) {
+        const r = idx[pathStates[i]], c = idx[pathStates[i + 1]];
+        if (r != null && c != null) pairs.add(r + '\u0000' + c);
+      }
+      matrix.querySelectorAll('td[data-r]').forEach(td => {
+        const cell = td.querySelector('.cov-cell');
+        if (cell) cell.classList.toggle('path-hl', pairs.has(td.dataset.r + '\u0000' + td.dataset.c));
+      });
+    }
+function syncEditor() {
+      $('editor').value = machine ? JSON.stringify(machine, null, 2) : '';
+      const msg = $('editor-msg'); msg.hidden = true;
+    }
+function syncScenarioSelect() {
+      const sel = $('scenario-select'); sel.innerHTML = '';
+      const scs = generatedScenarios || [];
+      if (!machine) {
+        const o = document.createElement('option'); o.textContent = '— no file —'; o.value = '';
+        sel.appendChild(o); sel.disabled = true; return;
+      }
+      if (!scs.length) {
+        const o = document.createElement('option'); o.textContent = '— no scenarios —'; o.value = '';
+        sel.appendChild(o); sel.disabled = true; return;
+      }
+      sel.disabled = false;
+      scs.forEach(s => {
+        const o = document.createElement('option'); o.value = s.id; o.textContent = s.label;
+        sel.appendChild(o);
+      });
+      sel.value = scs.some(s => s.id === scenarioId) ? scenarioId : scs[0].id;
+    }
+function validate(obj) {
+      const errs = [];
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) { errs.push('Root must be a JSON object.'); return errs; }
+      if (typeof obj.id !== 'string') errs.push('"id" must be a string.');
+      if (obj.coverage !== undefined && (!obj.coverage || typeof obj.coverage !== 'object' || Array.isArray(obj.coverage))) errs.push('"coverage" must be an object.');
+      if (!obj.states || typeof obj.states !== 'object' || !Object.keys(obj.states).length) errs.push('"states" must be a non-empty object.');
+      else {
+        if (obj.initial !== undefined && !(obj.initial in obj.states)) errs.push(`"initial" ("${obj.initial}") is not a state key.`);
+        for (const [key, st] of Object.entries(obj.states)) {
+          if (!st || typeof st !== 'object') { errs.push(`State "${key}" must be an object.`); continue; }
+          for (const [evt, tr] of Object.entries(st.on || {})) {
+            if (!tr || typeof tr !== 'object' || typeof tr.target !== 'string') errs.push(`Transition "${key} → ${evt}" needs a string "target".`);
+            else if (!(tr.target in obj.states)) errs.push(`Transition "${key} → ${evt}" targets unknown state "${tr.target}".`);
+          }
+        }
+      }
+      for (const sc of (obj.scenarios || [])) {
+        if (!sc || typeof sc.id !== 'string') errs.push('Every scenario needs a string "id".');
+        if (sc.initial !== undefined && !(sc.initial in (obj.states || {}))) errs.push(`Scenario "${sc.id}" initial "${sc.initial}" is not a state key.`);
+      }
+      return errs;
+    }
+function applyEditor() {
+      const msg = $('editor-msg');
+      let obj;
+      try { obj = JSON.parse($('editor').value); }
+      catch (e) { msg.hidden = false; msg.className = 'editor-msg err'; msg.textContent = 'JSON parse error: ' + e.message; return; }
+      const errs = validate(obj);
+      if (errs.length) { msg.hidden = false; msg.className = 'editor-msg err'; msg.textContent = errs.join('\n'); return; }
+      loadMachine(obj, undefined);
+      markDirty();
+      msg.hidden = false; msg.className = 'editor-msg ok'; msg.textContent = '✓ Ingested ' + (obj.name || obj.id) + ' (' + Object.keys(obj.states).length + ' states).';
+    }
+function copySchema() {
+      const text = $('editor').value;
+      const done = () => toast('Schema copied to clipboard');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => legacyCopy(text, done));
+      } else legacyCopy(text, done);
+    }
+function legacyCopy(text, done) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { toast('Copy failed', true); }
+      document.body.removeChild(ta);
+    }
+function toast(text, isErr) {
+      const t = $('toast');
+      t.textContent = text;
+      t.className = 'toast show' + (isErr ? ' err' : '');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.className = 'toast', 2000);
+    }
+function openSpec() { renderSpecBrowser(LATEST_SPEC_VERSION); openModal('spec-modal'); }
+function closeSpec() { closeModal('spec-modal'); }
+const TAB_PANELS = {
+      schema:    document.querySelector('[data-od-id="schema-panel"]'),
+      stage:     document.querySelector('[data-od-id="stage"]'),
+      inspector: document.querySelector('[data-od-id="inspector-panel"]'),
+    }
+
+    function setActiveTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => {
+        t.setAttribute('aria-selected', t.dataset.tab === tabId ? 'true' : 'false');
+      });
+      for (const [id, el] of Object.entries(TAB_PANELS)) {
+        el.classList.toggle('tab-active', id === tabId);
+      }
+    }
+function toggleLoop() {
+      loopMode = !loopMode;
+      $('btn-loop').setAttribute('aria-pressed', String(loopMode));
+      toast(loopMode ? 'Loop on — repeats on terminal' : 'Loop off');
+      persist();
+    }
+function shuffleNow() {
+      const scs = generatedScenarios || [];
+      if (!scs.length) { toast('This machine has no scenarios to shuffle', true); return; }
+      const pool = scs.length > 1 ? scs.filter(s => s.id !== scenarioId) : scs;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      if (!pick) return;
+      setPlaying(false);
+      resetTo(pick.id, true);
+      toast('Scenario → ' + (pick.label || pick.id));
+    }
+let activeSpecVersion = LATEST_SPEC_VERSION;
+function renderSpecBrowser(version) {
+      const spec = SPEC_REGISTRY.find(s => s.version === version) || SPEC_REGISTRY[0];
+      activeSpecVersion = spec.version;
+      $('spec-modal-title').textContent = spec.title;
+      const vwrap = $('spec-versions');
+      vwrap.innerHTML = '';
+      SPEC_REGISTRY.forEach(s => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'spec-ver' + (s.version === spec.version ? ' active' : '');
+        b.textContent = 'v' + s.version;
+        b.dataset.version = s.version;
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', String(s.version === spec.version));
+        b.setAttribute('aria-controls', 'spec-table');
+        b.addEventListener('click', () => renderSpecBrowser(s.version));
+        b.addEventListener('keydown', ev => {
+          if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return;
+          ev.preventDefault();
+          const idx = SPEC_REGISTRY.findIndex(v => v.version === b.dataset.version);
+          const next = SPEC_REGISTRY[(idx + (ev.key === 'ArrowRight' ? 1 : -1) + SPEC_REGISTRY.length) % SPEC_REGISTRY.length];
+          renderSpecBrowser(next.version);
+          const nb = document.querySelector('.spec-ver[data-version="' + next.version + '"]');
+          if (nb) nb.focus();
+        });
+        vwrap.appendChild(b);
+      });
+      const chg = $('spec-changes');
+      chg.innerHTML = spec.changes.length
+        ? '<div class="spec-changes-title">What changed in v' + spec.version + '</div><ul class="spec-changes-list">' + spec.changes.map(c => '<li>' + c + '</li>').join('') + '</ul>'
+        : '<div class="spec-changes-title">Initial release</div>';
+      const tb = $('spec-table');
+      let rows = '<thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead><tbody>';
+      spec.fields.forEach(f => { rows += '<tr><td>' + f.name + '</td><td>' + f.type + '</td><td>' + f.meaning + '</td></tr>'; });
+      rows += '</tbody>';
+      tb.innerHTML = rows;
+      const conv = $('spec-conventions');
+      if (conv) conv.textContent = spec.conventions.join(' · ');
+    }
+function copySpecVersion(fmt) {
+      const spec = SPEC_REGISTRY.find(s => s.version === activeSpecVersion) || SPEC_REGISTRY[0];
+      const text = fmt === 'md' ? buildSpecMarkdown(spec) : JSON.stringify(buildSpecJsonSchema(spec), null, 2);
+      const done = () => toast('Copied spec v' + spec.version + (fmt === 'md' ? ' (Markdown)' : ' (JSON Schema)'));
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => legacyCopy(text, done));
+      } else legacyCopy(text, done);
+    }
+let fileHandle = null;
+let currentFilePath = '';
+let dirty = false;
+function markDirty() { dirty = true; updateDirtyIndicator(); }
+function markClean() { dirty = false; updateDirtyIndicator(); }
+function updateDirtyIndicator() { const d = $('dirty-indicator'); if (d) d.hidden = !dirty; }
+function updateFileBar() {
+      const fn = $('file-name');
+      if (fn) { fn.textContent = machine ? (currentFilePath || ((machine.id ? machine.id : 'untitled') + '.json')) : 'No file open'; fn.title = fn.textContent; }
+      const tag = $('schema-spec-tag');
+      if (tag) tag.textContent = machine ? ('spec v' + detectSpecVersion(machine).version) : 'no file';
+    }
+function showEmptyState() { const es = $('empty-state'); if (es) es.hidden = !!machine; }
+function fileIOAvailable() { return !!(window.showOpenFilePicker && window.showSaveFilePicker); }
+function ingestFile(text, name) {
+      let obj;
+      try { obj = JSON.parse(text); } catch (e) { toast('Invalid JSON in ' + name + ': ' + e.message, true); return; }
+      const errs = validate(obj);
+      if (errs.length) { toast('Schema validation failed:\n' + errs.join('\n'), true); return; }
+      loadMachine(obj, undefined);
+      updateFileBar();
+      toast('Opened ' + name);
+    }
+async function openSchema() {
+      if (dirty && !window.confirm('You have unsaved changes. Open another schema and discard them?')) return;
+      if (fileIOAvailable()) {
+        try {
+          const [h] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{ description: 'State machine schema', accept: { 'application/json': ['.json'] } }]
+          });
+          const f = await h.getFile();
+          const text = await f.text();
+          fileHandle = h;
+          currentFilePath = f.name;
+          ingestFile(text, f.name);
+          markClean();
+        } catch (err) {
+          if (err && err.name !== 'AbortError') toast('Open failed: ' + err.message, true);
+        }
+      } else {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        input.onchange = () => {
+          const f = input.files && input.files[0];
+          if (!f) return;
+          const r = new FileReader();
+          r.onload = () => { currentFilePath = f.name; ingestFile(String(r.result), f.name); markClean(); };
+          r.readAsText(f);
+        };
+        input.click();
+      }
+    }
+function downloadBlob(text, name) {
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+async function saveSchema() {
+      if (!machine) { toast('Nothing to save', true); return; }
+      const text = JSON.stringify(machine, null, 2);
+      if (fileIOAvailable()) {
+        let h = fileHandle;
+        if (!h) {
+          try {
+            h = await window.showSaveFilePicker({ suggestedName: (machine.id || 'machine') + '.json', types: [{ description: 'State machine schema', accept: { 'application/json': ['.json'] } }] });
+            fileHandle = h;
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            toast('Save failed: ' + err.message, true);
+            return;
+          }
+        }
+        try {
+          const w = await h.createWritable();
+          await w.write(text);
+          await w.close();
+          currentFilePath = h.name || currentFilePath;
+          updateFileBar();
+          markClean();
+          toast('Saved ' + currentFilePath);
+        } catch (err) { toast('Save failed: ' + err.message, true); }
+      } else {
+        downloadBlob(text, (machine.id || 'machine') + '.json');
+        markClean();
+        toast('Downloaded a copy — in-place save needs localhost/https');
+      }
+    }
+async function saveAsSchema() {
+      if (!machine) { toast('Nothing to save', true); return; }
+      const text = JSON.stringify(machine, null, 2);
+      if (fileIOAvailable()) {
+        try {
+          const h = await window.showSaveFilePicker({ suggestedName: (machine.id || 'machine') + '.json', types: [{ description: 'State machine schema', accept: { 'application/json': ['.json'] } }] });
+          const w = await h.createWritable();
+          await w.write(text);
+          await w.close();
+          fileHandle = h;
+          currentFilePath = h.name || currentFilePath;
+          updateFileBar();
+          markClean();
+          toast('Saved ' + currentFilePath);
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          toast('Save failed: ' + err.message, true);
+        }
+      } else {
+        downloadBlob(text, (machine.id || 'machine') + '.json');
+        markClean();
+      }
+    }
+function openCompliance() {
+      if (!machine) { toast('Open a schema first', true); return; }
+      renderCompliance();
+      openModal('compliance-modal');
+    }
+function closeCompliance() { closeModal('compliance-modal'); }
+function renderCompliance() {
+      const res = runCompliance(machine);
+      const det = detectSpecVersion(machine);
+      const box = $('compliance-content');
+      const foot = $('compliance-actions');
+      const numCls = res.score >= 80 ? '' : (res.score >= 70 ? 'med' : 'low');
+      let html = '';
+
+      html += '<div class="cmp-score"><div class="cmp-num ' + numCls + '">' + res.score + '</div>';
+      html += '<div class="cmp-score-meta"><div class="cmp-grade">' + res.grade + '</div>';
+      html += '<div class="cmp-spec-ver">Compliance · spec v' + res.specVersion + (det.assumed ? ' (assumed latest)' : '') + '</div>';
+      html += '<div class="cmp-bar"><span style="width:' + res.score + '%; background: var(--' + (res.score >= 80 ? 'success' : res.score >= 70 ? 'warn' : 'danger') + ')"></span></div></div></div>';
+
+      if (res.blocking.length) html += '<div class="cmp-banner danger"><strong>' + res.blocking.length + ' blocking error(s)</strong> — fix before the machine can be considered valid.</div>';
+      if (res.specVersion !== LATEST_SPEC_VERSION) html += '<div class="cmp-banner upgrade"><strong>Targets spec v' + res.specVersion + '</strong> — latest is v' + LATEST_SPEC_VERSION + '. <button class="btn btn-secondary btn-sm" id="btn-upgrade" data-od-id="apply-upgrade">Apply upgrade</button></div>';
+
+      html += '<div class="cmp-section-title">Breakdown</div><div class="cmp-cats">';
+      Object.entries(res.byCategory).forEach(([cat, v]) => {
+        const pct = v.total ? Math.round((v.earned / v.total) * 100) : 100;
+        html += '<div class="cmp-cat"><span class="cat-name">' + cat + '</span><span class="cat-bar"><span style="width:' + pct + '%; background: var(--accent)"></span></span><span class="cat-score">' + v.earned + '/' + v.total + '</span></div>';
+      });
+      html += '</div>';
+
+      html += '<div class="cmp-section-title">Gaps</div>';
+      const gaps = res.findings.filter(f => !f.pass);
+      if (!gaps.length) {
+        html += '<div class="cmp-empty">Fully compliant — no gaps detected.</div>';
+      } else {
+        const order = { blocking: 0, warn: 1, info: 2 };
+        gaps.sort((a, b) => (order[a.severity] - order[b.severity]) || a.category.localeCompare(b.category));
+        gaps.forEach(f => {
+          html += '<div class="cmp-gap"><div class="cmp-gap-head"><span class="sev ' + f.severity + '">' + f.severity + '</span><span class="cmp-gap-name">' + capFirst(humanize(f.id)) + '</span>' +
+            (f.autofill === 'auto' ? '<span class="badge badge-auto">auto-fill</span>' : '<span class="badge badge-review">review</span>') + '</div>';
+          html += '<div class="cmp-gap-rem">' + (f.detail && f.detail !== true ? f.detail + ' — ' : '') + f.remediation + '</div></div>';
+        });
+      }
+      box.innerHTML = html;
+
+      const anyAuto = gaps.some(f => f.autofill === 'auto');
+      foot.innerHTML = '<button class="btn btn-primary" id="btn-gen-missing" data-od-id="gen-missing"' + (anyAuto ? '' : ' disabled') + '>Generate missing</button><button class="btn btn-secondary" id="btn-close-comp2">Close</button>';
+      const btnGen = foot.querySelector('#btn-gen-missing');
+      if (btnGen) btnGen.addEventListener('click', () => renderDiffPreview(autoPatchItems(machine)));
+      const btnClose = foot.querySelector('#btn-close-comp2');
+      if (btnClose) btnClose.addEventListener('click', closeCompliance);
+      const btnUp = box.querySelector('#btn-upgrade');
+      if (btnUp) btnUp.addEventListener('click', () => renderDiffPreview(autoPatchItems(machine, LATEST_SPEC_VERSION)));
+      const m = $('compliance-modal').querySelector('.modal');
+      if (m) m.focus({ preventScroll: true });
+    }
+function renderDiffPreview(items) {
+      const box = $('compliance-content');
+      const foot = $('compliance-actions');
+      if (!items.length) {
+        box.innerHTML = '<div class="cmp-empty">Nothing to generate — every auto-fillable gap is already filled.</div>';
+        foot.innerHTML = '<button class="btn btn-secondary" id="btn-back-comp">Back</button>';
+        foot.querySelector('#btn-back-comp').addEventListener('click', renderCompliance);
+        return;
+      }
+      let html = '<div class="cmp-section-title">Generate missing</div>';
+      html += '<div class="cmp-empty">These ' + items.length + ' item(s) will be added or computed. Deselect any you do not want.</div><div class="diff-list">';
+      items.forEach((it, i) => {
+        html += '<label class="diff-item"><input type="checkbox" data-idx="' + i + '" checked><span><span class="diff-label">' + it.label + '</span><br><span class="diff-detail">' + it.detail + '</span></span></label>';
+      });
+      html += '</div>';
+      box.innerHTML = html;
+      foot.innerHTML = '<button class="btn btn-primary" id="btn-apply-missing" data-od-id="apply-missing">Apply</button><button class="btn btn-secondary" id="btn-cancel-comp">Cancel</button>';
+      foot.querySelector('#btn-apply-missing').addEventListener('click', () => {
+        const selected = items.filter((it, i) => { const cb = box.querySelector('input[data-idx="' + i + '"]'); return cb && cb.checked; });
+        applyPatches(selected);
+      });
+      foot.querySelector('#btn-cancel-comp').addEventListener('click', renderCompliance);
+    }
+function applyPatches(items) {
+      if (!items.length) { renderCompliance(); return; }
+      const t = clone(machine);
+      items.forEach(it => it.apply(t));
+      loadMachine(t, scenarioId);
+      markDirty();
+      updateFileBar();
+      renderCompliance();
+      const m = $('compliance-modal').querySelector('.modal');
+      if (m) m.focus({ preventScroll: true });
+      toast('Applied ' + items.length + ' change(s) — unsaved. Review and save.');
+    }
+function speedToMs(v) { return Math.round(1400 - (v - 1) * 130); }
+function bind() {
+      attachModalTraps();
+      $('scenario-select').addEventListener('change', e => applyScenario(e.target.value));
+      $('btn-apply').addEventListener('click', applyEditor);
+      $('btn-copy').addEventListener('click', copySchema);
+      $('btn-spec-top').addEventListener('click', openSpec);
+      $('btn-close-spec').addEventListener('click', closeSpec);
+      $('btn-copy-spec').addEventListener('click', () => copySpecVersion('json'));
+      $('btn-copy-spec-md').addEventListener('click', () => copySpecVersion('md'));
+      $('graph-notice-close').addEventListener('click', () => { graphNoticeDismissed = true; $('graph-notice').hidden = true; });
+      $('modeb-hint-close').addEventListener('click', () => { $('modeb-hint').hidden = true; });
+      $('spec-modal').addEventListener('click', e => { if (e.target === $('spec-modal')) closeSpec(); });
+      $('btn-play').addEventListener('click', () => setPlaying(!playing));
+      $('btn-next').addEventListener('click', () => { setPlaying(false); fireNext(); });
+      $('btn-back').addEventListener('click', stepBack);
+      $('btn-reset').addEventListener('click', resetAll);
+      $('btn-loop').addEventListener('click', toggleLoop);
+      $('btn-shuffle').addEventListener('click', shuffleNow);
+      $('btn-gen-scenarios').addEventListener('click', runGeneration);
+      $('btn-open').addEventListener('click', openSchema);
+      $('btn-open-empty').addEventListener('click', openSchema);
+      $('btn-save').addEventListener('click', saveSchema);
+      $('btn-save-as').addEventListener('click', saveAsSchema);
+      $('btn-compliance').addEventListener('click', openCompliance);
+      $('btn-close-compliance').addEventListener('click', closeCompliance);
+      $('compliance-modal').addEventListener('click', e => { if (e.target === $('compliance-modal')) closeCompliance(); });
+      document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => setActiveTab(t.dataset.tab));
+      });
+      const tabbar = document.querySelector('.tabbar');
+      tabbar.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const tabs = Array.from(tabbar.querySelectorAll('.tab'));
+        const idx = tabs.indexOf(document.activeElement);
+        if (idx === -1) return;
+        e.preventDefault();
+        const next = e.key === 'ArrowRight' ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+        tabs[next].focus();
+        setActiveTab(tabs[next].dataset.tab);
+      });
+      $('speed').addEventListener('input', e => {
+        speedMs = speedToMs(Number(e.target.value));
+        $('speed-val').textContent = speedMs + 'ms';
+        if (playing) setPlaying(true);
+        persist();
+      });
+      const canvas = $('canvas');
+      let panning = false, panStart = null, panTx0 = 0, panTy0 = 0;
+      canvas.addEventListener('pointerdown', e => {
+        if (e.target.closest('.zoom-controls, .spacing-controls, .node, .edge-hit')) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        panning = true;
+        const p = toViewCoords(e.clientX, e.clientY);
+        panStart = p; panTx0 = viewTx; panTy0 = viewTy;
+        canvas.classList.add('dragging');
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+      canvas.addEventListener('pointermove', e => {
+        if (!panning) return;
+        const p = toViewCoords(e.clientX, e.clientY);
+        viewTx = panTx0 + (p.x - panStart.x);
+        viewTy = panTy0 + (p.y - panStart.y);
+        applyView();
+      });
+      function endPan(e) {
+        if (!panning) return;
+        panning = false;
+        canvas.classList.remove('dragging');
+        try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+      canvas.addEventListener('pointerup', endPan);
+      canvas.addEventListener('pointercancel', endPan);
+      canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const p = toViewCoords(e.clientX, e.clientY);
+        zoomAt(p.x, p.y, Math.exp(-e.deltaY * 0.0015));
+      }, { passive: false });
+      $('btn-zoom-in').addEventListener('click', () => zoomCenter(1.25));
+      $('btn-zoom-out').addEventListener('click', () => zoomCenter(1 / 1.25));
+      $('btn-fit').addEventListener('click', resetView);
+      document.querySelectorAll('.spacing-controls .mode').forEach(b => {
+        b.addEventListener('click', () => setSpacing(Number(b.dataset.spacing)));
+      });
+      document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); saveSchema(); return; }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) { e.preventDefault(); openSchema(); return; }
+        if (e.key === 'Escape') {
+          if (!$('spec-modal').hidden) closeSpec();
+          if (!$('compliance-modal').hidden) closeCompliance();
+          return;
+        }
+        if (!$('spec-modal').hidden || !$('compliance-modal').hidden) return;
+        const t = e.target;
+        if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'BUTTON')) return;
+        if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+        else if (e.code === 'ArrowRight') { setPlaying(false); fireNext(); }
+        else if (e.code === 'ArrowLeft') stepBack();
+      });
+      speedMs = speedToMs(5);
+      $('speed-val').textContent = speedMs + 'ms';
+    }
+bind();
+document.documentElement.setAttribute('data-app-version', APP_VERSION);
+const appTag = $('app-tagline');
+if (appTag) appTag.textContent = 'v' + APP_VERSION + ' · state machine simulator';
+console.log('Machina simulator v' + APP_VERSION);
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+if (!fileIOAvailable()) { const mb = $('modeb-hint'); if (mb) mb.hidden = false; }
+setActiveTab('stage');
+restorePersisted();
+machine = null;
+showEmptyState();
+updateFileBar();
+syncScenarioSelect();
+
+/* ── extension bridge ──────────────────────────────────────────── */
+const __extBridge = (() => {
+  const inst = new URLSearchParams(location.search).get('instance') || '';
+  const es = new EventSource('/events?instance=' + encodeURIComponent(inst));
+  es.addEventListener('machina', (e) => {
+    let d;
+    try { d = JSON.parse(e.data); } catch (err) { return; }
+    if (!d) return;
+    if (d.type === 'load' && d.machine) loadMachine(d.machine);
+    else if (d.type === 'command') {
+      const cmd = d.command;
+      if (cmd === 'play') setPlaying(true);
+      else if (cmd === 'pause') setPlaying(false);
+      else if (cmd === 'step') { setPlaying(false); fireNext(); }
+      else if (cmd === 'back') stepBack();
+      else if (cmd === 'reset') resetAll();
+      else if (cmd === 'scenarios') runGeneration();
+      else if (cmd === 'compliance') openCompliance();
+      else if (cmd === 'jump' && d.state) jumpToState(d.state);
+    }
+  });
+})();
+  </script></script>
+</body>
+</html>

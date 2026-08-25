@@ -1,0 +1,320 @@
+{
+  "id": "order-fulfillment-complete",
+  "name": "Order Fulfillment (Complete)",
+  "version": "2.0.0",
+  "description": "Full order lifecycle with payment, delivery, returns, and embedded coverage analysis.",
+  "initial": "placed",
+  "context": {
+    "orderId": "ORD-1042",
+    "priority": "standard",
+    "retry_count": 0,
+    "payment_retries": 0
+  },
+  "coverage": {
+    "generated": "2026-08-22T10:30:00Z",
+    "version": "1.0.0",
+    "metrics": {
+      "total_states": 11,
+      "final_states": 2,
+      "total_transitions": 15,
+      "unique_paths": 24,
+      "theoretical_max_paths": 32,
+      "coverage_percentage": 75,
+      "complexity_score": 4.2,
+      "cyclomatic_complexity": 6
+    },
+    "state_coverage": {
+      "placed": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 3
+      },
+      "payment_failed": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "paid": {
+        "visited": true,
+        "incoming": 2,
+        "outgoing": 1
+      },
+      "shipped": {
+        "visited": true,
+        "incoming": 2,
+        "outgoing": 3
+      },
+      "delivery_failed": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "delivered": {
+        "visited": true,
+        "incoming": 2,
+        "outgoing": 1
+      },
+      "return_requested": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 2
+      },
+      "return_approved": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "return_received": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "cancelled": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "refunded": {
+        "visited": true,
+        "incoming": 2,
+        "outgoing": 0
+      }
+    },
+    "edge_coverage": {
+      "PAY": {
+        "from": "placed",
+        "to": "paid",
+        "covered": true
+      },
+      "PAYMENT_FAILED": {
+        "from": "placed",
+        "to": "payment_failed",
+        "covered": true
+      },
+      "CANCEL": {
+        "from": "placed",
+        "to": "cancelled",
+        "covered": true
+      },
+      "RETRY_PAYMENT": {
+        "from": "payment_failed",
+        "to": "paid",
+        "covered": true
+      },
+      "SHIP": {
+        "from": "paid",
+        "to": "shipped",
+        "covered": true
+      },
+      "DELIVER": {
+        "from": "shipped",
+        "to": "delivered",
+        "covered": true
+      },
+      "DELIVERY_FAILED": {
+        "from": "shipped",
+        "to": "delivery_failed",
+        "covered": true
+      },
+      "RETRY_DELIVERY": {
+        "from": "delivery_failed",
+        "to": "shipped",
+        "covered": true
+      },
+      "REFUND": {
+        "from": "shipped",
+        "to": "refunded",
+        "covered": true
+      },
+      "RETURN_REQUEST": {
+        "from": "delivered",
+        "to": "return_requested",
+        "covered": true
+      },
+      "APPROVE_RETURN": {
+        "from": "return_requested",
+        "to": "return_approved",
+        "covered": true
+      },
+      "REJECT_RETURN": {
+        "from": "return_requested",
+        "to": "delivered",
+        "covered": false
+      },
+      "RECEIVE_RETURN": {
+        "from": "return_approved",
+        "to": "return_received",
+        "covered": true
+      },
+      "ISSUE_REFUND": {
+        "from": "return_received",
+        "to": "refunded",
+        "covered": true
+      },
+      "REOPEN": {
+        "from": "cancelled",
+        "to": "placed",
+        "covered": false
+      }
+    },
+    "uncovered_paths": [
+      "delivered ? return_requested ? delivered (reject-return loop)",
+      "cancelled ? placed (reopen cycle)"
+    ],
+    "recommendations": [
+      "Add a transition from 'return_received' to 'placed' for inventory restock",
+      "Consider a 'REPLACE' event from 'delivered' for exchanges",
+      "Guard RETRY_DELIVERY with a retry_count < 3 limit"
+    ]
+  },
+  "cycle_prevention": {
+    "max_retry_limit": 3,
+    "timeout_seconds": 300,
+    "guards": [
+      {
+        "event": "RETRY_DELIVERY",
+        "guard": {
+          "type": "compare",
+          "key": "retry_count",
+          "op": "lt",
+          "value": 3
+        },
+        "else_target": "refunded"
+      },
+      {
+        "event": "RETRY_PAYMENT",
+        "guard": {
+          "type": "compare",
+          "key": "payment_retries",
+          "op": "lt",
+          "value": 2
+        },
+        "else_target": "cancelled"
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "new-order",
+      "label": "New order",
+      "initial": "placed"
+    },
+    {
+      "id": "payment-failed",
+      "label": "Payment failed",
+      "initial": "payment_failed"
+    },
+    {
+      "id": "in-transit",
+      "label": "In transit",
+      "initial": "shipped"
+    },
+    {
+      "id": "return-requested",
+      "label": "Return requested",
+      "initial": "return_requested"
+    }
+  ],
+  "states": {
+    "placed": {
+      "description": "Order created, awaiting payment.",
+      "on": {
+        "PAY": {
+          "target": "paid"
+        },
+        "PAYMENT_FAILED": {
+          "target": "payment_failed"
+        },
+        "CANCEL": {
+          "target": "cancelled"
+        }
+      }
+    },
+    "payment_failed": {
+      "description": "Charge declined.",
+      "on": {
+        "RETRY_PAYMENT": {
+          "target": "paid"
+        }
+      }
+    },
+    "paid": {
+      "description": "Payment captured.",
+      "on": {
+        "SHIP": {
+          "target": "shipped"
+        }
+      }
+    },
+    "shipped": {
+      "description": "Handed to the carrier.",
+      "on": {
+        "DELIVER": {
+          "target": "delivered"
+        },
+        "DELIVERY_FAILED": {
+          "target": "delivery_failed"
+        },
+        "REFUND": {
+          "target": "refunded"
+        }
+      }
+    },
+    "delivery_failed": {
+      "description": "Carrier could not deliver.",
+      "on": {
+        "RETRY_DELIVERY": {
+          "target": "shipped"
+        }
+      }
+    },
+    "delivered": {
+      "description": "In the customer's hands.",
+      "on": {
+        "RETURN_REQUEST": {
+          "target": "return_requested"
+        }
+      }
+    },
+    "return_requested": {
+      "description": "Customer asked to return.",
+      "on": {
+        "APPROVE_RETURN": {
+          "target": "return_approved"
+        },
+        "REJECT_RETURN": {
+          "target": "delivered"
+        }
+      }
+    },
+    "return_approved": {
+      "description": "Return accepted.",
+      "on": {
+        "RECEIVE_RETURN": {
+          "target": "return_received"
+        }
+      }
+    },
+    "return_received": {
+      "description": "Item back at the warehouse.",
+      "on": {
+        "ISSUE_REFUND": {
+          "target": "refunded"
+        }
+      }
+    },
+    "cancelled": {
+      "type": "final",
+      "description": "Terminal � cancelled (may be reopened).",
+      "on": {
+        "REOPEN": {
+          "target": "placed"
+        }
+      }
+    },
+    "refunded": {
+      "type": "final",
+      "description": "Terminal � refunded."
+    }
+  }
+}
