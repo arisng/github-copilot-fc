@@ -19,7 +19,7 @@ Use this file to tune the `description` field only.
 | pos-08 | What guard syntax does the Machina format support — can I use compare lt on a context key? | yes | yes | pass | Format field/guard semantics question — schema-spec territory |
 | pos-09 | Run the compliance scorer on my-machine.json and tell me what gaps remain. | yes | yes | pass | Description now explicitly names "running the bundled machina.py CLI to validate, compliance-score, or generate gaps/scenarios" |
 | pos-10 | Upgrade this legacy v1 machine to spec v2.0.0. | yes | yes | pass | "fixing or upgrading an existing machine JSON"; spec v2.0.0 named in description |
-| neg-01 | Modify state-machine-simulator.html to improve the graph layout. | no | no | pass | Simulator app modification — explicitly excluded (machina-simulator-maintenance) |
+| neg-01 | Modify the Machina simulator app (served by the machina-simulator extension) to improve the graph layout. | no | no | pass | Simulator app modification — explicitly excluded (machina-simulator-maintenance) |
 | neg-02 | Build me an XState config in TypeScript for the same workflow. | no | no | pass | XState explicitly excluded |
 | neg-03 | Style the compliance modal in the simulator UI. | no | no | pass | Simulator UI — excluded; also styling is out of domain entirely |
 | neg-04 | Fix a bug in machina.py's cycle detection algorithm. | no | no | pass | Description now explicitly excludes "debugging or bug-fixing the bundled machina.py scripts themselves" — ambiguity removed |

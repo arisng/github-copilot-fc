@@ -1,6 +1,6 @@
 # Machina Machine Format Reference (for authors)
 
-The machine JSON format understood by `state-machine-simulator.html`. Target spec v2.0.0.
+The machine JSON format understood by the Machina simulator app (served by the `machina-simulator` extension, schema documented under `copilot-extensions/machina-simulator/simulator/docs/schema-spec.md`). Target spec v2.0.0.
 
 ## Contents
 

@@ -160,7 +160,7 @@
     },
     {
       "id": "case-06-simulator-ui-negative",
-      "prompt": "Modify state-machine-simulator.html to improve the graph layout and restyle the compliance modal.",
+      "prompt": "Modify the Machina simulator app (served by the machina-simulator extension) to improve the graph layout and restyle the compliance modal.",
       "assertions": [
         {
           "id": "A1",

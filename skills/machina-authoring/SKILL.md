@@ -2,7 +2,7 @@
 name: machina-authoring
 description: >-
   Author valid, high-scoring state machines in the Machina machine JSON format
-  (`state-machine-simulator.html` format, spec v2.0.0 / v1.0.0). USE WHEN: writing or generating a
+    (the [machina-simulator extension](../../copilot-extensions/machina-simulator/) format, spec v2.0.0 / v1.0.0). USE WHEN: writing or generating a
   new machine definition JSON (states, transitions, guards, actions, context, scenarios);
   modeling a real workflow (order fulfillment, refunds, signup, retries) as a Machina state
   machine; fixing or upgrading an existing machine JSON so it validates or scores higher;
@@ -28,7 +28,7 @@ Use these terms consistently — in prompts, output, and code comments:
 
 | Term | Meaning |
 |---|---|
-| **Machina** | Brand name covering both the simulator app (`state-machine-simulator.html`) and its machine schema spec. Qualify which: "**Machina simulator**" (the app) vs "**Machina schema spec**" (the JSON contract). Never use bare "Machina" where the referent is ambiguous. |
+| **Machina** | Brand name covering both the simulator app (served by the `machina-simulator` extension) and its machine schema spec. Qualify which: "**Machina simulator**" (the app) vs "**Machina schema spec**" (the JSON contract). Never use bare "Machina" where the referent is ambiguous. |
 | **State machine** | The modeled FSM itself. Always write "state machine", never bare "machine". |
 | **Machine definition** | The JSON document that encodes a state machine (the artifact you author). A file contains one definition. |
 | **Schema spec / spec version** | The versioned field contract (`v1.0.0`, `v2.0.0`) a definition targets via `spec_version`. Distinct from the definition's own `version` field. |

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Machina machine tooling — deterministic authoring engine for Machina machine JSON.
 
-Faithful Python port of the deterministic routines in state-machine-simulator.html:
+Faithful Python port of the deterministic routines in the Machina simulator
+(served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/engine.mjs):
 validation, the 17-check compliance scorer, gap analysis, autofill patches,
 scenario generation, cycle detection, and coverage-block building.
 
