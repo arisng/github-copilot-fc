@@ -20,7 +20,6 @@ Shared Copilot CLI mechanism, usable with any provider. When you hold multiple s
       "baseUrl": "https://opencode.ai/zen/go/v1",
       "model": "deepseek-v4-flash",
       "type": "openai",
-      "apiKey": "${OPENCODE_API_KEY_HOME}",
       "accountGroup": "opencode"
     }
   }
@@ -42,7 +41,9 @@ Shared Copilot CLI mechanism, usable with any provider. When you hold multiple s
 
 ### Resolution order
 
-`--account` flag → profile-level `account` pin → config-level `activeAccount` → `accounts[<name>].keyEnv`. When nothing resolves (no account selected, unknown account, or missing `keyEnv`), the profile falls back to its legacy `apiKey` placeholder and emits a warning.
+`--account` flag → profile-level `account` pin → config-level `activeAccount` → `accounts[<name>].keyEnv`. When resolution succeeds, the profile's `apiKey` field is **overridden** with the resolved `keyEnv`. When nothing resolves (no account selected, unknown account, or missing `keyEnv`), the profile falls back to its legacy `apiKey` placeholder (if present) and emits a warning.
+
+> **Note:** For account-grouped profiles, the `apiKey` field is optional — it is always overridden by account resolution. Include it only as a fallback for edge cases where account resolution fails.
 
 ### Sub-sessions
 

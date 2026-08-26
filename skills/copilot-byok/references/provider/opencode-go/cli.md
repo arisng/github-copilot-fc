@@ -131,11 +131,10 @@ $env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
 copilot
 ```
 
-Profile entry:
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
 
 ```json
 "opencode-go-mimo-v25": {
-  "apiKey": "${OPENCODE_API_KEY_WORK}",
   "type": "openai",
   "baseUrl": "https://opencode.ai/zen/go/v1",
   "offline": false,
@@ -202,11 +201,10 @@ $env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
 copilot --reasoning-effort high
 ```
 
-Profile entry (stored in `~/.copilot/byok-profiles.json`, account-grouped so `--account` / `activeAccount` resolve the key):
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
 
 ```json
 "opencode-go-gpt-5.6-luna": {
-  "apiKey": "${OPENCODE_API_KEY_WORK}",
   "type": "openai",
   "baseUrl": "https://opencode.ai/zen/go/v1",
   "wireApi": "responses",
@@ -230,11 +228,10 @@ $env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
 copilot --reasoning-effort high
 ```
 
-Profile entry:
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
 
 ```json
 "opencode-go-hy3": {
-  "apiKey": "${OPENCODE_API_KEY_WORK}",
   "type": "openai",
   "baseUrl": "https://opencode.ai/zen/go/v1",
   "offline": false,
@@ -257,11 +254,10 @@ $env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 131072
 copilot --reasoning-effort medium
 ```
 
-Profile entry:
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
 
 ```json
 "opencode-go-muse-spark-1.2-contributor": {
-  "apiKey": "${OPENCODE_API_KEY_WORK}",
   "type": "openai",
   "baseUrl": "https://opencode.ai/zen/go/v1",
   "offline": false,
@@ -284,11 +280,10 @@ $env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 131072
 copilot --reasoning-effort high
 ```
 
-Profile entry:
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
 
 ```json
 "opencode-go-ox-alpha-free": {
-  "apiKey": "${OPENCODE_API_KEY_WORK}",
   "type": "openai",
   "baseUrl": "https://opencode.ai/zen/go/v1",
   "offline": false,
