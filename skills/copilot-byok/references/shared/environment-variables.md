@@ -68,6 +68,8 @@ For OpenCode Go's DeepSeek V4 models, the empirically validated safe values are:
 - `maxPromptTokens`: 325,000
 - `maxOutputTokens`: 64,000
 
+**MiMo-V2.5/V2.5-Pro** (1M theoretical context) also hits the same gateway-enforced effective cap at ~325K prompt tokens. Despite the model supporting 1M natively, OpenCode Go's gateway limits prompt throughput to the same ~325K ceiling. Use the same safe values as DeepSeek V4. (Revised 2026-08-29 based on user-reported upstream errors when exceeding 325K.)
+
 This same limit discovery process applies to any provider whose gateway enforces stricter limits than the model's published context window.
 
 ## Reasoning effort

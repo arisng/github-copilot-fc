@@ -56,13 +56,13 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | Muse Spark 1.2 Contributor (Meta, 1M context) | `muse-spark-1.2-contributor` | `openai` | `completions` | Supported (`minimal`, `low`, `medium`, `high`, `xhigh`) |
 | Ox Alpha Free (free for limited time) | `ox-alpha-free` | `openai` | `completions` | Supported (full range, incl. `max`) |
 
-> **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a hard ceiling of **1,048,576 tokens** (prompt + output combined) — confirmed by a 400 error at 1.05M tokens. Unlike DeepSeek V4 models (which cap at ~325K raw tokens despite 1M theoretical), MiMo-V2.5 passes through the full gateway limit: 1M prompt tokens succeeded, 1.05M was rejected. Output is unconstrained by the API (tested up to 1M `max_tokens`). Practical limits:
+> **MiMo-V2.5 token grounding (empirical 2026-08-19, revised 2026-08-29).** The OpenCode Go gateway enforces a hard ceiling of **1,048,576 tokens** (prompt + output combined) — confirmed by a 400 error at 1.05M tokens. The theoretical context window is 1M tokens, but **practical testing shows the effective prompt limit is ~325K tokens**, matching the same gateway-enforced cap observed on DeepSeek V4 models. Exceeding this causes upstream provider errors. Output is unconstrained by the API (tested up to 1M `max_tokens`). Conservative limits:
 >
 > | Parameter | Empirical value | Rationale |
 > |-----------|----------------|-----------|
-> | `maxPromptTokens` | 980,000 | Safe under 1,048,576 ceiling; leaves 68K for output |
+> | `maxPromptTokens` | 325,000 | Safe under gateway-enforced effective cap; matches DeepSeek V4 behavior |
 > | `maxOutputTokens` | 64,000 | Practical for coding tasks; well under combined ceiling |
-> | Combined budget | 1,044,000 | Stays under 1,048,576 hard limit |
+> | Combined budget | 389,000 | Stays under effective gateway limit |
 
 > **Hy3 token grounding (2026-08-20).** Hy3 has a 256K context window with 64K max output tokens. Conservative token overrides:
 >
