@@ -24,7 +24,7 @@ This single base URL serves every model. Copilot CLI appends the correct path ba
 **Endpoint per family (per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints)):**
 - `COPILOT_PROVIDER_TYPE=openai` + wire API `completions` (default) → `https://opencode.ai/zen/go/v1/chat/completions` — DeepSeek, GLM, Kimi, MiMo (also verified working for the models probed 2026-08-03)
 - `COPILOT_PROVIDER_TYPE=openai` + wire API `responses` → `https://opencode.ai/zen/go/v1/responses` — GPT-5.6 Luna
-- `COPILOT_PROVIDER_TYPE=anthropic` → `https://opencode.ai/zen/go/v1/messages` — MiniMax (M3/M2.7/M2.5), Qwen (3.8 Max/3.7 Max/3.7 Plus/3.6 Plus). Note: the Messages API authenticates with `x-api-key` (not `Authorization: Bearer`); an early 2026-08-03 Bearer probe returned 401, which was an auth-header artifact, not an unsupported endpoint.
+- `COPILOT_PROVIDER_TYPE=anthropic` → `https://opencode.ai/zen/go/v1/messages` — MiniMax (M3/M2.7/M2.5), Qwen (3.8 Flash/3.8 Max/3.7 Max/3.7 Plus/3.6 Plus). Note: the Messages API authenticates with `x-api-key` (not `Authorization: Bearer`); an early 2026-08-03 Bearer probe returned 401, which was an auth-header artifact, not an unsupported endpoint.
 
 **CRITICAL: `COPILOT_MODEL` must use the bare model ID (e.g., `deepseek-v4-flash`), never the `opencode-go/` prefix.** The `opencode-go/<model-id>` format is used **only** in OpenCode TUI config (`opencode.json`) — not in Copilot CLI's `COPILOT_MODEL`. The prefix in profile names like `opencode-go-deepseek-v4-flash` is just a naming convention for the profile key, not the model value.
 
@@ -45,16 +45,19 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | GLM-5.2 | `glm-5.2` | `openai` | `completions` | Not supported |
 | GLM-5.1 | `glm-5.1` | `openai` | `completions` | Not supported |
 | GLM-5 | `glm-5` | `openai` | `completions` | Not supported |
+| GLM-5.3-Flash (Zhipu AI, 1M context) | `glm-5.3-flash` | `openai` | `completions` | Not supported (thinking always-on, defaults to `max`) |
 | MiMo-V2.5 (Xiaomi, 1M context) | `mimo-v2.5` | `openai` | `completions` | Not supported |
 | MiMo-V2.5-Pro (Xiaomi, 1M context) | `mimo-v2.5-pro` | `openai` | `completions` | Not supported |
 | Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
+| Qwen3.8-Flash (Alibaba, 1M context) | `qwen3.8-flash` | `anthropic` | `messages` | Supported (`low`, `medium`, `high`, `xhigh`) — verify on gateway |
 | MiniMax M3 | `minimax-m3` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | MiniMax M2.7 | `minimax-m2.7` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | Hy3 (Tencent, 256K context) | `hy3` | `openai` | `completions` | Supported (`high` only; `no_think` maps to `none`) |
 | Muse Spark 1.2 Contributor (Meta, 1M context) | `muse-spark-1.2-contributor` | `openai` | `completions` | Supported (`minimal`, `low`, `medium`, `high`, `xhigh`) |
 | Ox Alpha Free (free for limited time) | `ox-alpha-free` | `openai` | `completions` | Supported (full range, incl. `max`) |
+| LongCat-2.0 (Meituan, 1M context) | `longcat-2.0` | `openai` | `completions` | Not supported |
 
 > **MiMo-V2.5 token grounding (empirical 2026-08-19, revised 2026-08-29).** The OpenCode Go gateway enforces a hard ceiling of **1,048,576 tokens** (prompt + output combined) — confirmed by a 400 error at 1.05M tokens. The theoretical context window is 1M tokens, but **practical testing shows the effective prompt limit is ~325K tokens**, matching the same gateway-enforced cap observed on DeepSeek V4 models. Exceeding this causes upstream provider errors. Output is unconstrained by the API (tested up to 1M `max_tokens`). Conservative limits:
 >
@@ -63,6 +66,32 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 > | `maxPromptTokens` | 325,000 | Safe under gateway-enforced effective cap; matches DeepSeek V4 behavior |
 > | `maxOutputTokens` | 64,000 | Practical for coding tasks; well under combined ceiling |
 > | Combined budget | 389,000 | Stays under effective gateway limit |
+
+> **GLM-5.3-Flash token grounding (2026-08-26).** GLM-5.3-Flash is a 320B-A18B MoE model from Zhipu AI with 1M context, 131K max output, natively multimodal (text/image/video/PDF), MIT license. Released 2026-08-26. Same gateway-enforced ~325K effective prompt cap applies. Conservative limits:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 325,000 | Safe under gateway-enforced effective cap; matches DeepSeek V4/GLM behavior |
+> | `maxOutputTokens` | 64,000 | Practical for coding tasks |
+> | Combined budget | 389,000 | Stays under effective gateway limit |
+
+> **LongCat-2.0 token grounding (2026-08-30).** LongCat-2.0 is a 1.6T-parameter MoE coding model from Meituan with 1M context, 262K max output, MIT license. Same gateway-enforced ~325K effective prompt cap applies. Conservative limits:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 325,000 | Safe under gateway-enforced effective cap |
+> | `maxOutputTokens` | 64,000 | Practical for coding tasks |
+> | Combined budget | 389,000 | Stays under effective gateway limit |
+
+> **Qwen3.8-Flash token grounding (2026-08-31).** Qwen3.8-Flash is a 125B MoE model from Alibaba with 1M context (native 262K, YaRN-extended to 1M), 131K max output. No empirical prompt-limit test exists for this model on the OpenCode Go gateway. Theoretical 1M context cannot be used as `maxPromptTokens` without gateway validation. Safe default matches the ~325K effective cap observed for DeepSeek V4 and GLM families:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 325,000 | No gateway-specific test; conservative default matching DeepSeek V4/GLM cap |
+> | `maxOutputTokens` | 65,536 | Per Qwen's own Codex integration config |
+> | Combined budget | 390,536 | Stays under effective gateway limit |
+>
+> Increase `maxPromptTokens` only after empirical compaction testing on the OpenCode Go gateway.
 
 > **Hy3 token grounding (2026-08-20).** Hy3 has a 256K context window with 64K max output tokens. Conservative token overrides:
 >
@@ -119,6 +148,32 @@ $env:COPILOT_MODEL = 'qwen3.7-plus'
 copilot
 ```
 
+### Qwen3.8-Flash (Anthropic-compatible, 1M context, multimodal)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'anthropic'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'qwen3.8-flash'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 325000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 65536
+copilot
+```
+
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
+
+```json
+"opencode-go-qwen3.8-flash": {
+  "type": "anthropic",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 325000,
+  "model": "qwen3.8-flash",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 65536
+}
+```
+
 ### MiMo-V2.5 (OpenAI-compatible, 1M context)
 
 ```powershell
@@ -140,6 +195,58 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
   "offline": false,
   "maxPromptTokens": 980000,
   "model": "mimo-v2.5",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 64000
+}
+```
+
+### GLM-5.3-Flash (OpenAI-compatible, 1M context, multimodal)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'glm-5.3-flash'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 325000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
+copilot
+```
+
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
+
+```json
+"opencode-go-glm-5.3-flash": {
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 325000,
+  "model": "glm-5.3-flash",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 64000
+}
+```
+
+### LongCat-2.0 (OpenAI-compatible, 1M context, coding model)
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'longcat-2.0'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 325000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 64000
+copilot
+```
+
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
+
+```json
+"opencode-go-longcat-2.0": {
+  "type": "openai",
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "offline": false,
+  "maxPromptTokens": 325000,
+  "model": "longcat-2.0",
   "accountGroup": "opencode",
   "maxOutputTokens": 64000
 }

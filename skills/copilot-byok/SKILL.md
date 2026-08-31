@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.15.4
+  version: 0.15.5
   lastVerified: 2026-08-09
 ---
 
@@ -193,10 +193,12 @@ Model "glm-5.2" does not support reasoning effort configuration (requested: "hig
 
 it means the model's API does not expose controllable reasoning effort levels. Known families **without** reasoning-effort support:
 
-- **GLM** (`glm-5`, `glm-5.1`, `glm-5.2`) — Zhipu AI / OpenCode Go
+- **GLM** (`glm-5`, `glm-5.1`, `glm-5.2`) — Zhipu AI / OpenCode Go (no controllable levels)
+- **GLM-5.3-Flash** (`glm-5.3-flash`) — Zhipu AI / OpenCode Go (thinking always-on, defaults to `max`; model supports `low`/`high`/`max` but gateway may not expose)
 - **MiMo** (`mimo-v2.5`, `mimo-v2.5-pro`, `mimo-v2-pro`, `mimo-v2-omni`) — Xiaomi / OpenCode Go
 - **Kimi K2.x** (`kimi-k2.7-code`, `kimi-k2.6`, `kimi-k2.5`) — Moonshot AI / OpenCode Go (thinking is implicit / always-on)
-- **Qwen3.x** (`qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus`) — Alibaba / OpenCode Go (implicit thinking; `openai` type per 2026-08-03 probe)
+- **Qwen3.x** (`qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus`) — Alibaba / OpenCode Go (implicit thinking; `anthropic` type per OpenCode Go docs)
+- **Qwen3.8-Flash** (`qwen3.8-flash`) — Alibaba / OpenCode Go (`anthropic` type; may support reasoning effort `low`/`medium`/`high`/`xhigh` — verify on gateway)
 - **MiniMax** (`minimax-m3`, `minimax-m2.7`, `minimax-m2.5`) — MiniMax / OpenCode Go (implicit thinking; `openai` type per 2026-08-03 probe)
 
 When using these models, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.

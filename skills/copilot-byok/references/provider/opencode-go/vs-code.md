@@ -110,6 +110,17 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "thinking": true
     },
     {
+      "id": "glm-5.3-flash",
+      "name": "GLM-5.3-Flash",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": true,
+      "streaming": true,
+      "maxInputTokens": 325000,
+      "maxOutputTokens": 64000,
+      "thinking": true
+    },
+    {
       "id": "mimo-v2.5",
       "name": "MiMo-V2.5",
       "url": "https://opencode.ai/zen/go/v1/chat/completions",
@@ -166,6 +177,17 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "maxOutputTokens": 131072,
       "thinking": true,
       "supportsReasoningEffort": ["low", "medium", "high", "max"]
+    },
+    {
+      "id": "longcat-2.0",
+      "name": "LongCat-2.0",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "toolCalling": true,
+      "vision": false,
+      "streaming": true,
+      "maxInputTokens": 325000,
+      "maxOutputTokens": 64000,
+      "thinking": true
     }
   ]
 }
@@ -178,6 +200,8 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
 > **Muse Spark 1.2 Contributor token grounding (2026-08-20).** Muse Spark 1.2 Contributor has a 1M context window with 131K max output tokens. The contributor tier is heavily discounted but Meta uses your data for training. The values above (909K input + 131K output = 1,040K) stay safely under the 1,048,576 ceiling. Muse Spark supports reasoning effort with five levels: `minimal`, `low`, `medium`, `high`, `xhigh` (medium is default).
 
 > **Ox Alpha Free token grounding (empirical 2026-08-24).** Ox Alpha Free is a free reasoning model with a 1M context window and 131K max output tokens. The model supports tool calling, vision, streaming, and reasoning effort (full range). The values above (980K input + 131K output = 1,111K) exceed the context window; the OpenCode Go gateway may enforce a lower effective limit. Use these values as a starting point and reduce if you encounter 400 errors.
+
+> **Qwen3.8-Flash token grounding (2026-08-31).** No empirical prompt-limit test exists for this model on the OpenCode Go gateway. Theoretical 1M context cannot be used as `maxInputTokens` without gateway validation. The values above (325K input + 65K output = 390K) use the conservative ~325K effective cap observed for DeepSeek V4 and GLM families. `maxOutputTokens: 65536` matches Qwen's own Codex integration config. Increase `maxInputTokens` only after empirical compaction testing.
 
 ### OpenCode Go — Responses API model (GPT-5.6 Luna)
 
@@ -278,6 +302,18 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
       "maxInputTokens": 960000,
       "maxOutputTokens": 32768,
       "thinking": true
+    },
+    {
+      "id": "qwen3.8-flash",
+      "name": "Qwen3.8-Flash",
+      "url": "https://opencode.ai/zen/go/v1/messages",
+      "toolCalling": true,
+      "vision": true,
+      "streaming": true,
+      "maxInputTokens": 325000,
+      "maxOutputTokens": 65536,
+      "thinking": true,
+      "supportsReasoningEffort": ["low", "medium", "high", "xhigh"]
     }
   ]
 }

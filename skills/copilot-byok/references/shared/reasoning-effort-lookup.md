@@ -23,14 +23,17 @@ On the `responses` wire, effort must be **nested** as `reasoning.effort` — a t
 For these, never pass `--reasoning-effort`; thinking is implicit or always-on. Full table with model IDs: [`provider/opencode-go/cli.md`](../provider/opencode-go/cli.md).
 
 - **Kimi K2.x** (Moonshot AI) — thinking always-on / implicit
-- **GLM** (Zhipu AI) — no controllable levels
+- **GLM** (Zhipu AI) — no controllable levels (includes `glm-5.3-flash`)
 - **MiMo** (Xiaomi) — no controllable levels
-- **Qwen3.x** (Alibaba) — implicit thinking (`anthropic` type, `messages` wire per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints))
+- **Qwen3.x** (Alibaba) — implicit thinking (`anthropic` type, `messages` wire per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints); includes `qwen3.8-flash`)
 - **MiniMax** (MiniMax) — implicit thinking (`anthropic` type, `messages` wire)
+- **LongCat-2.0** (Meituan) — no controllable levels (coding model, 1M context; thinking is implicit via `enable_thinking`)
 
 ## OpenCode Go models with UNKNOWN reasoning-effort support
 
 These appear in the live catalog (`https://opencode.ai/zen/go/v1/models`, 2026-08-03) but are not yet classified: `kimi-k3`, `qwen3.8-max`, `hy3-preview`, `grok-4.5`. The catalog exposes no reasoning-effort metadata, so probe before use (start with `--reasoning-effort none`) and record the result in [`provider/opencode-go/cli.md`](../provider/opencode-go/cli.md).
+
+> **Qwen3.8-Flash update (2026-08-30):** The Qwen blog documents `reasoning_effort` support (`low`/`medium`/`high`/`xhigh`) for `qwen3.8-flash` via DashScope. Whether OpenCode Go's `@ai-sdk/anthropic` gateway forwards this parameter is unverified — probe before relying on it. Start with `--reasoning-effort low` on the `anthropic` wire and check for errors.
 
 ## OpenCode Go models with CLASSIFIED reasoning-effort support (2026-08-20)
 
