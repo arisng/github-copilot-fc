@@ -14,7 +14,7 @@ import {
   detectSpecVersion,
   getSpec,
   runCompliance,
-} from "../engine.mjs";
+} from "../machine-simulator.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sample = JSON.parse(

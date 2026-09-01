@@ -1,7 +1,7 @@
 // Machina State-Machine engine — dependency-free, testable.
 // Faithful port of the compliance/scoring/autofill engine from the canonical
 // Machina simulator, shared by the Copilot tools and the simulator app
-// (the app imports this module as /engine.mjs). See
+// (the app imports this module as /machine-simulator.mjs). See
 // simulator/docs/maintenance.md for parity notes.
 
 // ---------------------------------------------------------------------------

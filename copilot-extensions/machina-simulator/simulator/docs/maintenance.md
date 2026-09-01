@@ -4,8 +4,8 @@ Canonical implementation-grounded guidance for editing
 [`simulator/app.html`](../app.html)
 (the simulator app served by this extension at `/`). The app is a single HTML file
 (no external assets, no dependencies, no embedded schema data); it imports the shared
-compliance/scoring/autofill engine from `/engine.mjs`, which is the same
-`engine.mjs` used by the Copilot tools — one engine implementation, two surfaces.
+compliance/scoring/autofill engine from `/machine-simulator.mjs`, which is the same
+`machine-simulator.mjs` used by the Copilot tools — one engine implementation, two surfaces.
 This extension owns the simulator implementation and its docs; for **authoring**
 machine definitions see the `machina-authoring` skill.
 
@@ -109,15 +109,15 @@ This extension owns only the simulator implementation.
 
 ## Engine — single source of truth
 
-`engine.mjs` (at the extension root) is the compliance/scoring/autofill engine. The Copilot
-tools import it directly, and the simulator app imports it as `/engine.mjs` (served by the
+`machine-simulator.mjs` (at the extension root) is the compliance/scoring/autofill engine. The Copilot
+tools import it directly, and the simulator app imports it as `/machine-simulator.mjs` (served by the
 extension HTTP server), so **tool results and in-app scoring can never drift**. The app's
 module script may not define any engine function itself — engine definitions live only in
-`engine.mjs`. When you change scoring or autofill, edit `engine.mjs` and update
+`machine-simulator.mjs`. When you change scoring or autofill, edit `machine-simulator.mjs` and update
 `test/engine.test.mjs`; the app consumes the change automatically.
 
 The engine matches the documented model used by the `machina-authoring` skill's bundled
-`machina.py`:
+`machine-validator.py`:
 
 - `pass(false)` correctly reports a failing check.
 - Checks apply when `since ≤ target spec version` (all 17 checks at v2.0.0, total weight 100).

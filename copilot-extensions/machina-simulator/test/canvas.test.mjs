@@ -95,17 +95,17 @@ test("HTTP server serves the full simulator app (module script, imports engine)"
   const html = await res.text();
   assert.ok(html.includes("Machina ·") || html.includes("State Machine Simulator"), "serves the simulator app");
   assert.ok(html.includes('<script type="module">'), "app uses a module script");
-  assert.ok(html.includes("/engine.mjs"), "app imports the shared engine");
+  assert.ok(html.includes("/machine-simulator.mjs"), "app imports the shared engine");
 });
 
-test("HTTP server serves engine.mjs as JS", async () => {
+  test("HTTP server serves machine-simulator.mjs as JS", async () => {
   const opened = await canvas.open({ instanceId: "http-inst-engine" });
   const port = new URL(opened.url).port;
-  const res = await fetch(`http://127.0.0.1:${port}/engine.mjs`);
+    const res = await fetch(`http://127.0.0.1:${port}/machine-simulator.mjs`);
   assert.equal(res.status, 200);
   assert.match(res.headers.get("content-type") || "", /javascript/);
   const js = await res.text();
-  assert.ok(js.includes("export function runCompliance"), "engine.mjs exposes runCompliance");
+    assert.ok(js.includes("export function runCompliance"), "machine-simulator.mjs exposes runCompliance");
 });
 
 test("served app.html has no inline engine definitions (single source of truth)", () => {

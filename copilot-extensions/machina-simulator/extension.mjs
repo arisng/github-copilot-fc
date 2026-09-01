@@ -2,7 +2,7 @@
 // Machine state-machine validation, autofill, spec reference, and interactive
 // simulator. Serves the full simulator app (simulator/app.html) over the
 // extension's HTTP server, sharing the compliance/scoring/autofill engine
-// (engine.mjs) with the Copilot tools.
+// (machine-simulator.mjs) with the Copilot tools.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -18,11 +18,11 @@ import {
   detectSpecVersion,
   getSpec,
   runCompliance,
-} from "./engine.mjs";
+} from "./machine-simulator.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = path.join(__dirname, "simulator", "app.html");
-const ENGINE_JS = path.join(__dirname, "engine.mjs");
+const ENGINE_JS = path.join(__dirname, "machine-simulator.mjs");
 const appHtml = fs.readFileSync(APP_HTML, "utf8");
 const engineJs = fs.readFileSync(ENGINE_JS, "utf8");
 
@@ -65,10 +65,10 @@ function broadcast(entry, event, data) {
 
 // --- HTTP server -----------------------------------------------------------
 // Serves:
-//   /            → simulator/app.html (the full interactive app)
-//   /engine.mjs  → engine.mjs (shared single source of truth for the engine)
-//   /events      → SSE stream; 'machina' events carry {type:'load'|'command'}
-//   /state       → JSON snapshot of the machine + compliance for the instance
+//   /                     → simulator/app.html (the full interactive app)
+//   /machine-simulator.mjs → machine-simulator.mjs (shared single source of truth for the engine)
+//   /events                → SSE stream; 'machina' events carry {type:'load'|'command'}
+//   /state                 → JSON snapshot of the machine + compliance for the instance
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://127.0.0.1");
   const instanceId = url.searchParams.get("instance") || "";
@@ -80,7 +80,7 @@ const server = http.createServer((req, res) => {
     res.on("close", () => entry.sseClients.delete(res));
     return;
   }
-  if (url.pathname === "/engine.mjs") {
+  if (url.pathname === "/machine-simulator.mjs") {
     res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
     res.end(engineJs);
     return;
