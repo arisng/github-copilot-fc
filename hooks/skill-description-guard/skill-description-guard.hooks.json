@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "bash hooks/skill-description-guard/scripts/skill-description-guard.sh",
+        "powershell": "pwsh -NoProfile -File hooks\\skill-description-guard\\scripts\\skill-description-guard.ps1",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
