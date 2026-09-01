@@ -1,20 +1,18 @@
 ---
 name: machina-authoring
 description: >-
-  Author valid, high-scoring state machines in the Machina machine JSON format
-    (the [machina-simulator extension](../../copilot-extensions/machina-simulator/) format, spec v2.0.0 / v1.0.0). USE WHEN: writing or generating a
-  new machine definition JSON (states, transitions, guards, actions, context, scenarios);
-  modeling a real workflow (order fulfillment, refunds, signup, retries) as a Machina state
-  machine; fixing or upgrading an existing machine JSON so it validates or scores higher;
-  explaining why a machine fails validation or scores below target; running the bundled machina.py
-  CLI to validate, compliance-score, or generate gaps/scenarios for a machine JSON; adding retry
-  guards or cycle protection to a looping workflow; or preparing machines for the compliance
-  scorer ("Excellent" ≥90). DO NOT USE FOR: modifying the Machina simulator app itself, its
-  engine, UI, or SPEC_REGISTRY (use machina-simulator-maintenance), debugging or bug-fixing the
-  bundled machina.py scripts themselves, XState config authoring, SCXML documents, or general
-  diagramming.
+  Author valid, high-scoring state machines in Machina machine JSON format (spec v2.0.0 /
+  v1.0.0). USE WHEN: writing or generating a machine definition (states, transitions, guards,
+  actions, context, scenarios); modeling a real workflow (order fulfillment, refunds, signup,
+  retries) as a Machina state machine; fixing or upgrading a machine JSON for validation or
+  higher compliance score; explaining validation failures or low scores; running the bundled
+  machina-validator.py CLI to validate, score, or generate gaps/scenarios; adding retry guards or cycle
+  protection; or preparing machines for the compliance scorer ("Excellent" ≥90). DO NOT USE
+  FOR: modifying the Machina simulator app, its engine, UI, or SPEC_REGISTRY (use
+    machina-simulator-maintenance), debugging machine-validator.py scripts, XState config authoring,
+  SCXML documents, or general diagramming.
 metadata:
-  version: 0.1.0
+  version: 0.1.1
 ---
 
 # Machina Machine Authoring
@@ -39,7 +37,7 @@ Use these terms consistently — in prompts, output, and code comments:
 | **Action** | Declarative side effect `{ type:"increment"\|"assign" }` on context. No code strings, ever. |
 | **Context** | Extended state data available to guards/actions; supports dotted paths. |
 | **Scenario / entry point** | A named start into the state machine (`scenarios[]` with `initial`, `interface ∈ UI·API`). |
-| **Compliance scorer** | The deterministic 17-check evaluator producing score/grade/gaps (in-app or via `machina.py`). Not "checker", "linter", or "validator" (validation is only its blocking subset). |
+| **Compliance scorer** | The deterministic 17-check evaluator producing score/grade/gaps (in-app or via `machine-validator.py`). Not "checker", "linter", or "validator" (validation is only its blocking subset). |
 | **Gap** | A failing check finding: `auto` (deterministically fillable) or `review` (needs human judgment). |
 
 ## Minimal viable machine
@@ -113,7 +111,7 @@ loading simulator source:
 
 ```powershell
 # From workspace root; python3 on Linux/WSL
-python3 skills/machina-authoring/scripts/machina.py <command> <machine.json> [options]
+python3 skills/machina-authoring/scripts/machine-validator.py <command> <machine.json> [options]
 ```
 
 | Command | Purpose |

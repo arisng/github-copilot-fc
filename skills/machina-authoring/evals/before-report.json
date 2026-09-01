@@ -1,7 +1,7 @@
 {
   "audit_type": "execution",
   "skill": "machina-authoring",
-  "objective": "Author valid, high-scoring Machina machine JSON files and use the bundled machina.py CLI to validate/score them deterministically.",
+  "objective": "Author valid, high-scoring Machina machine JSON files and use the bundled machine-validator.py CLI to validate/score them deterministically.",
   "mode": "full",
   "total_assertions": 20,
   "passed": 20,
@@ -75,7 +75,7 @@
         {
           "id": "A1",
           "type": "coverage",
-          "expression": "contains(\"scripts/machina.py\")",
+          "expression": "contains(\"scripts/machine-validator.py\")",
           "status": "pass"
         },
         {

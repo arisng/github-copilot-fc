@@ -1,6 +1,6 @@
 {
   "skill": "machina-authoring",
-  "objective": "Author valid, high-scoring Machina machine JSON files and use the bundled machina.py CLI to validate/score them deterministically.",
+  "objective": "Author valid, high-scoring Machina machine JSON files and use the bundled machine-validator.py CLI to validate/score them deterministically.",
   "notes": "Assertion constraints: evaluator engine evaluates single-call expressions only (compound '&&' parses in syntax-only mode but returns 'skip' in full mode), and json_valid == true cannot pass against markdown output samples because ConvertFrom-Json receives the whole document. Code-output validity is therefore approximated with matches_regex on fenced json blocks.",
   "cases": [
     {
@@ -42,7 +42,7 @@
       "prompt": "How do I validate and compliance-score my machine JSON before opening it in the simulator?",
       "expected_trigger": true,
       "assertions": [
-        { "id": "A1", "type": "coverage", "description": "Response gives the bundled script invocation path scripts/machina.py", "passes_when": "contains(\"scripts/machina.py\")" },
+        { "id": "A1", "type": "coverage", "description": "Response gives the bundled script invocation path scripts/machine-validator.py", "passes_when": "contains(\"scripts/machine-validator.py\")" },
         { "id": "A2", "type": "structural", "description": "Response shows the validate command", "passes_when": "contains(\"validate\")" },
         { "id": "A3", "type": "structural", "description": "Response shows the score command summary flag", "passes_when": "contains(\"--text\")" },
         { "id": "A4", "type": "formatting", "description": "Commands are presented in a code block, not prose-only", "passes_when": "contains(\"```powershell\")" }

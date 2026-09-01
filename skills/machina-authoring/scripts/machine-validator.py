@@ -2,12 +2,17 @@
 """Machina machine tooling — deterministic authoring engine for Machina machine JSON.
 
 Faithful Python port of the deterministic routines in the Machina simulator
-(served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/engine.mjs):
+(served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/machine-simulator.mjs):
 validation, the 17-check compliance scorer, gap analysis, autofill patches,
 scenario generation, cycle detection, and coverage-block building.
 
+This module is also the **shared engine** for the `machina-driving` skill:
+`machine-driver.py` imports `eval_guard`, `apply_actions`, `is_terminal_state`,
+`run_compliance`, and friends from here rather than re-implementing them, so the
+two skills cannot drift.
+
 Usage:
-  python3 machina.py <command> <machine.json> [options]
+  python3 machine-validator.py <command> <machine.json> [options]
 
 Commands:
   validate   Structural validation errors (hard/blocking only)
@@ -27,7 +32,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
-SPEC_VERSIONS = ["2.0.0", "1.0.0"]  # newest first
+SPEC_VERSIONS = ["3.0.0", "2.0.0", "1.0.0"]  # newest first
 LATEST_SPEC_VERSION = SPEC_VERSIONS[0]
 MAX_DEPTH = 24
 MAX_SCEN = 500
@@ -122,13 +127,7 @@ def eval_guard(g, ctx):
     if not g or g.get("type") != "compare":
         return True
     a = get_path(ctx or {}, g.get("key", ""))
-    b = g.get("value")
-    if isinstance(b, str):
-        ctxd = ctx or {}
-        if b in ctxd:
-            b = ctxd[b]
-        elif re.fullmatch(r"-?\d+(\.\d+)?", b):
-            b = float(b) if "." in b else int(b)
+    b = resolve_value(g.get("value"), ctx or {})
     op = g.get("op")
     try:
         return {
@@ -137,6 +136,30 @@ def eval_guard(g, ctx):
         }.get(op, True)
     except TypeError:
         return True
+
+
+def resolve_value(v, ctx):
+    """Resolve a guard/action value: literal number, context-key name, or numeric string."""
+    if isinstance(v, (int, float)):
+        return v
+    if isinstance(v, str):
+        if v in ctx:
+            return ctx[v]
+        if re.fullmatch(r"-?\d+(\.\d+)?", v):
+            return float(v) if "." in v else int(v)
+    return v
+
+
+def apply_actions(actions, ctx):
+    """Apply declarative actions (increment/assign) to context in place."""
+    for a in actions or []:
+        if not isinstance(a, dict):
+            continue
+        if a.get("type") == "increment":
+            set_path(ctx, a.get("key", ""), (get_path(ctx, a.get("key", "")) or 0) + 1)
+        elif a.get("type") == "assign":
+            set_path(ctx, a.get("key", ""), a.get("value"))
+    return ctx
 
 
 # ── validation (ported from validate()) ─────────────────────────
@@ -245,7 +268,8 @@ def cycle_counter_key(m):
 
 
 def _pass(detail=True):
-    return {"pass": True, "detail": detail}
+    """pass(ok) semantics: pass is True only when the check passed."""
+    return {"pass": bool(detail), "detail": detail}
 
 
 def _fail(detail):
