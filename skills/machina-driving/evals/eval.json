@@ -1,0 +1,145 @@
+{
+  "skill": "machina-driving",
+  "objective": "Produce a deterministic, auditable terminal report (machina.report.v1) grounded strictly to report facts, for both SUCCESS and STUCK outcomes.",
+  "cases": [
+    {
+      "id": "drive-success",
+      "prompt": "Drive the docs-authoring Machina machine to its terminal state and give me the report.",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "A1",
+          "type": "structural",
+          "description": "Report is bounded — under 80 words (compression guard)",
+          "passes_when": "word_count < 80"
+        },
+        {
+          "id": "A2",
+          "type": "coverage",
+          "description": "Report declares the result field",
+          "passes_when": "contains(\"result:\")"
+        },
+        {
+          "id": "A3",
+          "type": "coverage",
+          "description": "Report declares SUCCESS for a success run",
+          "passes_when": "contains(\"SUCCESS\")"
+        },
+        {
+          "id": "A4",
+          "type": "coverage",
+          "description": "Report names the final state",
+          "passes_when": "contains(\"final_state\")"
+        },
+        {
+          "id": "A5",
+          "type": "coverage",
+          "description": "Report traces the state path",
+          "passes_when": "contains(\"path:\")"
+        },
+        {
+          "id": "A6",
+          "type": "coverage",
+          "description": "Report summarizes evidence passed/failed",
+          "passes_when": "contains(\"evidence\")"
+        }
+      ],
+      "human_review": [
+        "agent notes accurately reflect the work done",
+        "events listed match the fired event names"
+      ]
+    },
+    {
+      "id": "drive-stuck",
+      "prompt": "The docs-authoring run is STUCK with zero enabled events — report to the human conductor.",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "B1",
+          "type": "structural",
+          "description": "STUCK report carries enough grounding detail (min-information rule)",
+          "passes_when": "word_count > 30"
+        },
+        {
+          "id": "B2",
+          "type": "domain-bound",
+          "description": "Report names STUCK explicitly",
+          "passes_when": "contains(\"STUCK\")"
+        },
+        {
+          "id": "B3",
+          "type": "domain-bound",
+          "description": "Report refuses to claim success on a non-terminal run",
+          "passes_when": "not_contains(\"SUCCESS\")"
+        },
+        {
+          "id": "B4",
+          "type": "coverage",
+          "description": "Report grounds to final_state and blocked events",
+          "passes_when": "contains(\"blocked\")"
+        },
+        {
+          "id": "B5",
+          "type": "semantic",
+          "description": "Report characterizes STUCK as a modeling gap, not a crash",
+          "passes_when": "contains(\"modeling gap\")"
+        },
+        {
+          "id": "B6",
+          "type": "semantic",
+          "description": "Report states the human decision requested",
+          "passes_when": "contains(\"Please decide\")"
+        }
+      ],
+      "human_review": [
+        "blocked event reasons match the actual evidence failures",
+        "escalation tone stays factual"
+      ]
+    },
+    {
+      "id": "report-json",
+      "prompt": "Emit the terminal machina.report.v1 JSON object.",
+      "expected_trigger": true,
+      "assertions": [
+        {
+          "id": "C1",
+          "type": "formatting",
+          "description": "Output is strict valid JSON",
+          "passes_when": "json_valid == true"
+        },
+        {
+          "id": "C2",
+          "type": "domain-bound",
+          "description": "Output declares the machina.report.v1 schema",
+          "passes_when": "contains(\"machina.report.v1\")"
+        },
+        {
+          "id": "C3",
+          "type": "coverage",
+          "description": "Output carries the run id",
+          "passes_when": "contains(\"run_id\")"
+        },
+        {
+          "id": "C4",
+          "type": "coverage",
+          "description": "Output carries the final result",
+          "passes_when": "contains(\"result\")"
+        }
+      ],
+      "human_review": [
+        "evidence counts match the events fired"
+      ]
+    },
+    {
+      "id": "neg-authoring",
+      "prompt": "Author a new Machina machine definition JSON for a docs review workflow.",
+      "expected_trigger": false,
+      "assertions": [],
+      "human_review": []
+    }
+  ],
+  "stop_conditions": {
+    "activation": "Stop when false positives and false negatives no longer improve.",
+    "execution": "Stop when score plateaus, assertions conflict, or perfect scores still fail human review."
+  }
+}
