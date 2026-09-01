@@ -190,6 +190,27 @@ function Test-PublishPathExists {
     return Test-Path $Path
 }
 
+function Confirm-Overwrite {
+    <#
+    .SYNOPSIS
+        Prompts the user to confirm overwriting an existing file.
+    .DESCRIPTION
+        Shows a warning with file details and asks Y/N. Returns $true if the
+        caller should proceed with the overwrite, $false to skip.
+        Non-interactive callers should use -Force to skip the prompt entirely.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [Parameter(Mandatory)][string]$Label
+    )
+
+    $message = "  Collision: $FilePath already exists. Overwrite? [Y/N]"
+    Write-Host $message -ForegroundColor Yellow
+    $response = Read-Host "  Confirm overwrite of existing $Label"
+    return ($response -eq 'Y' -or $response -eq 'y')
+}
+
 function Resolve-HookScriptSourcePath {
     [CmdletBinding()]
     param(
@@ -258,6 +279,20 @@ function Resolve-HookScriptSourcePath {
 }
 
 function Get-UserLevelScriptRelativePath {
+    <#
+    .SYNOPSIS
+        Strips known hook root prefixes and the slug folder, returning a flat relative path.
+
+    .DESCRIPTION
+        Given a source path like:
+            <repo>/hooks/<slug>/scripts/foo.ps1
+            <repo>/.github/hooks/<slug>/scripts/foo.ps1
+        Returns:
+            scripts/foo.ps1
+
+        The slug folder is intentionally removed so the published output is flat.
+        If the source doesn't match any known root, falls back to 'repo-scripts/<relative>'.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
@@ -273,9 +308,15 @@ function Get-UserLevelScriptRelativePath {
 
     foreach ($knownHookRoot in $knownHookRoots) {
         if ($sourceFull.StartsWith($knownHookRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-            $relativePath = $sourceFull.Substring($knownHookRoot.Length).TrimStart('\', '/')
-            if (-not [string]::IsNullOrWhiteSpace($relativePath)) {
-                return $relativePath
+            $remainder = $sourceFull.Substring($knownHookRoot.Length).TrimStart('\', '/')
+            if (-not [string]::IsNullOrWhiteSpace($remainder)) {
+                # Strip the slug folder (first path segment) to flatten output.
+                # e.g. "skill-description-guard/scripts/foo.ps1" -> "scripts/foo.ps1"
+                $segments = $remainder -split '[\\/]', 2
+                if ($segments.Count -ge 2) {
+                    return $segments[1]
+                }
+                return $remainder
             }
         }
     }
@@ -516,9 +557,11 @@ function Publish-HookSet {
         Ensure-PublishDirectory -Path $targetDirectory -Label 'publish target' -UseWSL:$UseWSL
 
         if ((Test-PublishPathExists -Path $targetFile -UseWSL:$UseWSL) -and -not $Force) {
-            Write-Host "  Skipped (exists): $($file.Name) -> $Label - use -Force to overwrite" -ForegroundColor Yellow
-            $skipped++
-            continue
+            if (-not (Confirm-Overwrite -FilePath $targetFile -Label 'hook manifest')) {
+                Write-Host "  Skipped: $($file.Name) -> $Label" -ForegroundColor Yellow
+                $skipped++
+                continue
+            }
         }
 
         if ($UseWSL) {
@@ -570,9 +613,11 @@ function Publish-UserLevelHookSet {
 
         $targetFile = Join-PublishPath -Root $DestinationRoot -RelativePath $file.Name -UseWSL:$UseWSL
         if ((Test-PublishPathExists -Path $targetFile -UseWSL:$UseWSL) -and -not $Force) {
-            Write-Host "  Skipped (exists): $($file.Name) -> $Label - use -Force to overwrite" -ForegroundColor Yellow
-            $skipped++
-            continue
+            if (-not (Confirm-Overwrite -FilePath $targetFile -Label 'hook manifest')) {
+                Write-Host "  Skipped: $($file.Name) -> $Label" -ForegroundColor Yellow
+                $skipped++
+                continue
+            }
         }
 
         $convertedHook = Convert-HookFileForUserLevel `
@@ -585,7 +630,14 @@ function Publish-UserLevelHookSet {
         foreach ($scriptReference in $convertedHook.ScriptReferences) {
             $scriptTargetPath = Join-PublishPath -Root $DestinationRoot -RelativePath $scriptReference.DestinationRelativePath -UseWSL:$UseWSL
             if ((Test-PublishPathExists -Path $scriptTargetPath -UseWSL:$UseWSL) -and -not $Force) {
-                $scriptsSkipped++
+                if (Confirm-Overwrite -FilePath $scriptTargetPath -Label 'hook script') {
+                    Copy-PublishScript -SourcePath $scriptReference.SourcePath -DestinationPath $scriptTargetPath -UseWSL:$UseWSL
+                    $scriptsPublished++
+                }
+                else {
+                    Write-Host "  Skipped: $(Split-Path $scriptTargetPath -Leaf) -> $Label" -ForegroundColor Yellow
+                    $scriptsSkipped++
+                }
                 continue
             }
 
