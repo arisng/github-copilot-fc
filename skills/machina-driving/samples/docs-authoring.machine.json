@@ -1,0 +1,119 @@
+{
+  "id": "docs-authoring",
+  "name": "Docs Authoring",
+  "version": "1.0.0",
+  "spec_version": "3.0.0",
+  "initial": "reviewing-draft",
+  "context": {
+    "draft_path": "",
+    "review": {
+      "broken_links": 0
+    }
+  },
+  "tools": {
+    "draft-file-exists": {
+      "cmd": "python3 scripts/check_file.py {ctx.draft_path}",
+      "expect_exit": 0,
+      "timeout_seconds": 30
+    },
+    "link-check": {
+      "cmd": [
+        "python3",
+        "scripts/check_links.py",
+        "{ctx.draft_path}"
+      ],
+      "expect_exit": 0,
+      "timeout_seconds": 30,
+      "output": {
+        "broken": "review.broken_links"
+      }
+    }
+  },
+  "limits": {
+    "max_events": 20
+  },
+  "scenarios": [
+    {
+      "id": "default",
+      "label": "Default",
+      "initial": "reviewing-draft",
+      "interface": "API",
+      "inputs": {
+        "draft_path": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  ],
+  "states": {
+    "reviewing-draft": {
+      "description": "Produce the draft file at draft_path. The file must exist before you may leave this state.",
+      "checks": [
+        "draft-file-exists"
+      ],
+      "on": {
+        "DRAFT_REVIEWED": {
+          "target": "publishing",
+          "requires": [
+            "link-check"
+          ],
+          "description": "Draft exists and links check out."
+        }
+      }
+    },
+    "publishing": {
+      "description": "Publish the reviewed draft.",
+      "on": {
+        "PUBLISHED": {
+          "target": "published"
+        }
+      }
+    },
+    "published": {
+      "type": "final",
+      "description": "Draft published."
+    }
+  },
+  "coverage": {
+    "generated": "2026-09-01T07:21:29Z",
+    "version": "3.0.0",
+    "metrics": {
+      "total_states": 3,
+      "final_states": 1,
+      "total_transitions": 2,
+      "coverage_percentage": 100.0
+    },
+    "state_coverage": {
+      "reviewing-draft": {
+        "visited": true,
+        "incoming": 0,
+        "outgoing": 1
+      },
+      "publishing": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "published": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 0
+      }
+    },
+    "edge_coverage": {
+      "reviewing-draft:DRAFT_REVIEWED": {
+        "from": "reviewing-draft",
+        "to": "publishing",
+        "covered": true
+      },
+      "publishing:PUBLISHED": {
+        "from": "publishing",
+        "to": "published",
+        "covered": true
+      }
+    },
+    "uncovered_paths": [],
+    "recommendations": []
+  }
+}
