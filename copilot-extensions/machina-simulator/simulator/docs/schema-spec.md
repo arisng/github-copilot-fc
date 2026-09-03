@@ -159,4 +159,7 @@ The simulator and `scripts/replay-all.mjs` share one convention for locating per
 
 `machina-persist` is the **canonical write target** (written by the `machina-driving`
 skill); `machina-i2` is a **legacy read-only** root scanned for replay compatibility. The
-canvas `open` handler accepts `runRef` to auto-load a persisted run into replay mode.
+canvas `open` handler accepts `runRef` to auto-load a persisted run into replay mode, and
+additionally **auto-discovers the full inventory on every open** (even empty), exposed as
+`/state` → `runHistory` (`[{ family, runid, machine, records, readError }]`) and as the
+app's **Runs** tab (`/runs` list + `/open-run` click-to-replay).

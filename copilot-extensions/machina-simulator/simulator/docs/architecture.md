@@ -113,6 +113,19 @@ Transport semantics:
 - `diffReeval` guards are re-evaluated against context-before per record; a
   `guardMismatch` surfaces divergence between what happened and what the machine says.
 
+## Run history panel (Runs tab)
+
+The **Runs** tab surfaces persisted run history with zero `runRef` plumbing:
+
+- On app bootstrap it fetches `/runs` (lean inventory from `discovery.mjs`) and renders a
+  row per run (family/runid, machine id, record count); unreadable runs render greyed.
+- **Refresh** re-runs the discovery scan; clicking a run calls
+  `/open-run?instance=…&runRef=<family>/<runid>`, which resolves the run server-side,
+  enters replay, and broadcasts the same `load` event the stage consumes — so the run
+  replays immediately and the Runs panel is a pure click-to-replay browser.
+- `runHistory` is also exposed via `/state` for programmatic consumers, so an empty canvas
+  open already surfaces the discovered inventory without any app interaction.
+
 ## Guard/action evaluation:
 
 - `evalGuard`: reads context by dotted path (`getPath`); string `value` resolves against context

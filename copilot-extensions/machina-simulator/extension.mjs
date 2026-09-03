@@ -50,6 +50,19 @@ function cleanFindings(f) {
   }));
 }
 
+// Lean, serializable run-history inventory for the canvas surface. Carries no
+// ledger payloads — the app fetches a specific run via /open-run.
+function runInventory(runs) {
+  return (runs || []).map((r) => ({
+    root: r.root,
+    family: r.family,
+    runid: r.runid,
+    machine: r.machine?.id ?? null,
+    records: r.ledger ? r.ledger.length : 0,
+    readError: r.readError ?? null,
+  }));
+}
+
 // --- State for canvas ------------------------------------------------------
 const instances = new Map();
 function getInstance(instanceId) {
@@ -97,7 +110,7 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (!machine) {
-          res.end(JSON.stringify({ ok: true, machine: null, compliance: null, replay: null }));
+            res.end(JSON.stringify({ ok: true, machine: null, compliance: null, replay: null, runHistory: runInventory(entry.state.runHistory) }));
       return;
     }
     res.end(
@@ -127,10 +140,68 @@ const server = http.createServer((req, res) => {
                 failing: compliance.findings.filter((f) => !f.pass).map((f) => f.id),
               }
             : null,
-        }),
-      );
+                    runHistory: runInventory(entry.state.runHistory),
+                  }),
+                );
+                return;
+              }
+  if (url.pathname === "/runs") {
+    // Disjoint run-history inventory (root/family/runid/machine/records).
+    const runs = discoverRunHistory();
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ ok: true, runs: runInventory(runs) }));
+    return;
+  }
+  if (url.pathname === "/open-run") {
+    // Server-side resolve + replay a persisted run; broadcasts a load event so
+    // the app live-loads the picked run (same path as canvas open with runRef).
+    const entry = getInstance(instanceId);
+    const runRef = (url.searchParams.get("runRef") || "").trim();
+    try {
+      const runs = discoverRunHistory();
+      const matches = resolveRunRef(runs, runRef);
+      if (!matches.length) throw new Error(`runRef "${runRef}" not found in any persisted run root`);
+      if (matches.length > 1) throw new Error(`runRef "${runRef}" is ambiguous (${matches.length} matches: ${matches.map((m) => `${m.family}/${m.runid}`).join(", ")})`);
+      const run = matches[0];
+      if (run.readError) throw new Error(`run "${runRef}" is unreadable: ${run.readError}`);
+      if (!run.machine) throw new Error(`run "${runRef}" has no machine.json sibling; load a machine explicitly`);
+      const m = run.machine;
+      const ledger = run.ledger;
+      entry.state.machine = m;
+      entry.state.error = null;
+      entry.state.compliance = runCompliance(m);
+      entry.state.replaySource = { root: run.root, family: run.family, runid: run.runid, runRef };
+      const machineJson = run.machinePath ? fs.readFileSync(run.machinePath, "utf8") : null;
+      const rep = replayRunLedger(m, ledger, { diffReeval: true, machineJson });
+      entry.state.replay = {
+        ledger,
+        trace: rep.trace,
+        integrity: rep.integrity,
+        terminal: rep.terminal,
+        state: rep.state,
+        context: rep.context,
+        blockedCount: rep.blockedCount,
+        machineMatch: rep.machineMatch,
+        machineHashOk: rep.machineHashOk,
+      };
+      broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson } });
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({
+        ok: true,
+        verdict: rep.integrity.verdict,
+        integrityOk: rep.integrity.ok,
+        terminal: rep.terminal,
+        source: entry.state.replaySource,
+      }));
+    } catch (err) {
+      entry.state.error = String(err.message || err);
+      broadcast(entry, "machina", { type: "load", machine: null, error: entry.state.error });
+      res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ ok: false, error: entry.state.error }));
       return;
     }
+    return;
+  }
   if (url.pathname === "/") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(appHtml);
@@ -146,7 +217,7 @@ const port = server.address().port;
 
 // --- Canvas ----------------------------------------------------------------
 const canvas = createCanvas({
-  id: "machina-viewer",
+  id: "machine-simulator",
   displayName: "Machina Simulator",
   description: "Render and drive a Machina state machine in the full simulator (graph, scenario playback, coverage, cycle guards, compliance, schema editor). Live-load machines and send playback commands from the agent.",
   inputSchema: {
@@ -314,19 +385,23 @@ const canvas = createCanvas({
           const entry = getInstance(ctx.instanceId);
                   const input = ctx.input || {};
                   try {
-                    if (input.runRef) {
-                      // runRef → systematic discovery: load the persisted machine.json +
-                      // ledger for the referenced run and enter replay mode. Uses the same
-                      // discovery convention as scripts/replay-all.mjs (single source of truth).
-                      const runs = discoverRunHistory();
-                      const matches = resolveRunRef(runs, input.runRef);
-                      if (!matches.length) throw new Error(`runRef "${input.runRef}" not found in any persisted run root`);
-                      if (matches.length > 1) throw new Error(`runRef "${input.runRef}" is ambiguous (${matches.length} matches: ${matches.map((m) => `${m.family}/${m.runid}`).join(", ")})`);
-                      const run = matches[0];
-                      if (run.readError) throw new Error(`run "${input.runRef}" is unreadable: ${run.readError}`);
-                      if (!run.machine) throw new Error(`run "${input.runRef}" has no machine.json sibling; load a machine explicitly`);
-                      const m = run.machine;
-                      const ledger = run.ledger;
+                            // Auto-discovery: always scan run history so the canvas surfaces
+                            // the persisted-run inventory (visible via /state + /runs) even
+                            // when no runRef or machine is passed.
+                            entry.state.runHistory = discoverRunHistory();
+                            if (input.runRef) {
+                              // runRef → systematic discovery: load the persisted machine.json +
+                              // ledger for the referenced run and enter replay mode. Uses the same
+                              // discovery convention as scripts/replay-all.mjs (single source of truth).
+                              const runs = entry.state.runHistory;
+                              const matches = resolveRunRef(runs, input.runRef);
+                              if (!matches.length) throw new Error(`runRef "${input.runRef}" not found in any persisted run root`);
+                              if (matches.length > 1) throw new Error(`runRef "${input.runRef}" is ambiguous (${matches.length} matches: ${matches.map((m) => `${m.family}/${m.runid}`).join(", ")})`);
+                              const run = matches[0];
+                              if (run.readError) throw new Error(`run "${input.runRef}" is unreadable: ${run.readError}`);
+                              if (!run.machine) throw new Error(`run "${input.runRef}" has no machine.json sibling; load a machine explicitly`);
+                              const m = run.machine;
+                              const ledger = run.ledger;
                       entry.state.machine = m;
                       entry.state.error = null;
                       entry.state.compliance = runCompliance(m);
@@ -377,7 +452,11 @@ const canvas = createCanvas({
                                     return {
                                               url: `http://127.0.0.1:${port}?instance=${ctx.instanceId}`,
                                               title: "Machina Simulator",
-                                              status: entry.state.machine ? "Ready" : "Empty — load a machine to begin",
+                                              status: entry.state.machine
+                                                ? "Ready"
+                                                : entry.state.runHistory && entry.state.runHistory.length
+                                                  ? `Empty — load a machine or pick a run (${entry.state.runHistory.length} discovered)`
+                                                  : "Empty — load a machine to begin",
                                             };
                                           },
         onClose: async (ctx) => {
@@ -499,11 +578,11 @@ const session = await joinSession({
     commands: [
       {
         name: "machina-simulator",
-        description: "Open the Machina Simulator canvas (machina-viewer). Usage: /machina-simulator [<machine JSON or path>]. Pass a machine JSON string to preload it.",
+              description: "Open the Machina Simulator canvas (machine-simulator). Usage: /machina-simulator [<machine JSON or path>]. Pass a machine JSON string to preload it.",
         handler: async (ctx) => {
           const arg = (ctx.args || "").trim();
           await session.send({
-            prompt: `Open the "machina-viewer" canvas using the open_canvas tool${
+                  prompt: `Open the "machine-simulator" canvas using the open_canvas tool${
               arg ? `, passing machine "${arg}"` : ""
             }. Do NOT explain in chat — just open the canvas.`,
             displayPrompt: arg ? `Opening Machina Simulator — ${arg.slice(0, 40)}…` : "Opening Machina Simulator…",

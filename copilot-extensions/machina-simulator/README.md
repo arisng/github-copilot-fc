@@ -18,13 +18,13 @@ match what authors see when they score a definition.
 | Tool | `machina_validate` | Score a state machine 0–100 against its target spec version; returns grade, per-category breakdown, blocking findings, and per-check findings with remediation. |
 | Tool | `machina_autofill` | Deterministic "Generate missing" patches (spec_version → version → scenarios → coverage → cycle-guards → descriptions → finals-typed); returns the patched definition and before/after scores. Never mutates the input. |
 | Tool | `machina_spec` | Look up any registry spec version as JSON Schema (draft 2020-12) or Markdown. |
-| Canvas | `machina-viewer` | Side-panel that runs the full simulator app: graph, playback, scenarios, coverage, cycle guards, compliance, schema editor — and **run replay** of a recorded Machina ledger. |
-| Slash command | `/machina-simulator` | Open the `machina-viewer` canvas. Optional argument: a machine JSON string to preload. |
+| Canvas | `machine-simulator` | Side-panel that runs the full simulator app: graph, playback, scenarios, coverage, cycle guards, compliance, schema editor — and **run replay** of a recorded Machina ledger, plus a **Runs** inventory tab that auto-discovers persisted run history. |
+| Slash command | `/machina-simulator` | Open the `machine-simulator` canvas. Optional argument: a machine JSON string to preload. |
 
 ## Opening the canvas from the terminal
 
 `/machina-simulator` (no leading slash in code; invoked as a slash command) opens
-the `machina-viewer` canvas via the `open_canvas` tool. You can also pass a
+the `machine-simulator` canvas via the `open_canvas` tool. You can also pass a
 machine JSON string to preload it:
 
 ```
@@ -66,7 +66,9 @@ The extension runs a loopback HTTP server (bound to `127.0.0.1`) that serves:
 | `/` | `simulator/app.html` — the full interactive simulator |
 | `/machine-simulator.mjs` | `machine-simulator.mjs` — the shared compliance/scoring/autofill engine |
 | `/events` | SSE stream carrying `machina` events (`{type:'load'}` with a state machine, or `{type:'command'}` for playback) |
-| `/state` | JSON snapshot of the loaded state machine + compliance summary for an instance |
+| `/state` | JSON snapshot of the loaded state machine + compliance summary for an instance; also exposes `runHistory` (auto-discovered run inventory) and `replay` (verdict, integrity, terminal) |
+| `/runs` | JSON run-history inventory: `{ ok, runs: [{ family, runid, machine, records, readError }] }` from the shared discovery convention |
+| `/open-run` | `?instance=<id>&runRef=<family>/<runid>` — resolve a persisted run server-side, enter replay mode, and broadcast the replay `load` event to the app |
 
 The canvas `open` handler returns the app URL; the `machina_load` action live-loads
 a state machine into the app over SSE, and the `machina_command` action drives playback
@@ -113,6 +115,20 @@ E.g. open the canvas already replaying a persisted run:
 `machina-i2` is a **legacy read-only** root from an earlier authoring round and is
 scanned for replay but never a write target.
 
+### Auto-discovery & the Runs tab
+
+Opening the canvas with **no input** auto-discovers the persisted run history and
+exposes it without a `runRef`:
+
+- `open()` always runs `discoverRunHistory()` and stores the lean inventory in
+  `/state` → `runHistory` (`[{ family, runid, machine, records, readError }]`).
+  An empty open shows the discovered count in the status line (e.g.
+  "Empty — load a machine or pick a run (21 discovered)").
+- The app's **Runs** tab (`/runs` + `/open-run`) lists every discovered run
+  (family/runid, machine id, record count); unreadable runs are shown greyed.
+- Clicking a run calls `/open-run` and the SSE `load` event replays that run from
+  its ledger in the stage — no `runRef` plumbing needed from the conductor.
+
 ### Conducting from the browser
 
 The app URL returned by `open` is a loopback URL with an `instance` id:
@@ -146,7 +162,7 @@ Verify with `/extensions manage`.
 * "Validate `state-machine.json` with machina_validate."
 * "Run machina_autofill on the machine in `sample.json` and show what changed."
 * "Give me the machina_spec for v1.0.0 as JSON Schema."
-* "Open the machina-viewer canvas for this state machine."
+* "Open the machine-simulator canvas for this state machine."
 
 ## Development
 

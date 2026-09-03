@@ -50,10 +50,10 @@ test("extension registers 3 tools with unique names", () => {
   assert.equal(new Set(names).size, 3);
 });
 
-test("extension registers one machina-viewer canvas and requests renderer", () => {
+test("extension registers one machine-simulator canvas and requests renderer", () => {
   assert.equal(__opts.requestCanvasRenderer, true);
   assert.ok(canvas);
-  assert.equal(canvas.id, "machina-viewer");
+  assert.equal(canvas.id, "machine-simulator");
   assert.ok(Array.isArray(canvas.actions));
   assert.equal(canvas.displayName, "Machina Simulator");
 });
@@ -73,8 +73,9 @@ test("extension registers a /machina-simulator slash command that opens the canv
   const sent = calls[calls.length - 1];
   assert.ok(sent.payload && sent.payload.prompt, "send must carry a prompt");
   assert.match(sent.payload.prompt, /open_canvas/i);
-  assert.match(sent.payload.prompt, /machina-viewer/);
-  assert.match(sent.payload.prompt, /Do NOT explain/);
+    assert.match(sent.payload.prompt, /machine-simulator/);
+    assert.doesNotMatch(sent.payload.prompt, /machina-viewer/);
+    assert.match(sent.payload.prompt, /Do NOT explain/);
   // A machine arg is threaded into the prompt.
   const before2 = calls.length;
   await cmd.handler({ sessionId: "sess-2", args: '{ "id": "demo" }' });
@@ -316,7 +317,7 @@ test("/state for an unknown instance returns empty state (ok, no machine)", asyn
 
 test("canvas open without machine reports empty status", async () => {
   const opened = await canvas.open({ instanceId: "no-machine-inst" });
-  assert.equal(opened.status, "Empty — load a machine to begin");
+  assert.match(opened.status, /^Empty — load a machine/);
 });
 
 test("canvas open with runRef auto-discovers a persisted run via run history", async () => {
@@ -369,4 +370,132 @@ test("canvas open with unknown runRef reports a clear error", async () => {
     if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
     else process.env.MACHINA_RUN_ROOTS = prev;
   }
+});
+
+// --- Auto-discovery of run history (root-cause fix) ----------------------
+
+test("canvas id is canonical machine-simulator (not machina-viewer)", () => {
+  assert.equal(canvas.id, "machine-simulator");
+  assert.equal(canvas.displayName, "Machina Simulator");
+});
+
+test("open() without input auto-discovers run history into /state inventory", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-auto-"));
+  const root = path.join(tmp, "machina-persist");
+  fs.mkdirSync(root, { recursive: true });
+  const family = "i5-releasenotes";
+  fs.mkdirSync(path.join(root, family), { recursive: true });
+  writePersistedRun(path.join(root, family), "autoRun1", "pm-release-notes");
+  writePersistedRun(path.join(root, family), "autoRun2", "pm-release-notes");
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "auto-disc-inst", input: {} });
+    // status should mention discovered runs even when no machine is loaded
+        assert.match(opened.status, /2 discovered/);
+    const port = new URL(opened.url).port;
+    const res = await fetch(`http://127.0.0.1:${port}/state?instance=auto-disc-inst`);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.ok(Array.isArray(body.runHistory), "/state must surface runHistory inventory");
+    assert.equal(body.runHistory.length, 2);
+    const ids = body.runHistory.map((r) => r.runid).sort();
+    assert.deepEqual(ids, ["autoRun1", "autoRun2"]);
+    const r = body.runHistory.find((x) => x.runid === "autoRun1");
+    assert.equal(r.family, family);
+    assert.equal(r.machine, "pm-release-notes");
+    assert.equal(r.records, 2);
+    assert.ok(!("ledger" in r), "inventory must be lean (no full ledger payloads)");
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
+});
+
+test("/runs route returns the disjoint run-history inventory", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-runs-"));
+  const root = path.join(tmp, "machina-persist");
+  fs.mkdirSync(root, { recursive: true });
+  writePersistedRun(path.join(root, "i1-triage"), "routeRunA", "pm-issue-triage");
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "runs-route-inst", input: {} });
+    const port = new URL(opened.url).port;
+    const res = await fetch(`http://127.0.0.1:${port}/runs`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.ok(Array.isArray(body.runs));
+    assert.equal(body.runs.length, 1);
+    assert.equal(body.runs[0].runid, "routeRunA");
+    assert.equal(body.runs[0].machine, "pm-issue-triage");
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
+});
+
+test("/open-run resolves a persisted run server-side and enters replay", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-openrun-"));
+  const root = path.join(tmp, "machina-persist");
+  fs.mkdirSync(root, { recursive: true });
+  const family = "i5-releasenotes";
+  fs.mkdirSync(path.join(root, family), { recursive: true });
+  writePersistedRun(path.join(root, family), "openRun", "pm-release-notes");
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "openrun-inst", input: {} });
+    const port = new URL(opened.url).port;
+    const res = await fetch(`http://127.0.0.1:${port}/open-run?instance=openrun-inst&runRef=${encodeURIComponent(`${family}/openRun`)}`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.verdict, "verifiable");
+    assert.equal(body.integrityOk, true);
+    assert.equal(body.terminal, "complete");
+    assert.ok(body.source, "open-run must surface the replay source");
+    assert.equal(body.source.family, family);
+    assert.equal(body.source.runid, "openRun");
+    // state should now carry the replay so the app can hydrate
+    const sres = await fetch(`http://127.0.0.1:${port}/state?instance=openrun-inst`);
+    const sbody = await sres.json();
+    assert.equal(sbody.replay.verdict, "verifiable");
+    assert.ok(sbody.replay.source, "/state replay must carry source after /open-run");
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
+});
+
+test("/open-run with unknown runRef returns a 404 and clear error", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-openrun-"));
+  const root = path.join(tmp, "machina-persist");
+  fs.mkdirSync(root, { recursive: true });
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "openrun-missing", input: {} });
+    const port = new URL(opened.url).port;
+    const res = await fetch(`http://127.0.0.1:${port}/open-run?instance=openrun-missing&runRef=nowhere%2Fnope`);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.equal(body.ok, false);
+    assert.match(body.error, /not found/);
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
+});
+
+test("slash command prompts open_canvas with the canonical machine-simulator id", async () => {
+  const session = globalThis.__machinaTestSession;
+  const cmd = session.__opts.commands.find((c) => c.name === "machina-simulator");
+  assert.ok(cmd);
+  await cmd.handler({ sessionId: "sess-canon", args: "" });
+  const sent = (session.__calls || []).filter((c) => c.kind === "send").pop();
+  assert.ok(sent && sent.payload.prompt, "handler must send a prompt");
+  assert.match(sent.payload.prompt, /machine-simulator/);
+  assert.doesNotMatch(sent.payload.prompt, /machina-viewer/);
 });

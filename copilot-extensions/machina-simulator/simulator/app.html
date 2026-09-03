@@ -473,6 +473,16 @@
     .modal-head-actions { display: flex; align-items: center; gap: 8px; }
     .limit-note { font-size: 11.5px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--border); border-radius: var(--radius); background: var(--fg-soft); line-height: 1.5; }
     .limit-note + .limit-note { margin-top: 6px; }
+        .runs-meta { font-size: 12px; color: var(--muted); line-height: 1.5; }
+        .runs-list { display: flex; flex-direction: column; gap: 8px; }
+        .run-item { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%;
+          padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--fg-soft); color: var(--fg); cursor: pointer; font: inherit; }
+        .run-item:hover { border-color: var(--accent); }
+        .run-item-error { opacity: .72; cursor: default; }
+        .run-item-runid { font-family: var(--mono); font-size: 12px; color: var(--accent); word-break: break-all; }
+        .run-item-meta { font-size: 11.5px; color: var(--muted); }
+        .runs-empty { font-size: 12px; color: var(--muted); line-height: 1.5; padding: 6px 2px; }
     .notice-close { flex: 0 0 auto; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
     .notice-close:hover { color: var(--fg); background: var(--fg-soft); }
     .modeb-hint { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; border: 1px solid color-mix(in oklch, var(--warn) 35%, var(--border)); border-radius: var(--radius); background: color-mix(in oklch, var(--warn) 12%, transparent); color: var(--warn-text); font-size: 11.5px; line-height: 1.5; }
@@ -636,7 +646,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
       <span>Inspector</span>
     </button>
-  </nav>
+        <button class="tab" id="tab-runs" role="tab" aria-selected="false" aria-controls="runs-panel" data-tab="runs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M4 19l4-4M8 15l4-4M12 11l3-3M15 8h2"/></svg>
+          <span>Runs</span>
+        </button>
+      </nav>
 
   <div class="app" data-od-id="app">
     <aside class="panel panel-schema" id="schema-panel" role="tabpanel" aria-labelledby="tab-schema" data-od-id="schema-panel">
@@ -808,7 +822,19 @@
         </details>
       </div>
     </aside>
-  </div>
+
+        <aside class="panel panel-inspector" id="runs-panel" role="tabpanel" aria-labelledby="tab-runs" data-od-id="runs-panel">
+          <div class="panel-title">
+            Runs
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-runs" data-od-id="refresh-runs" title="Re-scan persisted run history">Refresh</button>
+          </div>
+          <div class="insp-body">
+            <div class="runs-meta" id="runs-meta">Scanning persisted run history…</div>
+            <div class="runs-list" id="runs-list"></div>
+            <div class="limit-note" style="margin-top: 12px;">Persisted runs under <code>~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}</code>. Click a run to replay it from its ledger.</div>
+          </div>
+        </aside>
+      </div>
 
   <div class="modal-backdrop" id="spec-modal" hidden>
     <div class="modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="spec-modal-title">
@@ -900,14 +926,17 @@ import {
 
 
     /* ── app version (single source of truth) ───────────────────
-           v0.4.0 · 2026-09-03 · run replay: load a recorded ledger via
-             replayRunLedger, trust badge (✓ verified / TAMPERED),
-             blocked/redirect log rendering, replayStep/Back/Reset/Jump, diffReeval
-             guard-mismatch feedback for conductor steering
-           v0.3.1 · 2026-08-24 · fix spacing control (canvas pointer capture)
-       v0.3.0 · 2026-08-24 · graph density control + markdown spec copy +
-         generated markers + version model + Mode B hint + in-app limits docs */
-    const APP_VERSION = '0.4.0';
+               v0.4.1 · 2026-09-03 · run history panel: auto-discovered inventory
+                 in a Runs tab (/runs + /open-run click-to-replay, Refresh), lean
+                 runHistory in /state, canvas id canonical machine-simulator
+               v0.4.0 · 2026-09-03 · run replay: load a recorded ledger via
+                 replayRunLedger, trust badge (✓ verified / TAMPERED),
+                 blocked/redirect log rendering, replayStep/Back/Reset/Jump, diffReeval
+                 guard-mismatch feedback for conductor steering
+               v0.3.1 · 2026-08-24 · fix spacing control (canvas pointer capture)
+           v0.3.0 · 2026-08-24 · graph density control + markdown spec copy +
+             generated markers + version model + Mode B hint + in-app limits docs */
+        const APP_VERSION = '0.4.1';
 const $ = id => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
 const clone = x => JSON.parse(JSON.stringify(x));
@@ -2092,6 +2121,7 @@ const TAB_PANELS = {
       schema:    document.querySelector('[data-od-id="schema-panel"]'),
       stage:     document.querySelector('[data-od-id="stage"]'),
       inspector: document.querySelector('[data-od-id="inspector-panel"]'),
+      runs:      document.querySelector('[data-od-id="runs-panel"]'),
     }
 
     function setActiveTab(tabId) {
@@ -2487,9 +2517,73 @@ showEmptyState();
 updateFileBar();
 syncScenarioSelect();
 
+/* ── run history panel ─────────────────────────────────────── */
+const runsList = $('runs-list');
+const runsMeta = $('runs-meta');
+async function refreshRuns() {
+  if (!runsList || !runsMeta) return;
+  runsMeta.textContent = 'Scanning persisted run history…';
+  try {
+    const res = await fetch('/runs');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const body = await res.json();
+    if (!body.ok) throw new Error(body.error || 'unknown error');
+    const runs = body.runs || [];
+    runsMeta.textContent = runs.length === 0
+      ? 'No persisted runs found'
+      : runs.length + ' persisted run' + (runs.length === 1 ? '' : 's') + ' discovered';
+    runsList.innerHTML = '';
+    if (!runs.length) {
+      const empty = document.createElement('div');
+      empty.className = 'runs-empty';
+      empty.innerHTML = 'Nothing to replay yet. Run a <code>machina-driving</code> session that persists a ledger under <code>machina-persist</code>.';
+      runsList.appendChild(empty);
+      return;
+    }
+    for (const r of runs) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'run-item' + (r.readError ? ' run-item-error' : '');
+      const runidEl = document.createElement('span');
+      runidEl.className = 'run-item-runid';
+      runidEl.textContent = r.family + '/' + r.runid;
+      const metaEl = document.createElement('span');
+      metaEl.className = 'run-item-meta';
+      metaEl.textContent = (r.machine || 'no machine.json') + ' · ' + r.records + ' rec' + (r.readError ? ' · unreadable' : '');
+      row.appendChild(runidEl);
+      row.appendChild(metaEl);
+      if (!r.readError) {
+        row.addEventListener('click', () => openRun(r.family + '/' + r.runid));
+      }
+      runsList.appendChild(row);
+    }
+  } catch (err) {
+    runsMeta.textContent = 'Run-history scan failed: ' + (err.message || err);
+  }
+}
+async function openRun(runRef) {
+  try {
+    const res = await fetch('/open-run?instance=' + encodeURIComponent(inst) + '&runRef=' + encodeURIComponent(runRef));
+    const body = await res.json();
+    if (!res.ok || !body.ok) {
+      toast('Run load failed: ' + (body.error || 'HTTP ' + res.status), true);
+      return;
+    }
+    setActiveTab('stage');
+    toast('Replaying ' + runRef + ' — ' + body.verdict);
+  } catch (err) {
+    toast('Run load failed: ' + (err.message || err), true);
+  }
+}
+if (runsList) {
+  const btn = $('btn-refresh-runs');
+  if (btn) btn.addEventListener('click', refreshRuns);
+  refreshRuns();
+}
+
 /* ── extension bridge ──────────────────────────────────────────── */
+const inst = new URLSearchParams(location.search).get('instance') || '';
 const __extBridge = (() => {
-  const inst = new URLSearchParams(location.search).get('instance') || '';
   const es = new EventSource('/events?instance=' + encodeURIComponent(inst));
   es.addEventListener('machina', (e) => {
     let d;

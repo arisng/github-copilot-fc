@@ -105,8 +105,9 @@ Replay is an engine feature powered by `replayRunLedger`/`replayIntegrityOk` in
 ### Run-history discovery
 
 `scripts/discovery.mjs` is the **single source of truth** for locating persisted runs. Both
-`scripts/replay-all.mjs` (the batch gate) and `extension.mjs` (the canvas `runRef` open path)
-import it — never reimplement a scan. Editing invariants:
+`scripts/replay-all.mjs` (the batch gate) and `extension.mjs` (the canvas `runRef` open path
+AND the auto-discovery inventory `/runs` + `/open-run`) import it — never reimplement a scan.
+Editing invariants:
 
 - Root resolution: explicit roots > `MACHINA_RUN_ROOTS` env > default
   `~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}` scan.
@@ -115,7 +116,12 @@ import it — never reimplement a scan. Editing invariants:
   gate fails **closed** on them.
 - `machina-persist` = canonical write target; `machina-i2` = legacy read-only (kept for
   replay compatibility). Do not write new runs under `machina-i2`.
-- `test/discovery.test.mjs` and the two `replay-all`/canvas `runRef` tests guard the contract.
+- `open()` **always** runs `discoverRunHistory()` (even with empty input) and exposes the
+  lean inventory as `/state` → `runHistory`; the app's **Runs** tab consumes `/runs` and
+  `/open-run`. `open()` may never throw on a discovery failure — errors go to `state.error`,
+  status stays Empty.
+- `test/discovery.test.mjs`, the canvas auto-discovery/`/runs`/`/open-run` tests, and the two
+  `replay-all`/canvas `runRef` tests guard the contract.
 
 ## Reference map (load on demand)
 
