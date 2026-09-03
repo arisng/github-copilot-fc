@@ -181,6 +181,9 @@ class DriverTestBase(unittest.TestCase):
     def _status(self, run_id):
         return md.main(["status", "--run", run_id, "--run-dir", str(self.run_dir)])
 
+    def _check(self, run_id):
+        return md.main(["check", "--run", run_id, "--run-dir", str(self.run_dir)])
+
     def _report(self, run_id):
         return md.main(["report", "--run", run_id, "--run-dir", str(self.run_dir)])
 
@@ -384,6 +387,233 @@ class TestLedgerIntegrity(DriverTestBase):
         rc, out = self._capture(lambda: self._status(run_id))
         self.assertEqual(rc, 1)
         self.assertIn("integrity violation", out["error"])
+
+
+class TestArtifactTamper(DriverTestBase):
+    """Artifact-hash binding: the run's machine.json definition copy and every
+    tool/checker script are pinned in the init record and re-verified on every
+    command (status/fire/check/report). Editing either mid-run fails closed."""
+
+    def _init_docs(self):
+        mp = write_machine(self.tmp, "docs.machine.json", docs_machine())
+        draft = Path(self.tmp) / "draft.md"
+        draft.write_text("# Draft", encoding="utf-8")
+        rc, out = self._capture(lambda: self._init(mp, input=f"draft_path={draft}"))
+        self.assertEqual(rc, 0)
+        return out["data"]["run_id"]
+
+    def test_run_machine_json_tamper_detected(self):
+        run_id = self._init_docs()
+        self._fire(run_id, "DRAFT_REVIEWED")
+        # Tamper with the run's machine definition copy (change a target).
+        mpath = self.run_dir / run_id / "machine.json"
+        m = json.loads(mpath.read_text(encoding="utf-8"))
+        m["states"]["publishing"]["on"]["PUBLISHED"]["target"] = "reviewing-draft"
+        mpath.write_text(json.dumps(m, indent=2), encoding="utf-8")
+        # Every subsequent command must refuse with an integrity violation.
+        for cmd in (lambda: self._status(run_id), lambda: self._fire(run_id, "PUBLISHED"),
+                    lambda: self._check(run_id), lambda: self._report(run_id)):
+            rc, out = self._capture(cmd)
+            self.assertEqual(rc, 1)
+            self.assertIn("integrity violation", out["error"])
+            self.assertIn("machine", out["error"].lower())
+
+    def test_run_machine_json_tamper_detected_by_check(self):
+        run_id = self._init_docs()
+        mpath = self.run_dir / run_id / "machine.json"
+        m = json.loads(mpath.read_text(encoding="utf-8"))
+        m["states"]["publishing"]["description"] = "edited"
+        mpath.write_text(json.dumps(m, indent=2), encoding="utf-8")
+        rc, out = self._capture(lambda: self._check(run_id))
+        self.assertEqual(rc, 1)
+        self.assertIn("integrity violation", out["error"])
+        self.assertIn("machine", out["error"].lower())
+
+    def test_tool_script_hash_detected(self):
+        run_id = self._init_docs()
+        self._fire(run_id, "DRAFT_REVIEWED")
+        # Edit a referenced checker script mid-run.
+        checker = Path(self.tmp) / "scripts" / "check_file.py"
+        checker.write_text(
+            checker.read_text(encoding="utf-8") + "\n# tampered\n",
+            encoding="utf-8",
+        )
+        rc, out = self._capture(lambda: self._status(run_id))
+        self.assertEqual(rc, 1)
+        self.assertIn("integrity violation", out["error"])
+        self.assertIn("tool", out["error"].lower())
+        self.assertIn("check_file.py", out["error"])
+
+    def test_check_ok_on_intact_run(self):
+        run_id = self._init_docs()
+        self._fire(run_id, "DRAFT_REVIEWED")
+        rc, out = self._capture(lambda: self._check(run_id))
+        self.assertEqual(rc, 0)
+        self.assertTrue(out["ok"])
+        d = out["data"]
+        self.assertTrue(d["machine_sha256_ok"])
+        self.assertTrue(d["tool_hashes_ok"])
+        self.assertTrue(d["ledger_locked"])
+        self.assertEqual(d["state"], "publishing")
+
+    def test_pre_upgrade_run_not_bound_skips_artifact_verification(self):
+        """Backward compatibility: a run initialized before v0.3.0 has no
+        machine_sha256/tool_hashes in its init record; artifact verification is
+        skipped (not bound) while the ledger chain still verifies."""
+        run_id = self._init_docs()
+        # Strip artifact binding out of the init record and re-hash the chain.
+        ledger = self.run_dir / run_id / "ledger.jsonl"
+        lines = ledger.read_text(encoding="utf-8").splitlines()
+        rec = json.loads(lines[0])
+        rec["payload"].pop("machine_sha256", None)
+        rec["payload"].pop("tool_hashes", None)
+        rec["prev_hash"] = None
+        rec["hash"] = md._sha256(rec["payload"])
+        lines[0] = json.dumps(rec, separators=(",", ":"))
+        ledger.write_text("\n".join(lines), encoding="utf-8")
+        rc, out = self._capture(lambda: self._status(run_id))
+        self.assertEqual(rc, 0)
+        self.assertEqual(out["data"]["state"], "reviewing-draft")
+
+
+class TestReportLedgerBinding(DriverTestBase):
+    def test_report_bound_to_ledger(self):
+        mp = write_machine(self.tmp, "docs.machine.json", docs_machine())
+        draft = Path(self.tmp) / "draft.md"
+        draft.write_text("# Draft", encoding="utf-8")
+        rc, out = self._capture(lambda: self._init(mp, input=f"draft_path={draft}"))
+        run_id = out["data"]["run_id"]
+        self._fire(run_id, "DRAFT_REVIEWED")
+        self._fire(run_id, "PUBLISHED")
+        rc, out = self._capture(lambda: self._report(run_id))
+        self.assertEqual(rc, 0)
+        r = out["data"]
+        self.assertEqual(r["schema"], "machina.report.v1")
+        ledger = self.run_dir / run_id / "ledger.jsonl"
+        last_hash = None
+        for line in ledger.read_text(encoding="utf-8").splitlines():
+            last_hash = json.loads(line)["hash"]
+        self.assertEqual(r["ledger_final_hash"], last_hash)
+        stored = json.loads((self.run_dir / run_id / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(stored["ledger_final_hash"], last_hash)
+
+    def test_report_refuses_tampered_run(self):
+        run_id = None
+        mp = write_machine(self.tmp, "docs.machine.json", docs_machine())
+        draft = Path(self.tmp) / "draft.md"
+        draft.write_text("# Draft", encoding="utf-8")
+        rc, out = self._capture(lambda: self._init(mp, input=f"draft_path={draft}"))
+        run_id = out["data"]["run_id"]
+        # Tamper with the machine definition copy -> report must fail closed.
+        mpath = self.run_dir / run_id / "machine.json"
+        m = json.loads(mpath.read_text(encoding="utf-8"))
+        m["name"] = "edited"
+        mpath.write_text(json.dumps(m, indent=2), encoding="utf-8")
+        rc, out = self._capture(lambda: self._report(run_id))
+        self.assertEqual(rc, 1)
+        self.assertIn("integrity violation", out["error"])
+
+
+class TestRepoRunDirRefusal(DriverTestBase):
+    def test_init_refuses_repo_run_dir(self):
+        mp = write_machine(self.tmp, "docs.machine.json", docs_machine())
+        # A temp dir containing a .git entry looks like a repo worktree.
+        repo = Path(self.tmp) / "fake-repo"
+        repo.mkdir()
+        (repo / ".git").mkdir()
+        runs = repo / "runs"
+        rc, out = self._capture(lambda: md.main(
+            ["init", "--machine", str(mp), "--input", "draft_path=foo.md",
+             "--run-dir", str(runs)]))
+        self.assertEqual(rc, 1)
+        self.assertFalse(out["ok"])
+        self.assertIn("git worktree", out["error"])
+        self.assertIn("MACHINA_ALLOW_REPO_RUNS", out["error"])
+        # No run dir was created.
+        self.assertFalse(runs.exists())
+
+    def test_init_allows_repo_run_dir_with_override(self):
+        mp = write_machine(self.tmp, "docs.machine.json", docs_machine())
+        repo = Path(self.tmp) / "fake-repo"
+        repo.mkdir()
+        (repo / ".git").mkdir()
+        runs = repo / "runs"
+        os.environ["MACHINA_ALLOW_REPO_RUNS"] = "1"
+        try:
+            rc, out = self._capture(lambda: md.main(
+                ["init", "--machine", str(mp), "--input", "draft_path=foo.md",
+                 "--run-dir", str(runs)]))
+        finally:
+            del os.environ["MACHINA_ALLOW_REPO_RUNS"]
+        self.assertEqual(rc, 0)
+        self.assertTrue(out["ok"])
+
+    def test_init_allows_non_repo_run_dir(self):
+        mp = write_machine(self.tmp, "docs.machine.json", docs_machine())
+        rc, out = self._capture(lambda: self._init(mp, input="draft_path=foo.md"))
+        self.assertEqual(rc, 0)
+        self.assertTrue(out["ok"])
+
+
+class TestChildRunForgedResistance(DriverTestBase):
+    def _make_runs(self):
+        parent = write_machine(self.tmp, "parent.machine.json", phase_parent_machine())
+        child = write_machine(self.tmp, "child.machine.json", phase_child_machine())
+        rc, out = self._capture(lambda: self._init(parent))
+        parent_run = out["data"]["run_id"]
+        self._fire(parent_run, "BEGIN_PHASE")
+        rc, out = self._capture(lambda: self._init(child))
+        child_run = out["data"]["run_id"]
+        self._fire(child_run, "CHILD_DONE")
+        return parent_run, child_run
+
+    def test_child_run_requires_valid_ledger_and_machine(self):
+        parent_run, child_run = self._make_runs()
+        # Forge a new child run whose ledger/init record was fabricated: replace
+        # its init record with one bound to a DIFFERENT machine than the machine.json
+        # (the pinned machine_sha256 will not match the copied body).
+        child_dir = self.run_dir / child_run
+        forged_machine = json.loads((child_dir / "machine.json").read_text(encoding="utf-8"))
+        forged_machine["id"] = "forged-task"
+        ledger_path = child_dir / "ledger.jsonl"
+        lines = ledger_path.read_text(encoding="utf-8").splitlines()
+        init = json.loads(lines[0])
+        init["payload"]["machine_id"] = "forged-task"
+        init["payload"]["machine_sha256"] = md._sha256_normalized_machine(forged_machine)
+        init["prev_hash"] = None
+        init["hash"] = md._sha256(init["payload"])
+        lines[0] = json.dumps(init, separators=(",", ":"))
+        for i in range(1, len(lines)):
+            rec = json.loads(lines[i])
+            rec["prev_hash"] = json.loads(lines[i - 1])["hash"]
+            rec["hash"] = md._sha256(rec["payload"])
+            lines[i] = json.dumps(rec, separators=(",", ":"))
+        ledger_path.write_text("\n".join(lines), encoding="utf-8")
+        # Parent fires the completion event against the forged child: the child's
+        # machine hash is pinned to the forged body, so verification fails closed.
+        rc, out = self._capture(lambda: self._fire(parent_run, "PHASE_DONE", child_run=child_run))
+        self.assertEqual(rc, 1)
+        self.assertIn("child ledger integrity violation", out["error"])
+
+    def test_child_run_rejects_missing_init_binding(self):
+        """A child that rewrote its ledger to drop artifact binding AND re-hashed
+        the chain still fails: the init record must carry machine_dir, and the
+        chain must be consistent — a bare init with no artifact hashes is treated
+        as a pre-upgrade unbound run and would pass artifact verification, but a
+        ledger that strips machine_dir reflects an invalid run."""
+        parent_run, child_run = self._make_runs()
+        child_dir = self.run_dir / child_run
+        ledger_path = child_dir / "ledger.jsonl"
+        lines = ledger_path.read_text(encoding="utf-8").splitlines()
+        init = json.loads(lines[0])
+        init["payload"].pop("machine_dir", None)
+        init["prev_hash"] = None
+        init["hash"] = md._sha256(init["payload"])
+        lines[0] = json.dumps(init, separators=(",", ":"))
+        ledger_path.write_text("\n".join(lines), encoding="utf-8")
+        rc, out = self._capture(lambda: self._fire(parent_run, "PHASE_DONE", child_run=child_run))
+        self.assertEqual(rc, 1)
+        self.assertIn("child ledger integrity violation", out["error"])
 
 
 class TestStatus(DriverTestBase):

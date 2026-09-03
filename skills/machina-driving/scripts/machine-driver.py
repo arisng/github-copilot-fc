@@ -29,13 +29,26 @@ Commands:
   init   --machine <file> [--scenario <id>] [--input k=v ...] [--run-dir <dir>]
   status [--run <id>] [--run-dir <dir>]
   fire   <EVENT> [--run <id>] [--note "..."] [--child-run <id>] [--run-dir <dir>]
-  abort  [--run <id>] [--reason "..."] [--run-dir <dir>]
+    abort  [--run <id>] [--reason "..."] [--run-dir <dir>]
+    check  [--run <id>] [--run-dir <dir>]
+  check  [--run <id>] [--run-dir <dir>]
   report [--run <id>] [--run-dir <dir>]
 
 Run state layout (--run-dir, default: <cwd>/.machina/runs):
   <run-dir>/<run_id>/machine.json   copy of the machine definition
   <run-dir>/<run_id>/ledger.jsonl   append-only event ledger (chained hashes)
   <run-dir>/<run_id>/report.json    terminal report (written by `report`)
+
+Tamper-evidence (v0.3.0):
+  The ledger chain (prev_hash/hash over each record payload) verifies that no
+  record was inserted, removed, or reordered. Artifact binding additionally
+  pins the run's machine definition (machine_sha256) and every tool/checker
+  script the machine references (tool_hashes) in the `init` record; status,
+  fire, abort, check, and report recompute those hashes on every invocation
+  and raise LedgerIntegrityError on mismatch. See references/driving-protocol.md
+  ("Tamper prevention") for the four mechanisms and the honest ceiling:
+  this is detect-and-fail-closed, not cryptographic proof against an attacker
+  who can rewrite the run directory (no OS read-only, no HMAC by design).
 
 Stdlib only. Python 3.9+.
 """
@@ -271,6 +284,125 @@ def _sha256(obj):
     return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _sha256_normalized_machine(machine):
+    """Canonical SHA-256 of a machine definition dict.
+
+    Normalizes by re-serializing with the same canonical form `_sha256` uses
+    (sort_keys + compact separators), so formatting/whitespace never changes the
+    hash. The machine dict passed in is a parsed JSON object, so key ordering is
+    already lost; sorting keys restores a stable canonical form.
+    """
+    return hashlib.sha256(
+        json.dumps(machine, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _tool_script_path(tool, machine_dir):
+    """Resolve a tool's script path (the file the engine would execute).
+
+    Rule (deterministic, documented in the module docstring and driving-protocol):
+      - No `cmd` -> None (nothing to hash; the tool has no script).
+      - First cmd token is the interpreter/executable. If it is a bare builtin
+        (no path separator, not absolute), there is no script file to hash:
+        only tokens after the first with a path separator (relative or absolute)
+        can identify a script, and the FIRST such leading token that resolves to
+        a real file is the script. Relative paths resolve machine-relative
+        (against machine_dir), exactly like `_resolve_tool_cmd`.
+      - If no candidate resolves to a real file -> None (hashing is skipped and
+        the run is "not bound" to script content for that tool; verification
+        treats None as unverified).
+    """
+    cmd = tool.get("cmd")
+    if not cmd:
+        return None
+    parts = cmd.split() if isinstance(cmd, str) else list(cmd)
+    if not parts:
+        return None
+    first = parts[0]
+    first_is_script = not os.path.isabs(first) and ("/" in first or "\\" in first)
+    if first_is_script:
+        p = Path(machine_dir) / first
+        return p if p.is_file() else None
+    # Interpreter-style cmd (python3 scripts/check.py, ...): the interpreter is
+    # not a repo script; hash the first following token that resolves to a file.
+    for tok in parts[1:]:
+        if os.path.isabs(tok) or "/" in tok or "\\" in tok:
+            p = Path(tok) if os.path.isabs(tok) else Path(machine_dir) / tok
+            if p.is_file():
+                return p
+    return None
+
+
+def _compute_tool_hashes(machine, machine_dir):
+    """Compute {tool_name: sha256(script_content)} for every tool the machine
+    references, resolved machine-relative to machine_dir.
+
+    Deterministic skip rule: a tool whose cmd does not resolve to a real script
+    file is recorded with value None (verified as "no script pinned"). Tools
+    whose script sha matches the pinned value (or whose pinned value is None)
+    verify OK.
+    """
+    hashes = {}
+    for name, tool in sorted((machine.get("tools") or {}).items()):
+        path = _tool_script_path(tool, machine_dir)
+        if path is None:
+            hashes[name] = None
+        else:
+            hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashes
+
+
+def _verify_artifacts(entries, machine, machine_dir):
+    """Verify artifact binding from the init record against the live machine.
+
+    The run's machine.json is bound at `init` via machine_sha256; each tool the
+    machine references is bound via tool_hashes. Recomputed on every command so
+    a mid-run edit to the definition copy OR a checker script fails closed.
+
+    Backward compatibility: runs initialized before v0.3.0 have no hashes in
+    their init record; those runs are treated as "not bound" and artifact
+    verification is skipped so pre-upgrade runs keep working. The ledger hash
+    chain is still fully verified for them.
+
+    Returns None on success; raises LedgerIntegrityError with a precise message
+    on the first mismatch.
+    """
+    for rec in entries:
+        if rec["payload"].get("type") == "init":
+            payload = rec["payload"]
+            break
+    else:
+        raise LedgerIntegrityError("no init record in ledger")
+    pinned_machine = payload.get("machine_sha256")
+    pinned_tools = payload.get("tool_hashes")
+    if pinned_machine is None and pinned_tools is None:
+        # Pre-v0.3.0 run: not bound. Skip artifact verification.
+        return
+    if pinned_machine is not None:
+        actual = _sha256_normalized_machine(machine)
+        if actual != pinned_machine:
+            raise LedgerIntegrityError(
+                "machine definition hash mismatch (machine.json edited after init)"
+            )
+    if pinned_tools is not None:
+        actual_tools = _compute_tool_hashes(machine, machine_dir)
+        for name, pinned in sorted(pinned_tools.items()):
+            actual = actual_tools.get(name)
+            if pinned is None:
+                continue  # no script pinned at init; nothing to verify
+            if actual is None:
+                raise LedgerIntegrityError(
+                    f"tool {name}: checker script no longer resolvable (pinned hash present)"
+                )
+            if actual != pinned:
+                    script_path = _tool_script_path((machine.get("tools") or {}).get(name) or {}, machine_dir)
+                    raise LedgerIntegrityError(
+                        f"tool {name} ({script_path}): checker script hash mismatch "
+                        "(checker edited after init)"
+                    )
+        return
+
+
 def _ledger_path(run_dir):
     return Path(run_dir) / "ledger.jsonl"
 
@@ -317,7 +449,13 @@ class LedgerIntegrityError(Exception):
 # ---------------------------------------------------------------------------
 
 def _run_state(run_dir):
-    """Reconstruct current run state by folding the ledger."""
+    """Reconstruct current run state by folding the ledger.
+
+    Verifies the ledger hash chain (via _read_ledger) AND the artifact binding
+    (machine_sha256 + tool_hashes pinned in the init record) on every call.
+    Raises LedgerIntegrityError on any violation, so status/fire/abort/check/
+    report all fail closed on tamper.
+    """
     entries = _read_ledger(run_dir)
     machine = json.loads((Path(run_dir) / "machine.json").read_text(encoding="utf-8"))
     state = None
@@ -341,6 +479,9 @@ def _run_state(run_dir):
             pass
         elif p["type"] == "abort":
             state = p.get("state")
+    if machine_dir is None:
+        raise LedgerIntegrityError("init record missing machine_dir")
+    _verify_artifacts(entries, machine, machine_dir)
     return {"machine": machine, "state": state, "context": ctx, "scenario_id": scenario_id,
             "machine_dir": machine_dir, "entries": entries}
 
@@ -392,19 +533,29 @@ def cmd_init(args):
 
     ctx = _seed_context(machine, scenario, inputs)
 
-    # Run dir
-    run_dir = Path(args.run_dir) / _new_run_id()
+    # Run dir — refuse to create runs inside a git worktree (deterministic
+    # guarantee): run state must never silently land in a repo you might commit.
+    base = Path(args.run_dir)
+    refuse = _refuse_repo_run_dir(base)
+    if refuse:
+        return _err(refuse)
+    run_dir = base / _new_run_id()
     run_dir.mkdir(parents=True, exist_ok=False)
+    machine_dir = str(machine_path.resolve().parent)
     (run_dir / "machine.json").write_text(json.dumps(machine, indent=2), encoding="utf-8")
 
     # Entry actions
     st = (machine.get("states") or {}).get(initial) or {}
     apply_actions(st.get("entry"), ctx)
 
+    # Artifact binding: pin the canonical machine definition hash and every
+    # tool/checker script hash in the init record. Verified on every command.
     _append_ledger(run_dir, {
         "type": "init", "machine_id": machine.get("id"), "spec_version": detect_spec_version(machine)["version"],
         "scenario": (scenario or {}).get("id"), "state": initial, "context": ctx,
-            "machine_dir": str(machine_path.resolve().parent),
+            "machine_dir": machine_dir,
+            "machine_sha256": _sha256_normalized_machine(machine),
+            "tool_hashes": _compute_tool_hashes(machine, machine_dir),
             "timestamp": _now_iso(),
         })
 
@@ -471,6 +622,8 @@ def cmd_fire(args):
         if not child_dir.exists():
             return _err(f"child run not found: {args.child_run}")
         try:
+            # Must pass full ledger + artifact verification: a forged child
+            # cannot claim a pinned machine_sha256/tool_hashes it cannot match.
             child_rs = _run_state(child_dir)
         except LedgerIntegrityError as e:
             return _err(f"child ledger integrity violation: {e}")
@@ -565,6 +718,28 @@ def cmd_abort(args):
     return _ok({"status": "aborted", "run_id": run_dir.name, "state": rs["state"], "reason": args.reason})
 
 
+def cmd_check(args):
+    """Terminal integrity gate: re-run full ledger + artifact verification and
+    emit a strict JSON verdict. Exit 0 when the run is intact, non-zero on any
+    integrity violation. Never writes to the run."""
+    run_dir = _resolve_run_dir(args)
+    try:
+        rs = _run_state(run_dir)
+    except LedgerIntegrityError as e:
+        return _err(f"ledger integrity violation: {e}")
+    machine = rs["machine"]
+    state = rs["state"]
+    data = {
+        "machine_sha256_ok": True,
+        "tool_hashes_ok": True,
+        "ledger_locked": True,
+        "run_dir": str(run_dir),
+        "state": state,
+        "terminal": is_terminal_state(machine, state),
+    }
+    return _ok(data)
+
+
 def cmd_report(args):
     run_dir = _resolve_run_dir(args)
     try:
@@ -615,7 +790,8 @@ def cmd_report(args):
                         for e in entries if e["payload"].get("note")],
                 "nested_runs": [e["payload"].get("child_run") for e in entries
                                 if e["payload"].get("child_run")],
-    }
+            "ledger_final_hash": entries[-1]["hash"] if entries else None,
+        }
     (run_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return _ok(report)
 
@@ -626,6 +802,39 @@ def cmd_report(args):
 
 def _now_iso():
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+_ALLOW_REPO_RUNS_ENV = "MACHINA_ALLOW_REPO_RUNS"
+
+
+def _in_git_worktree(path):
+    """True when path lies inside a git worktree (a .git file or dir exists
+    at path or at any ancestor up to the filesystem root)."""
+    cur = Path(path)
+    try:
+        cur = cur.resolve()
+    except OSError:
+        cur = Path(path).absolute()
+    while True:
+        if (cur / ".git").exists():
+            return True
+        parent = cur.parent
+        if parent == cur:
+            return False
+        cur = parent
+
+
+def _refuse_repo_run_dir(base):
+    """Refuse to create a run dir inside a git worktree, unless the run is
+    explicitly opting in via MACHINA_ALLOW_REPO_RUNS=1."""
+    if _in_git_worktree(base):
+        if os.environ.get(_ALLOW_REPO_RUNS_ENV) == "1":
+            return None
+        return (
+            f"refusing to create run dir inside a git worktree: {base} "
+            f"(commit only what you intend; set {_ALLOW_REPO_RUNS_ENV}=1 to allow)"
+        )
+    return None
 
 
 def _resolve_run_dir(args):
@@ -659,7 +868,7 @@ def main(argv=None):
     p_init.add_argument("--input", action="append", default=[])
     p_init.add_argument("--run-dir", default=".machina/runs")
 
-    for name in ("status", "report"):
+    for name in ("status", "check", "report"):
         p = sub.add_parser(name)
         p.add_argument("--run")
         p.add_argument("--run-dir", default=".machina/runs")
@@ -685,6 +894,8 @@ def main(argv=None):
             return cmd_fire(args)
         if args.command == "abort":
             return cmd_abort(args)
+        if args.command == "check":
+            return cmd_check(args)
         if args.command == "report":
             return cmd_report(args)
     except LedgerIntegrityError as e:

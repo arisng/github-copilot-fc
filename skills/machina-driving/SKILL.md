@@ -6,15 +6,16 @@ description: >-
   JSON with states, transitions, guards, actions, tools, checks, scenarios);
   executing a workflow that must be deterministic and auditable; running a
   skill whose SKILL.md declares a `machina:` machine; firing events, checking
-  status, satisfying evidence checks, or producing a terminal report for a
-  machine-driven run; escalating a STUCK run to a human conductor. DO NOT USE
-  FOR: authoring or scoring machine definitions (use machina-authoring);
-  modifying the Machina simulator app or its engine (use machina-simulator);
-    implementing or modifying the driver/runtime tooling such as
-    scripts/machine-driver.py (that is engine development, not driving);
-    general diagramming or XState/SCXML authoring.
+  status, satisfying evidence checks, verifying run integrity with `check`, or
+  producing a terminal report for a machine-driven run; escalating a STUCK run
+  to a human conductor. DO NOT USE FOR: authoring or scoring machine definitions
+  (use machina-authoring); modifying the Machina simulator app or its engine
+  (use machina-simulator); implementing or modifying the driver/runtime tooling
+  such as `scripts/machine-driver.py` (engine development) unless you are a
+  maintainer of this skill upgrading the driver itself; general diagramming or
+  XState/SCXML authoring.
 metadata:
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Machina Driving
@@ -30,6 +31,7 @@ satisfy evidence checks. The outcome is a deterministic, auditable report.
 python3 scripts/machine-driver.py init --machine <machine.json> --scenario <id> --input k=v --run-dir <session-workspace>/.machina/runs
 python3 scripts/machine-driver.py status --run <run_id> --run-dir <session-workspace>/.machina/runs
 python3 scripts/machine-driver.py fire <EVENT> --run <run_id> --note "what you did" --run-dir <session-workspace>/.machina/runs
+python3 scripts/machine-driver.py check --run <run_id> --run-dir <session-workspace>/.machina/runs
 python3 scripts/machine-driver.py report --run <run_id> --run-dir <session-workspace>/.machina/runs
 ```
 
@@ -47,7 +49,35 @@ first-class outcome, not an error.
 4. **Check status** — `status` shows enabled vs blocked events and why.
 5. **Fire** events with a `--note`; iterate on `blocked` outcomes by fixing the
    underlying condition (guard or evidence), never by forcing the machine.
-6. **Report** at terminal — ground your final summary to the report facts.
+6. **Verify integrity** — `check` re-runs the full ledger + artifact-hash
+   verification and returns `{ok:true}` only when the run is intact.
+7. **Report** at terminal — ground your final summary to the report facts.
+
+## Tamper prevention
+
+The driver makes accidental or silent tampering fail closed. Four mechanisms
+(v0.3.0):
+
+1. **Ledger hash chain** — `ledger.jsonl` records chain via `prev_hash`/`hash`;
+   any insert, remove, or reorder is detected on every command.
+2. **Artifact-hash binding** — `init` pins the run's machine definition
+   (`machine_sha256`) and every referenced tool/checker script (`tool_hashes`)
+   in the init record; `status` / `fire` / `check` / `report` recompute them and
+   fail closed on mismatch. A mid-run edit to `machine.json` or a checker script
+   is a ledger integrity violation.
+3. **Repo-worktree run-dir refusal** — `init` refuses to create a run dir
+   inside a git worktree (only overridable via `MACHINA_ALLOW_REPO_RUNS=1`), so
+   run state cannot silently land in something you might commit.
+4. **Report bound to the ledger** — `report.json` carries `ledger_final_hash`
+   (the last ledger record's hash), so a report can be traced to the exact
+   ledger state it was generated from.
+
+**Honest ceiling:** this is *detect-and-fail-closed*, not cryptographic proof.
+The driver verifies hashes it derives from the same run directory, so an
+attacker who can rewrite all of it (including the init record) is not stopped —
+there is no OS-level read-only and no HMAC by design. The guarantee is that any
+edit to the definition copy, a checker script, or the ledger is *detected* and
+the run refuses to continue.
 
 ## Hard rules
 
@@ -55,6 +85,8 @@ first-class outcome, not an error.
   driver is the only writer; the ledger is tamper-evident.
 - **INV-2**: never inline code into machine JSON. Tools are named references to
   scripts the driver executes.
+- **Never run runs from inside a repo**: `init` refuses repo-worktree run dirs
+  (override with `MACHINA_ALLOW_REPO_RUNS=1`); run state stays session-scoped.
 - **Post-init context immutability**: after `init`, only machine actions and
   tool-output mappings mutate context. Your `--note` never touches context.
 - **STUCK is not a crash**: a non-final state with zero enabled events is a
@@ -122,10 +154,10 @@ Rules:
 ## Resources
 
 - `scripts/` — `machine-driver.py` implements the `init` / `status` / `fire` /
-  `abort` / `report` command surface. Execute it directly; do not load into
-  context.
+  `abort` / `check` / `report` command surface. Execute it directly; do not load
+  into context.
 - `references/` — `driving-protocol.md` (the driving loop, evidence, STUCK,
-  report grounding) and `schema-v3.md` (machine JSON v3 reference). Load on
-  demand per the table above.
+  report grounding, tamper prevention) and `schema-v3.md` (machine JSON v3
+  reference). Load on demand per the table above.
 - `samples/` — `docs-authoring.machine.json` and its `scripts/` checkers for a
   worked example of a driven run.

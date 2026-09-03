@@ -31,15 +31,55 @@ outcome, not an error.
 
 | Command | Purpose |
 |---|---|
-| `init --machine <file> [--scenario <id>] [--input k=v ...] [--run-dir <dir>]` | Create a run. Returns `run_id`, entry state, enabled/blocked events. |
+| `init --machine <file> [--scenario <id>] [--input k=v ...] [--run-dir <dir>]` | Create a run. Returns `run_id`, entry state, enabled/blocked events. Binds the machine definition + tool scripts (see [Tamper prevention](#tamper-prevention)). Refuses run dirs inside a git worktree. |
 | `status [--run <id>] [--run-dir <dir>]` | Current state, enabled/blocked events with reasons, invariant check status, context. |
 | `fire <EVENT> [--run <id>] [--note "..."] [--run-dir <dir>]` | Fire an event. Returns new state + applied actions, **or** a `blocked` outcome with failing tools/guards. |
 | `abort [--run <id>] [--reason "..."] [--run-dir <dir>]` | Abort the run (recorded in ledger). |
-| `report [--run <id>] [--run-dir <dir>]` | Emit the terminal report (`machina.report.v1`). |
+| `check [--run <id>] [--run-dir <dir>]` | Terminal integrity gate: re-run full ledger + artifact-hash verification. Emits `{ok:true, data:{machine_sha256_ok, tool_hashes_ok, ledger_locked, run_dir, state, terminal}}`; non-zero exit on violation. Never writes. |
+| `report [--run <id>] [--run-dir <dir>]` | Emit the terminal report (`machina.report.v1`), bound to the ledger via `ledger_final_hash`. |
 
 **Run directory:** pass `--run-dir` explicitly. The driving skill instructs you
 to use the current session's workspace (e.g. `<session>/files/.machina/runs`).
-Runs are session-scoped and never pollute the repo.
+Runs are session-scoped and never pollute the repo. Default `<cwd>/.machina/runs`
+is refused when it lies inside a git worktree — set `MACHINA_ALLOW_REPO_RUNS=1`
+to allow only when you explicitly intend a repo-local run. The check is a walk
+up from the run-dir base looking for a `.git` entry (file or dir).
+
+## Tamper prevention
+
+The run is tamper-evident against *accidental or silent* modification — any edit
+is detected and the run refuses to continue (fail closed). Four mechanisms
+(v0.3.0):
+
+1. **Ledger hash chain** — `ledger.jsonl` records chain via `prev_hash`/`hash`;
+   `_read_ledger` re-verifies the chain and each record's hash on every command.
+2. **Artifact-hash binding** — the `init` record pins `machine_sha256` (the
+   canonical machine-definition hash, same normalization as the ledger hash)
+   and `tool_hashes` (a `{tool_name: sha256(script_content)}` map for every tool
+   the machine references). On every command the driver re-reads the run's
+   `machine.json`, recomputes both, and raises a `LedgerIntegrityError` on
+   mismatch. Runs initialized before v0.3.0 have no hashes and are treated as
+   "not bound" (artifact verification skipped; the ledger chain still verifies).
+   Tool-hash skip rule: only tools whose `cmd` resolves to a real script file
+   (interpreter-style `cmd` → the first following token with a path separator
+   that resolves to a file; direct script `cmd` → the first token) are hashed;
+   a tool with no resolvable script is recorded as `null` (nothing pinned).
+   `{ctx...}` template values are **not** resolved for hashing — the script file
+   identity is what is pinned.
+3. **Repo-worktree run-dir refusal** — `init` refuses run dirs inside a git
+   worktree unless `MACHINA_ALLOW_REPO_RUNS=1`.
+4. **Report bound to the ledger** — `report.json` includes `ledger_final_hash`
+   (the last ledger record's hash), so the report is traceable to the exact
+   ledger state it was generated from. `check` can derive/compare it.
+
+**Honest ceiling (detect-not-proof):** this is *not* cryptographic protection
+against an attacker who can rewrite the whole run directory — there is no
+OS-level read-only enforcement and no HMAC by design. A forger who rewrites
+`machine.json`, the checker scripts, and the `init` record (recomputing
+`machine_sha256`/`tool_hashes` and re-chaining the ledger) is undetectable by
+the driver, same as any log. What the mechanisms guarantee is deterministic
+**detection** of any single or partial edit — definition copy, checker script, or
+ledger record — and a fail-closed refusal to continue the run.
 
 ## Driving loop
 
@@ -56,7 +96,10 @@ Runs are session-scoped and never pollute the repo.
    and evidence deterministically. A `blocked` outcome is normal feedback —
    iterate.
 6. **Repeat** until the run reaches a terminal state.
-7. **Report**: `report` emits the terminal report. **Ground your final summary
+7. **Verify integrity (optional but recommended before reporting)**: `check`
+   re-runs the full ledger + artifact-hash verification and returns `{ok:true}`
+   only when the run is intact.
+8. **Report**: `report` emits the terminal report. **Ground your final summary
    to the report facts** — status, final state, path, events, evidence, context
    snapshot. Never invent claims beyond the report.
 
@@ -134,3 +177,6 @@ file directly, use that. Never guess a machine that is not declared.
 The driver executes referenced checker scripts with the user's privileges.
 Machines are **trusted artifacts** (authored by the user or by
 `machina-authoring`), same trust level as the skill itself. No sandboxing in v1.
+Tamper detection protects the *run* against silent drift; it is not a security
+boundary against a determined attacker (see
+[Tamper prevention](#tamper-prevention)).
