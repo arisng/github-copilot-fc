@@ -143,3 +143,20 @@ A **run ledger** records a driven Machina run as an ordered, hash-chained JSONL 
 - The pinned `machine_sha256` is verified **only when the raw machine.json text is supplied**
   (the engine cannot recover the driver's lexeme-preserving canonical form from a parsed
   object). Without it, `machineHashOk` is `null` (not verified).
+
+### Run-history discovery
+
+The simulator and `scripts/replay-all.mjs` share one convention for locating persisted runs
+(`scripts/discovery.mjs`):
+
+| Concern | Rule |
+|---|---|
+| Root resolution | explicit roots > `MACHINA_RUN_ROOTS` env (`;`/`,`-separated absolute paths) > every `~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}` directory that exists |
+| Run identity | a directory containing `ledger.jsonl`; `runid` = ledger's parent dir name, `family` = nearest named container under the root (flat `machina-i2/<runid>` layout ⇒ family == runid) |
+| Machine binding | sibling `machine.json` when present; otherwise `null` (replay then uses the init record's `machine_id` for `machineMatch`) |
+| Read errors | fail-open: a run whose ledger/machine fails to parse carries `readError` and a `null` ledger; the batch gate fails closed on it |
+| Ref resolution | `"<family>/<runid>"` exact, or bare `"<runid>"` (bare may match multiple runs → the caller must disambiguate) |
+
+`machina-persist` is the **canonical write target** (written by the `machina-driving`
+skill); `machina-i2` is a **legacy read-only** root scanned for replay compatibility. The
+canvas `open` handler accepts `runRef` to auto-load a persisted run into replay mode.

@@ -19,6 +19,22 @@ match what authors see when they score a definition.
 | Tool | `machina_autofill` | Deterministic "Generate missing" patches (spec_version → version → scenarios → coverage → cycle-guards → descriptions → finals-typed); returns the patched definition and before/after scores. Never mutates the input. |
 | Tool | `machina_spec` | Look up any registry spec version as JSON Schema (draft 2020-12) or Markdown. |
 | Canvas | `machina-viewer` | Side-panel that runs the full simulator app: graph, playback, scenarios, coverage, cycle guards, compliance, schema editor — and **run replay** of a recorded Machina ledger. |
+| Slash command | `/machina-simulator` | Open the `machina-viewer` canvas. Optional argument: a machine JSON string to preload. |
+
+## Opening the canvas from the terminal
+
+`/machina-simulator` (no leading slash in code; invoked as a slash command) opens
+the `machina-viewer` canvas via the `open_canvas` tool. You can also pass a
+machine JSON string to preload it:
+
+```
+/machina-simulator
+/machina-simulator { "id": "pm-release-notes", ... }
+```
+
+The command is wired like `session-md-reader`'s `/session-md-viewer` — the handler
+sends a prompt that tells the agent to call `open_canvas` with the canvas id; the
+actual render happens in the agent runtime.
 
 ## Canonical docs (simulator maintenance)
 
@@ -72,6 +88,30 @@ the SHA-256 chain:
 | Evidence | Blocked records carry `reason` + `evidence[]` + `note`; transition records carry `child_run` (nested-badge renders the delegation) |
 | Diff | `diffReeval` re-evaluates guards against the context-before; `guardMismatch` flags when what happened disagrees with what the machine says should have happened |
 | Trust | The app renders a **✓ verified** (green) or **TAMPERED at record N** (red) badge; when raw machine text is provided, machine-hash verification is folded in (`machineHashOk` false → HASH MISMATCH). |
+
+### Run-history discovery (`runRef`)
+
+Instead of passing `machine` + `ledger` by hand, you can reference a **persisted run**
+by its discovery path. Both the canvas `open` handler and `scripts/replay-all.mjs`
+share one discovery convention (`scripts/discovery.mjs`):
+
+1. **Roots** — explicit roots > `MACHINA_RUN_ROOTS` env (`;`/`,`-separated) >
+   every `~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}` that exists.
+2. **Run** = any directory containing `ledger.jsonl` (+ optional `machine.json` sibling).
+3. **Ref formats** — `"<family>/<runid>"` or a bare `"<runid>"` (bare may be ambiguous
+   across families → error).
+4. **Machine** — sibling `machine.json` if present; otherwise replay falls back to the
+   init record's `machine_id` identity (`machineMatch`).
+
+E.g. open the canvas already replaying a persisted run:
+
+```json
+{ "runRef": "i5-releasenotes/6c9dfff19bf2" }
+```
+
+`machina-persist` is the canonical write location (written by `machina-driving`);
+`machina-i2` is a **legacy read-only** root from an earlier authoring round and is
+scanned for replay but never a write target.
 
 ### Conducting from the browser
 

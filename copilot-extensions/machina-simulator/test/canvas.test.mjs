@@ -6,9 +6,31 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Craft a self-consistent ledger (init→transition→final-ish) whose hashes use
+// the engine's canonicalizer so replay verifies.
+import { canonicalizeMachinaText, sha256Hex } from "../machine-simulator.mjs";
+function rec(payload, prev = null) {
+  return { prev_hash: prev, payload, hash: sha256Hex(canonicalizeMachinaText(JSON.stringify(payload))) };
+}
+function writePersistedRun(root, runid, machineId = "pm-release-notes") {
+  const runDir = path.join(root, runid);
+  fs.mkdirSync(runDir, { recursive: true });
+  const machineJson = JSON.stringify(
+    { id: machineId, initial: "a", states: { a: { on: { GO: { target: "b" } } }, b: { type: "final" } } },
+    null,
+    2,
+  );
+  const machine = JSON.parse(machineJson);
+  const r1 = rec({ type: "init", machine_id: machineId, spec_version: "3.0.0", scenario: "default", state: "a", context: {}, machine_dir: "<run-dir>", machine_sha256: sha256Hex(canonicalizeMachinaText(machineJson)), tool_hashes: {}, timestamp: "2026-09-03T00:00:00Z" });
+  const r2 = rec({ type: "transition", event: "GO", from: "a", to: "b", guard: null, evidence: [], exit_actions: [], transition_actions: [], entry_actions: [], context_after: {}, note: "ok", child_run: null, timestamp: "2026-09-03T00:00:01Z" }, r1.hash);
+  fs.writeFileSync(path.join(runDir, "ledger.jsonl"), [r1, r2].map((l) => JSON.stringify(l)).join("\n") + "\n", "utf8");
+  fs.writeFileSync(path.join(runDir, "machine.json"), machineJson, "utf8");
+}
 
 // Note: extension.mjs registers its HTTP server at import time. The test stub
 // (test/stubs/copilot-sdk-extension.mjs) records joinSession opts.
@@ -34,6 +56,31 @@ test("extension registers one machina-viewer canvas and requests renderer", () =
   assert.equal(canvas.id, "machina-viewer");
   assert.ok(Array.isArray(canvas.actions));
   assert.equal(canvas.displayName, "Machina Simulator");
+});
+
+test("extension registers a /machina-simulator slash command that opens the canvas via prompt", async () => {
+  assert.ok(Array.isArray(__opts.commands), "joinSession must register a commands array");
+  const cmd = __opts.commands.find((c) => c.name === "machina-simulator");
+  assert.ok(cmd, "expected a /machina-simulator command");
+  assert.ok(cmd.description.startsWith("Open the Machina Simulator canvas"));
+  assert.equal(typeof cmd.handler, "function");
+  // Capture send() calls made by the handler (stub records them in __calls).
+  const session = globalThis.__machinaTestSession;
+  const before = (session.__calls || []).length;
+  await cmd.handler({ sessionId: "sess-1", args: "" });
+  const calls = session.__calls || [];
+  assert.ok(calls.length > before, "handler must call session.send");
+  const sent = calls[calls.length - 1];
+  assert.ok(sent.payload && sent.payload.prompt, "send must carry a prompt");
+  assert.match(sent.payload.prompt, /open_canvas/i);
+  assert.match(sent.payload.prompt, /machina-viewer/);
+  assert.match(sent.payload.prompt, /Do NOT explain/);
+  // A machine arg is threaded into the prompt.
+  const before2 = calls.length;
+  await cmd.handler({ sessionId: "sess-2", args: '{ "id": "demo" }' });
+  const sent2 = session.__calls[session.__calls.length - 1];
+  assert.match(sent2.payload.prompt, /passing machine/);
+  void before2;
 });
 
 test("canvas action names do not start with canvas.", () => {
@@ -270,4 +317,56 @@ test("/state for an unknown instance returns empty state (ok, no machine)", asyn
 test("canvas open without machine reports empty status", async () => {
   const opened = await canvas.open({ instanceId: "no-machine-inst" });
   assert.equal(opened.status, "Empty — load a machine to begin");
+});
+
+test("canvas open with runRef auto-discovers a persisted run via run history", async () => {
+  // Build a temp machina-persist root and point discovery at it via MACHINA_RUN_ROOTS.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-runref-"));
+  const root = path.join(tmp, "machina-persist");
+  fs.mkdirSync(root, { recursive: true });
+  const family = "i5-releasenotes";
+  fs.mkdirSync(path.join(root, family), { recursive: true });
+  writePersistedRun(path.join(root, family), "runRefA", "pm-release-notes");
+
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "runref-inst", input: { runRef: `${family}/runRefA` } });
+    assert.equal(opened.status, "Ready");
+    const port = new URL(opened.url).port;
+    const res = await fetch(`http://127.0.0.1:${port}/state?instance=runref-inst`);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.ok(body.machine);
+    assert.equal(body.machine.id, "pm-release-notes");
+    assert.ok(body.replay, "run discovery must enter replay mode");
+    assert.equal(body.replay.verdict, "verifiable");
+    assert.equal(body.replay.integrityOk, true);
+    assert.equal(body.replay.traceLength, 2);
+    assert.equal(body.replay.terminal, "complete");
+    assert.equal(body.replay.machineHashOk, true);
+        assert.ok(body.replay.source, "replay source must be surfaced");
+        assert.equal(body.replay.source.family, family);
+        assert.equal(body.replay.source.runid, "runRefA");
+        assert.equal(body.replay.source.runRef, `${family}/runRefA`);
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
+});
+
+test("canvas open with unknown runRef reports a clear error", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-runref-"));
+  const root = path.join(tmp, "machina-persist");
+  fs.mkdirSync(root, { recursive: true });
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "runref-missing", input: { runRef: "nowhere/nope" } });
+    // open never throws; status stays empty (error is captured, machine null)
+    assert.equal(opened.status, "Empty — load a machine to begin");
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
 });

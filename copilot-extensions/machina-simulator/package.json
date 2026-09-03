@@ -5,6 +5,6 @@
   "type": "module",
   "description": "Machina state-machine validation, autofill, spec reference, and canvas viewer extension for GitHub Copilot CLI.",
   "scripts": {
-    "test": "node test/engine.test.mjs && node test/canonical-json.test.mjs && node test/replay.test.mjs && node test/replay-all.test.mjs && node test/qa-handlers.mjs && node --experimental-loader ./test/sdk-stub-loader.mjs test/canvas.test.mjs"
+    "test": "node test/engine.test.mjs && node test/canonical-json.test.mjs && node test/replay.test.mjs && node test/replay-all.test.mjs && node test/discovery.test.mjs && node test/qa-handlers.mjs && node --experimental-loader ./test/sdk-stub-loader.mjs test/canvas.test.mjs"
   }
 }

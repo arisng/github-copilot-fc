@@ -10,7 +10,14 @@ export function createCanvas(opts) {
 }
 
 export function joinSession(opts) {
-  const session = { __opts: opts, log: async () => {}, send: async () => {}, on: () => () => {} };
+  const calls = [];
+  const session = {
+    __opts: opts,
+    __calls: calls,
+    log: async () => {},
+    send: async (payload) => { calls.push({ kind: "send", payload }); },
+    on: () => () => {},
+  };
   globalThis.__machinaTestSession = session;
   return session;
 }

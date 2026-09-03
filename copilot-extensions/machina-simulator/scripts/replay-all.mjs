@@ -6,11 +6,11 @@
 // Usage:
 //   node scripts/replay-all.mjs [root1 root2 ...]
 //
-// Defaults scan the session-state persist roots:
+// Discovery uses the shared convention (scripts/discovery.mjs): explicit argv
+// roots first, then MACHINA_RUN_ROOTS env (';'- or ','-separated), then the
+// default session-state scan
 //   C:\Users\<USER>\.copilot\session-state\<session>\machina-persist
 //   C:\Users\<USER>\.copilot\session-state\<session>\machina-i2
-// You may pass explicit roots instead (each a dir containing run dirs or a
-// nested family layout).
 //
 // Exit code: 0 = gate green (all verifiable, 0 mismatch, 0 tampered, 0 read
 // errors, and — when MACHINA_EXPECTED_STUCK is set — the expected stuck count),
@@ -20,69 +20,22 @@
 // (incomplete) runs; MACHINA_EXPECTED_STUCK=6 is how the real-corpus gate is
 // pinned in CI/docs. The script itself does not hard-code a corpus-local count.
 
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import os from "node:os";
 import { replayRunLedger, replayIntegrityOk } from "../machine-simulator.mjs";
+import { discoverRunHistory, resolveRunRoots } from "./discovery.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-function defaultRoots() {
-  // Session folder: $HOME/.copilot/session-state/<uuid> — scan all sessions for
-  // machina-persist / machina-i2 run containers.
-  const roots = [];
-  const sessionBase = path.join(os.homedir(), ".copilot", "session-state");
-  for (const sesDir of fs.existsSync(sessionBase) ? fs.readdirSync(sessionBase, { withFileTypes: true }) : []) {
-    if (!sesDir.isDirectory()) continue;
-    for (const container of ["machina-persist", "machina-i2"]) {
-      const p = path.join(sessionBase, sesDir.name, container);
-      if (fs.existsSync(p) && fs.statSync(p).isDirectory()) roots.push(p);
-    }
-  }
-  return roots;
-}
-
-function collect(runRoots) {
-  const runs = [];
-  const walk = (dir, family) => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const p = path.join(dir, e.name);
-      if (e.isDirectory()) walk(p, family || e.name);
-      else if (e.name === "ledger.jsonl") {
-        const dirPath = path.dirname(p);
-        const machinePath = path.join(dirPath, "machine.json");
-        let ledger = [];
-        try {
-          ledger = fs
-            .readFileSync(p, "utf8")
-            .trim()
-            .split("\n")
-            .filter(Boolean)
-            .map((l) => JSON.parse(l));
-        } catch (err) {
-          runs.push({ family, runid: path.basename(dirPath), machine: null, ledger: null, readError: String(err.message) });
-          continue;
-        }
-        let machine = null;
-        try { machine = JSON.parse(fs.readFileSync(machinePath, "utf8")); } catch {}
-        runs.push({ family, runid: path.basename(dirPath), machine, ledger });
-      }
-    }
-  };
-  for (const root of runRoots) walk(root, null);
-  return runs;
-}
 
 function pad(s, n) { return String(s ?? "").padEnd(n); }
 
 export async function main(argv = process.argv.slice(2)) {
-  const roots = argv.length ? argv.map((p) => path.resolve(p)) : defaultRoots();
+  const roots = resolveRunRoots(argv.length ? argv : null);
   if (!roots.length) {
-    console.error("No run roots found. Pass explicit roots or set up session-state machina-persist/machina-i2.");
+    console.error("No run roots found. Pass explicit roots, set MACHINA_RUN_ROOTS, or set up session-state machina-persist/machina-i2.");
     return 1;
   }
-  const runs = collect(roots);
+  const runs = discoverRunHistory(roots);
   if (!runs.length) {
     console.error("No ledgers found in roots:", roots.join(", "));
     return 1;
