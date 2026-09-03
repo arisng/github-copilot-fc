@@ -4,8 +4,8 @@
 // extension's HTTP server, sharing the compliance/scoring/autofill engine
 // (machine-simulator.mjs) with the Copilot tools.
 
-import fs from "node:fs";
-import path from "node:path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
@@ -96,7 +96,7 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (!machine) {
-      res.end(JSON.stringify({ ok: true, machine: null, compliance: null }));
+          res.end(JSON.stringify({ ok: true, machine: null, compliance: null, replay: null }));
       return;
     }
     res.end(
@@ -113,6 +113,7 @@ const server = http.createServer((req, res) => {
                 state: replay.state,
                 traceLength: replay.trace.length,
                 machineMatch: replay.machineMatch,
+                machineHashOk: replay.machineHashOk,
               }
             : null,
           compliance: compliance
@@ -243,36 +244,43 @@ const canvas = createCanvas({
                   items: { type: "object" },
                   description: "The recorded ledger: an ordered array of { prev_hash, payload, hash } records (init/transition/blocked/redirect/abort).",
                 },
-              },
-              required: ["machine", "ledger"],
-            },
-            handler: async ({ instanceId, input }) => {
-              const entry = getInstance(instanceId);
-              try {
-                const m = parseMachine(input && input.machine);
-                const ledger = Array.isArray(input && input.ledger) ? input.ledger : [];
-                if (!ledger.length) throw new Error("ledger must be a non-empty array of records");
-                entry.state.machine = m;
-                entry.state.error = null;
-                entry.state.compliance = runCompliance(m);
-                const rep = replayRunLedger(m, ledger, { diffReeval: true });
-                entry.state.replay = {
-                  ledger,
-                  trace: rep.trace,
-                  integrity: rep.integrity,
-                  terminal: rep.terminal,
-                  state: rep.state,
-                  context: rep.context,
-                  blockedCount: rep.blockedCount,
-                  machineMatch: rep.machineMatch,
-                };
-                broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true } });
-                return {
-                  ok: true,
-                  verdict: rep.integrity.verdict,
-                  integrityOk: rep.integrity.ok,
-                  indexOfFirstFailure: rep.integrity.indexOfFirstFailure,
-                  terminal: rep.terminal,
+                          machineJson: {
+                            type: "string",
+                            description: "Optional raw machine.json text as the driver hashed it (sha256 of the parse, Python-canonical). When provided, machine_sha256 binding is verified. If omitted, machine-hash is skipped (not verified).",
+                          },
+                        },
+                        required: ["machine", "ledger"],
+                      },
+                      handler: async ({ instanceId, input }) => {
+                        const entry = getInstance(instanceId);
+                        try {
+                          const m = parseMachine(input && input.machine);
+                          const ledger = Array.isArray(input && input.ledger) ? input.ledger : [];
+                          if (!ledger.length) throw new Error("ledger must be a non-empty array of records");
+                          const machineJson = typeof (input && input.machineJson) === "string" && (input.machineJson).length ? input.machineJson : null;
+                          entry.state.machine = m;
+                          entry.state.error = null;
+                          entry.state.compliance = runCompliance(m);
+                          const rep = replayRunLedger(m, ledger, { diffReeval: true, machineJson });
+                          entry.state.replay = {
+                            ledger,
+                            trace: rep.trace,
+                            integrity: rep.integrity,
+                            terminal: rep.terminal,
+                            state: rep.state,
+                            context: rep.context,
+                            blockedCount: rep.blockedCount,
+                            machineMatch: rep.machineMatch,
+                            machineHashOk: rep.machineHashOk,
+                          };
+                          broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson } });
+                          return {
+                            ok: true,
+                            verdict: rep.integrity.verdict,
+                            integrityOk: rep.integrity.ok,
+                            indexOfFirstFailure: rep.integrity.indexOfFirstFailure,
+                            machineHashOk: rep.machineHashOk,
+                            terminal: rep.terminal,
                   blockedCount: rep.blockedCount,
                   trace: rep.trace.map((t, i) => ({
                     index: i,
@@ -305,7 +313,8 @@ const canvas = createCanvas({
               entry.state.error = null;
               entry.state.compliance = runCompliance(m);
                       if (Array.isArray(ctx.input.ledger) && ctx.input.ledger.length) {
-                        const rep = replayRunLedger(m, ctx.input.ledger, { diffReeval: true });
+                        const machineJson = typeof (ctx.input.machineJson) === "string" && (ctx.input.machineJson).length ? ctx.input.machineJson : null;
+                        const rep = replayRunLedger(m, ctx.input.ledger, { diffReeval: true, machineJson });
                         entry.state.replay = {
                           ledger: ctx.input.ledger,
                           trace: rep.trace,
@@ -315,6 +324,7 @@ const canvas = createCanvas({
                           context: rep.context,
                           blockedCount: rep.blockedCount,
                           machineMatch: rep.machineMatch,
+                          machineHashOk: rep.machineHashOk,
                         };
                       }
                     } catch (err) {

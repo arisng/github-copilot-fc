@@ -143,11 +143,10 @@ test("machina_replay broadcasts a load event carrying replay payload", async () 
     .trim()
     .split("\n")
     .map((l) => JSON.parse(l));
-  const machine = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "fixtures", "machine-releasenotes.json"), "utf8"),
-  );
+  const machineJson = fs.readFileSync(path.join(__dirname, "fixtures", "machine-releasenotes.json"), "utf8");
+  const machine = JSON.parse(machineJson);
   // instance shares getInstance state; assert the SSR /state now carries verdict
-  await action.handler({ instanceId: "replay-inst-state", input: { machine, ledger } });
+  await action.handler({ instanceId: "replay-inst-state", input: { machine, ledger, machineJson } });
   const opened = await canvas.open({ instanceId: "replay-inst-state" });
   const port = new URL(opened.url).port;
   const res = await fetch(`http://127.0.0.1:${port}/state?instance=replay-inst-state`);
@@ -156,6 +155,32 @@ test("machina_replay broadcasts a load event carrying replay payload", async () 
   assert.equal(body.replay.verdict, "verifiable");
   assert.equal(body.replay.traceLength, 5);
   assert.equal(body.replay.terminal, "incomplete");
+  // machine_sha256 bound via machineJson raw text
+  assert.equal(body.replay.machineHashOk, true);
+});
+
+test("machina_replay machine-hash mismatch surfaces in /state (RED)", async () => {
+  const action = canvas.actions.find((a) => a.name === "machina_replay");
+  const ledger = fs
+    .readFileSync(path.join(__dirname, "fixtures", "ledger-synthetic.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
+  const machineJson = fs.readFileSync(path.join(__dirname, "fixtures", "machine-releasenotes.json"), "utf8");
+  const machine = JSON.parse(machineJson);
+  // Corrupt the ledger's init machine_sha256 (wrong pin) but keep the chain/hashes valid.
+  const brokenLedger = ledger.map((r) => JSON.parse(JSON.stringify(r)));
+  brokenLedger[0].payload.machine_sha256 = "deadbeef".repeat(8);
+  // Hash chain stays valid (we only changed a payload value AFTER hashing) -> record
+  // hash mismatch would be the failure; to isolate the machine-hash path we need a
+  // ledger whose init hash is recomputed over the WRONG pin. Simplest: verify engine
+  // level (unit covered); here at least confirm the action returns machineHashOk=false
+  // when machineJson mismatches a CORRECT-looking chain (the recompute naturally
+  // fails at record 0 with record-hash, but we also get the explicit machineHashOk).
+  const result = await action.handler({ instanceId: "replay-inst-msha", input: { machine, ledger: brokenLedger, machineJson } });
+  assert.equal(result.ok, true);
+  assert.equal(result.integrityOk, false);
+  assert.equal(result.machineHashOk, false);
 });
 
 test("canvas open is idempotent and returns a loopback URL on 127.0.0.1", async () => {

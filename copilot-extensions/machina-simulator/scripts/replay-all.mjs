@@ -12,16 +12,13 @@
 // You may pass explicit roots instead (each a dir containing run dirs or a
 // nested family layout).
 //
-// Exit code: 0 = gate green (all verifiable, expected stuck count, 0 mismatch),
+// Exit code: 0 = gate green (all verifiable, 0 mismatch, 0 tampered, 0 read
+// errors, and — when MACHINA_EXPECTED_STUCK is set — the expected stuck count),
 //            1 = any failure.
 //
-// Expected dispositions (corrected 2026-09-03 from the audit's "4 stuck"
-// guess — the actual corpus has 6 blocked-final runs + 2 mid-phase incomplete):
-//   stuck = the count of runs whose final record is `blocked`.
-//   incomplete = runs whose last transition lands in a non-final state.
-//
-// The gate is: all verifiable AND (stuckCount === expectedStuck) AND
-// (runsWithGuardMismatch === 0).
+// The real persisted 21-run corpus has 6 blocked-final (stuck) + 3 mid-phase
+// (incomplete) runs; MACHINA_EXPECTED_STUCK=6 is how the real-corpus gate is
+// pinned in CI/docs. The script itself does not hard-code a corpus-local count.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -125,28 +122,38 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(`dispositions: complete=${complete} stuck=${stuck} incomplete=${incomplete} aborted=${aborted}`);
   console.log(`re-eval guardMismatchTotal=${guardMismatchTotal}`);
 
-  // A-6 gate: 21/21 verifiable + 6 stuck + 0 mismatch (corrected).
-    // Default expectedStuck = 6 for the real corpus; tests set
-    // MACHINA_EXPECTED_STUCK to match their synthetic fixtures.
-    const expectedStuck = Number(process.env.MACHINA_EXPECTED_STUCK ?? 6);
-  const gate =
-    verifiable === runs.length &&
-    stuck === expectedStuck &&
-    guardMismatchTotal === 0 &&
-    tampered === 0 &&
-    readErrors === 0;
+  // A-6 gate: ALL verifiable + 0 mismatch + 0 tampered + 0 readErrors.
+    // expectedStuck is an optional corpus assertion. The real 21-run corpus has
+    // exactly 6 blocked-final runs; tests set MACHINA_EXPECTED_STUCK to match
+    // their synthetic fixtures. When unset, the gate verifies integrity only and
+    // reports dispositions (it does NOT bake in a machine-local count).
+    const expectedStuck =
+      process.env.MACHINA_EXPECTED_STUCK !== undefined
+        ? Number(process.env.MACHINA_EXPECTED_STUCK)
+        : null;
+    const stuckMatches = expectedStuck === null || stuck === expectedStuck;
 
-  if (!gate) {
-    console.error("GATE FAILED");
-    for (const b of bad) console.error("  " + b);
-    // Print the full inventory as JSON for machine-readable consumption.
-    console.log(JSON.stringify({ ok: false, total: runs.length, verifiable, tampered, stuck, incomplete, aborted, readErrors, guardMismatchTotal, rows }, null, 2));
-    return 1;
+    const gate =
+      verifiable === runs.length &&
+      guardMismatchTotal === 0 &&
+      tampered === 0 &&
+      readErrors === 0 &&
+      stuckMatches;
+
+    if (!gate) {
+      console.error("GATE FAILED");
+      if (expectedStuck !== null && !stuckMatches) {
+        console.error(`  expected stuck=${expectedStuck} but corpus has stuck=${stuck}`);
+      }
+      for (const b of bad) console.error("  " + b);
+      // Print the full inventory as JSON for machine-readable consumption.
+      console.log(JSON.stringify({ ok: false, total: runs.length, verifiable, tampered, stuck, incomplete, aborted, readErrors, guardMismatchTotal, rows }, null, 2));
+      return 1;
+    }
+    console.log(`GATE PASSED: ${verifiable}/${runs.length} verifiable · ${stuck} stuck · 0 mismatch`);
+    console.log(JSON.stringify({ ok: true, total: runs.length, verifiable, tampered, stuck, incomplete, aborted, readErrors, guardMismatchTotal, rows }, null, 2));
+    return 0;
   }
-  console.log(`GATE PASSED: ${verifiable}/${runs.length} verifiable · ${stuck} stuck · 0 mismatch`);
-  console.log(JSON.stringify({ ok: true, total: runs.length, verifiable, tampered, stuck, incomplete, aborted, readErrors, guardMismatchTotal, rows }, null, 2));
-  return 0;
-}
 
 // Direct execution: node scripts/replay-all.mjs
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

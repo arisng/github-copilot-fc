@@ -903,7 +903,7 @@ import {
            v0.4.0 · 2026-09-03 · run replay: load a recorded ledger via
              replayRunLedger, trust badge (✓ verified / TAMPERED),
              blocked/redirect log rendering, replayStep/Back/Reset/Jump, diffReeval
-             guard-mismatch feedback for conductor steering */
+             guard-mismatch feedback for conductor steering
            v0.3.1 · 2026-08-24 · fix spacing control (canvas pointer capture)
        v0.3.0 · 2026-08-24 · graph density control + markdown spec copy +
          generated markers + version model + Mode B hint + in-app limits docs */
@@ -940,7 +940,7 @@ const NODE_W = 168, NODE_H = 62, PADX = 96, PADY = 112, COLW = 256, ROWGAP = 148
 const MAX_GRAPH_STATES = 40;
 let spacing = 1;
 let machine, stateKey, context, initialSnapshot, history, log, playing, speedMs, scenarioId, loopMode;
-let replayMode = false, replayTrace = [], replayIdx = 0, replayIntegrity = null, replayEnded = false;
+let replayMode = false, replayTrace = [], replayIdx = 0, replayIntegrity = null, replayEnded = false, replayMachineHashOk = null;
 let edgeMap = {}
 , nodeEls = {}
 , nodePos = {}
@@ -999,8 +999,8 @@ function restorePersisted() {
 function loadMachine(m, scId) {
       machine = m;
       replayMode = false;
-      renderTrustBadge(null);
-      replayTrace = []; replayIdx = 0; replayIntegrity = null;
+            renderTrustBadge(null, null);
+            replayTrace = []; replayIdx = 0; replayIntegrity = null; replayMachineHashOk = null;
       generatedScenarios = generateScenarios();
       let sc = generatedScenarios.find(s => s.id === scId);
       if (!sc && generatedScenarios.length) {
@@ -1038,6 +1038,7 @@ function loadMachine(m, scId) {
             replayTrace = r.trace;
             replayIdx = 0;
             replayIntegrity = r.integrity;
+            replayMachineHashOk = r.machineHashOk;
             const initEntry = r.trace[0];
             const initState = initEntry.type === 'init' ? initEntry.state : (m.initial || null);
             const initCtx = initEntry.type === 'init' ? initEntry.context : clone(m.context || {});
@@ -1048,7 +1049,7 @@ function loadMachine(m, scId) {
             history = [{ state: stateKey, context: clone(context), replay: true, type: 'init' }];
             log = [];
             replayEnded = r.terminal === 'complete' ? true : false;
-            renderTrustBadge(r.integrity);
+            renderTrustBadge(r.integrity, r.machineHashOk);
             setPlaying(false);
             showEmptyState();
             updateFileBar();
@@ -1166,15 +1167,19 @@ function resetAll() {
       setPlaying(false);
       resetTo(scenarioId, false);
     }
-function renderTrustBadge(integrity) {
+function renderTrustBadge(integrity, machineHashOk) {
       const b = $('stage-trust');
       if (!replayMode || !integrity) { if (b) b.hidden = true; return; }
       b.hidden = false;
-      b.className = 'pill pill-trust ' + (integrity.ok ? 'ok' : 'tampered');
+      // machine-hash is tied into integrity verdict; surface the missing-raw-text case
+      const machineHashNote = machineHashOk === false ? ' · HASH MISMATCH' : (machineHashOk === null ? ' · machine-hash unverified' : '');
+      const tampered = !integrity.ok || machineHashOk === false;
+      b.className = 'pill pill-trust ' + (tampered ? 'tampered' : 'ok');
       const parts = ['replay'];
-      if (integrity.ok) parts.push('✓ verified');
-      else parts.push('TAMPERED at record ' + integrity.indexOfFirstFailure);
-      b.innerHTML = '<span class="dot"></span>' + parts.join(' · ');
+      if (integrity.ok && machineHashOk !== false) parts.push('✓ verified');
+      else if (!integrity.ok) parts.push('TAMPERED at record ' + integrity.indexOfFirstFailure);
+      else parts.push('HASH MISMATCH');
+      b.innerHTML = '<span class="dot"></span>' + parts.join(' · ') + machineHashNote;
       b.title = integrity.ok
         ? 'SHA-256 chain + machine_sha256 verified'
         : 'Integrity failed at record ' + integrity.indexOfFirstFailure + (integrity.failureKind ? ' (' + integrity.failureKind + ')' : '');
@@ -1593,7 +1598,7 @@ function fmtTime(ts) {
     }
 function updateUI() {
       if (!machine) return;
-      renderTrustBadge(replayIntegrity);
+      renderTrustBadge(replayIntegrity, replayMachineHashOk);
       const visits = {};
       history.forEach(h => { visits[h.state] = (visits[h.state] || 0) + 1; });
       for (const [k, n] of Object.entries(nodeEls)) {

@@ -140,3 +140,6 @@ A **run ledger** records a driven Machina run as an ordered, hash-chained JSONL 
   **before** that record, reporting `guardMismatch` when recorded `to` ≠ re-evaluated target.
   Evidence/checker scripts are NOT re-run in-engine (they resolve against host paths the
   simulator cannot access) — `tool_hashes` are skip-or-warn.
+- The pinned `machine_sha256` is verified **only when the raw machine.json text is supplied**
+  (the engine cannot recover the driver's lexeme-preserving canonical form from a parsed
+  object). Without it, `machineHashOk` is `null` (not verified).

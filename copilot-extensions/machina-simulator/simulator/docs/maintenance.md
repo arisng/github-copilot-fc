@@ -97,6 +97,8 @@ Replay is an engine feature powered by `replayRunLedger`/`replayIntegrityOk` in
   A naive `JSON.stringify` re-serialization will NOT verify (RED test guards this).
 - Keep the trust badge contract: verified → `✓ verified`, failure → `TAMPERED at record N`.
   Non-terminal (blocked-final) runs must render `replaying`/blocked, never silently "complete".
+  `machine_sha256` binding requires the raw `machineJson` text (lexeme-preserving) — without it
+  `machineHashOk` is `null`, and the badge must say "machine-hash unverified", never "verified".
 - `test/canvas.test.mjs` asserts the exact action list (`machina_command`, `machina_load`,
   `machina_replay`) and command enum — any new canvas surface must update it in the same commit.
 

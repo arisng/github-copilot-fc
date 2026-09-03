@@ -785,7 +785,7 @@ export function canonicalHashHex(payloadText) {
 // so a faithful replay of a completed run has foldedCtxAfter === context_after.
 
 export function replayRunLedger(machine, ledger, opts = {}) {
-  const { diffReeval = false } = opts;
+  const { diffReeval = false, machineJson = null } = opts;
   const trace = [];
   let state = null;
   let ctx = null;
@@ -796,6 +796,27 @@ export function replayRunLedger(machine, ledger, opts = {}) {
   let expectedHash = null;
   let actualHash = null;
   const blockedRecords = [];
+
+  // machine_sha256 binding: the driver pins sha256(json.dumps(machine,
+  // sort_keys=True, separators=(",",":"))) over the PARSED machine. Python
+  // preserves float lexemes (100.0) that JS JSON.stringify drops, so the only
+  // byte-exact JS path is canonicalizing the RAW machine.json text. When the
+  // raw text is provided (opts.machineJson), verify it; otherwise machineHashOk
+  // is null (skip-or-warn — the engine cannot derive the driver's canonical
+  // form from a parsed object).
+  let machineHashOk = null;
+  const pinnedHash = ledger.length ? (ledger[0].payload || {}).machine_sha256 : null;
+  if (typeof pinnedHash === "string" && pinnedHash.length) {
+    if (typeof machineJson === "string" && machineJson.length) {
+      const candidate = sha256Hex(canonicalizeMachinaText(machineJson));
+      machineHashOk = candidate === pinnedHash;
+      if (!machineHashOk && integrityOk) {
+        integrityOk = false;
+        indexOfFirstFailure = 0;
+        failureKind = "machine-hash";
+      }
+    }
+  }
 
   for (let i = 0; i < ledger.length; i++) {
     const rec = ledger[i];
@@ -918,6 +939,7 @@ export function replayRunLedger(machine, ledger, opts = {}) {
       if (lm && machine) return lm === machine.id;
       return null;
     })(),
+        machineHashOk: machineHashOk,
   };
 }
 

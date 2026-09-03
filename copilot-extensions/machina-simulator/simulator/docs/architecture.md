@@ -100,8 +100,9 @@ Transport semantics:
 - Builds the trace via the engine's `replayRunLedger` (all 5 record types:
   `init`/`transition`/`blocked`/`redirect`/`abort`), then steps exactly through it —
   `history` is seeded from the init snapshot and appended on `replayStep()`.
-- Integrity is re-verified on load (Python-canonical SHA-256 chain + `machine_sha256`):
-  the trust badge renders **✓ verified** (green) or **TAMPERED at record N** (red).
+- Integrity is re-verified on load (Python-canonical SHA-256 chain; plus `machine_sha256`
+  when raw `machineJson` text is supplied): the trust badge renders **✓ verified** (green),
+  **TAMPERED at record N** (red), or **machine-hash unverified** (raw text missing).
 - Blocked/redirect records render distinctly in the log (`↯ blocked` / `⇀ redirect`);
   blocked carries reason/evidence/note; child_run appears as a nested badge.
 - Non-terminal runs render `replaying`/`replay-done` via `isTerminal()` consulting

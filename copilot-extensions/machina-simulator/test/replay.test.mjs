@@ -236,4 +236,46 @@ test("diffReeval foldedCtxAfter folds recorded actions over context_after (no mu
   assert.equal(trans.payload.context_after.n, 1);
 });
 
+// --- machine_sha256 binding (HIGH-finding regression) -----------------------
+
+test("machine_sha256 verified when raw machineJson matches the pinned hash", () => {
+  const raw = fs.readFileSync(machinePath, "utf8");
+  const pinned = sha256Hex(canonicalizeMachinaText(raw));
+  const init = record({
+    type: "init", machine_id: "pm-release-notes", spec_version: "3.0.0", scenario: "default",
+    state: "collect", context: {}, machine_dir: "<run-dir>",
+    machine_sha256: pinned, tool_hashes: {}, timestamp: "2026-09-03T00:00:00Z",
+  });
+  const r = replayRunLedger(machine, [init], { machineJson: raw });
+  assert.equal(r.machineHashOk, true);
+  assert.equal(r.integrity.verdict, "verifiable");
+});
+
+test("machine_sha256 mismatched raw text flips integrity to tampered (RED)", () => {
+  const raw = fs.readFileSync(machinePath, "utf8");
+  const pinned = sha256Hex(canonicalizeMachinaText(raw));
+  const init = record({
+    type: "init", machine_id: "pm-release-notes", spec_version: "3.0.0", scenario: "default",
+    state: "collect", context: {}, machine_dir: "<run-dir>",
+    machine_sha256: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", tool_hashes: {}, timestamp: "2026-09-03T00:00:00Z",
+  });
+  // Provide the CORRECT raw text but a WRONG pinned hash -> mismatch.
+  const r = replayRunLedger(machine, [init], { machineJson: raw });
+  assert.equal(r.machineHashOk, false);
+  assert.equal(r.integrity.ok, false);
+  assert.equal(r.integrity.failureKind, "machine-hash");
+  assert.equal(r.integrity.verdict, "tampered");
+});
+
+test("machine_sha256 skipped (null) when no raw machineJson provided", () => {
+  const init = record({
+    type: "init", machine_id: "pm-release-notes", spec_version: "3.0.0", scenario: "default",
+    state: "collect", context: {}, machine_dir: "<run-dir>",
+    machine_sha256: "some-hash", tool_hashes: {}, timestamp: "2026-09-03T00:00:00Z",
+  });
+  const r = replayRunLedger(machine, [init]);
+  assert.equal(r.machineHashOk, null);
+  assert.equal(r.integrity.verdict, "verifiable"); // chain/record-hash still verified
+});
+
 console.log("All replay engine tests passed.");

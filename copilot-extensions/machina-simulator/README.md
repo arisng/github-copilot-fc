@@ -67,11 +67,11 @@ the SHA-256 chain:
 | Aspect | Behavior |
 |---|---|
 | Input | `machine` (definition) + `ledger` (array of `{prev_hash, payload, hash}` records: `init`/`transition`/`blocked`/`redirect`/`abort`) |
-| Integrity | Recomputes the Python-canonical hash chain and `machine_sha256`; verdict `verifiable` / `tampered` with `indexOfFirstFailure`, `expectedHash`, `actualHash` |
+| Integrity | Recomputes the Python-canonical hash chain; when `machineJson` (raw machine.json text) is passed, also verifies the pinned `machine_sha256` (sha256 of the parsed machine in Python-canonical form, lexeme-preserving). Verdict `verifiable` / `tampered` with `indexOfFirstFailure`, `expectedHash`, `actualHash`; `machineHashOk` is `true` / `false` / `null` (null = not verified because raw text wasn't provided). |
 | Terminality | `terminal: complete` / `stuck` (blocked-final) / `aborted` / `incomplete` — non-terminal runs are surfaced, not silently "complete" |
 | Evidence | Blocked records carry `reason` + `evidence[]` + `note`; transition records carry `child_run` (nested-badge renders the delegation) |
 | Diff | `diffReeval` re-evaluates guards against the context-before; `guardMismatch` flags when what happened disagrees with what the machine says should have happened |
-| Trust | The app renders a **✓ verified** (green) or **TAMPERED at record N** (red) badge |
+| Trust | The app renders a **✓ verified** (green) or **TAMPERED at record N** (red) badge; when raw machine text is provided, machine-hash verification is folded in (`machineHashOk` false → HASH MISMATCH). |
 
 ### Conducting from the browser
 
