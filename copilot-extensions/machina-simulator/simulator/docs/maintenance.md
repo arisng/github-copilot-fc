@@ -84,6 +84,22 @@ Never inline these literals; read them from the constants/LIMITS so the Inspecto
 Limits section and point-of-use notes cannot drift. New user-visible help topics should follow the
 same pattern: stable `data-od-id`, string centralized in a constant.
 
+### Run replay (recorded ledgers)
+
+Replay is an engine feature powered by `replayRunLedger`/`replayIntegrityOk` in
+`machine-simulator.mjs` + app `loadReplay()`. Editing invariants:
+
+- Replay must reproduce the driver's fold: `init` sets state/context, `transition`/`redirect`
+  move, `blocked` leaves state unchanged, `abort` finalizes. Anything else is a bug (Stage 1
+  `test/replay.test.mjs` asserts trace == ledger sequence).
+- Integrity is **recomputed** on load — never trust the ledger's own hashes blindly; the
+  Python-canonical tokenizer in `canonicalizeMachinaText` is what makes JS match the driver.
+  A naive `JSON.stringify` re-serialization will NOT verify (RED test guards this).
+- Keep the trust badge contract: verified → `✓ verified`, failure → `TAMPERED at record N`.
+  Non-terminal (blocked-final) runs must render `replaying`/blocked, never silently "complete".
+- `test/canvas.test.mjs` asserts the exact action list (`machina_command`, `machina_load`,
+  `machina_replay`) and command enum — any new canvas surface must update it in the same commit.
+
 ## Reference map (load on demand)
 
 | File | Load when |

@@ -1,0 +1,45 @@
+{
+  "id": "pm-release-notes",
+  "name": "PM Release Notes",
+  "version": "1.0.0",
+  "spec_version": "3.0.0",
+  "initial": "collect",
+  "context": {
+    "repo": "arisng/dprocess-dotnet-starter-kit",
+    "milestone": "M2609",
+    "draft": "",
+    "iteration": 0,
+    "dataReady": false
+  },
+  "scenarios": [
+    { "id": "default", "label": "Default", "initial": "collect", "interface": "API" }
+  ],
+  "states": {
+    "collect": {
+      "description": "Collect release-notes data (PRs, milestone items, draft artifact).",
+      "on": {
+        "CHECK_DATA": {
+          "target": "draft",
+          "guard": { "type": "compare", "key": "dataReady", "op": "eq", "value": true },
+          "else_target": "collect"
+        }
+      }
+    },
+    "draft": {
+      "description": "Draft release notes from collected data.",
+      "on": {
+        "ESCALATE": { "target": "review" }
+      }
+    },
+    "review": {
+      "description": "Review draft release notes before publication.",
+      "on": {
+        "PUBLISH": { "target": "published" }
+      }
+    },
+    "published": {
+      "type": "final",
+      "description": "Release notes published."
+    }
+  }
+}

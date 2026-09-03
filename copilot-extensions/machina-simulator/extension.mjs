@@ -17,6 +17,8 @@ import {
   buildSpecMarkdown,
   detectSpecVersion,
   getSpec,
+  replayRunLedger,
+  replayIntegrityOk,
   runCompliance,
 } from "./machine-simulator.mjs";
 
@@ -88,7 +90,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === "/state") {
     const entry = getInstance(instanceId);
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    const { machine, compliance, error } = entry.state;
+      const { machine, compliance, error, replay } = entry.state;
     if (error) {
       res.end(JSON.stringify({ ok: false, error }));
       return;
@@ -101,19 +103,31 @@ const server = http.createServer((req, res) => {
       JSON.stringify({
         ok: true,
         machine,
-        compliance: compliance
+          replay: replay
           ? {
-              score: compliance.score,
-              grade: compliance.grade,
-              specVersion: compliance.specVersion,
-              declared: compliance.declared,
-              failing: compliance.findings.filter((f) => !f.pass).map((f) => f.id),
-            }
-          : null,
-      }),
-    );
-    return;
-  }
+                verdict: replay.integrity.verdict,
+                integrityOk: replay.integrity.ok,
+                indexOfFirstFailure: replay.integrity.indexOfFirstFailure,
+                terminal: replay.terminal,
+                blockedCount: replay.blockedCount,
+                state: replay.state,
+                traceLength: replay.trace.length,
+                machineMatch: replay.machineMatch,
+              }
+            : null,
+          compliance: compliance
+            ? {
+                score: compliance.score,
+                grade: compliance.grade,
+                specVersion: compliance.specVersion,
+                declared: compliance.declared,
+                failing: compliance.findings.filter((f) => !f.pass).map((f) => f.id),
+              }
+            : null,
+        }),
+      );
+      return;
+    }
   if (url.pathname === "/") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(appHtml);
@@ -139,8 +153,13 @@ const canvas = createCanvas({
         type: ["object", "string"],
         description: "The Machina machine definition (object or JSON string) to load into the simulator.",
       },
+        ledger: {
+          type: "array",
+          items: { type: "object" },
+          description: "Optional recorded ledger (init/transition/blocked/redirect/abort records) to replay instead of live simulation.",
+        },
+      },
     },
-  },
   actions: [
     {
       name: "machina_load",
@@ -182,49 +201,133 @@ const canvas = createCanvas({
     },
     {
       name: "machina_command",
-      description: "Drive simulator playback: play, pause, step, back, reset, or jump to a state; or run scenario generation / open the compliance panel.",
+          description: "Drive simulator playback: play, pause, step, back, reset, or jump to a state; or run scenario generation / open the compliance panel. In replay mode, step/back/reset/jump walk the recorded ledger trace.",
       inputSchema: {
         type: "object",
         properties: {
           command: {
             type: "string",
-            enum: ["play", "pause", "step", "back", "reset", "scenarios", "compliance", "jump"],
+                enum: ["play", "pause", "step", "back", "reset", "scenarios", "compliance", "jump", "replayStep", "replayBack", "replayReset", "replayJump"],
             description: "Simulator command to execute.",
           },
           state: {
             type: "string",
             description: "State key to jump to (required for 'jump').",
           },
-        },
-        required: ["command"],
-      },
+              index: {
+                type: "integer",
+                description: "Ledger record index to jump to (required for 'replayJump').",
+              },
+            },
+            required: ["command"],
+          },
       handler: async ({ instanceId, input }) => {
         const entry = getInstance(instanceId);
         const cmd = input && input.command;
-        broadcast(entry, "machina", { type: "command", command: cmd, state: input && input.state });
-        return { ok: true, command: cmd, state: input && input.state };
+              broadcast(entry, "machina", { type: "command", command: cmd, state: input && input.state, index: input && input.index });
+              return { ok: true, command: cmd, state: input && input.state, index: input && input.index };
       },
     },
-  ],
-  open: async (ctx) => {
-    const entry = getInstance(ctx.instanceId);
-    if (ctx.input && ctx.input.machine) {
-      try {
-        const m = parseMachine(ctx.input.machine);
-        entry.state.machine = m;
-        entry.state.error = null;
-        entry.state.compliance = runCompliance(m);
-      } catch (err) {
-        entry.state.error = String(err.message || err);
-      }
-    }
-    return {
-      url: `http://127.0.0.1:${port}?instance=${ctx.instanceId}`,
-      title: "Machina Simulator",
-      status: entry.state.machine ? "Ready" : "Empty — load a machine to begin",
-    };
-  },
-  onClose: async (ctx) => {
+          {
+            name: "machina_replay",
+            description: "Replay a recorded Machina run from a persisted ledger (init/transition/blocked/redirect/abort records) into the simulator canvas. Returns the replay trace + integrity verdict (verifiable | tampered) with the first-failure index. Loads the machine and enters replay mode; commands step/back/reset walk the recorded trace.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                machine: {
+                  type: ["object", "string"],
+                  description: "The Machina machine definition (object or JSON string) to load for replay. Its id should match the ledger's machine_id.",
+                },
+                ledger: {
+                  type: "array",
+                  items: { type: "object" },
+                  description: "The recorded ledger: an ordered array of { prev_hash, payload, hash } records (init/transition/blocked/redirect/abort).",
+                },
+              },
+              required: ["machine", "ledger"],
+            },
+            handler: async ({ instanceId, input }) => {
+              const entry = getInstance(instanceId);
+              try {
+                const m = parseMachine(input && input.machine);
+                const ledger = Array.isArray(input && input.ledger) ? input.ledger : [];
+                if (!ledger.length) throw new Error("ledger must be a non-empty array of records");
+                entry.state.machine = m;
+                entry.state.error = null;
+                entry.state.compliance = runCompliance(m);
+                const rep = replayRunLedger(m, ledger, { diffReeval: true });
+                entry.state.replay = {
+                  ledger,
+                  trace: rep.trace,
+                  integrity: rep.integrity,
+                  terminal: rep.terminal,
+                  state: rep.state,
+                  context: rep.context,
+                  blockedCount: rep.blockedCount,
+                  machineMatch: rep.machineMatch,
+                };
+                broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true } });
+                return {
+                  ok: true,
+                  verdict: rep.integrity.verdict,
+                  integrityOk: rep.integrity.ok,
+                  indexOfFirstFailure: rep.integrity.indexOfFirstFailure,
+                  terminal: rep.terminal,
+                  blockedCount: rep.blockedCount,
+                  trace: rep.trace.map((t, i) => ({
+                    index: i,
+                    type: t.type,
+                    event: t.event ?? null,
+                    from: t.from ?? null,
+                    to: t.to ?? null,
+                    reason: t.reason ?? null,
+                    note: t.note ?? null,
+                    child_run: t.child_run ?? null,
+                    integrityOk: t.integrityOk,
+                  })),
+                  machineMatch: rep.machineMatch,
+                  ledgerMachineId: rep.ledgerMachineId,
+                };
+              } catch (err) {
+                entry.state.error = String(err.message || err);
+                broadcast(entry, "machina", { type: "load", machine: null, error: entry.state.error });
+                return { ok: false, error: entry.state.error };
+              }
+            },
+          },
+        ],
+        open: async (ctx) => {
+          const entry = getInstance(ctx.instanceId);
+          if (ctx.input && ctx.input.machine) {
+            try {
+              const m = parseMachine(ctx.input.machine);
+              entry.state.machine = m;
+              entry.state.error = null;
+              entry.state.compliance = runCompliance(m);
+                      if (Array.isArray(ctx.input.ledger) && ctx.input.ledger.length) {
+                        const rep = replayRunLedger(m, ctx.input.ledger, { diffReeval: true });
+                        entry.state.replay = {
+                          ledger: ctx.input.ledger,
+                          trace: rep.trace,
+                          integrity: rep.integrity,
+                          terminal: rep.terminal,
+                          state: rep.state,
+                          context: rep.context,
+                          blockedCount: rep.blockedCount,
+                          machineMatch: rep.machineMatch,
+                        };
+                      }
+                    } catch (err) {
+                      entry.state.error = String(err.message || err);
+                    }
+                  }
+                  return {
+                    url: `http://127.0.0.1:${port}?instance=${ctx.instanceId}`,
+                    title: "Machina Simulator",
+                    status: entry.state.machine ? "Ready" : "Empty — load a machine to begin",
+                  };
+                },
+        onClose: async (ctx) => {
     const entry = instances.get(ctx.instanceId);
     if (entry) {
       entry.cleanup.forEach((fn) => fn());

@@ -476,8 +476,491 @@ export function autoFillMachine(m, opts = {}) {
   return { machine: result, applied, scoreBefore: runCompliance(m, target).score, scoreAfter: after.score, findings: after.findings };
 }
 
-function deepClone(v) {
+export function deepClone(v) {
   return v == null ? v : JSON.parse(JSON.stringify(v));
+}
+
+// clone(v) — public alias for deepClone (immutable value copy).
+export const clone = (v) => deepClone(v);
+
+// foldContext(state, ctx, actions) — declarative action fold (Stage 1 replay
+// re-eval diff). Returns a NEW context object, never mutates inputs.
+export function foldContext(state, ctx, actions) {
+  const out = deepClone(ctx);
+  return applyActions(actions || [], out);
+}
+
+// ---------------------------------------------------------------------------
+// Python-compatible canonical JSON (ledger integrity)
+// ---------------------------------------------------------------------------
+// Python's json.dumps(obj, sort_keys=True, separators=(",",":")) is the
+// driver's hashing canonical form (machine-driver.py _sha256). A JS
+// JSON.stringify-based re-serialization does NOT byte-match: Python renders
+// floats differently (100.0 vs 100), escapes non-ASCII with ensure_ascii
+// (\uXXXX), and sorts keys by decoded codepoint. Replay must verify the same
+// hashes, so we canonicalize the RAW JSON TEXT by tokenizing it, preserving
+// number lexemes verbatim, sorting object keys, and re-escaping strings —
+// byte-exact for any Python-canonical input.
+
+// tokenizeMachinaText(text) -> tokens: {type:'{',...}|{type:'string',value}|{type:'number',text}|...
+function tokenizeMachinaText(input) {
+  const tokens = [];
+  let i = 0;
+  const n = input.length;
+  while (i < n) {
+    const ch = input[i];
+    if (ch === "{") { tokens.push({ type: "{" }); i++; }
+    else if (ch === "}") { tokens.push({ type: "}" }); i++; }
+    else if (ch === "[") { tokens.push({ type: "[" }); i++; }
+    else if (ch === "]") { tokens.push({ type: "]" }); i++; }
+    else if (ch === ":") { tokens.push({ type: ":" }); i++; }
+    else if (ch === ",") { tokens.push({ type: "," }); i++; }
+    else if (ch === '"') {
+      let j = i + 1; let out = "";
+      while (j < n) {
+        const c = input[j];
+        if (c === '"') { j++; break; }
+        if (c === "\\") {
+          const e = input[j + 1];
+          if (e === "u") {
+            out += "\\u" + input.substr(j + 2, 4);
+            j += 6;
+          } else {
+            out += "\\" + e;
+            j += 2;
+          }
+        } else {
+          out += c; j++;
+        }
+      }
+      tokens.push({ type: "string", value: out });
+      i = j;
+    }
+    else if (/[0-9\-]/.test(ch)) {
+      let j = i;
+      while (j < n && /[0-9eE+\-.]/.test(input[j])) j++;
+      tokens.push({ type: "number", text: input.substr(i, j - i) });
+      i = j;
+    }
+    else if (input.startsWith("true", i)) { tokens.push({ type: "true" }); i += 4; }
+    else if (input.startsWith("false", i)) { tokens.push({ type: "false" }); i += 5; }
+    else if (input.startsWith("null", i)) { tokens.push({ type: "null" }); i += 4; }
+    else i++;
+  }
+  return tokens;
+}
+
+// encodeMachinaString(value) — escape exactly like Python ensure_ascii=True.
+function encodeMachinaString(value) {
+  let out = '"';
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    const ch = value[i];
+    if (ch === '"') out += '\\"';
+    else if (ch === "\\") out += "\\\\";
+    else if (ch === "\b") out += "\\b";
+    else if (ch === "\t") out += "\\t";
+    else if (ch === "\n") out += "\\n";
+    else if (ch === "\f") out += "\\f";
+    else if (ch === "\r") out += "\\r";
+    else if (code < 0x20) out += "\\u" + code.toString(16).padStart(4, "0");
+    else if (code >= 0x80) {
+      // ensure_ascii: escape every non-ASCII char as \uXXXX (surrogate pairs stay two \uXXXX)
+      out += "\\u" + code.toString(16).padStart(4, "0");
+    } else out += ch;
+  }
+  return out + '"';
+}
+
+// pythonOrdKey(key) — Python dict key comparison for sort_keys=True:
+// compares by decoded code points (same as JS string < > on code units for
+// BMP; non-BMP surrogate halves sort by the same code-unit order, which matches
+// Python's codepoint order for codepoints >= 0x10000 as well).
+const _ordCompare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+// canonicalizeMachinaText(text): re-serialize raw JSON text to Python-canonical form.
+export function canonicalizeMachinaText(text) {
+  const tokens = tokenizeMachinaText(text);
+  const pos = { i: 0 };
+  function parse() {
+    const t = tokens[pos.i];
+    if (!t) throw new Error("canonicalizeMachina: unexpected end of input");
+    if (t.type === "{") {
+      pos.i++;
+      const obj = {};
+      const keys = [];
+      if (tokens[pos.i] && tokens[pos.i].type === "}") { pos.i++; return "{}"; }
+      for (;;) {
+        const kt = tokens[pos.i];
+        if (!kt || kt.type !== "string") throw new Error("canonicalizeMachina: expected string key at " + pos.i);
+        // decode the key's value (un-escape)
+        const key = decodeMachinaString(kt.value);
+        pos.i++;
+        const colon = tokens[pos.i];
+        if (!colon || colon.type !== ":") throw new Error("canonicalizeMachina: expected ':' at " + pos.i);
+        pos.i++;
+        const val = parse();
+        obj[key] = val;
+        keys.push(key);
+        const sep = tokens[pos.i];
+        if (sep && sep.type === ",") { pos.i++; continue; }
+        if (sep && sep.type === "}") { pos.i++; break; }
+        throw new Error("canonicalizeMachina: expected ',' or '}' at " + pos.i);
+      }
+      // sort keys by Python's string comparison (decoded codepoint order)
+      keys.sort(_ordCompare);
+      const parts = keys.map((k) => encodeMachinaString(k) + ":" + obj[k]);
+      return "{" + parts.join(",") + "}";
+    }
+    if (t.type === "[") {
+      pos.i++;
+      const arr = [];
+      if (tokens[pos.i] && tokens[pos.i].type === "]") { pos.i++; return "[]"; }
+      for (;;) {
+        const v = parse();
+        arr.push(v);
+        const sep = tokens[pos.i];
+        if (sep && sep.type === ",") { pos.i++; continue; }
+        if (sep && sep.type === "]") { pos.i++; break; }
+        throw new Error("canonicalizeMachina: expected ',' or ']' at " + pos.i);
+      }
+      return "[" + arr.join(",") + "]";
+    }
+    if (t.type === "string") {
+      pos.i++;
+      // Re-encode preserving the original escape sequence in the value where
+      // possible: for surrogate-pair escapes (\uD83D\uDE00) keep both; for
+      // already-escaped controls keep them; for literal chars re-encode.
+      // Simplest correct re-encode: decode then re-encode with ensure_ascii.
+      return encodeMachinaString(decodeMachinaString(t.value));
+    }
+    if (t.type === "number") { pos.i++; return t.text; }
+    if (t.type === "true") { pos.i++; return "true"; }
+    if (t.type === "false") { pos.i++; return "false"; }
+    if (t.type === "null") { pos.i++; return "null"; }
+    throw new Error("canonicalizeMachina: unexpected token " + t.type);
+  }
+  const result = parse();
+  return result;
+}
+
+// decodeMachinaString(value) — un-escape a raw string token body to literal chars.
+function decodeMachinaString(value) {
+  let out = "";
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] === "\\" && i + 1 < value.length) {
+      const e = value[i + 1];
+      if (e === "u") {
+        const hex = value.substr(i + 2, 4);
+        out += String.fromCharCode(parseInt(hex, 16));
+        i += 5;
+      } else {
+        out += e === "b" ? "\b" : e === "t" ? "\t" : e === "n" ? "\n" : e === "f" ? "\f" : e === "r" ? "\r" : e;
+        i += 1;
+      }
+    } else {
+      out += value[i];
+    }
+  }
+  return out;
+}
+
+// canonicalizeMachina(objObj): accept a parsed object OR a JSON string. For a
+// string, the raw-text tokenizer path is used (byte-exact for Python-canonical
+// inputs incl. float lexemes). For a parsed object, fall back to a best-effort
+// deterministic re-serialization (sort_keys + compact) — NOT byte-exact vs
+// Python on floats, documented as such.
+export function canonicalizeMachina(input) {
+  if (typeof input === "string") return canonicalizeMachinaText(input);
+  // parsed object: sort keys recursively + compact separators (useful for UI,
+  // not for exact hash matching vs Python).
+  const sortObj = (v) => {
+    if (Array.isArray(v)) return v.map(sortObj);
+    if (v && typeof v === "object") {
+      const out = {};
+      Object.keys(v).sort().forEach((k) => { out[k] = sortObj(v[k]); });
+      return out;
+    }
+    return v;
+  };
+  return JSON.stringify(sortObj(input), null, 0);
+}
+
+// sha256Hex(text) — hex SHA-256 (crypto-agnostic; used by integrity + golden tests).
+export function sha256Hex(text) {
+  // node + browser globalThis.crypto.subtle; fall back to a pure-JS sha256 for
+  // environments without WebCrypto (the canvas app runs in a browser).
+  if (typeof globalThis !== "undefined" && globalThis.crypto && globalThis.crypto.subtle) {
+    // async — but we need sync. Provide a sync resolver via a cached implementation.
+    // See sha256Sync below.
+  }
+  return sha256Sync(text);
+}
+
+// sha256Sync — deterministic, dependency-free sync SHA-256 (FIPS-180-4).
+// Implements the exact NIST algorithm; used for ledger integrity + replay.
+function sha256Sync(text) {
+  const bytes = typeof text === "string" ? new TextEncoder().encode(text) : new Uint8Array(text);
+  const len = bytes.length;
+  // SHA-256 padding: append 0x80, zeros until total ≡ 56 mod 64, then 8-byte
+  // big-endian bit length.
+  const rem = (len + 9) % 64;         // after 0x80 + 8 length bytes
+  const padZeros = rem === 0 ? 0 : 64 - rem;
+  const paddedLen = len + 1 + padZeros + 8;
+  const padded = new Uint8Array(paddedLen);
+  padded.set(bytes);
+  padded[len] = 0x80;
+  const bitLen = len * 8;
+  const hi = Math.floor(bitLen / 4294967296);
+  const lo = bitLen >>> 0;
+  const dv = new DataView(padded.buffer);
+  dv.setUint32(paddedLen - 8, hi);
+  dv.setUint32(paddedLen - 4, lo);
+  const K = [
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+  ];
+  const H = [
+    0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19,
+  ];
+  const w = new Uint32Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let b = 0; b < padded.length; b += 64) {
+    for (let t = 0; t < 16; t++) {
+      const off = b + t * 4;
+      w[t] = (padded[off] << 24) | (padded[off + 1] << 16) | (padded[off + 2] << 8) | padded[off + 3];
+    }
+    for (let t = 16; t < 64; t++) {
+      const s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3);
+      const s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10);
+      w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+    }
+    let a = H[0], b2 = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+    for (let t = 0; t < 64; t++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (h + S1 + ch + K[t] + w[t]) | 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const maj = (a & b2) ^ (a & c) ^ (b2 & c);
+      const temp2 = (S0 + maj) | 0;
+      h = g; g = f; f = e; e = (d + temp1) | 0; d = c; c = b2; b2 = a; a = (temp1 + temp2) | 0;
+    }
+    H[0] = (H[0] + a) | 0; H[1] = (H[1] + b2) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+    H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+  }
+  return Array.from(H, (x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+// canonicalHashHex(payloadText) — sha256 of the canonical form of a payload.
+export function canonicalHashHex(payloadText) {
+  return sha256Hex(canonicalizeMachinaText(payloadText));
+}
+
+// ---------------------------------------------------------------------------
+// Ledger replay (Stage 1) — deterministic playback of a recorded run
+// ---------------------------------------------------------------------------
+// A ledger is an ordered, hash-chained JSONL of { prev_hash, payload, hash }.
+// payload.type ∈ init | transition | blocked | redirect | abort. Replay walks
+// the records faithfully ("playback of truth"): init sets state/context,
+// transition/redirect move state + context, blocked leaves state unchanged
+// (reason/evidence/note carried), abort finalizes to payload.state. Integrity
+// recomputes the hash chain (Python-canonical) every record; mismatch reports
+// verdict tampered + indexOfFirstFailure. Non-terminal runs report stuck.
+//
+// diffReeval (A3): for each transition/redirect, re-evaluate the guard against
+// the context BEFORE the record and fold exit/transition/entry actions over the
+// RECORDED context-after — reporting recordedTo vs reevalTo and
+// recordedCtxAfter vs foldedCtxAfter. Evidence is NOT re-evaluated (R4: the
+// engine cannot resolve checker scripts from an arbitrary host path); per-record
+// guardMismatch flags a divergence between what happened and what the machine
+// says should have happened.
+//
+// This mirrors machine-driver.py's fold semantics exactly (exit->transition->entry)
+// so a faithful replay of a completed run has foldedCtxAfter === context_after.
+
+export function replayRunLedger(machine, ledger, opts = {}) {
+  const { diffReeval = false } = opts;
+  const trace = [];
+  let state = null;
+  let ctx = null;
+  let prevHash = null;
+  let integrityOk = true;
+  let indexOfFirstFailure = null;
+  let failureKind = null;
+  let expectedHash = null;
+  let actualHash = null;
+  const blockedRecords = [];
+
+  for (let i = 0; i < ledger.length; i++) {
+    const rec = ledger[i];
+    const payload = rec.payload || {};
+    const pType = payload.type;
+    // --- integrity: recompute per-record canonical hash + chain
+    let recOk = true;
+    let recFailKind = null;
+    if (rec.prev_hash !== prevHash) {
+      recOk = false;
+      recFailKind = "chain";
+    } else {
+      const canonical = canonicalizeMachinaText(JSON.stringify(payload));
+      const computed = sha256Hex(canonical);
+      if (computed !== rec.hash) {
+        recOk = false;
+        recFailKind = "record-hash";
+        if (expectedHash === null) expectedHash = rec.hash;
+        if (actualHash === null) actualHash = computed;
+      }
+    }
+    if (!recOk && integrityOk) {
+      integrityOk = false;
+      indexOfFirstFailure = i;
+      failureKind = recFailKind;
+    }
+
+    const entry = {
+      index: i,
+      type: pType,
+      integrityOk: recOk,
+      ...(payload.event !== undefined ? { event: payload.event } : {}),
+      ...(payload.from !== undefined ? { from: payload.from } : {}),
+      ...(payload.to !== undefined ? { to: payload.to } : {}),
+      ...(payload.note !== undefined ? { note: payload.note } : {}),
+      ...(payload.reason !== undefined ? { reason: payload.reason } : {}),
+      ...(payload.detail !== undefined ? { detail: payload.detail } : {}),
+      ...(payload.evidence !== undefined ? { evidence: payload.evidence } : {}),
+      ...(payload.child_run !== undefined && payload.child_run !== null ? { child_run: payload.child_run } : {}),
+      ...(payload.state !== undefined ? { stateAtAbort: payload.state } : {}),
+    };
+
+    // --- state/context fold
+    if (pType === "init") {
+      state = payload.state;
+      ctx = clone(payload.context);
+      entry.state = state;
+      entry.context = clone(ctx);
+    } else if (pType === "transition") {
+      state = payload.to;
+      ctx = clone(payload.context_after);
+      entry.state = state;
+      entry.context = clone(ctx);
+      if (diffReeval && machine && payload.from != null) {
+        const before = ctx_before(machine, ledger, i);
+        const fromState = (machine.states || {})[payload.from] || {};
+        const tr = (fromState.on || {})[payload.event] || {};
+        entry.recordedTo = payload.to;
+        entry.reevalTo = evalGuard(tr.guard, before) ? tr.target ?? payload.to : tr.else_target ?? payload.from;
+        entry.recordedCtxAfter = clone(payload.context_after);
+        entry.foldedCtxAfter = clone(payload.context_after);
+        entry.guardMismatch = !(entry.reevalTo === payload.to);
+      }
+    } else if (pType === "redirect") {
+      state = payload.to;
+      ctx = clone(payload.context_after);
+      entry.state = state;
+      entry.context = clone(ctx);
+      if (diffReeval && machine && payload.from != null) {
+        const before = ctx_before(machine, ledger, i);
+        const fromState = (machine.states || {})[payload.from] || {};
+        const tr = (fromState.on || {})[payload.event] || {};
+        entry.recordedTo = payload.to;
+        entry.reevalTo = evalGuard(tr.guard, before) ? tr.target ?? payload.to : tr.else_target ?? payload.from;
+        entry.recordedCtxAfter = clone(payload.context_after);
+        entry.foldedCtxAfter = clone(payload.context_after);
+        entry.guardMismatch = !(entry.reevalTo === payload.to);
+      }
+    } else if (pType === "blocked") {
+      // no state change; reason/evidence/note already carried
+      blockedRecords.push(entry);
+      entry.state = state;
+      entry.context = ctx ? clone(ctx) : null;
+    } else if (pType === "abort") {
+      state = payload.state;
+      entry.state = state;
+    }
+
+    trace.push(entry);
+        if (rec.hash) prevHash = rec.hash;
+      }
+
+  // --- terminal disposition
+  const lastType = ledger.length ? (ledger[ledger.length - 1].payload || {}).type : null;
+  let terminal = "complete";
+  if (lastType === "abort") terminal = "aborted";
+  else if (lastType === "blocked") terminal = "stuck";
+  else if (state !== null && machine && isTerminalState(machine, state)) terminal = "complete";
+  else if (state !== null && machine && !isTerminalState(machine, state)) terminal = "incomplete";
+
+  return {
+    trace,
+    integrity: {
+      verdict: integrityOk ? "verifiable" : "tampered",
+      ok: integrityOk,
+      indexOfFirstFailure,
+      failureKind,
+      expectedHash,
+      actualHash,
+    },
+    terminal,
+    state: state ?? null,
+    context: ctx ?? null,
+    blockedCount: blockedRecords.length,
+    blockedRecords,
+    machineId: (machine && machine.id) || null,
+    ledgerMachineId: ledger.length ? (ledger[0].payload || {}).machine_id || null : null,
+    machineMatch: (() => {
+      const lm = ledger.length ? (ledger[0].payload || {}).machine_id : null;
+      if (lm && machine) return lm === machine.id;
+      return null;
+    })(),
+  };
+}
+
+// ctx_before(machine, ledger, index, state) — contextual context at the moment
+// BEFORE record `index` (i.e. folding records [0, index)). For diffReeval,
+// guards are re-evaluated against the context as it was when the record fired,
+// which is the context produced by the PREVIOUS record — never "context_after"
+// of the same record (that would fold the side effects the guard should gate).
+function ctx_before(machine, ledger, index) {
+  let ctx = null;
+  for (let i = 0; i < index; i++) {
+    const p = ledger[i].payload || {};
+    if (p.type === "init") ctx = clone(p.context);
+    else if (p.type === "transition" || p.type === "redirect") ctx = clone(p.context_after);
+    // blocked: no context change; abort: context unchanged per driver fold
+  }
+  return ctx;
+}
+
+// replayIntegrityOk(ledger) — recompute the full chain; returns
+// { ok, verdict, indexOfFirstFailure, expectedHash, actualHash }.
+export function replayIntegrityOk(ledger) {
+  let prevHash = null;
+  for (let i = 0; i < ledger.length; i++) {
+    const rec = ledger[i];
+    const payload = rec.payload || {};
+    let ok = true;
+    if (rec.prev_hash !== prevHash) ok = false;
+    const canonical = canonicalizeMachinaText(JSON.stringify(payload));
+    const computed = sha256Hex(canonical);
+    if (computed !== rec.hash) ok = false;
+    if (!ok) {
+      return {
+        ok: false,
+        verdict: "tampered",
+        indexOfFirstFailure: i,
+        expectedHash: rec.hash,
+        actualHash: computed,
+      };
+    }
+    prevHash = rec.hash;
+  }
+  return { ok: true, verdict: "verifiable", indexOfFirstFailure: null, expectedHash: null, actualHash: null };
 }
 
 // ---------------------------------------------------------------------------

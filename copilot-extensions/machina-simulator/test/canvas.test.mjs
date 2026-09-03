@@ -42,9 +42,9 @@ test("canvas action names do not start with canvas.", () => {
   }
 });
 
-test("canvas exposes machina_load and machina_command actions", () => {
+test("canvas exposes machina_load, machina_command, machina_replay actions", () => {
   const names = canvas.actions.map((a) => a.name).sort();
-  assert.deepEqual(names, ["machina_command", "machina_load"]);
+  assert.deepEqual(names, ["machina_command", "machina_load", "machina_replay"]);
 });
 
 test("machina_load action renders the machine and returns compliance summary", async () => {
@@ -68,14 +68,94 @@ test("machina_load rejects invalid machine with a clear error", async () => {
 
 test("machina_command accepts all documented commands", async () => {
   const action = canvas.actions.find((a) => a.name === "machina_command");
-  for (const cmd of ["play", "pause", "step", "back", "reset", "scenarios", "compliance", "jump"]) {
+  for (const cmd of ["play", "pause", "step", "back", "reset", "scenarios", "compliance", "jump", "replayStep", "replayBack", "replayReset", "replayJump"]) {
     const result = await action.handler({
       instanceId: "cmd-inst-1",
-      input: { command: cmd, state: cmd === "jump" ? "a" : undefined },
+      input: { command: cmd, state: cmd === "jump" ? "a" : undefined, index: cmd === "replayJump" ? 0 : undefined },
     });
     assert.equal(result.ok, true, cmd);
     assert.equal(result.command, cmd);
   }
+});
+
+test("machina_replay replays a ledger and returns trace + integrity verdict", async () => {
+  const action = canvas.actions.find((a) => a.name === "machina_replay");
+  assert.ok(action);
+  const ledger = fs
+    .readFileSync(path.join(__dirname, "fixtures", "ledger-synthetic.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
+  const machine = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "fixtures", "machine-releasenotes.json"), "utf8"),
+  );
+  const result = await action.handler({
+    instanceId: "replay-inst-1",
+    input: { machine, ledger },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "verifiable");
+  assert.equal(result.integrityOk, true);
+  assert.equal(result.trace.length, 5);
+  assert.deepEqual(result.trace.map((t) => t.type), ["init", "transition", "blocked", "transition", "redirect"]);
+  assert.equal(result.terminal, "incomplete");
+  assert.equal(result.machineMatch, true);
+  // blocked record surfaces reason/evidence
+  const blocked = result.trace.find((t) => t.type === "blocked");
+  assert.equal(blocked.reason, "evidence");
+});
+
+test("machina_replay detects tampered ledger", async () => {
+  const action = canvas.actions.find((a) => a.name === "machina_replay");
+  const ledger = fs
+    .readFileSync(path.join(__dirname, "fixtures", "ledger-synthetic.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
+  ledger[3].payload.note = "tampered";
+  const machine = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "fixtures", "machine-releasenotes.json"), "utf8"),
+  );
+  const result = await action.handler({
+    instanceId: "replay-inst-2",
+    input: { machine, ledger },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "tampered");
+  assert.equal(result.integrityOk, false);
+  assert.equal(result.indexOfFirstFailure, 3);
+});
+
+test("machina_replay rejects empty ledger", async () => {
+  const action = canvas.actions.find((a) => a.name === "machina_replay");
+  const result = await action.handler({
+    instanceId: "replay-inst-3",
+    input: { machine: sample, ledger: [] },
+  });
+  assert.equal(result.ok, false);
+  assert.ok(/non-empty array/.test(result.error));
+});
+
+test("machina_replay broadcasts a load event carrying replay payload", async () => {
+  const action = canvas.actions.find((a) => a.name === "machina_replay");
+  const ledger = fs
+    .readFileSync(path.join(__dirname, "fixtures", "ledger-synthetic.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
+  const machine = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "fixtures", "machine-releasenotes.json"), "utf8"),
+  );
+  // instance shares getInstance state; assert the SSR /state now carries verdict
+  await action.handler({ instanceId: "replay-inst-state", input: { machine, ledger } });
+  const opened = await canvas.open({ instanceId: "replay-inst-state" });
+  const port = new URL(opened.url).port;
+  const res = await fetch(`http://127.0.0.1:${port}/state?instance=replay-inst-state`);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.replay.verdict, "verifiable");
+  assert.equal(body.replay.traceLength, 5);
+  assert.equal(body.replay.terminal, "incomplete");
 });
 
 test("canvas open is idempotent and returns a loopback URL on 127.0.0.1", async () => {
@@ -96,6 +176,15 @@ test("HTTP server serves the full simulator app (module script, imports engine)"
   assert.ok(html.includes("Machina ·") || html.includes("State Machine Simulator"), "serves the simulator app");
   assert.ok(html.includes('<script type="module">'), "app uses a module script");
   assert.ok(html.includes("/machine-simulator.mjs"), "app imports the shared engine");
+});
+
+test("served app.html carries the replay trust-badge + blocked-log markers (conductor surface)", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "simulator", "app.html"), "utf8");
+  assert.ok(html.includes('id="stage-trust"'), "served app has the replay trust badge element");
+  assert.ok(/pill-trust|stage-trust/.test(html), "served app carries trust-badge CSS/markup");
+  assert.ok(/loadReplay|replayStep|replayBack|replayReset/.test(html), "served app has replay navigation functions");
+  assert.ok(/↯|lg-blocked/.test(html), "served app renders a blocked-record marker");
+  assert.ok(/⇀|lg-redirect/.test(html), "served app renders a redirect-record marker");
 });
 
   test("HTTP server serves machine-simulator.mjs as JS", async () => {

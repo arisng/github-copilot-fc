@@ -103,3 +103,40 @@ When evolving the registry, always update these builders together with the field
 
 Event names `UPPER_SNAKE`; state keys `kebab-case`; guard `value` may reference context keys by
 name.
+
+## Ledger replay contract (machina-driving v3 runs)
+
+A **run ledger** records a driven Machina run as an ordered, hash-chained JSONL consumed by
+`machina_replay` / `replayRunLedger`:
+
+```
+{ "prev_hash": "<sha256 of prior record>|null", "payload": { … }, "hash": "<sha256 of payload>" }
+```
+
+- `hash = sha256(json.dumps(payload, sort_keys=True, separators=(",",":")))` — Python-canonical
+  (byte-exact; the JS canonicalizer in `machine-simulator.mjs` re-serializes raw JSON text to match).
+- The **first record's** `prev_hash` is `null`; each subsequent `prev_hash` equals the prior hash.
+- Replay re-verifies the full chain + the `machine_sha256` pinned at `init`; verdict
+  `verifiable | tampered` with `indexOfFirstFailure`.
+
+### Record types (five)
+
+| `type` | `payload` keys | State/context effect |
+|---|---|---|
+| `init` | `machine_id, spec_version, scenario, state, context, machine_dir, machine_sha256, tool_hashes, timestamp` | set state + context (entry actions already applied) |
+| `transition` | `event, from, to, guard, evidence[], exit_actions, transition_actions[], entry_actions, context_after, note, child_run` | set state = `to`, context = `context_after` |
+| `blocked` | `event, from, reason (guard·evidence·limit), detail?, evidence[], note` | no state change; reason/evidence carried |
+| `redirect` | `event, from, to, reason, detail?, context_after, note` | set state = `to`, context = `context_after` (guard-failure to `else_target`) |
+| `abort` | `state, reason, timestamp` | finalize; context unchanged |
+
+### Semantics
+
+- `child_run` resolves as a **sibling run** under the same family container (e.g.
+  `Path(run_dir).parent / child_run`). Replay surfaces it as a nested badge; child-layout is a
+  **data** concern (the parent run dir container), not re-derived in-engine.
+- Non-terminal runs (final record is `blocked`) are not "complete": replay reports
+  `terminal: stuck`, state unchanged.
+- `diffReeval` (optional) re-evaluates `guard` per transition/redirect against the context
+  **before** that record, reporting `guardMismatch` when recorded `to` ≠ re-evaluated target.
+  Evidence/checker scripts are NOT re-run in-engine (they resolve against host paths the
+  simulator cannot access) — `tool_hashes` are skip-or-warn.

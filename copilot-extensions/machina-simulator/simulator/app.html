@@ -181,6 +181,12 @@
     .pill.ok .dot { background: var(--success); box-shadow: 0 0 0 3px var(--accent-soft); animation: blink 1.4s ease-in-out infinite; }
     .pill.done { color: var(--muted); }
     .pill.done .dot { background: var(--muted); }
+        .pill-trust.ok { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 45%, var(--border)); background: var(--accent-soft); }
+        .pill-trust.ok .dot { background: var(--success); }
+        .pill-trust.tampered { color: #e5484d; border-color: rgba(229, 72, 77, 0.4); background: var(--accent-soft); }
+        .pill-trust.tampered .dot { background: #e5484d; }
+        .pill-replay { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 40%, var(--border)); background: var(--accent-soft); }
+        .pill-replay .dot { background: var(--accent); }
     @keyframes blink { 50% { opacity: 0.35; } }
 
     .canvas {
@@ -407,6 +413,8 @@
     .loglist li:first-child .lg-evt { color: var(--accent); }
     .lg-time { color: var(--muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
     .lg-evt { font-weight: 600; flex: 0 0 auto; }
+    .lg-blocked { color: #e5484d; }
+    .lg-redirect { color: #8b5cf6; }
     .lg-path { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* ─── coverage + cycle analysis ──────────────────────────── */
@@ -673,7 +681,10 @@
           </div>
           <div class="crumb" id="stage-path"></div>
         </div>
-        <span class="pill" id="stage-status"><span class="dot"></span>idle</span>
+        <div class="stage-badges">
+          <span class="pill" id="stage-status"><span class="dot"></span>idle</span>
+          <span class="pill pill-trust" id="stage-trust" hidden><span class="dot"></span>replay</span>
+        </div>
       </div>
       <div class="canvas" id="canvas">
         <div class="empty-state" id="empty-state" data-od-id="empty-state">
@@ -883,14 +894,20 @@ import {
   autoPatchItems,
   buildSpecJsonSchema,
   buildSpecMarkdown,
-} from "/machine-simulator.mjs";
+    replayRunLedger,
+    replayIntegrityOk,
+  } from "/machine-simulator.mjs";
 
 
     /* ── app version (single source of truth) ───────────────────
-       v0.3.1 · 2026-08-24 · fix spacing control (canvas pointer capture)
+           v0.4.0 · 2026-09-03 · run replay: load a recorded ledger via
+             replayRunLedger, trust badge (✓ verified / TAMPERED),
+             blocked/redirect log rendering, replayStep/Back/Reset/Jump, diffReeval
+             guard-mismatch feedback for conductor steering */
+           v0.3.1 · 2026-08-24 · fix spacing control (canvas pointer capture)
        v0.3.0 · 2026-08-24 · graph density control + markdown spec copy +
          generated markers + version model + Mode B hint + in-app limits docs */
-    const APP_VERSION = '0.3.1';
+    const APP_VERSION = '0.4.0';
 const $ = id => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
 const clone = x => JSON.parse(JSON.stringify(x));
@@ -923,6 +940,7 @@ const NODE_W = 168, NODE_H = 62, PADX = 96, PADY = 112, COLW = 256, ROWGAP = 148
 const MAX_GRAPH_STATES = 40;
 let spacing = 1;
 let machine, stateKey, context, initialSnapshot, history, log, playing, speedMs, scenarioId, loopMode;
+let replayMode = false, replayTrace = [], replayIdx = 0, replayIntegrity = null, replayEnded = false;
 let edgeMap = {}
 , nodeEls = {}
 , nodePos = {}
@@ -936,15 +954,23 @@ function enabledEvents() {
       }));
     }
 function isTerminal() {
+      if (replayMode) return replayEnded;
       const st = currentState();
       return st.type === 'final' || !hasOutgoing(stateKey);
     }
 function scenarioLabel() {
+      if (replayMode) return 'replay · ' + (replayIdx + 1) + '/' + replayTrace.length;
       const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
       return sc ? (sc.label || sc.id) : 'Default';
     }
 function updateStatusBadge() {
       if (!machine) return;
+      if (replayMode) {
+        const p = $('stage-status');
+        p.className = 'pill pill-replay';
+        p.innerHTML = '<span class="dot"></span>' + (replayEnded ? 'replay-done' : 'replaying');
+        return;
+      }
       const final = isTerminal();
       let label = 'idle', cls = '';
       if (playing) { label = 'running'; cls = 'ok'; }
@@ -972,6 +998,9 @@ function restorePersisted() {
     }
 function loadMachine(m, scId) {
       machine = m;
+      replayMode = false;
+      renderTrustBadge(null);
+      replayTrace = []; replayIdx = 0; replayIntegrity = null;
       generatedScenarios = generateScenarios();
       let sc = generatedScenarios.find(s => s.id === scId);
       if (!sc && generatedScenarios.length) {
@@ -997,10 +1026,42 @@ function loadMachine(m, scId) {
       applyScenarioSelection();
       persist();
     }
-function applyScenario(scId) {
-      setPlaying(false);
-      resetTo(scId, true);
-    }
+      function loadReplay(m, ledger, opts) {
+            // Enter replay mode: consume a recorded run ledger via the engine's
+            // replayRunLedger, and render the history/log from the trace. Trust
+            // badge reflects replay integrity; stepping walks the recorded trace.
+            machine = m;
+            replayMode = true;
+            generatedScenarios = [];
+            scenarioId = null;
+            const r = replayRunLedger(m, ledger, opts || {});
+            replayTrace = r.trace;
+            replayIdx = 0;
+            replayIntegrity = r.integrity;
+            const initEntry = r.trace[0];
+            const initState = initEntry.type === 'init' ? initEntry.state : (m.initial || null);
+            const initCtx = initEntry.type === 'init' ? initEntry.context : clone(m.context || {});
+            initialSnapshot = { state: initState, context: clone(initCtx) };
+            stateKey = initState;
+            context = clone(initCtx);
+            // history starts with the init snapshot; replay steps append trace entries
+            history = [{ state: stateKey, context: clone(context), replay: true, type: 'init' }];
+            log = [];
+            replayEnded = r.terminal === 'complete' ? true : false;
+            renderTrustBadge(r.integrity);
+            setPlaying(false);
+            showEmptyState();
+            updateFileBar();
+            syncScenarioSelect();
+            renderGraph();
+            updateUI();
+            renderAnalysisPanel();
+            persist();
+          }
+      function applyScenario(scId) {
+            setPlaying(false);
+            resetTo(scId, true);
+          }
 function resetTo(scId, render) {
       if (scId != null) scenarioId = scId;
       const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
@@ -1104,6 +1165,74 @@ function resetAll() {
       if (!machine) return;
       setPlaying(false);
       resetTo(scenarioId, false);
+    }
+function renderTrustBadge(integrity) {
+      const b = $('stage-trust');
+      if (!replayMode || !integrity) { if (b) b.hidden = true; return; }
+      b.hidden = false;
+      b.className = 'pill pill-trust ' + (integrity.ok ? 'ok' : 'tampered');
+      const parts = ['replay'];
+      if (integrity.ok) parts.push('✓ verified');
+      else parts.push('TAMPERED at record ' + integrity.indexOfFirstFailure);
+      b.innerHTML = '<span class="dot"></span>' + parts.join(' · ');
+      b.title = integrity.ok
+        ? 'SHA-256 chain + machine_sha256 verified'
+        : 'Integrity failed at record ' + integrity.indexOfFirstFailure + (integrity.failureKind ? ' (' + integrity.failureKind + ')' : '');
+    }
+function replayStep() {
+      if (!replayMode || !replayTrace.length) return;
+      if (replayIdx >= replayTrace.length - 1) { toast('Replay: already at the final record', false); return; }
+      setPlaying(false);
+      replayIdx++;
+      const e = replayTrace[replayIdx];
+      history.push({ state: e.state, context: clone(e.context), replay: true, type: e.type, event: e.event, from: e.from, to: e.to, reason: e.reason, detail: e.detail, evidence: e.evidence, note: e.note, child_run: e.child_run, integrityOk: e.integrityOk });
+      if (e.state) { stateKey = e.state; }
+      if (e.context) { context = clone(e.context); }
+      log.unshift({ ts: Date.now(), event: e.event || ('*' + e.type.toUpperCase()), from: e.from ?? e.state, to: e.to ?? e.state, replay: true, type: e.type, reason: e.reason, detail: e.detail, note: e.note, child_run: e.child_run });
+      updateUI();
+      persist();
+    }
+function replayBack() {
+      if (!replayMode || history.length <= 1) { toast('Replay: at the beginning', false); return; }
+      setPlaying(false);
+      history.pop();
+      replayIdx = Math.max(0, replayIdx - 1);
+      const prev = history[history.length - 1] || { state: replayTrace[0].state, context: replayTrace[0].context };
+      stateKey = prev.state;
+      context = clone(prev.context);
+      log.unshift({ ts: Date.now(), event: 'BACK', from: prev.state, to: prev.state, replay: true });
+      updateUI();
+    }
+function replayReset() {
+      if (!machine || !replayMode) return;
+      setPlaying(false);
+      const initEntry = replayTrace[0];
+      const initState = initEntry.type === 'init' ? initEntry.state : (machine.initial || null);
+      const initCtx = initEntry.type === 'init' ? initEntry.context : clone(machine.context || {});
+      replayIdx = 0;
+      stateKey = initState;
+      context = clone(initCtx);
+      history = [{ state: stateKey, context: clone(context), replay: true, type: 'init' }];
+      log = [];
+      updateUI();
+      persist();
+    }
+function replayJump(i) {
+      // Jump to a specific ledger record index (0-based); folds all records up
+      // to and including `i` exactly like replayStep.
+      if (!replayMode || !replayTrace.length) return;
+      setPlaying(false);
+      replayIdx = Math.max(0, Math.min(replayTrace.length - 1, i));
+      history = [{ state: replayTrace[0].state, context: clone(replayTrace[0].context), replay: true, type: 'init' }];
+      for (let k = 1; k <= replayIdx; k++) {
+        const e = replayTrace[k];
+        history.push({ state: e.state, context: clone(e.context), replay: true, type: e.type, event: e.event, from: e.from, to: e.to, reason: e.reason, detail: e.detail, evidence: e.evidence, note: e.note, child_run: e.child_run, integrityOk: e.integrityOk });
+      }
+      const cur = replayTrace[replayIdx];
+      stateKey = cur.state;
+      context = clone(cur.context);
+      log.unshift({ ts: Date.now(), event: 'JUMP#' + replayIdx, from: stateKey, to: stateKey, replay: true });
+      updateUI();
     }
 function computeLayout(statesList) {
       const states = statesList || Object.keys(machine.states);
@@ -1464,6 +1593,7 @@ function fmtTime(ts) {
     }
 function updateUI() {
       if (!machine) return;
+      renderTrustBadge(replayIntegrity);
       const visits = {};
       history.forEach(h => { visits[h.state] = (visits[h.state] || 0) + 1; });
       for (const [k, n] of Object.entries(nodeEls)) {
@@ -1541,7 +1671,22 @@ function renderLog() {
         const t = document.createElement('span'); t.className = 'lg-time'; t.textContent = fmtTime(e.ts);
         const ev = document.createElement('span'); ev.className = 'lg-evt'; ev.textContent = e.event;
         const p = document.createElement('span'); p.className = 'lg-path';
-        p.textContent = e.event === 'BACK' ? '↩ ' + e.to : (e.event === 'JUMP' ? '↪ ' + e.to : `${e.from} → ${e.to}`);
+        // Replay log entries carry richer per-record markers
+        if (e.replay) {
+          if (e.type === 'blocked') {
+            p.textContent = `↯ ${e.event} blocked at ${e.from || e.state} (${e.reason || 'guard'})`;
+          } else if (e.type === 'redirect') {
+            p.textContent = `⇀ ${e.event} ${e.from} → ${e.to} (redirect)`;
+          } else if (e.type === 'abort') {
+            p.textContent = `■ abort at ${e.state || e.from || ''}`;
+          } else {
+            p.textContent = e.event === 'BACK' ? '↩ ' + e.to : (e.event === 'JUMP' || /^JUMP#/.test(e.event) ? '↪ #' + e.to : `${e.from} → ${e.to}`);
+          }
+          if (e.detail) p.setAttribute('title', e.detail);
+          ev.classList.add(e.type === 'blocked' ? 'lg-blocked' : (e.type === 'redirect' ? 'lg-redirect' : ''));
+        } else {
+          p.textContent = e.event === 'BACK' ? '↩ ' + e.to : (e.event === 'JUMP' ? '↪ ' + e.to : `${e.from} → ${e.to}`);
+        }
         li.appendChild(t); li.appendChild(ev); li.appendChild(p);
         ol.appendChild(li);
       });
@@ -2345,18 +2490,25 @@ const __extBridge = (() => {
     let d;
     try { d = JSON.parse(e.data); } catch (err) { return; }
     if (!d) return;
-    if (d.type === 'load' && d.machine) loadMachine(d.machine);
-    else if (d.type === 'command') {
-      const cmd = d.command;
-      if (cmd === 'play') setPlaying(true);
-      else if (cmd === 'pause') setPlaying(false);
-      else if (cmd === 'step') { setPlaying(false); fireNext(); }
-      else if (cmd === 'back') stepBack();
-      else if (cmd === 'reset') resetAll();
-      else if (cmd === 'scenarios') runGeneration();
-      else if (cmd === 'compliance') openCompliance();
-      else if (cmd === 'jump' && d.state) jumpToState(d.state);
-    }
+    if (d.type === 'load' && d.machine) {
+          if (d.replay && Array.isArray(d.replay.ledger)) loadReplay(d.machine, d.replay.ledger, { diffReeval: true });
+          else loadMachine(d.machine);
+        }
+        else if (d.type === 'command') {
+          const cmd = d.command;
+          if (cmd === 'play') setPlaying(true);
+          else if (cmd === 'pause') setPlaying(false);
+          else if (cmd === 'step') { setPlaying(false); fireNext(); }
+          else if (cmd === 'back') stepBack();
+          else if (cmd === 'reset') resetAll();
+          else if (cmd === 'scenarios') runGeneration();
+          else if (cmd === 'compliance') openCompliance();
+          else if (cmd === 'jump' && d.state) jumpToState(d.state);
+          else if (cmd === 'replayStep') replayStep();
+          else if (cmd === 'replayBack') replayBack();
+          else if (cmd === 'replayReset') replayReset();
+          else if (cmd === 'replayJump' && d.index != null) replayJump(Number(d.index));
+        }
   });
 })();
   </script></script>

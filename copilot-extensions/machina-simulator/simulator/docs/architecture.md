@@ -93,7 +93,26 @@ Transport semantics:
 - `stepBack()` pops history and restores prior state/context.
 - Speed slider 1–10 maps to `1400 − (v−1)·130` ms (880 ms at default 5).
 
-Guard/action evaluation:
+## Run replay (recorded ledgers)
+
+`loadReplay(machine, ledger, opts)` enters replay mode (a "playback of truth"):
+
+- Builds the trace via the engine's `replayRunLedger` (all 5 record types:
+  `init`/`transition`/`blocked`/`redirect`/`abort`), then steps exactly through it —
+  `history` is seeded from the init snapshot and appended on `replayStep()`.
+- Integrity is re-verified on load (Python-canonical SHA-256 chain + `machine_sha256`):
+  the trust badge renders **✓ verified** (green) or **TAMPERED at record N** (red).
+- Blocked/redirect records render distinctly in the log (`↯ blocked` / `⇀ redirect`);
+  blocked carries reason/evidence/note; child_run appears as a nested badge.
+- Non-terminal runs render `replaying`/`replay-done` via `isTerminal()` consulting
+  `replayEnded` (which is `r.terminal === 'complete'`).
+- Navigation: `replayStep()` / `replayBack()` / `replayReset()` / `replayJump(i)` walk
+  the recorded trace (commands `replayStep`/`replayBack`/`replayReset`/`replayJump`
+  over SSE).
+- `diffReeval` guards are re-evaluated against context-before per record; a
+  `guardMismatch` surfaces divergence between what happened and what the machine says.
+
+## Guard/action evaluation:
 
 - `evalGuard`: reads context by dotted path (`getPath`); string `value` resolves against context
   keys then numeric-coerces; unknown op → pass (default true). Ops: `eq·neq·lt·lte·gt·gte`.
