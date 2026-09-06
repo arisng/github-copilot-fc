@@ -34,7 +34,7 @@ Is it a Copilot Agent (*.agent.md)?
           Convert runSubagent calls to Agent tool with subagent_type.
           Map handoffs to subagents definitions in YAML.
 
-Is it a Copilot Hook (*.hooks.json)?
+Is it a Copilot Hook (*.json)?
 └── YES → Convert to [[hooks]] entries in ~/.kimi/config.toml.
           Unify bash/ps1 dispatch if needed.
 
@@ -206,7 +206,7 @@ Kimi hooks are TOML array entries, not JSON manifests. Each hook receives JSON v
 
 #### Mapping example
 
-**Copilot hook manifest** (`logger.hooks.json`):
+**Copilot hook manifest** (`logger.json`):
 
 ```json
 {

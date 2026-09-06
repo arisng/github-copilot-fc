@@ -19,10 +19,10 @@ VS Code Copilot hooks should be deployed to `.github/hooks/` (repo-scoped, histo
 ```text
 <workspace>/
 ├── .github/hooks/                           # Workspace-level (default, auto-discovered)
-│   └── ralph-tool-logger.hooks.json
+│   └── ralph-tool-logger.json
 ├── hooks/                                   # Authoring source (not directly discovered)
 │   └── ralph-tool-logger/
-│       ├── ralph-tool-logger.hooks.json
+│       ├── ralph-tool-logger.json
 │       └── scripts/
 │           ├── ralph-tool-logger.ps1
 │           └── ralph-tool-logger.sh

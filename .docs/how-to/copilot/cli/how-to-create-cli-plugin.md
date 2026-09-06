@@ -73,7 +73,7 @@ plugins/cli/my-plugin/
     my-skill/
       SKILL.md
   hooks/
-    my-hooks.hooks.json
+    my-hooks.json
 ```
 
 ### Relative-path layout (for workspace-internal use)

@@ -118,7 +118,7 @@ function Get-NormalizedEventName {
 
 ### 5. Update the hooks manifest
 
-Open `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json` and add your event to the `hooks` object:
+Open `hooks/ralph-tool-logger/ralph-tool-logger.json` and add your event to the `hooks` object:
 
 ```json
 {
@@ -160,7 +160,7 @@ Run the publish script to deploy the updated manifest to `.github/hooks/`:
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1
 ```
 
-This publishes the authored manifest from `hooks/ralph-tool-logger/` to `.github/hooks/ralph-tool-logger.hooks.json`, where VS Code auto-discovers it. The logger scripts remain in `hooks/ralph-tool-logger/scripts/` and are referenced by workspace-relative paths.
+This publishes the authored manifest from `hooks/ralph-tool-logger/` to `.github/hooks/ralph-tool-logger.json`, where VS Code auto-discovers it. The logger scripts remain in `hooks/ralph-tool-logger/scripts/` and are referenced by workspace-relative paths.
 
 ### 7. Verify the new event fires
 

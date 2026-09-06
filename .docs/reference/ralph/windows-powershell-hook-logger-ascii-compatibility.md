@@ -16,7 +16,7 @@ The Windows Ralph hook manifest executes `hooks/ralph-tool-logger/scripts/ralph-
 
 ## Blast Radius
 
-`hooks/ralph-tool-logger/ralph-tool-logger.hooks.json` routes these four shared events to the same PowerShell entrypoint:
+`hooks/ralph-tool-logger/ralph-tool-logger.json` routes these four shared events to the same PowerShell entrypoint:
 
 - `subagentStart`
 - `subagentStop`

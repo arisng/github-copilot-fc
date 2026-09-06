@@ -6,7 +6,7 @@ Use this repository to create, validate, and distribute:
 
 - Plugins (`plugins/<plugin-name>/`)
 - Custom Agents (`agents/*.agent.md`)
-- Agent Hooks (`hooks/<name>/<name>.hooks.json`)
+- Agent Hooks (`hooks/<name>/<name>.json`)
 - Custom Instructions (`instructions/*.instructions.md`)
 - Prompt files (`prompts/*.prompt.md`)
 - Skills (`skills/<skill-name>/SKILL.md`)
@@ -157,7 +157,7 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 ## Naming and Authoring Conventions
 
 - Agent file naming: `agents/<name>.agent.md`
-- Hook file naming: `hooks/<name>/<name>.hooks.json`
+- Hook file naming: `hooks/<name>/<name>.json`
 - Instruction naming: `instructions/<name>.instructions.md`
 - Prompt naming: `prompts/<name>.prompt.md`
 - Skill folder requirement: `skills/<name>/SKILL.md`

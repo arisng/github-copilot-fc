@@ -725,7 +725,7 @@ client.close()
 ├── invoke-copilot.agent.md       # Custom agent for task() delegation (Tier 2)
 
 .github/hooks/
-└── subagent-logger.hooks.json    # Optional: log subagent activity
+└── subagent-logger.json    # Optional: log subagent activity
 
 lib/ (or scripts/)
 ├── invoke-copilot.ps1            # Also placed in a shared scripts dir
@@ -886,6 +886,6 @@ $review = & .\scripts\invoke-copilot.ps1 `
 [^12]: `Amsterdam/amsterdam-agent-skills:tools/bench/src/runners/copilot.ts:25-188` — JSONL parsing and usage extraction
 [^13]: `ClickHouse/ClickHouse:ci/jobs/copilot_review_job.py:120-139` — `_run_copilot_once()` with `subprocess.run`
 [^14]: `IstiN/dmtools-agents:scripts/providers/copilot.sh:30-60` — session management with retry; `github/spec-kit:src/specify_cli/integrations/copilot/__init__.py:160-250` — `dispatch_command()` with `--agent`
-[^15]: `arisng/github-copilot-fc:hooks/ralph-tool-logger/ralph-tool-logger.hooks.json:1-43` — subagent lifecycle hooks
+[^15]: `arisng/github-copilot-fc:hooks/ralph-tool-logger/ralph-tool-logger.json:1-43` — subagent lifecycle hooks
 [^16]: [ACP Protocol Spec](https://agentclientprotocol.com/protocol/overview) + `agentclientprotocol/typescript-sdk` on npm
 [^17]: `NousResearch/hermes-agent:agent/copilot_acp_client.py:430-679` — complete Python ACP client; `ironpark/acp-go:client.go:17-55` — Go ACP SDK; `consult:acp/client.js:1-260` — minimal pure-JS ACP client

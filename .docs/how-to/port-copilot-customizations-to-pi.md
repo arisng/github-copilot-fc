@@ -35,7 +35,7 @@ Is it a Copilot Agent (*.agent.md)?
            ├── Always-on system behavior  → Extension intercepting before_agent_start
            └── Read-only variant          → Tool allowlist (--tools read,grep,find,ls)
 
-Is it a Copilot Hook (*.hooks.json)?
+Is it a Copilot Hook (*.json)?
 └── YES → Pi has no native hooks system.
            Fallback: implement as an Extension subscribing to tool_call events.
 
@@ -182,7 +182,7 @@ pi --tools read,grep,find,ls -p "Review this codebase"
 
 ### 2.5 Hooks → Extensions
 
-Pi has **no native lifecycle hooks system** comparable to Copilot's `.hooks.json` or Kimi's `[[hooks]]`. However, Pi's **extension event system** is significantly more powerful and can replicate any hook behavior.
+Pi has **no native lifecycle hooks system** comparable to Copilot's `.json` or Kimi's `[[hooks]]`. However, Pi's **extension event system** is significantly more powerful and can replicate any hook behavior.
 
 The key event for hook-like behavior is `tool_call`:
 

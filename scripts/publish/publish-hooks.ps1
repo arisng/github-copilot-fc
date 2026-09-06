@@ -673,7 +673,7 @@ function Publish-HooksToWorkspace {
         `chat.hookFilesLocations`, and mirrors the result into WSL when available.
 
     .PARAMETER Hooks
-        Array or comma-separated string of hook names to publish (without .hooks.json extension).
+        Array or comma-separated string of hook names to publish (without .json extension).
         If omitted, publishes all hooks found.
 
     .PARAMETER Force
@@ -753,19 +753,19 @@ function Publish-HooksToWorkspace {
         $hookList = $hookList | Select-Object -Unique
     }
 
-    $hookFiles = @(Get-ChildItem -Path $projectHooksPath -Filter '*.hooks.json' -File -Recurse | Sort-Object FullName)
+    $hookFiles = @(Get-ChildItem -Path $projectHooksPath -Filter '*.json' -File -Recurse | Sort-Object FullName)
 
     if ($hookList.Count -gt 0) {
         $hookFiles = $hookFiles | Where-Object {
-            $base = $_.BaseName -replace '\.hooks$', ''
+            $base = $_.BaseName
             $hookList | Where-Object { $base -like $_ } | Select-Object -First 1
         }
 
         if ($hookFiles.Count -eq 0) {
             Write-Host "Warning: No hooks found matching: $($hookList -join ', ')" -ForegroundColor Yellow
             Write-Host 'Available hooks:' -ForegroundColor Cyan
-            Get-ChildItem -Path $projectHooksPath -Filter '*.hooks.json' -File -Recurse |
-                ForEach-Object { Write-Host "  - $($_.BaseName -replace '\.hooks$', '')" }
+            Get-ChildItem -Path $projectHooksPath -Filter '*.json' -File -Recurse |
+                ForEach-Object { Write-Host "  - $($_.BaseName)" }
             return
         }
     }

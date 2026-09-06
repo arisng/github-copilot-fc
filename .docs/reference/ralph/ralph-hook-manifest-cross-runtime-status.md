@@ -2,7 +2,7 @@
 
 ## Manifest verdict
 
-The shared Ralph hook manifest (`hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`) is cross-runtime compatible for the four events it currently wires:
+The shared Ralph hook manifest (`hooks/ralph-tool-logger/ralph-tool-logger.json`) is cross-runtime compatible for the four events it currently wires:
 
 | Event | Payload logging | Status |
 |-------|----------------|--------|

@@ -73,9 +73,9 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 | Runtime           | Destination Path                                           | Delivery                                    |
 | :---------------- | :--------------------------------------------------------- | :------------------------------------------ |
-| VS Code           | `.github/hooks/*.hooks.json` (repo-scoped)                 | Direct file copy within workspace           |
-| copilot-cli (Win) | `.github/hooks/*.hooks.json` (repo-scoped, CWD-discovered) | Same repo-scoped mechanism                  |
-| copilot-cli (WSL) | `.github/hooks/*.hooks.json` (in WSL-cloned repo)          | Repo-scoped: works if repo is cloned in WSL |
+| VS Code           | `.github/hooks/*.json` (repo-scoped)                            | Direct file copy within workspace           |
+| copilot-cli (Win) | `.github/hooks/*.json` (repo-scoped, CWD-discovered)            | Same repo-scoped mechanism                  |
+| copilot-cli (WSL) | `.github/hooks/*.json` (in WSL-cloned repo)                     | Repo-scoped: works if repo is cloned in WSL |
 
 **Script:** `scripts/publish/publish-hooks.ps1` — publishes manifests discovered under `hooks/<name>/` to `.github/hooks/` by default. `-Scope user-level` publishes to `~/.copilot/hooks/`, copies referenced scripts into the published hook tree, rewrites command paths to full user-level paths, and still accepts the legacy alias `-UserLevel`. Both VS Code and copilot-cli discover repo-scoped hooks from `.github/hooks/` when operating on the repo.
 
@@ -135,7 +135,7 @@ Each artifact type is assessed against three levels of cross-runtime compatibili
 
 #### Hooks — Mostly Shareable ⚠️
 
-- **File Format:** Both runtimes parse `*.hooks.json` with identical JSON schema (`version`, `hooks`, lifecycle events, command entries with `bash`/`powershell` keys). ✅
+- **File Format:** Both runtimes parse `*.json` with identical JSON schema (`version`, `hooks`, lifecycle events, command entries with `bash`/`powershell` keys). ✅
 - **Semantic:** All 8 lifecycle events (`sessionStart`, `sessionEnd`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `agentStop`, `subagentStop`) supported on both platforms. `preToolUse` `deny`/`allow`/`ask` responses work the same. ✅
 - **Behavioral:** Same behavior **when hooks are in `.github/hooks/`** and CLI is invoked from repo root. Discovery difference: VS Code always uses workspace root; CLI uses CWD. If CLI runs from a subdirectory, hooks may not be found. ⚠️
 - **Verdict:** Shareable for standard repo-scoped usage. The CWD discovery caveat is minor and aligns with typical developer workflow (CLI from repo root).

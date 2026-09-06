@@ -2,7 +2,7 @@
 
 ## Summary
 
-The shared Ralph hook manifest (`.github/hooks/ralph-tool-logger.hooks.json`) is cross-runtime compatible — both VS Code and Copilot CLI accept the lowerCamelCase event keys and `bash`/`powershell` command properties. Both logger scripts implement a **dual-fallback pattern** that reads VS Code snake_case fields first and falls through to CLI camelCase fields, producing identical normalized log entries regardless of runtime.
+The shared Ralph hook manifest (`.github/hooks/ralph-tool-logger.json`) is cross-runtime compatible — both VS Code and Copilot CLI accept the lowerCamelCase event keys and `bash`/`powershell` command properties. Both logger scripts implement a **dual-fallback pattern** that reads VS Code snake_case fields first and falls through to CLI camelCase fields, producing identical normalized log entries regardless of runtime.
 
 ## Field mapping
 

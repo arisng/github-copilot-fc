@@ -13,7 +13,7 @@ Use this when you have authored or modified hook files in `hooks/` and need to d
 ## Prerequisites
 
 - PowerShell 7+ (`pwsh`) available on your system.
-- Hook manifests exist under `hooks/<name>/` (for example, `hooks/ralph-tool-logger/ralph-tool-logger.hooks.json`).
+- Hook manifests exist under `hooks/<name>/` (for example, `hooks/ralph-tool-logger/ralph-tool-logger.json`).
 - Familiarity with the deployment model — see [Workspace-Level Hook Deployment Model](../../reference/ralph/workspace-level-hook-deployment-model.md) for why workspace-level is the default.
 
 ## Steps
@@ -30,7 +30,7 @@ This is the recommended default. `.github/hooks/` is an auto-discovered VS Code 
 
 ### 2. Publish Specific Hooks
 
-To publish only named hooks (without the `.hooks.json` extension):
+To publish only named hooks (without the `.json` extension):
 
 ```powershell
 pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Hooks "ralph-tool-logger"
@@ -75,10 +75,10 @@ After publishing, confirm the hook file exists at the target:
 
 ```powershell
 # Workspace-level check
-Test-Path ".github\hooks\ralph-tool-logger.hooks.json"
+Test-Path ".github\hooks\ralph-tool-logger.json"
 
 # User-level check (only if -Scope user-level was used)
-Test-Path "$env:USERPROFILE\.copilot\hooks\ralph-tool-logger.hooks.json"
+Test-Path "$env:USERPROFILE\.copilot\hooks\ralph-tool-logger.json"
 
 # User-level script check
 Test-Path "$env:USERPROFILE\.copilot\hooks\ralph-tool-logger\scripts\ralph-tool-logger.ps1"

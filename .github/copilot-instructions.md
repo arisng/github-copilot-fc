@@ -14,7 +14,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - **Agents** (`*.agent.md`) define persona, tool access, and orchestration; `description` is the only required frontmatter field; include `name` and `tools` as needed.
 - **Instructions** (`*.instructions.md`) define policy/workflows using `description` + `applyTo` frontmatter; they prescribe which skills to invoke.
 - **Skills** are folder-based (`skills/<name>/SKILL.md`), with optional `scripts/`, `references/`, and `assets/` subdirectories; `name` and `description` in SKILL.md frontmatter drive discovery. Keep SKILL.md lean — offload detailed docs to `references/`.
-- **Agent Hook files** (`*.hooks.json`): lifecycle hooks authored in `hooks/`, published to `.github/hooks/`. Support cross-runtime scripts (`.ps1` for Windows, `.sh` for Bash/WSL).
+- **Agent Hook files** (`*.json`): lifecycle hooks authored in `hooks/`, published to `.github/hooks/`. Support cross-runtime scripts (`.ps1` for Windows, `.sh` for Bash/WSL).
 - **Tools inventory** (`tools/`): cross-runtime tool inventory plus the active VS Code `tools/vscode/toolsets/` folder. CLI and GitHub.com tool mappings are documented in `tools/inventory.yaml` and applied in runtime-specific agent/docs authoring rather than separate workspace toolset folders.
 - **Prompts** (`*.prompt.md`): user-facing workflow shortcuts (git, changelog, Ralph orchestration, plugin creation).
 - **Plugins** (`plugins/<runtime>/<name>/plugin.json`): self-contained CLI bundles of agents + skills + hooks; installed via `copilot plugin install`. Only 6 official component fields: `agents`, `skills`, `commands`, `hooks`, `mcpServers`, `lspServers` — the `instructions` field does NOT exist in plugin.json.
@@ -30,7 +30,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 
 ## File and naming conventions
 - Custom Agents: `agents/<name>.agent.md` (standalone) or `agents/<name>/<runtime>/<name>-<runtime>.agent.md` (variants)
-- Agent Hooks: `hooks/<name>/<name>.hooks.json`
+- Agent Hooks: `hooks/<name>/<name>.json`
 - Custom Instructions: `instructions/<name>.instructions.md`
 - Agent-specific private instructions: `agents/<name>/instructions/*.instructions.md` (tightly coupled to that agent workflow)
 - Custom Prompts: `prompts/*.prompt.md`

@@ -34,7 +34,7 @@ Is it a Copilot Agent (*.agent.md)?
           Convert runSubagent calls to @ mentions or task tool instructions.
           Map handoffs to subagent definitions with mode: subagent.
 
-Is it a Copilot Hook (*.hooks.json)?
+Is it a Copilot Hook (*.json)?
 └── YES → OpenCode has no native lifecycle hooks system.
            Fallback options:
            ├── Port logic as a custom tool or formatter if it gates/edits behavior
@@ -219,7 +219,7 @@ Copilot agents can declare `handoffs:` (UI buttons). OpenCode has no handoff UI 
 
 ### 2.5 Hooks → No native equivalent
 
-OpenCode does **not** have a lifecycle hooks system comparable to Copilot's `.hooks.json` or Kimi's `[[hooks]]`.
+OpenCode does **not** have a lifecycle hooks system comparable to Copilot's `.json` or Kimi's `[[hooks]]`.
 
 **Fallback strategies:**
 

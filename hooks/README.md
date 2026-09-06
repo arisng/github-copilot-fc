@@ -23,14 +23,14 @@ The VS Code hooks documentation explicitly states that VS Code can parse Copilot
 
 Each hook manifest is a JSON file containing a `hooks` object with arrays of hook commands keyed by event type.
 
-**Naming convention:** `hooks/<name>/<name>.hooks.json`
+**Naming convention:** `hooks/<name>/<name>.json` (matches Copilot CLI discovery of `*.json` in hook directories)
 
 **Authoring layout:**
 
 ```text
 hooks/
 └── <name>/
-    ├── <name>.hooks.json
+    ├── <name>.json
     └── scripts/
         ├── <script>.ps1
         └── <script>.sh
@@ -142,23 +142,14 @@ The Ralph logger scripts use dual-field fallback to consume both schemas. For to
 }
 ```
 
-## Ralph Hook Logs
-
-The Ralph hook logger writes into the active session log directory:
-
-- `tool-usage.jsonl` for `preToolUse` and `postToolUse`
-- `subagent-usage.jsonl` for `subagentStart` and `subagentStop`
-
-The logger also keys agent attribution by `transcript_path` instead of a single global active-agent file so tool usage can still be attributed correctly when multiple subagents are active.
-
 ## Deployment Locations
 
 `.github/hooks/` is the **primary default** deployment target. VS Code discovers hook files in this workspace directory automatically. User-level deployment to `~/.copilot/hooks/` is **opt-in** and requires `-Scope user-level` plus the `chat.hookFilesLocations` VS Code setting — it is **not** a default VS Code search path.
 
 | Location | Scope | Discovery |
 | --- | --- | --- |
-| `.github/hooks/*.hooks.json` | Workspace (shared) | **Default** — VS Code searches automatically |
-| `~/.copilot/hooks/*.hooks.json` | User (global) | **Opt-in** — requires `chat.hookFilesLocations` setting and `-Scope user-level` publish |
+| `.github/hooks/*.json` | Workspace (shared) | **Default** — VS Code and Copilot CLI discover automatically |
+| `~/.copilot/hooks/*.json` | User (global) | **Default** — Copilot CLI discovers automatically at startup |
 
 ## Publishing
 
@@ -187,7 +178,7 @@ pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -Copil
 ## Authoring Guidelines
 
 1. Author each hook in its own `hooks/<name>/` directory (not directly in `.github/hooks/`).
-2. Use the `*.hooks.json` naming convention for clarity.
+2. Use the `*.json` naming convention (matches Copilot CLI discovery of `*.json` in hook directories).
 3. Provide `windows` overrides alongside the default `command` for cross-platform compatibility.
 4. Keep hook scripts under the owning hook's `scripts/` folder (for example, `hooks/security-policy/scripts/`) or the relevant skill's `scripts/` folder. In user-level mode, the publish script copies referenced scripts into `~/.copilot/hooks/<name>/scripts/` and rewrites the published hook JSON to use full script paths.
 5. Always validate and sanitize stdin input in hook scripts to prevent injection.

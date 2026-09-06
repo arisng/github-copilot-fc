@@ -19,8 +19,8 @@ Reference for hook discovery locations, path-resolution semantics, and published
 
 | Runtime            | Discovery scope         | Default discovery locations                                   | Alternate locations                                                               | Notes                                                                                                          |
 | ------------------ | ----------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| VS Code            | Repo-scoped             | `.github/hooks/*.hooks.json`                                  | Paths or files listed in `chat.hookFilesLocations`, including `~/.copilot/hooks/` | `~/.copilot/hooks/` is not a default VS Code hook search path.                                                 |
-| GitHub Copilot CLI | Repo-scoped / CWD-based | `.github/hooks/*.hooks.json` in the active repository context | Installed plugin bundles that declare `hooks` in `plugin.json`                    | CLI discovery follows the current working directory and repository context.                                    |
+| VS Code            | Repo-scoped             | `.github/hooks/*.json`                                          | Paths or files listed in `chat.hookFilesLocations`, including `~/.copilot/hooks/` | `~/.copilot/hooks/` is not a default VS Code hook search path.                                                 |
+| GitHub Copilot CLI | Repo-scoped / CWD-based | `.github/hooks/*.json` in the active repository context          | Installed plugin bundles that declare `hooks` in `plugin.json`                    | CLI discovery follows the current working directory and repository context.                                    |
 | GitHub Copilot CLI | Plugin-based            | Installed plugin hook bundle                                  | N/A                                                                               | Plugin hooks are loaded through the plugin system, not by scanning `.github/hooks/` in the current repository. |
 
 ## Path-resolution semantics
@@ -39,7 +39,7 @@ Reference for hook discovery locations, path-resolution semantics, and published
 
 | Element                             | Location                                                                                                  |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Hook manifests                      | `.github/hooks/*.hooks.json`                                                                              |
+| Hook manifests                      | `.github/hooks/*.json`                                                                                       |
 | Hook scripts                        | Repository paths referenced by the manifest, commonly `hooks/<name>/scripts/` or `.github/hooks/scripts/` |
 | Command paths in published manifest | Preserved as repo-relative paths                                                                          |
 
@@ -47,7 +47,7 @@ Reference for hook discovery locations, path-resolution semantics, and published
 
 | Element                             | Location                                                                                                |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Hook manifests                      | `~/.copilot/hooks/<file>.hooks.json`                                                                    |
+| Hook manifests                      | `~/.copilot/hooks/<file>.json`                                                                              |
 | Hook scripts                        | `~/.copilot/hooks/<hook-name>/scripts/...` when the source script comes from a hook-owned script folder |
 | Command paths in published manifest | Rewritten to full user-level paths                                                                      |
 
@@ -57,7 +57,7 @@ The workspace user-level publish flow uses the following contract:
 
 | Contract element     | Behavior                                                                                                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Manifest placement   | Published manifests are copied as flat files into the destination root, preserving filenames such as `~/.copilot/hooks/ralph-tool-logger.hooks.json`.                         |
+| Manifest placement   | Published manifests are copied as flat files into the destination root, preserving filenames such as `~/.copilot/hooks/ralph-tool-logger.json`.                            |
 | Script placement     | Referenced scripts are copied below the same destination root, preserving hook-relative structure such as `~/.copilot/hooks/ralph-tool-logger/scripts/ralph-tool-logger.ps1`. |
 | Command rewrite      | Published `bash`, `powershell`, `command`, `windows`, `linux`, and `osx` command values are rewritten from repo-relative script references to full user-level paths.          |
 | Settings integration | VS Code user-level publishing updates `chat.hookFilesLocations` so both `.github/hooks` and `~/.copilot/hooks/` remain discoverable.                                          |

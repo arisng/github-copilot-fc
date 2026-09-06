@@ -277,7 +277,7 @@ Hooks use the same JSON schema in both VS Code and Copilot CLI. The CLI discover
 
    ```bash
    ls .github/hooks/
-   # Should list *.hooks.json files
+   # Should list *.json files
    ```
 
 3. **Test hook activation:**
