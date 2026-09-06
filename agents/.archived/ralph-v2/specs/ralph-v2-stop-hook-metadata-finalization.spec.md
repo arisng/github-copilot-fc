@@ -146,7 +146,7 @@ This is a demonstration of the non-determinism of LLM (not following instruction
 - None.
 
 ## Implementation Tasks
-1. Create `hooks/ralph-v2-stop-finalizer.hooks.json` with `Stop` hook configuration.
+1. Create `hooks/ralph-v2-stop-finalizer.json` with `Stop` hook configuration.
 2. Implement Windows script: `hooks/scripts/ralph-v2-finalize-session-stop.ps1`.
 3. Implement Linux/WSL script: `hooks/scripts/ralph-v2-finalize-session-stop.sh`.
 4. Add lightweight deterministic fixture tests under `hooks/scripts/tests/`.

@@ -701,7 +701,7 @@ OUTPUT: { verdict: "BLOCK", reason: "Signal message must be non-empty" }
 
 ## Pilot: Stop Hook Metadata Finalization
 
-- Hook file: `hooks/ralph-v2-stop-finalizer/ralph-v2-stop-finalizer.hooks.json`
+- Hook file: `hooks/ralph-v2-stop-finalizer/ralph-v2-stop-finalizer.json`
 - Session-binding hook: `UserPromptSubmit` updates `.ralph-sessions/.hook-bindings/<HOOK_SESSION_ID>.json`
 - Windows command: `pwsh -NoProfile -File hooks\ralph-v2-stop-finalizer\scripts\ralph-v2-finalize-session-stop.ps1`
 - Linux/WSL command: `bash hooks/ralph-v2-stop-finalizer/scripts/ralph-v2-finalize-session-stop.sh`
