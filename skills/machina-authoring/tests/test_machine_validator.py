@@ -144,13 +144,122 @@ class TestCompliance(unittest.TestCase):
         m = sample_machine(spec_version="3.0.0")
         res = mv.run_compliance(m)
         self.assertEqual(res["specVersion"], "3.0.0")
-        self.assertGreaterEqual(res["score"], 90)
+        # v3 machine without v3 features scores lower due to new v3 checks
+        self.assertGreaterEqual(res["score"], 80)
 
     def test_cycle_guards_autofill_review_without_counter(self):
         m = sample_machine(context={})
         res = mv.run_compliance(m)
         cg = next(f for f in res["findings"] if f["id"] == "cycle-guards")
         self.assertEqual(cg["autofill"], "review")
+
+
+class TestV3Features(unittest.TestCase):
+    def test_v3_full_compliance(self):
+        """A v3 machine with all v3 features should score high."""
+        m = sample_machine(spec_version="3.0.0")
+        m["tools"] = {
+            "validate-order": {"cmd": "scripts/validate_order.py", "expect_exit": 0},
+            "send-notification": {"cmd": "scripts/notify.sh", "timeout_seconds": 30},
+        }
+        m["limits"] = {"max_events": 100, "max_steps": 50, "timeout_seconds": 600}
+        m["scenarios"][0]["inputs"] = {"order_id": {"required": True, "type": "string"}}
+        m["states"]["pending"]["checks"] = ["validate-order"]
+        m["states"]["pending"]["on"]["PAY"]["requires"] = ["validate-order"]
+        m["states"]["paid"]["on"]["SHIP"]["ensures"] = ["send-notification"]
+        res = mv.run_compliance(m)
+        self.assertEqual(res["specVersion"], "3.0.0")
+        self.assertGreaterEqual(res["score"], 90)
+        # Verify all 5 v3 checks are present
+        v3_ids = {f["id"] for f in res["findings"]} & {
+            "tools-registry", "tools-refs", "phase-states",
+            "scenario-inputs", "limits-valid",
+        }
+        self.assertEqual(len(v3_ids), 5)
+
+    def test_tools_registry_invalid(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["tools"] = "not-an-object"
+        res = mv.run_compliance(m)
+        tools_finding = next(f for f in res["findings"] if f["id"] == "tools-registry")
+        self.assertFalse(tools_finding["pass"])
+
+    def test_tools_registry_missing_cmd(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["tools"] = {"my-tool": {"expect_exit": 0}}
+        res = mv.run_compliance(m)
+        tools_finding = next(f for f in res["findings"] if f["id"] == "tools-registry")
+        self.assertFalse(tools_finding["pass"])
+
+    def test_tools_refs_unknown_tool(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["tools"] = {"validate-order": {"cmd": "scripts/validate.py"}}
+        m["states"]["pending"]["checks"] = ["nonexistent-tool"]
+        res = mv.run_compliance(m)
+        refs_finding = next(f for f in res["findings"] if f["id"] == "tools-refs")
+        self.assertFalse(refs_finding["pass"])
+
+    def test_tools_refs_valid(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["tools"] = {"validate-order": {"cmd": "scripts/validate.py"}}
+        m["states"]["pending"]["checks"] = ["validate-order"]
+        res = mv.run_compliance(m)
+        refs_finding = next(f for f in res["findings"] if f["id"] == "tools-refs")
+        self.assertTrue(refs_finding["pass"])
+
+    def test_phase_state_missing_description(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["states"]["processing"] = {"type": "phase", "on": {"DONE": {"target": "paid"}}}
+        res = mv.run_compliance(m)
+        phase_finding = next(f for f in res["findings"] if f["id"] == "phase-states")
+        self.assertFalse(phase_finding["pass"])
+
+    def test_phase_state_with_description_passes(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["states"]["processing"] = {
+            "type": "phase", "description": "Processing.",
+            "on": {"DONE": {"target": "paid"}},
+        }
+        res = mv.run_compliance(m)
+        phase_finding = next(f for f in res["findings"] if f["id"] == "phase-states")
+        self.assertTrue(phase_finding["pass"])
+
+    def test_scenario_inputs_invalid(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["scenarios"][0]["inputs"] = {"order_id": "not-an-object"}
+        res = mv.run_compliance(m)
+        inputs_finding = next(f for f in res["findings"] if f["id"] == "scenario-inputs")
+        self.assertFalse(inputs_finding["pass"])
+
+    def test_scenario_inputs_valid(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["scenarios"][0]["inputs"] = {"order_id": {"required": True, "type": "string"}}
+        res = mv.run_compliance(m)
+        inputs_finding = next(f for f in res["findings"] if f["id"] == "scenario-inputs")
+        self.assertTrue(inputs_finding["pass"])
+
+    def test_limits_invalid(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["limits"] = {"max_events": -1}
+        res = mv.run_compliance(m)
+        limits_finding = next(f for f in res["findings"] if f["id"] == "limits-valid")
+        self.assertFalse(limits_finding["pass"])
+
+    def test_limits_valid(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["limits"] = {"max_events": 100, "max_steps": 50, "timeout_seconds": 600}
+        res = mv.run_compliance(m)
+        limits_finding = next(f for f in res["findings"] if f["id"] == "limits-valid")
+        self.assertTrue(limits_finding["pass"])
+
+    def test_v3_checks_not_applied_to_v2(self):
+        """v3 checks should not appear in v2 compliance results."""
+        res = mv.run_compliance(sample_machine())
+        v3_ids = {f["id"] for f in res["findings"]} & {
+            "tools-registry", "tools-refs", "phase-states",
+            "scenario-inputs", "limits-valid",
+        }
+        self.assertEqual(len(v3_ids), 0)
 
 
 class TestValidate(unittest.TestCase):

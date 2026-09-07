@@ -3,7 +3,7 @@
 
 Faithful Python port of the deterministic routines in the Machina simulator
 (served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/machine-simulator.mjs):
-validation, the 17-check compliance scorer, gap analysis, autofill patches,
+validation, the 22-check compliance scorer, gap analysis, autofill patches,
 scenario generation, cycle detection, and coverage-block building.
 
 This module is also the **shared engine** for the `machina-driving` skill:
@@ -258,7 +258,7 @@ def detect_cycles(m):
     return cycles
 
 
-# ── compliance scoring (17 checks, total weight = 100) ───────────
+# ── compliance scoring (22 checks, total weight = 100 for v2, 119 for v3) ───────────
 
 def cycle_counter_key(m):
     for k in (m.get("context") or {}):
@@ -344,6 +344,116 @@ def _check_cycle_guards(m):
     return _fail(f"{len(cycles)} unguarded cycle(s) detected")
 
 
+def _check_tools_registry(m):
+    """Validate tools registry structure and fields (v3.0.0)."""
+    tools = m.get("tools")
+    if tools is None:
+        return _pass(True)
+    if not isinstance(tools, dict):
+        return _fail('"tools" must be an object')
+    for name, tool in tools.items():
+        if not isinstance(tool, dict):
+            return _fail(f'Tool "{name}" must be an object')
+        cmd = tool.get("cmd")
+        if cmd is None:
+            return _fail(f'Tool "{name}" missing "cmd" field')
+        if not isinstance(cmd, (str, list)):
+            return _fail(f'Tool "{name}" "cmd" must be a string or array')
+        if "expect_exit" in tool and not isinstance(tool["expect_exit"], (int, float)):
+            return _fail(f'Tool "{name}" "expect_exit" must be a number')
+        if "timeout_seconds" in tool and not isinstance(tool["timeout_seconds"], (int, float)):
+            return _fail(f'Tool "{name}" "timeout_seconds" must be a number')
+        output = tool.get("output")
+        if output is not None:
+            if not isinstance(output, dict):
+                return _fail(f'Tool "{name}" "output" must be an object')
+            for k, v in output.items():
+                if not isinstance(v, str):
+                    return _fail(f'Tool "{name}" "output.{k}" must be a string')
+    return _pass(True)
+
+
+def _check_tools_refs(m):
+    """Validate that checks[], requires[], and ensures[] reference tools in the registry (v3.0.0)."""
+    tools = m.get("tools")
+    tool_names = set(tools.keys()) if isinstance(tools, dict) else set()
+    for s, st in (m.get("states") or {}).items():
+        checks = (st or {}).get("checks") or []
+        if not isinstance(checks, list):
+            return _fail(f'State "{s}" "checks" must be an array')
+        for ref in checks:
+            if not isinstance(ref, str):
+                return _fail(f'State "{s}" "checks" entry must be a string')
+            if ref not in tool_names:
+                return _fail(f'State "{s}" "checks" references unknown tool "{ref}"')
+    for sk, evt, tr in transitions(m):
+        if not isinstance(tr, dict):
+            continue
+        for field in ("requires", "ensures"):
+            refs = tr.get(field) or []
+            if not isinstance(refs, list):
+                return _fail(f'Transition "{sk} → {evt}" "{field}" must be an array')
+            for ref in refs:
+                if not isinstance(ref, str):
+                    return _fail(f'Transition "{sk} → {evt}" "{field}" entry must be a string')
+                if ref not in tool_names:
+                    return _fail(f'Transition "{sk} → {evt}" "{field}" references unknown tool "{ref}"')
+    return _pass(True)
+
+
+def _check_phase_states(m):
+    """Validate phase states have descriptions (v3.0.0)."""
+    for s, st in (m.get("states") or {}).items():
+        if not isinstance(st, dict):
+            continue
+        if st.get("type") == "phase":
+            if not st.get("description"):
+                return _fail(f'Phase state "{s}" missing "description"')
+    return _pass(True)
+
+
+def _check_scenario_inputs(m):
+    """Validate scenario inputs structure (v3.0.0)."""
+    for sc in m.get("scenarios") or []:
+        if not isinstance(sc, dict):
+            continue
+        inputs = sc.get("inputs")
+        if inputs is None:
+            continue
+        if not isinstance(inputs, dict):
+            return _fail(f'Scenario "{sc.get("id")}" "inputs" must be an object')
+        for name, inp in inputs.items():
+            if not isinstance(inp, dict):
+                return _fail(f'Scenario "{sc.get("id")}" input "{name}" must be an object')
+            has_required = "required" in inp and isinstance(inp["required"], bool)
+            has_type = "type" in inp and isinstance(inp["type"], str)
+            if not has_required and not has_type:
+                return _fail(f'Scenario "{sc.get("id")}" input "{name}" needs "required" (bool) or "type" (string)')
+    return _pass(True)
+
+
+def _check_limits(m):
+    """Validate limits values (v3.0.0)."""
+    limits = m.get("limits")
+    if limits is None:
+        return _pass(True)
+    if not isinstance(limits, dict):
+        return _fail('"limits" must be an object')
+    if "max_events" in limits:
+        v = limits["max_events"]
+        if not isinstance(v, int) or v <= 0:
+            return _fail('"limits.max_events" must be a positive integer')
+    if "max_steps" in limits:
+        v = limits["max_steps"]
+        if not isinstance(v, int) or v <= 0:
+            return _fail('"limits.max_steps" must be a positive integer')
+    if "timeout_seconds" in limits:
+        v = limits["timeout_seconds"]
+        if not isinstance(v, (int, float)) or v <= 0:
+            return _fail('"limits.timeout_seconds" must be a positive number')
+    return _pass(True)
+
+
 COMPLIANCE_CHECKS = [
     {"id": "id-present", "category": "Identity & metadata", "since": "1.0.0", "weight": 5,
      "severity": "blocking", "autofill": "review",
@@ -413,6 +523,26 @@ COMPLIANCE_CHECKS = [
      "severity": "info", "autofill": "auto",
      "remediation": 'Embed a "coverage" metadata block.',
      "check": lambda m: _pass(isinstance(m.get("coverage"), dict))},
+    {"id": "tools-registry", "category": "Tools & execution", "since": "3.0.0", "weight": 5,
+     "severity": "warn", "autofill": "review",
+     "remediation": 'Define a "tools" registry with valid cmd fields.',
+     "check": _check_tools_registry},
+    {"id": "tools-refs", "category": "Tools & execution", "since": "3.0.0", "weight": 5,
+     "severity": "warn", "autofill": "review",
+     "remediation": 'All checks[], requires[], and ensures[] must reference tools in the registry.',
+     "check": _check_tools_refs},
+    {"id": "phase-states", "category": "State quality", "since": "3.0.0", "weight": 3,
+     "severity": "warn", "autofill": "review",
+     "remediation": 'Phase states (type "phase") must have a "description".',
+     "check": _check_phase_states},
+    {"id": "scenario-inputs", "category": "Scenarios", "since": "3.0.0", "weight": 3,
+     "severity": "warn", "autofill": "review",
+     "remediation": 'Scenario inputs should be objects with "required" (bool) or "type" (string).',
+     "check": _check_scenario_inputs},
+    {"id": "limits-valid", "category": "Safety", "since": "3.0.0", "weight": 3,
+     "severity": "warn", "autofill": "auto",
+     "remediation": 'Limits (max_events, max_steps, timeout_seconds) must be positive numbers.',
+     "check": _check_limits},
 ]
 
 

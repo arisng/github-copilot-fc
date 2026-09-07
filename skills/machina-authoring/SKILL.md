@@ -1,8 +1,8 @@
 ---
 name: machina-authoring
 description: >-
-  Author valid, high-scoring state machines in Machina machine JSON format (spec v2.0.0 /
-  v1.0.0). USE WHEN: writing or generating a machine definition (states, transitions, guards,
+  Author valid, high-scoring state machines in Machina machine JSON format (spec v3.0.0 /
+  v2.0.0 / v1.0.0). USE WHEN: writing or generating a machine definition (states, transitions, guards,
   actions, context, scenarios); modeling a real workflow (order fulfillment, refunds, signup,
   retries) as a Machina state machine; fixing or upgrading a machine JSON for validation or
   higher compliance score; explaining validation failures or low scores; running the bundled
@@ -12,7 +12,7 @@ description: >-
     machina-simulator-maintenance), debugging machine-validator.py scripts, XState config authoring,
   SCXML documents, or general diagramming.
 metadata:
-  version: 0.1.1
+  version: 0.2.0
 ---
 
 # Machina Machine Authoring
@@ -29,7 +29,7 @@ Use these terms consistently — in prompts, output, and code comments:
 | **Machina** | Brand name covering both the simulator app (served by the `machina-simulator` extension) and its machine schema spec. Qualify which: "**Machina simulator**" (the app) vs "**Machina schema spec**" (the JSON contract). Never use bare "Machina" where the referent is ambiguous. |
 | **State machine** | The modeled FSM itself. Always write "state machine", never bare "machine". |
 | **Machine definition** | The JSON document that encodes a state machine (the artifact you author). A file contains one definition. |
-| **Schema spec / spec version** | The versioned field contract (`v1.0.0`, `v2.0.0`) a definition targets via `spec_version`. Distinct from the definition's own `version` field. |
+| **Schema spec / spec version** | The versioned field contract (`v1.0.0`, `v2.0.0`, `v3.0.0`) a definition targets via `spec_version`. Distinct from the definition's own `version` field. |
 | **Final state** | A state typed `"type": "final"` (or with no outgoing transitions). Prefer "final state" over "terminal" — matches UML/XState. |
 | **Event** | Named trigger (`UPPER_SNAKE`) that fires a transition from a state's `on` map. |
 | **Transition** | `{ EVENT: { target, guard?, actions? } }` — moves between states. |
@@ -50,7 +50,7 @@ to a state key, and every transition `target` pointing at an existing state key.
   "id": "order-fulfillment",
   "name": "Order Fulfillment",
   "version": "1.0.0",
-  "spec_version": "2.0.0",
+  "spec_version": "3.0.0",
   "initial": "pending",
   "context": { "attempts": 0 },
   "scenarios": [
@@ -96,7 +96,7 @@ to a state key, and every transition `target` pointing at an existing state key.
 
 ## Hard rules
 
-- Declare `"spec_version": "2.0.0"` explicitly so scoring never assumes latest silently.
+- Declare `"spec_version": "3.0.0"` explicitly so scoring never assumes latest silently.
 - Event names `UPPER_SNAKE`; state keys `kebab-case`.
 - Guard `value` may be a literal number/string or a context-key name (resolved then numeric-coerced).
 - Context paths support dotted notation (`"payment.attempts"`).
