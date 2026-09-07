@@ -34,7 +34,7 @@ Commands:
   check  [--run <id>] [--run-dir <dir>]
   report [--run <id>] [--run-dir <dir>]
 
-Run state layout (--run-dir, default: <cwd>/.machina/runs):
+Run state layout (--run-dir, default: <session-workspace>/machina-runs/):
   <run-dir>/<run_id>/machine.json   copy of the machine definition
   <run-dir>/<run_id>/ledger.jsonl   append-only event ledger (chained hashes)
   <run-dir>/<run_id>/report.json    terminal report (written by `report`)
@@ -490,6 +490,24 @@ def _new_run_id():
     return uuid.uuid4().hex[:12]
 
 
+def _default_run_dir():
+    """Return the default run directory.
+
+    Resolution order:
+    1. $COPILOT_DOJO/machina-runs/  (explicit session workspace)
+    2. ~/.copilot-dojo/machina-runs/ (default session workspace)
+    3. <cwd>/machina-runs/           (fallback)
+    """
+    dojo = os.environ.get("COPILOT_DOJO")
+    if not dojo:
+        home_dojo = Path.home() / ".copilot-dojo"
+        if home_dojo.is_dir():
+            dojo = str(home_dojo)
+    if dojo:
+        return str(Path(dojo) / "machina-runs")
+    return "machina-runs"
+
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
@@ -866,15 +884,15 @@ def main(argv=None):
     p_init.add_argument("--machine", required=True)
     p_init.add_argument("--scenario")
     p_init.add_argument("--input", action="append", default=[])
-    p_init.add_argument("--run-dir", default=".machina/runs")
+    p_init.add_argument("--run-dir", default=_default_run_dir())
 
     for name in ("status", "check", "report"):
         p = sub.add_parser(name)
         p.add_argument("--run")
-        p.add_argument("--run-dir", default=".machina/runs")
+        p.add_argument("--run-dir", default=_default_run_dir())
     p_abort = sub.add_parser("abort")
     p_abort.add_argument("--run")
-    p_abort.add_argument("--run-dir", default=".machina/runs")
+    p_abort.add_argument("--run-dir", default=_default_run_dir())
     p_abort.add_argument("--reason")
 
     p_fire = sub.add_parser("fire")
@@ -882,7 +900,7 @@ def main(argv=None):
     p_fire.add_argument("--run")
     p_fire.add_argument("--note")
     p_fire.add_argument("--child-run")
-    p_fire.add_argument("--run-dir", default=".machina/runs")
+    p_fire.add_argument("--run-dir", default=_default_run_dir())
 
     args = parser.parse_args(argv)
     try:

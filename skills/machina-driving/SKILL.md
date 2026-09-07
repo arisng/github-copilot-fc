@@ -15,7 +15,7 @@ description: >-
   maintainer of this skill upgrading the driver itself; general diagramming or
   XState/SCXML authoring.
 metadata:
-  version: 0.3.0
+  version: 0.4.0
 ---
 
 # Machina Driving
@@ -24,19 +24,32 @@ Execute a task under a Machina state machine: the driver (`scripts/machine-drive
 is the sole mutator of run state; you perform the real work, choose events, and
 satisfy evidence checks. The outcome is a deterministic, auditable report.
 
+## Run History Convention
+
+All machina run history must be stored in:
+  `<session-workspace>/machina-runs/<run-id>/`
+
+This convention ensures:
+- Consistent traceability across sessions
+- Easy discovery of run artifacts
+- Standardized audit trail
+
+The `--run-dir` parameter should point to `machina-runs/` under the session workspace.
+The driver defaults to `machina-runs/` (resolving via `COPILOT_DOJO` or `~/.copilot-dojo` env vars for the session workspace root; falls back to `<cwd>/machina-runs/`).
+
 ## Quick start
 
-```powershell
-# From the skill directory (or any workspace with this skill installed):
-python3 scripts/machine-driver.py init --machine <machine.json> --scenario <id> --input k=v --run-dir <session-workspace>/.machina/runs
-python3 scripts/machine-driver.py status --run <run_id> --run-dir <session-workspace>/.machina/runs
-python3 scripts/machine-driver.py fire <EVENT> --run <run_id> --note "what you did" --run-dir <session-workspace>/.machina/runs
-python3 scripts/machine-driver.py check --run <run_id> --run-dir <session-workspace>/.machina/runs
-python3 scripts/machine-driver.py report --run <run_id> --run-dir <session-workspace>/.machina/runs
+From the skill directory (or any workspace with this skill installed):
+
+```python
+python3 scripts/machine-driver.py init --machine <machine.json> --scenario <id> --input k=v
+python3 scripts/machine-driver.py status --run <run_id>
+python3 scripts/machine-driver.py fire <EVENT> --run <run_id> --note "what you did"
+python3 scripts/machine-driver.py check --run <run_id>
+python3 scripts/machine-driver.py report --run <run_id>
 ```
 
-Every command prints exactly one strict-JSON object. A blocked `fire` is a
-first-class outcome, not an error.
+Every command prints exactly one strict-JSON object. A blocked `fire` is a first-class outcome, not an error.
 
 ## Workflow
 
@@ -122,6 +135,32 @@ The `machina-simulator` Copilot extension is **optional** (human UI only).
 The driver executes referenced checker scripts with the user's privileges.
 Machines are trusted artifacts (authored by the user or by `machina-authoring`).
 No sandboxing in v1.
+
+## Hook hardening (defense-in-depth)
+
+Three agent hooks provide lifecycle-based enforcement that augments the driver's internal tamper prevention. These hooks are **advisory-to-mandatory** depending on the event type and fill gaps where the driver's prompt-level instructions are insufficient.
+
+| Hook | Event | Enforcement | Gap filled |
+|---|---|---|---|
+| `machina-ensures-runner` | `postToolUse` | `modifiedResult` (mandatory data) | `ensures[]` post-conditions declared in schema but not enforced by driver |
+| `machina-event-gate` | `postToolUse` | `modifiedResult` (mandatory data) | `status` shows events "enabled" when evidence checks would block them |
+| `machina-summary-guard` | `agentStop` | `decision:"block"` (forced turn) | Agent can fabricate summary contradicting `report.json` |
+
+**How they work:**
+
+- **Fire guard**: After a `fire` command, runs `transition.ensures[]` tools and
+  appends pass/fail results to the tool output. The agent sees post-condition
+  failures as part of the fire result.
+- **Status enhancer**: After a `status` command, cross-references
+  `enabled_events` against `state.checks[]` and replaces the output with
+  accurate categorization (truly enabled vs checks-failed vs checks-pending).
+- **Report validator**: Before session ends, compares the last assistant message
+  against `report.json` facts. If contradictions are found, forces another turn
+  to correct the summary (capped at 8 consecutive blocks).
+
+**Deployment:** These hooks live in `hooks/machina-*/` and are published to
+`.github/hooks/` via `publish-hooks.ps1`. They activate automatically when the
+agent uses the machina-driving skill.
 
 ## Report output contract
 

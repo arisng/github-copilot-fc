@@ -38,9 +38,16 @@ outcome, not an error.
 | `check [--run <id>] [--run-dir <dir>]` | Terminal integrity gate: re-run full ledger + artifact-hash verification. Emits `{ok:true, data:{machine_sha256_ok, tool_hashes_ok, ledger_locked, run_dir, state, terminal}}`; non-zero exit on violation. Never writes. |
 | `report [--run <id>] [--run-dir <dir>]` | Emit the terminal report (`machina.report.v1`), bound to the ledger via `ledger_final_hash`. |
 
+**Run History Convention:** All machina run history must be stored in
+`<session-workspace>/machina-runs/<run-id>/`. The driver defaults `--run-dir` to
+`machina-runs/` (resolving via `COPILOT_DOJO` or `~/.copilot-dojo` for the
+session workspace root; falls back to `<cwd>/machina-runs/`). This convention
+ensures consistent traceability, easy discovery of run artifacts, and a
+standardized audit trail.
+
 **Run directory:** pass `--run-dir` explicitly. The driving skill instructs you
-to use the current session's workspace (e.g. `<session>/files/.machina/runs`).
-Runs are session-scoped and never pollute the repo. Default `<cwd>/.machina/runs`
+to use the current session's workspace (e.g. `<session>/machina-runs`).
+Runs are session-scoped and never pollute the repo. The default `<cwd>/machina-runs/`
 is refused when it lies inside a git worktree — set `MACHINA_ALLOW_REPO_RUNS=1`
 to allow only when you explicitly intend a repo-local run. The check is a walk
 up from the run-dir base looking for a `.git` entry (file or dir).
