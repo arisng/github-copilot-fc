@@ -4,6 +4,43 @@ Configuring the OpenCode Go provider for **VS Code Chat** via `chatLanguageModel
 
 File-level mechanism (secret storage, `maxInputTokens + maxOutputTokens ≤ context`, model naming, per-agent pinning, quick start, troubleshooting): [`../shared/chat-language-models-json.md`](../../shared/chat-language-models-json.md). Read that first if this is your first VS Code BYOK setup.
 
+## x-opencode-session header requirement
+
+OpenCode Go requires an `x-opencode-session` header (one stable UUID per conversation) on all API requests. Without it, requests error. VS Code Chat does not natively support custom headers in `chatLanguageModels.json` ([microsoft/vscode#334186](https://github.com/microsoft/vscode/issues/334186)).
+
+**Workaround:** Route all OpenCode Go traffic through the local session-header proxy at `https://opencode-go.local`. The proxy injects the `x-opencode-session` header and forwards to `https://opencode.ai`. All provider URLs below use `opencode-go.local` instead of `opencode.ai` for this reason.
+
+**Setup (one-time):**
+1. Run `.\scripts\setup-opencode-proxy-dns.ps1` (admin) to set up DNS + cert
+2. Start the proxy: `.\scripts\start-opencode-proxy.ps1` (or let Copilot CLI profiles auto-start it)
+3. Migrate existing OpenCode Go URLs: `.\scripts\opencode-vscode-migrate-urls.ps1`
+4. Add auto-start task: `.\scripts\opencode-vscode-add-proxy-task.ps1`
+
+**Automation scripts:**
+
+| Script | Purpose |
+|--------|---------|
+| `opencode-vscode-migrate-urls.ps1` | Rewrites all `opencode.ai/zen/go/v1/...` URLs in `chatLanguageModels.json` to `opencode-go.local/v1/...`. Creates a timestamped backup. |
+| `opencode-vscode-add-proxy-task.ps1` | Adds the "OpenCode Go Proxy" background task to `.vscode/tasks.json`. Creates the file if missing. Skips if already present. |
+
+**Manual VS Code auto-start:** Alternatively, add this to `.vscode/tasks.json`:
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "OpenCode Go Proxy",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File \"~/.agents/skills/copilot-byok/scripts/start-opencode-proxy.ps1\"",
+      "runOptions": { "runOn": "folderOpen" },
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}
+```
+
 ## Complete Model Configuration
 
 ### OpenCode Go — OpenAI-compatible models (DeepSeek, Kimi, GLM, MiMo)
@@ -22,7 +59,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "deepseek-v4-flash",
       "name": "DeepSeek V4 Flash",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -34,7 +71,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "deepseek-v4-pro",
       "name": "DeepSeek V4 Pro",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -46,7 +83,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "kimi-k2.7-code",
       "name": "Kimi K2.7 Code",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -57,7 +94,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "kimi-k2.6",
       "name": "Kimi K2.6",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -68,7 +105,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "kimi-k2.5",
       "name": "Kimi K2.5",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -79,7 +116,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "glm-5.2",
       "name": "GLM-5.2",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -90,7 +127,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "glm-5.1",
       "name": "GLM-5.1",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -101,7 +138,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "glm-5",
       "name": "GLM-5",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -112,7 +149,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "glm-5.3-flash",
       "name": "GLM-5.3-Flash",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -123,7 +160,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "mimo-v2.5",
       "name": "MiMo-V2.5",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -134,7 +171,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "mimo-v2.5-pro",
       "name": "MiMo-V2.5-Pro",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -145,7 +182,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "hy3",
       "name": "Hy3",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -157,7 +194,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "muse-spark-1.2-contributor",
       "name": "Muse Spark 1.2 Contributor",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -169,7 +206,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "ox-alpha-free",
       "name": "Ox Alpha Free",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -181,7 +218,7 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
     {
       "id": "longcat-2.0",
       "name": "LongCat-2.0",
-      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "url": "https://opencode-go.local/v1/chat/completions",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -217,7 +254,7 @@ GPT-5.6 Luna is served through **both** the OpenAI Responses API (`/v1/responses
     {
       "id": "gpt-5.6-luna",
       "name": "GPT-5.6 Luna",
-      "url": "https://opencode.ai/zen/go/v1/responses",
+      "url": "https://opencode-go.local/v1/responses",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -251,7 +288,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
     {
       "id": "minimax-m3",
       "name": "MiniMax M3",
-      "url": "https://opencode.ai/zen/go/v1/messages",
+      "url": "https://opencode-go.local/v1/messages",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -262,7 +299,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
     {
       "id": "minimax-m2.7",
       "name": "MiniMax M2.7",
-      "url": "https://opencode.ai/zen/go/v1/messages",
+      "url": "https://opencode-go.local/v1/messages",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -273,7 +310,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
     {
       "id": "qwen3.7-plus",
       "name": "Qwen3.7 Plus",
-      "url": "https://opencode.ai/zen/go/v1/messages",
+      "url": "https://opencode-go.local/v1/messages",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -284,7 +321,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
     {
       "id": "qwen3.7-max",
       "name": "Qwen3.7 Max",
-      "url": "https://opencode.ai/zen/go/v1/messages",
+      "url": "https://opencode-go.local/v1/messages",
       "toolCalling": true,
       "vision": false,
       "streaming": true,
@@ -295,7 +332,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
     {
       "id": "qwen3.6-plus",
       "name": "Qwen3.6 Plus",
-      "url": "https://opencode.ai/zen/go/v1/messages",
+      "url": "https://opencode-go.local/v1/messages",
       "toolCalling": true,
       "vision": true,
       "streaming": true,
@@ -306,7 +343,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
     {
       "id": "qwen3.8-flash",
       "name": "Qwen3.8-Flash",
-      "url": "https://opencode.ai/zen/go/v1/messages",
+      "url": "https://opencode-go.local/v1/messages",
       "toolCalling": true,
       "vision": true,
       "streaming": true,

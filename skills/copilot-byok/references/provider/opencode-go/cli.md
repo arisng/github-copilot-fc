@@ -13,6 +13,29 @@ Configuring the OpenCode Go provider for **GitHub Copilot CLI**. For VS Code Cha
 [Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_WORK", "<your-work-opencode-api-key>", "User")
 ```
 
+4. **One-time setup: configure DNS + cert for the session-header proxy.** OpenCode Go requires an `x-opencode-session` header on all requests (enforced since 2026-09-06). Copilot CLI does not natively support custom headers ([github/copilot-cli#3399](https://github.com/github/copilot-cli/issues/3399)), so a local proxy injects this header. Run once as admin:
+
+```powershell
+.\scripts\setup-opencode-proxy-dns.ps1
+```
+
+This adds `127.0.0.1 opencode-go.local` to your hosts file and trusts the SSL certificate.
+
+## x-opencode-session header requirement
+
+OpenCode Go requires an `x-opencode-session` header (one stable UUID per conversation) on all API requests. Without it, requests error. This header enables prompt-cache optimization by routing same-session requests to the same cache node.
+
+**Copilot CLI does not send custom headers.** There is no `COPILOT_PROVIDER_HEADERS` or `COPILOT_EXTRA_HEADERS` env var. The feature request ([github/copilot-cli#3399](https://github.com/github/copilot-cli/issues/3399)) is open/unimplemented. VS Code Chat has the same limitation ([microsoft/vscode#334186](https://github.com/microsoft/vscode/issues/334186)).
+
+**Workaround:** A local HTTPS proxy (`scripts/opencode-proxy.js`) intercepts requests, injects the `x-opencode-session` header, and forwards to `https://opencode.ai`. The proxy runs on `https://opencode-go.local:3001` (or `https://opencode-go.local` if elevated for port 443). It generates a UUID v4 at startup and reuses it for the proxy's lifetime.
+
+**How it works with profiles:**
+- Profiles with `"opencodeSessionHeader": true` automatically start the proxy and rewrite `baseUrl` to `https://opencode-go.local/v1` when you run `byok-profile.ps1 run` or `set-env`.
+- Existing profiles pointing to `https://opencode.ai/zen/go/v1` are **auto-migrated** on first access — the flag and rewritten URL are saved automatically.
+- The proxy is shared with the Moonshot proxy's cert infrastructure (`~/.copilot/moonshot-proxy/`).
+
+**Limitation:** The proxy generates one session ID per proxy lifetime. Multiple CLI invocations during one proxy lifetime share the same session ID, which provides the same cache behavior as a static ID. This is the best available workaround until Copilot CLI adds native custom-header support.
+
 ## Base URL
 
 ```
@@ -165,12 +188,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-qwen3.8-flash": {
   "type": "anthropic",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 325000,
   "model": "qwen3.8-flash",
   "accountGroup": "opencode",
-  "maxOutputTokens": 65536
+  "maxOutputTokens": 65536,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -191,12 +215,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-mimo-v25": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 980000,
   "model": "mimo-v2.5",
   "accountGroup": "opencode",
-  "maxOutputTokens": 64000
+  "maxOutputTokens": 64000,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -217,12 +242,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-glm-5.3-flash": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 325000,
   "model": "glm-5.3-flash",
   "accountGroup": "opencode",
-  "maxOutputTokens": 64000
+  "maxOutputTokens": 64000,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -243,12 +269,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-longcat-2.0": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 325000,
   "model": "longcat-2.0",
   "accountGroup": "opencode",
-  "maxOutputTokens": 64000
+  "maxOutputTokens": 64000,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -313,13 +340,14 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-gpt-5.6-luna": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "wireApi": "responses",
   "offline": false,
   "maxPromptTokens": 200000,
   "model": "gpt-5.6-luna",
   "accountGroup": "opencode",
-  "maxOutputTokens": 64000
+  "maxOutputTokens": 64000,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -340,12 +368,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-hy3": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 184000,
   "model": "hy3",
   "accountGroup": "opencode",
-  "maxOutputTokens": 64000
+  "maxOutputTokens": 64000,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -366,12 +395,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-muse-spark-1.2-contributor": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 909504,
   "model": "muse-spark-1.2-contributor",
   "accountGroup": "opencode",
-  "maxOutputTokens": 131072
+  "maxOutputTokens": 131072,
+  "opencodeSessionHeader": true
 }
 ```
 
@@ -392,12 +422,13 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
 ```json
 "opencode-go-ox-alpha-free": {
   "type": "openai",
-  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "baseUrl": "https://opencode-go.local/v1",
   "offline": false,
   "maxPromptTokens": 980000,
   "model": "ox-alpha-free",
   "accountGroup": "opencode",
-  "maxOutputTokens": 131072
+  "maxOutputTokens": 131072,
+  "opencodeSessionHeader": true
 }
 ```
 

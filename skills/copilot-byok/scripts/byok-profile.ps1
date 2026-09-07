@@ -77,6 +77,38 @@ function ConvertTo-Hashtable {
     return $InputObject
 }
 
+function Migrate-OpenCodeGoProfiles {
+    <#
+    .SYNOPSIS
+        Auto-migrate OpenCode Go profiles to use the session-header proxy.
+    .DESCRIPTION
+        Detects profiles with baseUrl pointing to opencode.ai/zen/go/v1 that lack
+        the opencodeSessionHeader flag. Adds the flag and rewrites baseUrl to
+        opencode-go.local/v1 so the proxy can inject the required header.
+    #>
+    param($Config)
+    $migrated = @()
+    foreach ($name in @($Config.profiles.Keys)) {
+        $p = $Config.profiles[$name]
+        if ($p.baseUrl -match 'https://opencode\.ai/zen/go/v1' -and $p.opencodeSessionHeader -ne $true) {
+            $p.opencodeSessionHeader = $true
+            $p.baseUrl = "https://opencode-go.local/v1"
+            $migrated += $name
+        }
+    }
+    if ($migrated.Count -gt 0) {
+        Save-ProfileConfig -Config $Config
+        Write-Host "  Migrated $($migrated.Count) OpenCode Go profile(s) to use session-header proxy:" -ForegroundColor Yellow
+        foreach ($name in $migrated) {
+            Write-Host "    - $name" -ForegroundColor Yellow
+        }
+        Write-Host "    (baseUrl rewritten to https://opencode-go.local/v1, opencodeSessionHeader: true added)" -ForegroundColor DarkYellow
+        Write-Host "    Run .\scripts\setup-opencode-proxy-dns.ps1 once (admin) to set up DNS + cert." -ForegroundColor DarkYellow
+        Write-Host ""
+    }
+    return $Config
+}
+
 function Get-ProfileConfig {
     if (-not (Test-Path $profilePath)) {
         return @{ profiles = @{} }
@@ -87,6 +119,10 @@ function Get-ProfileConfig {
     if (-not $raw.profiles) { $raw.profiles = @{} }
     if (-not $raw.accounts) { $raw.accounts = @{} }
     if (-not $raw.ContainsKey('activeAccount')) { $raw.activeAccount = $null }
+
+    # Auto-migrate OpenCode Go profiles on first access
+    $raw = Migrate-OpenCodeGoProfiles -Config $raw
+
     return $raw
 }
 
@@ -625,7 +661,7 @@ function Start-MoonshotProxy {
 
     if (-not $on3002 -and -not $on443) {
         Write-Host "  Starting Moonshot proxy..." -ForegroundColor Yellow
-        Start-Process -FilePath powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$startScript`"" -Verb RunAs
+        Start-Process -FilePath pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$startScript`"" -Verb RunAs
         Start-Sleep 5
         $on3002 = (Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue).State -eq 'Listen'
         if (-not $on3002) {
@@ -636,6 +672,40 @@ function Start-MoonshotProxy {
     }
     else {
         Write-Host "  Proxy already running" -ForegroundColor Gray
+    }
+}
+
+function Start-OpenCodeGoProxy {
+    <#
+    .SYNOPSIS
+        Auto-start the OpenCode Go session-header proxy if not already running.
+    .DESCRIPTION
+        Checks ports 3001 and 443. If neither is listening, starts start-opencode-proxy.ps1 elevated.
+        Profiles with "opencodeSessionHeader": true need this proxy.
+    #>
+    $startScript = Join-Path $PSScriptRoot 'start-opencode-proxy.ps1'
+
+    if (-not (Test-Path $startScript)) {
+        Write-Error "OpenCode Go proxy script not found at $startScript"
+        exit 1
+    }
+
+    $on3001 = (Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue).State -eq 'Listen'
+    $on443  = (Get-NetTCPConnection -LocalPort 443 -ErrorAction SilentlyContinue).State -eq 'Listen'
+
+    if (-not $on3001 -and -not $on443) {
+        Write-Host "  Starting OpenCode Go proxy..." -ForegroundColor Yellow
+        Start-Process -FilePath pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$startScript`"" -Verb RunAs
+        Start-Sleep 5
+        $on3001 = (Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue).State -eq 'Listen'
+        if (-not $on3001) {
+            Write-Error "OpenCode Go proxy failed to start"
+            exit 1
+        }
+        Write-Host "  OpenCode Go proxy running" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  OpenCode Go proxy already running" -ForegroundColor Gray
     }
 }
 
@@ -664,7 +734,15 @@ function Invoke-ProfileRun {
         $p.apiKey = '${' + $resolvedAccount.KeyEnv + '}'
     }
 
-    # Auto-start proxy if profile has proxyPort
+    # Auto-start OpenCode Go proxy if profile needs session header injection
+    if ($p.opencodeSessionHeader -eq $true) {
+        Start-OpenCodeGoProxy
+        $originalBaseUrl = $p.baseUrl
+        $p.baseUrl = "https://opencode-go.local/v1"
+        Write-Host "  (base URL proxied: $originalBaseUrl → https://opencode-go.local/v1 [x-opencode-session injected])" -ForegroundColor DarkYellow
+    }
+
+    # Auto-start proxy if profile has proxyPort (Moonshot top_p fix)
     $proxyPort = $p.proxyPort
     if ($proxyPort) {
         Start-MoonshotProxy
@@ -716,6 +794,7 @@ function Invoke-ProfileRun {
     if ($p.maxOutputTokens) { Write-Host "  Max Output Tokens : $($p.maxOutputTokens)" -ForegroundColor Gray }
     if ($p.offline -eq $true) { Write-Host "  Offline  : true" -ForegroundColor Gray }
     if ($proxyPort) { Write-Host "  Proxy    : https://moonshot.local (top_p override)" -ForegroundColor Green }
+    if ($p.opencodeSessionHeader -eq $true) { Write-Host "  Proxy    : https://opencode-go.local (x-opencode-session injected)" -ForegroundColor Green }
     if ($p.PSObject.Properties.Name -contains 'reasoningEffortSupported') {
         Write-Host "  Reasoning Effort : $($p.reasoningEffortSupported)" -ForegroundColor Gray
     }
@@ -752,6 +831,18 @@ function Invoke-ProfileSetEnv {
     $resolvedAccount = Resolve-ProfileAccount -Config $config -Profile $p -AccountOverride $accountOverride
     if ($resolvedAccount) {
         $p.apiKey = '${' + $resolvedAccount.KeyEnv + '}'
+    }
+
+    # Auto-start OpenCode Go proxy if profile needs session header injection
+    if ($p.opencodeSessionHeader -eq $true) {
+        Start-OpenCodeGoProxy
+        $p.baseUrl = "https://opencode-go.local/v1"
+    }
+
+    # Auto-start proxy if profile has proxyPort (Moonshot top_p fix)
+    if ($p.proxyPort) {
+        Start-MoonshotProxy
+        $p.baseUrl = "https://moonshot.local/v1"
     }
 
     Set-ProviderEnvironment -Provider $p

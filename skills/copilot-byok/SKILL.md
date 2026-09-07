@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.15.5
+  version: 0.16.0
   lastVerified: 2026-08-09
 ---
 
@@ -257,6 +257,57 @@ This same limit discovery process applies to any provider whose gateway enforces
 3. If using a stored profile, run `show` or `list` to verify the saved values.
 4. If `${ENV_VAR}` placeholders are used, confirm the environment variable actually exists.
 5. If long-context models fail, add or lower explicit max prompt and output token overrides.
+
+## OpenCode Go session-header proxy
+
+**Problem:** OpenCode Go requires an `x-opencode-session` header (one stable UUID per conversation) on all API requests. Without it, requests error. Copilot CLI and VS Code Chat do not natively support custom headers.
+
+**Solution:** A local HTTPS proxy that injects the `x-opencode-session` header before forwarding. Scripts live in the skill's `scripts/` folder; runtime cert data is shared with the Moonshot proxy at `~/.copilot/moonshot-proxy/`.
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `opencode-proxy.js` | `scripts/opencode-proxy.js` | HTTPS proxy server (Node.js) — dual-port: 3001 (always) + 443 (elevated). Generates UUID v4 at startup, injects as `x-opencode-session`. |
+| `start-opencode-proxy.ps1` | `scripts/start-opencode-proxy.ps1` | Auto-elevates admin, kills old proxy, starts via `node opencode-proxy.js` |
+| `setup-opencode-proxy-dns.ps1` | `scripts/setup-opencode-proxy-dns.ps1` | One-time admin setup: adds `127.0.0.1 opencode-go.local` to hosts + trusted cert |
+| Certs | `~/.copilot/moonshot-proxy/` | Shared with Moonshot proxy (moonshot.pfx, cert.pfx) |
+
+### How to use
+
+```powershell
+# One-time setup (run once, elevated):
+.\scripts\setup-opencode-proxy-dns.ps1
+
+# Start proxy (after every reboot):
+.\scripts\start-opencode-proxy.ps1
+
+# Or from published skill location:
+pwsh -NoProfile "~\.copilot\skills\copilot-byok\scripts\start-opencode-proxy.ps1"
+
+# Check status:
+curl -s https://opencode-go.local/health
+```
+
+### Profile integration
+
+Profiles with `"opencodeSessionHeader": true` automatically start the proxy and rewrite `baseUrl` to `https://opencode-go.local/v1`. Existing profiles pointing to `https://opencode.ai/zen/go/v1` are auto-migrated on first access. See [`references/provider/opencode-go/cli.md`](references/provider/opencode-go/cli.md) for details.
+
+### VS Code integration
+
+Use the automation scripts to set up VS Code:
+
+```powershell
+# Migrate existing chatLanguageModels.json URLs:
+.\scripts\opencode-vscode-migrate-urls.ps1
+
+# Add auto-start task to .vscode/tasks.json:
+.\scripts\opencode-vscode-add-proxy-task.ps1
+```
+
+The URL migration script creates a timestamped backup before modifying. The task script creates `tasks.json` if missing, skips if the task already exists. After running, reload VS Code (**Developer: Reload Window**).
+
+### Limitation
+
+The proxy generates one session ID per proxy lifetime. Multiple CLI invocations during one proxy lifetime share the same session ID (same cache behavior as a static ID). This is the best available workaround until Copilot CLI adds native custom-header support ([github/copilot-cli#3399](https://github.com/github/copilot-cli/issues/3399)).
 
 ## Moonshot proxy (top_p workaround)
 
