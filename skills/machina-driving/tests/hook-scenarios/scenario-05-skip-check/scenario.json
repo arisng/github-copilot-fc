@@ -1,0 +1,27 @@
+{
+  "id": "scenario-05-skip-check",
+  "name": "Skip Check",
+  "description": "Fire DRAFT_COMPLETE directly without checking status first — ensures-runner runs post-conditions on the fire",
+  "inputs": {
+    "draft_path": "{workspace}/draft.md",
+    "output_path": "{workspace}/output.md"
+  },
+  "setup": {
+    "create_files": true,
+    "draft_content": "# Test Draft",
+    "output_content": "# Test Output\nClean output with no errors."
+  },
+  "steps": [
+    { "command": "init", "expected": { "ok": true, "state": "drafting" } },
+    { "command": "fire DRAFT_COMPLETE", "expected": { "ok": true, "status": "transitioned", "to": "reviewing" } }
+  ],
+  "expected_hooks": {
+    "total_entries": 4,
+    "actions": [
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "additionalContext"
+    ]
+  }
+}

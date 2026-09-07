@@ -1,0 +1,29 @@
+{
+  "id": "scenario-03-validation-fails",
+  "name": "Validation Fails",
+  "description": "Draft exists but output contains 'error' words — fire DRAFT_COMPLETE is blocked by validate-output",
+  "inputs": {
+    "draft_path": "{workspace}/draft.md",
+    "output_path": "{workspace}/output.md"
+  },
+  "setup": {
+    "create_files": true,
+    "draft_content": "# Test Draft",
+    "output_content": "This output has an error in it. Another error here."
+  },
+  "steps": [
+    { "command": "init", "expected": { "ok": true, "state": "drafting" } },
+    { "command": "status", "expected": { "ok": true, "state": "drafting" } }
+  ],
+  "expected_hooks": {
+    "total_entries": 6,
+    "actions": [
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "pass-through"
+    ]
+  }
+}

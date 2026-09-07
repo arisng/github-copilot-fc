@@ -1,0 +1,8 @@
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}
+{"ts":"2026-09-07T16:24:54.7020193+07:00","out":{"additionalContext":"Ensures post-conditions: output-ready PASSED"},"cmd":"machine-driver.py fire DRAFT_COMPLETE","event":"postToolUse","action":"additionalContext","hook":"ensures-runner","tool":"powershell"}
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}
+{"tool":"powershell","event":"postToolUse","ts":"2026-09-07T16:24:54.7020193+07:00"}

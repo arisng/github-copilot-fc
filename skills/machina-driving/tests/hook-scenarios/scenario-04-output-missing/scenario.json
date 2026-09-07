@@ -1,0 +1,46 @@
+{
+  "id": "scenario-04-output-missing",
+  "name": "Output Missing in Reviewing",
+  "description": "Draft exists but output does not — DRAFT_COMPLETE succeeds (moves to reviewing), then status shows output-ready check fails",
+  "inputs": {
+    "draft_path": "{workspace}/draft.md",
+    "output_path": "{workspace}/output.md"
+  },
+  "setup": {
+    "create_files": true,
+    "draft_content": "# Test Draft",
+    "output_content": null,
+    "machine_overrides": {
+      "scenarios": [
+        {
+          "id": "default",
+          "label": "Default",
+          "initial": "drafting",
+          "inputs": {
+            "draft_path": { "required": true, "type": "string" },
+            "output_path": { "required": true, "type": "string" }
+          },
+          "context": {
+            "draft_ready": true
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    { "command": "init", "expected": { "ok": true, "state": "drafting" } },
+    { "command": "fire DRAFT_COMPLETE", "expected": { "ok": true, "status": "blocked", "reason": "evidence" } },
+    { "command": "status", "expected": { "ok": true, "state": "drafting" } }
+  ],
+  "expected_hooks": {
+    "total_entries": 6,
+    "actions": [
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "modifiedResult",
+      "pass-through"
+    ]
+  }
+}

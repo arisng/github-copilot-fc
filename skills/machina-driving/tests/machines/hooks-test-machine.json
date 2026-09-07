@@ -1,0 +1,187 @@
+{
+  "id": "hooks-test-machine",
+  "name": "Hooks Test Machine",
+  "version": "2.0.0",
+  "spec_version": "3.0.0",
+  "initial": "drafting",
+  "context": {
+    "draft_path": "",
+    "output_path": "",
+    "draft_ready": false,
+    "review_errors": 0
+  },
+  "tools": {
+    "file-exists": {
+      "cmd": "py scripts/check_file.py {ctx.draft_path}",
+      "expect_exit": 0,
+      "timeout_seconds": 30
+    },
+    "output-ready": {
+      "cmd": "py scripts/check_file.py {ctx.output_path}",
+      "expect_exit": 0,
+      "timeout_seconds": 30,
+      "output": {
+        "errors": "review_errors"
+      }
+    },
+    "validate-output": {
+      "cmd": "py scripts/validate_output.py {ctx.output_path}",
+      "expect_exit": 0,
+      "timeout_seconds": 30
+    }
+  },
+  "limits": {
+    "max_events": 20
+  },
+  "cycle_prevention": {
+    "max_retry_limit": 5,
+    "guards": [
+      {
+        "event": "REVIEW_FAILED",
+        "guard": {
+          "type": "compare",
+          "key": "review_errors",
+          "op": "lt",
+          "value": 3
+        },
+        "else_target": "published"
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "default",
+      "label": "Default",
+      "initial": "drafting",
+      "inputs": {
+        "draft_path": {
+          "required": true,
+          "type": "string"
+        },
+        "output_path": {
+          "required": true,
+          "type": "string"
+        }
+      },
+      "context": {
+        "draft_ready": true
+      }
+    }
+  ],
+  "states": {
+    "drafting": {
+      "description": "Create the draft file at draft_path. The file must exist before leaving this state.",
+      "checks": [
+        "file-exists"
+      ],
+      "invariants": [
+        "file-exists"
+      ],
+      "on": {
+        "DRAFT_COMPLETE": {
+          "target": "reviewing",
+          "guard": {
+            "type": "compare",
+            "key": "draft_ready",
+            "op": "eq",
+            "value": true
+          },
+          "else_target": "drafting",
+          "requires": [
+            "validate-output"
+          ],
+          "ensures": [
+            "output-ready"
+          ],
+          "actions": [
+            {
+              "type": "assign",
+              "key": "review_start",
+              "value": "now"
+            }
+          ],
+          "description": "Draft validated, output ready."
+        },
+        "REVIEW_FAILED": {
+          "target": "drafting",
+          "actions": [
+            {
+              "type": "increment",
+              "key": "review_errors"
+            }
+          ],
+          "description": "Review found errors, return to drafting."
+        }
+      }
+    },
+    "reviewing": {
+      "description": "Review the output. The output file must exist.",
+      "checks": [
+        "output-ready"
+      ],
+      "on": {
+        "APPROVED": {
+          "target": "published",
+          "actions": [
+            {
+              "type": "assign",
+              "key": "published_at",
+              "value": "now"
+            }
+          ],
+          "description": "Output reviewed and approved."
+        }
+      }
+    },
+    "published": {
+      "type": "final",
+      "description": "Work published successfully."
+    }
+  },
+  "coverage": {
+    "generated": "2026-09-07T09:00:21Z",
+    "version": "3.0.0",
+    "metrics": {
+      "total_states": 3,
+      "final_states": 1,
+      "total_transitions": 3,
+      "coverage_percentage": 100.0
+    },
+    "state_coverage": {
+      "drafting": {
+        "visited": true,
+        "incoming": 0,
+        "outgoing": 2
+      },
+      "reviewing": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 1
+      },
+      "published": {
+        "visited": true,
+        "incoming": 1,
+        "outgoing": 0
+      }
+    },
+    "edge_coverage": {
+      "drafting:DRAFT_COMPLETE": {
+        "from": "drafting",
+        "to": "reviewing",
+        "covered": true
+      },
+      "drafting:REVIEW_FAILED": {
+        "from": "drafting",
+        "to": "drafting",
+        "covered": true
+      },
+      "reviewing:APPROVED": {
+        "from": "reviewing",
+        "to": "published",
+        "covered": true
+      }
+    },
+    "uncovered_paths": [],
+    "recommendations": []
+  }
+}

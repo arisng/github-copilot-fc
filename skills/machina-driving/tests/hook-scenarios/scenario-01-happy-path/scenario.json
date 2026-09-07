@@ -1,0 +1,34 @@
+{
+  "id": "scenario-01-happy-path",
+  "name": "Happy Path",
+  "description": "All files exist, no errors, successful completion through to terminal state",
+  "inputs": {
+    "draft_path": "{workspace}/draft.md",
+    "output_path": "{workspace}/output.md"
+  },
+  "setup": {
+    "create_files": true,
+    "draft_content": "# Test Draft\nThis is a test draft document.",
+    "output_content": "# Test Output\nThis is a test output with no error words."
+  },
+  "steps": [
+    { "command": "init", "expected": { "ok": true, "state": "drafting" } },
+    { "command": "status", "expected": { "ok": true, "state": "drafting" } },
+    { "command": "fire DRAFT_COMPLETE", "expected": { "ok": true, "status": "transitioned", "to": "reviewing" } },
+    { "command": "fire APPROVED", "expected": { "ok": true, "status": "transitioned", "to": "published" } },
+    { "command": "report", "expected": { "ok": true, "result": "SUCCESS", "final_state": "published" } }
+  ],
+  "expected_hooks": {
+    "total_entries": 8,
+    "actions": [
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "pass-through",
+      "additionalContext",
+      "pass-through",
+      "additionalContext"
+    ]
+  }
+}

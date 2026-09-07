@@ -1,0 +1,6 @@
+{"hook":"event-gate","action":"pass-through","tool":"powershell","out":{},"event":"postToolUse","ts":"2026-09-07T16:24:57.1069677+07:00"}
+{"hook":"ensures-runner","action":"pass-through","tool":"powershell","out":{},"event":"postToolUse","ts":"2026-09-07T16:24:57.1069677+07:00"}
+{"hook":"event-gate","action":"pass-through","tool":"powershell","out":{},"event":"postToolUse","ts":"2026-09-07T16:24:57.1069677+07:00"}
+{"hook":"ensures-runner","action":"pass-through","tool":"powershell","out":{},"event":"postToolUse","ts":"2026-09-07T16:24:57.1069677+07:00"}
+{"hook":"event-gate","action":"pass-through","tool":"powershell","out":{},"event":"postToolUse","ts":"2026-09-07T16:24:57.1069677+07:00"}
+{"hook":"ensures-runner","action":"pass-through","tool":"powershell","out":{},"event":"postToolUse","ts":"2026-09-07T16:24:57.1069677+07:00"}

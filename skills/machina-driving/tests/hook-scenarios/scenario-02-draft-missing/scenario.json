@@ -1,0 +1,25 @@
+{
+  "id": "scenario-02-draft-missing",
+  "name": "Draft Missing",
+  "description": "Draft file does not exist — file-exists check fails, event-gate categorizes DRAFT_COMPLETE as conditionally enabled",
+  "inputs": {
+    "draft_path": "{workspace}/draft.md",
+    "output_path": "{workspace}/output.md"
+  },
+  "setup": {
+    "create_files": false
+  },
+  "steps": [
+    { "command": "init", "expected": { "ok": true, "state": "drafting" } },
+    { "command": "status", "expected": { "ok": true, "state": "drafting" } }
+  ],
+  "expected_hooks": {
+    "total_entries": 4,
+    "actions": [
+      "pass-through",
+      "pass-through",
+      "modifiedResult",
+      "pass-through"
+    ]
+  }
+}

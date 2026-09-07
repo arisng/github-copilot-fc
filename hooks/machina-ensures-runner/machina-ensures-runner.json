@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "powershell": "pwsh -NoProfile -File hooks\\machina-ensures-runner\\scripts\\ensures-runner.ps1",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

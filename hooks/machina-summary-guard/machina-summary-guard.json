@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "powershell": "pwsh -NoProfile -File hooks\\machina-summary-guard\\scripts\\summary-guard.ps1",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

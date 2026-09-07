@@ -1,0 +1,4 @@
+{"hook":"event-gate","action":"pass-through","ts":"2026-09-07T16:24:59.5305780+07:00","event":"postToolUse","out":{},"tool":"powershell"}
+{"hook":"ensures-runner","action":"pass-through","ts":"2026-09-07T16:24:59.5305780+07:00","event":"postToolUse","out":{},"tool":"powershell"}
+{"hook":"event-gate","action":"pass-through","ts":"2026-09-07T16:24:59.5305780+07:00","event":"postToolUse","out":{},"tool":"powershell"}
+{"hook":"ensures-runner","action":"pass-through","ts":"2026-09-07T16:24:59.5305780+07:00","event":"postToolUse","out":{},"tool":"powershell"}

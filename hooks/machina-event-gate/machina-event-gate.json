@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "powershell": "pwsh -NoProfile -File hooks\\machina-event-gate\\scripts\\event-gate.ps1",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}
