@@ -296,7 +296,7 @@ pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$
 # Explicitly test against the shared dojo and KEEP the injected fixture there
 # so the dojo retains a seeded byok-profiles.json (without -KeepFixture the
 # injected file is removed after the run, leaving the dojo bare)
-pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$env:USERPROFILE\.copilot-staging" -KeepFixture
+pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$env:USERPROFILE\.copilot-dojo" -KeepFixture
 ```
 
 Exit codes: `0` all pass (known-gap rows count as pass), `1` one or more test failures, `2` harness error (spike gate, timeout, report write).
@@ -308,9 +308,9 @@ Exit codes: `0` all pass (known-gap rows count as pass), `1` one or more test fa
 - A `copilot.ps1` shim on the child `PATH` (with the real copilot dir scrubbed) records the arguments and provider env that the byok script passes to `copilot`.
 - A spike gate at startup proves stream capture + dot-source `set-env` work before any case runs.
 - The fixture is re-injected before every config case for determinism; the staging file is restored/removed afterwards unless `-KeepFixture`.
-- The harness uses its own staging dir by default and never touches the shared dojo `~/.copilot-staging`. If you point `-StagingHome` at the dojo, add `-KeepFixture` so it keeps a seeded `byok-profiles.json`; otherwise the injected file is removed after the run.
+- The harness uses its own staging dir by default and never touches the shared dojo `~/.copilot-dojo`. If you point `-StagingHome` at the dojo, add `-KeepFixture` so it keeps a seeded `byok-profiles.json`; otherwise the injected file is removed after the run.
 - Production `~/.copilot/byok-profiles.json` is hashed before/after and asserted unchanged by the isolation cases.
-- `t1-5` (production default resolution) is auto-skipped when no production file exists; `t6-*` subsession cases use throwaway dirs so they never touch `~/.copilot-staging`.
+- `t1-5` (production default resolution) is auto-skipped when no production file exists; `t6-*` subsession cases use throwaway dirs so they never touch `~/.copilot-dojo`.
 
 ### Dispatcher command (byok)
 

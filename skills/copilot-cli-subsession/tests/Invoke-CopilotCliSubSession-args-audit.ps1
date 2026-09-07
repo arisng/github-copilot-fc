@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Executes the real Invoke-CopilotCliSubSession.ps1 against the seeded staging home
-    (~/.copilot-staging by default, the "dojo") and captures, for every supported argument:
+    (~/.copilot-dojo by default, the "dojo") and captures, for every supported argument:
 
       - the exact CLI argv the script forwards to the copilot child (via a shim copilot.ps1),
       - the COPILOT_* env it emits to the child,
@@ -52,7 +52,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$StagingHome = (Join-Path $HOME '.copilot-staging'),
+    [string]$StagingHome = (Join-Path $HOME '.copilot-dojo'),
 
     [Parameter(Mandatory = $false)]
     [string]$FixturePath = (Join-Path $PSScriptRoot 'fixtures\byok-profiles.fixture.json'),

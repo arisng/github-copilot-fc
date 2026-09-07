@@ -12,7 +12,7 @@
     Isolation guarantees:
     - Staging home defaults to a harness-owned directory under
       scripts/test/.artifacts/copilot-byok-feature-test/staging — the shared
-      ~/.copilot-staging dojo is NEVER touched by default; production
+      ~/.copilot-dojo dojo is NEVER touched by default; production
       ~/.copilot is only ever READ (for the production-default isolation case)
       and is hash-asserted unchanged after every mutating case.
     - The staging byok-profiles.json is snapshotted before the run and restored
@@ -35,9 +35,9 @@
     pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1
 
 .EXAMPLE
-    # Explicitly test against the shared dojo (~/.copilot-staging) and keep the
+    # Explicitly test against the shared dojo (~/.copilot-dojo) and keep the
     # fixture there afterwards so the dojo retains a seeded byok-profiles.json
-    pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$HOME\.copilot-staging" -KeepFixture
+    pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1 -StagingHome "$HOME\.copilot-dojo" -KeepFixture
 
 .EXAMPLE
     # Keep the staging fixture in place after the run (do not restore snapshot)
@@ -922,8 +922,8 @@ function Invoke-HarnessMain {
     Write-Host "  fixture       : $FixturePath" -ForegroundColor Gray
     Write-Host "  staging home  : $StagingHome" -ForegroundColor Gray
     Write-Host "  production    : $ProductionProfile" -ForegroundColor Gray
-    if (-not $KeepFixture -and $StagingHome -eq (Join-Path $HOME '.copilot-staging')) {
-        Write-Warning "Staging home is the shared dojo (~/.copilot-staging): the harness will inject the hermetic fixture for the run and then restore the previous byok-profiles.json (or remove it if none existed). Use -KeepFixture to leave a fixture-based seed, or point -StagingHome at a harness-owned dir."
+    if (-not $KeepFixture -and $StagingHome -eq (Join-Path $HOME '.copilot-dojo')) {
+        Write-Warning "Staging home is the shared dojo (~/.copilot-dojo): the harness will inject the hermetic fixture for the run and then restore the previous byok-profiles.json (or remove it if none existed). Use -KeepFixture to leave a fixture-based seed, or point -StagingHome at a harness-owned dir."
     }
     if ($Live) { Write-Warning 'Phase 2 live probes not implemented yet; running config-level only.' }
     Write-Host ""

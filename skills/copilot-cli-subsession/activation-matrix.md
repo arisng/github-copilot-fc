@@ -11,7 +11,7 @@ Use this file to tune the `description` field only. Model classifier is harness-
 | pos-05 | resume a copilot cli session by id | yes | yes | pass | Triggers: "resume copilot session", "copilot cli session id" |
 | pos-06 | run copilot with a custom agent in a subprocess | yes | yes | pass | Triggers: "subagent copilot cli" |
 | pos-07 | hand off context to a sub-session by listing file paths | yes | yes | pass | Trigger: context handoff convention (absolute paths + working dir) |
-| pos-08 | test a skill change without polluting my production copilot home | yes | yes | pass | Trigger: staging isolation via -CopilotHome ($HOME/.copilot-staging dojo) |
+| pos-08 | test a skill change without polluting my production copilot home | yes | yes | pass | Trigger: staging isolation via -CopilotHome ($HOME/.copilot-dojo) |
 | pos-09 | programmatic copilot subprocess with JSON output | yes | yes | pass | Triggers: "programmatic copilot cli" + "programmatic copilot subprocess" (Step 3 add) |
 | pos-10 | task copilot cli for security audit | yes | yes | pass | Triggers: "task copilot cli" |
 | neg-01 | configure my BYOK provider profile | no | no | pass | Routes to: copilot-byok — BYOK config, not spawning |

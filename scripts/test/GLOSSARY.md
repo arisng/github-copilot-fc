@@ -25,7 +25,7 @@ historically for that reason, but it is **not** an active harness and must not b
 | **Hermetic mode** | Runs with no network/real-API calls; dependencies stubbed or sentineled. Deterministic and free. | byok `t*` cases (default) | fixture-driven run |
 | **Live mode** | Opt-in real-CLI/real-key runs (tokens cost money); guarded by preconditions + a cost guardrail. | subsession harness `-Live` (inside its skill) | `tests:subsession-audit-live` |
 | **Sentinel key** | Fake API-key value injected per child so key handling is asserted without real keys. | byok harness (`Get-SentinelChildEnv`) | `KEY=sentinel-opencode-work-key` |
-| **Dojo / staging home** | Durable test `COPILOT_HOME` (`~/.copilot-staging`), pre-seeded from production. | byok `-StagingHome ~/.copilot-staging`; subsession harness | `-CopilotHome <dojo>` |
+| **Dojo / staging home** | Durable test `COPILOT_HOME` (`~/.copilot-dojo`), pre-seeded from production. | byok `-StagingHome ~/.copilot-dojo`; subsession harness | `-CopilotHome <dojo>` |
 | **Isolation gate** | Before/after assertion that production/dojo were not mutated (SHA-256 hash). Violation → throw. | byok `t1.x`; subsession `s8-6` | production hash unchanged |
 | **Spike gate** | First-run preflight proving harness machinery works before any case runs; failure → abort (exit 2). | both harnesses | `SHIM_NOT_WINNING` → abort |
 | **PASS / FAIL / SKIP / KNOWN-GAP** | Case status taxonomy. KNOWN-GAP = documents known-imperfect current behavior as a PASS with a gap label (backlog for future fixes). | both harnesses | `t2-6` (wizard never prompts wireApi) |

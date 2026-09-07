@@ -25,7 +25,7 @@ so the skill never depends on files outside its own directory.
 | **Hermetic mode** | Test runs with no network/real-API calls; every dependency is stubbed or sentineled. Deterministic and free. | All `s*` cases |
 | **Live mode** | Opt-in test runs that invoke the real CLI with real API keys and real sessions (tokens cost money). Guarded by preconditions and a cost guardrail. | `-Live` → `l*` cases |
 | **Sentinel key** | A fake API-key value (`sentinel-*`) injected into child processes so the harness can assert key handling without ever touching real keys. | `KEY=sentinel-opencode-work-key` |
-| **Dojo / staging home** | The durable test `COPILOT_HOME` (`~/.copilot-staging`), pre-seeded from production profiles, used as the isolated home for tests that need real profile shapes. | `-CopilotHome <dojo>` |
+| **Dojo home** | The durable test `COPILOT_HOME` (`~/.copilot-dojo`), pre-seeded from production profiles, used as the isolated home for tests that need real profile shapes. | `-CopilotHome <dojo>` |
 | **Isolation gate** | A before/after assertion that production and the dojo were not mutated by a run (SHA-256 hash of `byok-profiles.json` / `mcp-config.json` unchanged). Violation → throw. | `s8-6`, spike-gate isolation line |
 | **Spike gate** | A first-run preflight that proves the harness machinery works (shim wins over real `copilot`, `RETURN\|` protocol) before any real case runs; failure → abort (exit 2). | `SHIM_NOT_WINNING` → abort |
 | **COST GUARDRAIL** | Hard check in live mode that refuses to spawn non-allowlisted (expensive/fragile) models/profiles before any call is made. | `gpt-5.6-luna` was added to the allowlist for `l8` |

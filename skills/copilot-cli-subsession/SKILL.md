@@ -10,7 +10,7 @@ description: >-
 argument-hint: "What is the sub-session prompt?"
 metadata:
   author: arisng
-  version: 0.6.3
+  version: 0.6.4
   lastVerified: 2026-08-05
   verifiedCliVersion: 1.0.77
 ---
@@ -330,7 +330,7 @@ To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstruct
 
 ### Staging `COPILOT_HOME` — the skill's testing sandbox (dojo)
 
-`-CopilotHome <path>` is the explicit opt-in to a **staging `COPILOT_HOME`** — a durable, separate config tree that keeps test sub-sessions from polluting the production `~/.copilot/`. The recommended convention is a sibling directory, e.g. `Join-Path $HOME '.copilot-staging'` (derived from `$HOME`, so it works on any machine — never hardcode a user path).
+`-CopilotHome <path>` is the explicit opt-in to a **staging `COPILOT_HOME`** — a durable, separate config tree that keeps test sub-sessions from polluting the production `~/.copilot/`. The recommended convention is a sibling directory, e.g. `Join-Path $HOME '.copilot-dojo'` (derived from `$HOME`, so it works on any machine — never hardcode a user path).
 
 **Why a staging env (dojo vision)**: staging is the designated testing environment for this skill and its ecosystem. Any sub-session spawned with `-CopilotHome` runs fully inside staging — session state, checkpoints, logs, BYOK profile, and MCP config all land there — so you can exercise every supported feature of this skill (custom agents, slash commands, model pinning/switching, session chaining, BYOK profiles, MCP/custom-instructions isolation, reasoning-effort handling) without touching production. Because env vars are process-scoped, the main (root) session keeps running in production `~/.copilot/` while the child works in staging (verified: parent env is never modified).
 
@@ -340,22 +340,22 @@ To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstruct
 2. **Stage it** — repo-level skills/agents/hooks are picked up from the working directory (`.github/skills/`, `.github/agents/`, `.github/hooks/`) with **no extra step** (discovery is workspace-relative, independent of `COPILOT_HOME`). Personal-level artifacts can be staged with the publish scripts' `-CopilotHome` override:
    ```powershell
    # Agents → <CopilotHome>/agents (skips WSL mirroring)
-   pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -CopilotHome "$HOME\.copilot-staging" -Force
+   pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -CopilotHome "$HOME\.copilot-dojo" -Force
 
    # Instructions → <CopilotHome>\Code\{Stable|Insiders}\User\prompts (skips WSL)
-   pwsh -NoProfile -File scripts/publish/publish-instructions.ps1 -CopilotHome "$HOME\.copilot-staging" -Force
+   pwsh -NoProfile -File scripts/publish/publish-instructions.ps1 -CopilotHome "$HOME\.copilot-dojo" -Force
 
    # User-level hooks → <CopilotHome>/hooks (skips WSL + VS Code settings mutation)
-   pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome "$HOME\.copilot-staging" -Force
+   pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome "$HOME\.copilot-dojo" -Force
 
    # Or direct copy for anything else
-   Copy-Item -Recurse "$PWD\skills\copilot-cli-subsession" "$HOME\.copilot-staging\skills\"
+   Copy-Item -Recurse "$PWD\skills\copilot-cli-subsession" "$HOME\.copilot-dojo\skills\"
    ```
 3. **Spawn** a sub-session in staging:
    ```powershell
-   .\scripts\Invoke-CopilotCliSubSession.ps1 -CopilotHome "$HOME\.copilot-staging" -Prompt "test the change"
+   .\scripts\Invoke-CopilotCliSubSession.ps1 -CopilotHome "$HOME\.copilot-dojo" -Prompt "test the change"
    ```
-4. **Observe** — the returned object's `CopilotHome` confirms the child used staging; session artifacts live under `$HOME\.copilot-staging\session-state\<session-uuid>\`.
+4. **Observe** — the returned object's `CopilotHome` confirms the child used staging; session artifacts live under `$HOME\.copilot-dojo\session-state\<session-uuid>\`.
 5. **Iterate** — repeat 1–4. Staging is never re-seeded and never auto-cleaned, so state persists across iterations; delete the tree to reset.
 
 **Seeding & independence**:
@@ -441,7 +441,7 @@ GUARDRAIL) is defined in the [harness vocabulary glossary](references/glossary.m
 within this skill, so it travels with the skill when published.
 
 `tests/Invoke-CopilotCliSubSession-args-audit.ps1` is an empirical audit harness that executes the real
-script against the seeded staging home (`~/.copilot-staging`, the "dojo") and asserts, for every supported
+script against the seeded staging home (`~/.copilot-dojo`, the "dojo") and asserts, for every supported
 argument: the exact CLI argv forwarded to the copilot child (via a shim), the `COPILOT_*` env emitted, the
 9-field return object, and seeding/validation/precedence behaviors. It includes an opt-in live pass
 (`-Live`, cheap models only, COST GUARDRAIL enforced) that probes real sub-sessions: session-state
