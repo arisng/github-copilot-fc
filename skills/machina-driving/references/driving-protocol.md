@@ -52,6 +52,47 @@ is refused when it lies inside a git worktree — set `MACHINA_ALLOW_REPO_RUNS=1
 to allow only when you explicitly intend a repo-local run. The check is a walk
 up from the run-dir base looking for a `.git` entry (file or dir).
 
+## Run-Id lifecycle
+
+Each `init` creates a new run-id (12-char hex UUID) and a fresh run directory:
+
+    <run-dir>/<run-id>/
+    ├── machine.json      # Frozen copy of the spec (immutable, hashed)
+    ├── ledger.jsonl      # Append-only audit trail (chained hashes)
+    └── report.json       # Terminal report (written by report command)
+
+### Why a copy?
+
+The `machine.json` copy is **frozen at init time** and never modified. The
+driver hashes it (`machine_sha256`) and chains the hash into the ledger. Every
+subsequent command re-verifies this hash. If anyone edits the copy mid-run, the
+ledger chain breaks and `check` fails. Without the copy, the agent could modify
+the source machine between commands (e.g., remove a guard) and the driver
+wouldn't know.
+
+### Lifecycle
+
+    init → creates run-id + frozen spec + first ledger entry
+      │
+      ├── status   (read-only: current state, enabled events)
+      ├── fire     (append ledger: transition + context mutation)
+      ├── check    (re-verify: ledger chain + artifact hashes)
+      │
+      └── report   (write report.json, bind to ledger)
+           │
+           └── Run complete. Run-id is dead.
+
+A new `init` always creates a **new** run-id. You never reuse a run-id. If the
+agent gets stuck or the run is aborted, start a fresh `init`.
+
+### Run directory layout
+
+| File | Created by | Mutated after init? |
+|------|------------|---------------------|
+| `machine.json` | `init` | No (immutable) |
+| `ledger.jsonl` | `init` | Append-only |
+| `report.json` | `report` | Written once at end |
+
 ## Tamper prevention
 
 The run is tamper-evident against *accidental or silent* modification — any edit

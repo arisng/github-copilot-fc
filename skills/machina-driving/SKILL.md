@@ -15,7 +15,7 @@ description: >-
   maintainer of this skill upgrading the driver itself; general diagramming or
   XState/SCXML authoring.
 metadata:
-  version: 0.4.0
+  version: 0.4.1
 ---
 
 # Machina Driving
