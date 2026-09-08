@@ -1,0 +1,81 @@
+id: case-07-author-with-v3-features
+name: Author a v3 machine using tools, limits, checks and ensures
+description: Agent authors a Machina machine JSON that exercises the v3 schema surface — a tools registry with cmd, limits, per-state checks/invariants, per-transition requires/ensures/else_target, and scenario inputs — delivered as a fenced JSON block declaring spec_version 3.0.0. The structural validate gate must pass.
+tags: [positive, generation, v3-features]
+inputs:
+  prompt: >-
+    Author a Machina machine JSON for a small order workflow (placed ->
+    paid -> shipped -> delivered, with a payment-failed retry loop back to
+    paid) that fully uses the v3.0.0 schema. This is a self-contained task:
+    author the machine entirely from the field shapes given below — do NOT
+    look for external sample files, and do NOT discuss file lookups.
+
+    Required top-level fields (spec_version "3.0.0"):
+    (1) "tools" — an object with two tools, each an object with a "cmd"
+    string like "py scripts/check_payment.py {ctx.order_id}" (the scripts
+    need not exist; the machine just declares them); include "expect_exit": 0.
+    (2) "limits" — an object with "max_events" (e.g. 40) and optionally
+    "max_steps" / "timeout_seconds".
+    (3) "states" with kebab-case keys; include at least one state with a
+    "checks" array and at least one state with an "invariants" array, each
+    listing tool names from your registry.
+    (4) On at least one transition, add "requires" and "ensures" arrays
+    (also registry tool names) plus, on the retry transition, "else_target"
+    pointing at a fallback state.
+    (5) "scenarios" — at least one scenario, each with an "inputs" object:
+    keys like "order_id" mapped to {"required": true, "type": "string"}.
+    (6) Event names UPPER_SNAKE; every state has a "description"; the retry
+    loop transition carries a compare/lt guard over a counter string in
+    "context".
+
+    Deliver the complete machine as a single fenced ```json code block at
+    the end of your reply. No commentary after the block.
+graders:
+  - name: fenced_json
+    type: text
+    config:
+      regex_match:
+        - "(?m)^```(json)?"
+  - name: declares_v3
+    type: text
+    config:
+      contains:
+        - '"spec_version"'
+        - '"3.0.0"'
+  - name: has_tools_registry
+    type: text
+    config:
+      regex_match:
+        - '"tools"'
+        - '"cmd"'
+  - name: has_limits
+    type: text
+    config:
+      contains:
+        - '"limits"'
+        - '"max_events"'
+  - name: has_checks_or_invariants
+    type: text
+    config:
+      regex_match:
+        - '"checks"\s*:'
+        - '"invariants"\s*:'
+  - name: has_requires_or_ensures
+    type: text
+    config:
+      regex_match:
+        - '"requires"\s*:'
+        - '"ensures"\s*:'
+  - name: has_scenario_inputs
+    type: text
+    config:
+      contains:
+        - '"inputs"'
+        - '"required"'
+  - name: machine_is_valid
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-authoring/graders/machina_check.py"
+      timeout: 60

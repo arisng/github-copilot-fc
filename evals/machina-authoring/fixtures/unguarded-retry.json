@@ -1,0 +1,21 @@
+{
+  "id": "payment-retry",
+  "name": "Payment Retry",
+  "version": "1.0.0",
+  "spec_version": "3.0.0",
+  "initial": "pending",
+  "context": { "attempts": 0 },
+  "scenarios": [
+    { "id": "default", "label": "Default", "initial": "pending", "interface": "API" }
+  ],
+  "states": {
+    "pending": {
+      "description": "Awaiting payment confirmation.",
+      "on": {
+        "PAY": { "target": "paid" },
+        "RETRY_PAY": { "target": "pending" }
+      }
+    },
+    "paid": { "type": "final", "description": "Payment confirmed." }
+  }
+}

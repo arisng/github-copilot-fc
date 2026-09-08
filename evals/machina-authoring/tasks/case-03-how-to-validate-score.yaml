@@ -1,0 +1,43 @@
+id: case-03-how-to-validate-score
+name: Explain how to validate and compliance-score a machine
+description: Agent explains the deterministic pre-simulator workflow using the bundled machine-validator.py — validate first, then score with --text, targeting Excellent (score >= 90).
+tags: [positive, workflow, scoring]
+inputs:
+  prompt: >-
+    How do I validate and compliance-score my machine JSON before opening it in
+    the simulator? I want the deterministic engine, not a manual review.
+graders:
+  - name: names_bundled_script
+    type: text
+    config:
+      contains:
+        - "machine-validator.py"
+  - name: shows_validate_command
+    type: text
+    config:
+      contains:
+        - "validate"
+      regex_match:
+          - "(python3?|py) skills/machina-authoring/scripts/machine-validator\\.py validate"
+  - name: shows_score_command
+    type: text
+    config:
+      contains:
+        - "score"
+      regex_match:
+        - "--text"
+  - name: targets_excellent
+    type: text
+    config:
+      regex_match:
+        - "(Excellent|\\>=? 90|\\>=?90)"
+  - name: commands_in_code_block
+    type: text
+    config:
+      regex_match:
+        - "```(powershell|bash|sh|shell)"
+  - name: no_manual_review_only
+    type: text
+    config:
+      not_contains:
+        - "open the simulator to check"

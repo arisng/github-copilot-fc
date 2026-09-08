@@ -1,0 +1,59 @@
+skill: machina-authoring
+
+should_trigger_prompts:
+  - prompt: "Write a Machina machine JSON for a refund workflow with retry limits."
+    reason: "Explicit Machina machine JSON authoring workflow — core positive trigger."
+    confidence: high
+  - prompt: "Why does my machine score 74? Here is order-fulfillment.json."
+    reason: "Explaining a below-target compliance score — named skill action."
+    confidence: high
+  - prompt: "Add retry guards to this state machine JSON so it stops looping forever."
+    reason: "Guard/loop protection authoring — core skill action."
+    confidence: high
+  - prompt: "Generate scenarios for order-fulfillment.json."
+    reason: "scenarios[] generation — named in skill description."
+    confidence: high
+  - prompt: "Model our signup flow as a Machina state machine in JSON."
+    reason: "Workflow modeling as Machina machine JSON — core use."
+    confidence: high
+  - prompt: "This machine fails validation — fix the JSON so it validates."
+    reason: "Fixing/upgrading a machine for validation — named skill action."
+    confidence: high
+  - prompt: "How do I get my machine to score Excellent? It is at 85 right now."
+    reason: "Compliance-scorer target phrasing (Excellent >= 90) — named."
+    confidence: high
+  - prompt: "What guard syntax does the Machina format support — can I use compare lt on a context key?"
+    reason: "Format guard/action semantics question — schema-spec territory."
+    confidence: high
+  - prompt: "Run the compliance scorer on my-machine.json and tell me what gaps remain."
+    reason: "Running the bundled machine-validator.py CLI — named explicitly."
+    confidence: high
+  - prompt: "Upgrade this legacy v1 machine to spec v3.0.0."
+    reason: "Fixing/upgrading an existing machine JSON — named."
+    confidence: high
+
+should_not_trigger_prompts:
+  - prompt: "Modify the Machina simulator app (served by the machina-simulator extension) to improve the graph layout."
+    reason: "Simulator app modification — explicitly routed to machina-simulator-maintenance."
+    confidence: high
+  - prompt: "Build me an XState config in TypeScript for the same workflow."
+    reason: "XState explicitly excluded from the skill."
+    confidence: high
+  - prompt: "Style the compliance modal in the simulator UI."
+    reason: "Simulator UI styling — out of domain; also general styling."
+    confidence: high
+  - prompt: "Fix a bug in machine-validator.py's cycle detection algorithm."
+    reason: "Debugging the bundled script — explicitly excluded."
+    confidence: high
+  - prompt: "Draw a general SVG diagram of my approval flowchart."
+    reason: "General diagramming — explicitly excluded."
+    confidence: high
+  - prompt: "Convert my SCXML document into something the browser can render."
+    reason: "SCXML documents — explicitly excluded."
+    confidence: high
+  - prompt: "Explain how finite state machines work conceptually with examples from embedded systems."
+    reason: "Conceptual CS education, no artifact authoring — description targets concrete artifacts."
+    confidence: high
+  - prompt: "Update SPEC_REGISTRY in the simulator to add a new spec version."
+    reason: "SPEC_REGISTRY maintenance — explicitly excluded."
+    confidence: high

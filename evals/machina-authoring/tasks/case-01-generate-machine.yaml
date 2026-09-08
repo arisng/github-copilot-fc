@@ -1,0 +1,44 @@
+id: case-01-generate-machine
+name: Generate a refund workflow machine with a retry guard
+description: Agent authors a Machina machine JSON for a refund workflow with a retry limit on the refund attempt, delivered as a fenced JSON block that declares spec_version, scenarios, and an initial state.
+tags: [positive, generation, happy-path]
+inputs:
+  prompt: >-
+    Write a Machina machine JSON for a refund workflow with a retry limit on
+    the refund attempt. Declare spec_version (2.0.0 or 3.0.0) explicitly,
+    include at least one scenario entry point and an initial state, and guard
+    the retry loop with a compare/lt counter in context. Deliver the machine as
+    a fenced ```json code block.
+graders:
+  - name: fenced_json
+    type: text
+    config:
+      regex_match:
+        - "(?m)^```(json)?"
+  - name: declares_spec_version
+    type: text
+    config:
+      regex_match:
+        - "(2|3)\\.0\\.0"
+  - name: has_scenarios_and_initial
+    type: text
+    config:
+      contains:
+        - "scenario"
+        - "initial"
+  - name: retry_guard_compare_lt
+    type: text
+    config:
+      contains:
+        - "compare"
+        - "lt"
+        - "retry"
+      not_contains:
+        - "eval("
+  - name: machine_is_valid
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-authoring/graders/machina_check.py"
+      timeout: 60

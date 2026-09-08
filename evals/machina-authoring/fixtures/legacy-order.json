@@ -1,0 +1,130 @@
+{
+  "id": "order-fulfillment-legacy",
+  "name": "Order Fulfillment (Legacy v2)",
+  "version": "2.0.0",
+  "description": "A v2-era order lifecycle kept as a low-scoring example for gap analysis.",
+  "initial": "placed",
+  "context": {
+    "orderId": "ORD-1042",
+    "paymentRetries": 0,
+    "deliveryRetries": 0
+  },
+  "scenarios": [
+    {
+      "id": "new-order",
+      "label": "New order",
+      "initial": "placed"
+    },
+    {
+      "id": "payment-failed",
+      "label": "Payment failed",
+      "initial": "payment_failed"
+    },
+    {
+      "id": "in-transit",
+      "label": "In transit",
+      "initial": "shipped"
+    }
+  ],
+  "states": {
+    "placed": {
+      "description": "Order created, awaiting payment.",
+      "on": {
+        "PAY": {
+          "target": "paid"
+        },
+        "PAYMENT_FAILED": {
+          "target": "payment_failed"
+        },
+        "CANCEL": {
+          "target": "cancelled"
+        }
+      }
+    },
+    "payment_failed": {
+      "description": "Charge declined.",
+      "on": {
+        "RETRY_PAYMENT": {
+          "target": "paid"
+        }
+      }
+    },
+    "paid": {
+      "description": "Payment captured.",
+      "on": {
+        "SHIP": {
+          "target": "shipped"
+        }
+      }
+    },
+    "shipped": {
+      "description": "Handed to the carrier.",
+      "on": {
+        "DELIVER": {
+          "target": "delivered"
+        },
+        "DELIVERY_FAILED": {
+          "target": "delivery_failed"
+        },
+        "REFUND": {
+          "target": "refunded"
+        }
+      }
+    },
+    "delivery_failed": {
+      "description": "Carrier could not deliver.",
+      "on": {
+        "RETRY_DELIVERY": {
+          "target": "shipped"
+        }
+      }
+    },
+    "delivered": {
+      "description": "In the customer's hands.",
+      "on": {
+        "RETURN_REQUEST": {
+          "target": "return_requested"
+        }
+      }
+    },
+    "return_requested": {
+      "description": "Customer asked to return.",
+      "on": {
+        "APPROVE_RETURN": {
+          "target": "return_approved"
+        },
+        "REJECT_RETURN": {
+          "target": "delivered"
+        }
+      }
+    },
+    "return_approved": {
+      "on": {
+        "RECEIVE_RETURN": {
+          "target": "return_received"
+        }
+      }
+    },
+    "return_received": {
+      "description": "Item back at the warehouse.",
+      "on": {
+        "ISSUE_REFUND": {
+          "target": "refunded"
+        }
+      }
+    },
+    "cancelled": {
+      "type": "final",
+      "description": "Terminal - cancelled.",
+      "on": {
+        "REOPEN": {
+          "target": "placed"
+        }
+      }
+    },
+    "refunded": {
+      "type": "final",
+      "description": "Terminal - refunded."
+    }
+  }
+}

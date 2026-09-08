@@ -1,0 +1,35 @@
+id: case-02-explain-low-score
+name: Explain a low compliance score and its gaps
+description: Agent explains why legacy-order.json scores 75.6, naming the failing checks (actions-used, state-naming, spec-version, coverage) and distinguishing deterministic auto gaps from review gaps.
+tags: [positive, explanation, scoring]
+inputs:
+  prompt: >-
+    Why does my machine score only 75.6? It is the attached legacy-order.json,
+    which reports review gaps (actions-used, state-naming) and auto gaps
+    (spec-version, coverage-present). Explain why the score is below Excellent
+    and what to do about each gap type.
+  files:
+    - path: legacy-order.json
+graders:
+  - name: names_review_checks
+    type: text
+    config:
+      contains:
+        - "actions-used"
+        - "state-naming"
+  - name: distinguishes_auto_from_review
+    type: text
+    config:
+      contains:
+        - "auto"
+        - "review"
+  - name: names_spec_version_gap
+    type: text
+    config:
+      regex_match:
+        - "spec[_-]version"
+  - name: no_embedded_code
+    type: text
+    config:
+      not_contains:
+        - "eval("

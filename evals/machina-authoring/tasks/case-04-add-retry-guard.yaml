@@ -1,0 +1,43 @@
+id: case-04-add-retry-guard
+name: Add a retry guard to an unguarded looping machine
+description: Agent hardens the RETRY_PAY loop in the attached machine by adding a context counter and a compare/lt guard (the only pattern the compliance scorer recognizes as cycle protection), returning a valid fenced machine JSON.
+tags: [positive, retries, guard]
+inputs:
+  prompt: >-
+    Add retry guards to this state machine JSON so the RETRY_PAY loop can't run
+    forever. Add a real counter to context, gate the looping transition with a
+    compare/lt guard, and return the complete fixed machine as a fenced ```json
+    block. Do not embed executable code strings in the JSON.
+  files:
+    - path: unguarded-retry.json
+graders:
+  - name: fenced_json
+    type: text
+    config:
+      regex_match:
+        - "(?m)^```(json)?"
+  - name: compare_guard_with_lt
+    type: text
+    config:
+      contains:
+        - "compare"
+        - "lt"
+  - name: context_counter
+    type: text
+    config:
+      contains:
+        - "retry"
+        - "attempt"
+  - name: declarative_only
+    type: text
+    config:
+      not_contains:
+        - "eval("
+        - "new Function"
+  - name: machine_is_valid
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-authoring/graders/machina_check.py"
+      timeout: 60

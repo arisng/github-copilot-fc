@@ -1,0 +1,26 @@
+schemaVersion: "1.0"
+name: machina-authoring-eval
+description: >-
+  Measures whether the machina-authoring skill reliably authors valid Machina
+  machine JSON, explains low compliance scores, recommends the validate/score
+  workflow, adds retry guards, fixes invalid machines, and stays silent on
+  out-of-domain requests (simulator UI).
+skill: machina-authoring
+version: "1.0"
+
+config:
+  trials_per_task: 1
+  timeout_seconds: 600
+  executor: copilot-sdk
+  model: mimo-v2.5
+  skill_directories:
+    - ../../skills/machina-authoring
+
+metrics:
+  - name: trigger_accuracy
+    threshold: 0.9
+    weight: 30
+    enabled: true
+
+tasks:
+  - tasks/*.yaml

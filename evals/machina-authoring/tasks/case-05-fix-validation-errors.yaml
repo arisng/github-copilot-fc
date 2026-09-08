@@ -1,0 +1,41 @@
+id: case-05-fix-validation-errors
+name: Fix structural validation errors in a broken machine
+description: Agent repairs a machine whose initial state points nowhere and whose transition target does not exist, returning a fenced JSON that passes the deterministic validator.
+tags: [positive, repair, validation]
+inputs:
+  prompt: >-
+    The machine definition is attached as broken-machine.json in this workspace.
+    It fails validation: the initial state points nowhere and one transition
+    target doesn't exist. Read the file, fix both problems minimally, and return
+    the corrected machine as a fenced ```json block.
+  files:
+    - path: broken-machine.json
+graders:
+  - name: fenced_json
+    type: text
+    config:
+      regex_match:
+        - "(?m)^```(json)?"
+  - name: addresses_initial
+    type: text
+    config:
+      contains:
+        - "initial"
+  - name: addresses_targets
+    type: text
+    config:
+      contains:
+        - "target"
+  - name: machine_is_valid
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-authoring/graders/machina_check.py"
+      timeout: 60
+  - name: minimal_scope
+    type: text
+    config:
+      not_contains:
+        - "add scenarios"
+        - "add coverage"

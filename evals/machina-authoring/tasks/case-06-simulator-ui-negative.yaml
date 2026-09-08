@@ -1,0 +1,32 @@
+id: case-06-simulator-ui-negative
+name: Stay silent on Machina simulator UI modification (negative)
+description: The request is for the machina-simulator-maintenance domain (simulator app/UI), not machine authoring. The agent must not inject machine-authoring field guidance, naming rules, or machine JSON plumbing.
+tags: [negative, domain-boundary, simulator]
+inputs:
+  prompt: >-
+    Modify the Machina simulator app (served by the machina-simulator
+    extension) to improve the graph layout and restyle the compliance modal.
+graders:
+  - name: no_machine_json_plumbing
+    type: text
+    config:
+        not_contains:
+          - "spec_version"
+          - "UPPER_SNAKE"
+          - "kebab-case"
+  - name: no_skill_validation_commands
+    type: text
+    config:
+      not_contains:
+        - "machine-validator.py"
+        - "machine_authoring"
+  - name: stays_on_simulator_ui
+    type: text
+    config:
+      regex_match:
+        - "(graph layout|compliance modal|simulator UI|simulator app)"
+  - name: does_not_author_machine
+    type: text
+    config:
+      not_contains:
+        - "```json"

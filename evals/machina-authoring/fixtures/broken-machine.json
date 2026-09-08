@@ -1,0 +1,18 @@
+{
+  "id": "broken-demo",
+  "name": "Broken Demo Machine",
+  "version": "1.0.0",
+  "spec_version": "3.0.0",
+  "initial": "ghost-state",
+  "scenarios": [
+    { "id": "default", "label": "Default", "initial": "ghost-state", "interface": "API" }
+  ],
+  "states": {
+    "pending": {
+      "description": "Awaiting something.",
+      "on": {
+        "START": { "target": "missing-state" }
+      }
+    }
+  }
+}
