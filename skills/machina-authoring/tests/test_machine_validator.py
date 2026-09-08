@@ -261,6 +261,71 @@ class TestV3Features(unittest.TestCase):
         }
         self.assertEqual(len(v3_ids), 0)
 
+        def _v3_with_tools(self):
+            m = sample_machine(spec_version="3.0.0")
+            m["tools"] = {
+                "validate-order": {"cmd": "scripts/validate_order.py", "expect_exit": 0},
+            }
+            m["states"]["pending"]["checks"] = ["validate-order"]
+            return m
+
+        def test_tools_exist_passes_trivially_without_base_dir(self):
+            """When base_dir is None (unit tests, waza temp files, driver import) the
+            informational tools-exist check passes without a file-stat."""
+            m = self._v3_with_tools()
+            res = mv.run_compliance(m)  # no base_dir
+            f = next(x for x in res["findings"] if x["id"] == "tools-exist")
+            self.assertTrue(f["pass"])
+            self.assertEqual(f["weight"], 0)
+            self.assertEqual(f["autofill"], "review")
+
+        def test_tools_exist_gap_when_script_missing(self):
+            """A dangling cmd path with a base_dir yields a review warn gap but does
+            not lower the score (weight 0)."""
+            m = self._v3_with_tools()
+            base = Path(mv.__file__).resolve().parent  # scripts/ does not exist here
+            res = mv.run_compliance(m, base_dir=str(base))
+            f = next(x for x in res["findings"] if x["id"] == "tools-exist")
+            self.assertFalse(f["pass"])
+            self.assertEqual(f["severity"], "warn")
+            # weight-0: score identical to the trivial case
+            base_score = mv.run_compliance(m)["score"]
+            self.assertEqual(res["score"], base_score)
+
+        def test_tools_exist_passes_when_script_exists(self):
+            """A cmd whose script really exists next to the machine passes."""
+            m = self._v3_with_tools()
+            d = Path(tempfile.mkdtemp())
+            (d / "scripts").mkdir()
+            (d / "scripts" / "validate_order.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+            try:
+                res = mv.run_compliance(m, base_dir=str(d))
+                f = next(x for x in res["findings"] if x["id"] == "tools-exist")
+                self.assertTrue(f["pass"])
+            finally:
+                import shutil
+                shutil.rmtree(d)
+
+        def test_tools_exist_array_cmd_form(self):
+            """Array-form cmd resolves its first path-bearing element machine-relative."""
+            m = self._v3_with_tools()
+            m["tools"] = {"validate-order": {"cmd": ["py", "services/checker.py", "{ctx.order_id}"]}}
+            d = Path(tempfile.mkdtemp())
+            (d / "services").mkdir()
+            (d / "services" / "checker.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+            try:
+                res = mv.run_compliance(m, base_dir=str(d))
+                f = next(x for x in res["findings"] if x["id"] == "tools-exist")
+                self.assertTrue(f["pass"])
+                # and a dangling array element fails
+                m["tools"]["validate-order"]["cmd"] = ["py", "services/nowhere.py"]
+                res2 = mv.run_compliance(m, base_dir=str(d))
+                f2 = next(x for x in res2["findings"] if x["id"] == "tools-exist")
+                self.assertFalse(f2["pass"])
+            finally:
+                import shutil
+                shutil.rmtree(d)
+
 
 class TestValidate(unittest.TestCase):
     def test_validate_ok(self):

@@ -3,7 +3,7 @@
 
 Faithful Python port of the deterministic routines in the Machina simulator
 (served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/machine-simulator.mjs):
-validation, the 22-check compliance scorer, gap analysis, autofill patches,
+validation, the 23-check compliance scorer, gap analysis, autofill patches,
 scenario generation, cycle detection, and coverage-block building.
 
 This module is also the **shared engine** for the `machina-driving` skill:
@@ -31,6 +31,7 @@ import json
 import re
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 SPEC_VERSIONS = ["3.0.0", "2.0.0", "1.0.0"]  # newest first
 LATEST_SPEC_VERSION = SPEC_VERSIONS[0]
@@ -258,7 +259,7 @@ def detect_cycles(m):
     return cycles
 
 
-# ── compliance scoring (22 checks, total weight = 100 for v2, 119 for v3) ───────────
+# ── compliance scoring (23 checks; 22 weighted — totals: 100 for v2, 119 for v3) ───
 
 def cycle_counter_key(m):
     for k in (m.get("context") or {}):
@@ -454,6 +455,45 @@ def _check_limits(m):
     return _pass(True)
 
 
+def _cmd_path_token(cmd):
+    """Return the machine-relative path-bearing token of a tool cmd, if any.
+
+    Per schema-spec: the first whitespace token (string form) or first element
+    (array form) that contains a path separator resolves machine-relative.
+    Returns None when no path-bearing token exists (pathless command).
+    """
+    tokens = cmd if isinstance(cmd, list) else (cmd.split() if isinstance(cmd, str) else [])
+    for tok in tokens:
+        if isinstance(tok, str) and ("/" in tok or "\\" in tok):
+            return tok
+    return None
+
+
+def _check_tools_exist(m, base_dir=None):
+    """Informational (weight 0): each tool's machine-relative cmd path must exist.
+
+    Static and deterministic — a file-stat, never executing the tool. When
+    `base_dir` is None (in-memory unit tests, waza temp-workspace graded files,
+    `machine-driver.py`'s `run_compliance(machine)` call) the check passes
+    trivially because there is no file system context to resolve against.
+    """
+    tools = m.get("tools")
+    if not isinstance(tools, dict) or tools is None:
+        return _pass(True)
+    if not base_dir:
+        return _pass(True)
+    base = Path(base_dir)
+    for name, tool in tools.items():
+        if not isinstance(tool, dict):
+            continue
+        rel = _cmd_path_token(tool.get("cmd"))
+        if rel is None:
+            continue
+        if not (base / rel).is_file():
+            return _fail(f'Tool "{name}" cmd path "{rel}" not found next to the machine (machine-relative)')
+    return _pass(True)
+
+
 COMPLIANCE_CHECKS = [
     {"id": "id-present", "category": "Identity & metadata", "since": "1.0.0", "weight": 5,
      "severity": "blocking", "autofill": "review",
@@ -531,6 +571,10 @@ COMPLIANCE_CHECKS = [
      "severity": "warn", "autofill": "review",
      "remediation": 'All checks[], requires[], and ensures[] must reference tools in the registry.',
      "check": _check_tools_refs},
+        {"id": "tools-exist", "category": "Tools & execution", "since": "3.0.0", "weight": 0,
+         "severity": "warn", "autofill": "review",
+         "remediation": 'Each tool "cmd" path must resolve to an existing file machine-relative (static check; does not execute).',
+         "check": lambda m: _check_tools_exist(m, None)},
     {"id": "phase-states", "category": "State quality", "since": "3.0.0", "weight": 3,
      "severity": "warn", "autofill": "review",
      "remediation": 'Phase states (type "phase") must have a "description".',
@@ -556,7 +600,7 @@ def grade_for(score):
     return "Needs work"
 
 
-def run_compliance(m, spec_version=None):
+def run_compliance(m, spec_version=None, base_dir=None):
     det = detect_spec_version(m)
     target = spec_version or det["version"]
     # NOTE: the simulator source uses `specRank(c.since) <= specRank(target)` with
@@ -568,7 +612,13 @@ def run_compliance(m, spec_version=None):
     findings, by_cat = [], {}
     earned = total = 0
     for c in checks:
-        r = c["check"](m)
+        if c["id"] == "tools-exist":
+            # needs the machine's base dir for machine-relative resolution; the
+            # lambda in COMPLIANCE_CHECKS passes None (backward-compatible), so
+            # override with the caller-provided base_dir here.
+            r = _check_tools_exist(m, base_dir)
+        else:
+            r = c["check"](m)
         total += c["weight"]
         if r["pass"]:
             earned += c["weight"]
@@ -898,7 +948,7 @@ def main(argv):
         spec = None
         if "--spec" in argv:
             spec = argv[argv.index("--spec") + 1]
-        res = run_compliance(m, spec)
+        res = run_compliance(m, spec, base_dir=str(Path(path).resolve().parent))
         if "--text" in argv:
             print(f"Score: {res['score']}  Grade: {res['grade']}  "
                   f"(spec v{res['specVersion']}, {'declared' if res['declared'] else 'assumed latest'})")
