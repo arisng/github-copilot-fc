@@ -140,39 +140,6 @@ function Get-ArgValue {
     return $null
 }
 
-function Find-MachineJson {
-    param(
-        [string]$Command,
-        [string]$WorkingDir
-    )
-    $tokens = Parse-CommandLine -Command $Command
-    $runDir = Get-ArgValue -Tokens $tokens -Flag '--run-dir'
-    $runId = Get-ArgValue -Tokens $tokens -Flag '--run'
-
-    if (-not $runDir) { $runDir = '.machina\runs' }
-
-    # Resolve runDir: absolute paths used as-is, relative paths resolved against WorkingDir
-    if ([System.IO.Path]::IsPathRooted($runDir)) {
-        $base = $runDir
-    }
-    else {
-        $base = Join-Path $WorkingDir $runDir
-    }
-
-    if (-not $runId) {
-        # Most recent run directory
-        if (-not (Test-Path $base)) { return $null }
-        $latest = Get-ChildItem -Path $base -Directory |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-        if ($null -eq $latest) { return $null }
-        $runId = $latest.Name
-    }
-    $machinePath = Join-Path $base $runId 'machine.json'
-    if (Test-Path $machinePath) { return $machinePath }
-    return $null
-}
-
 function Read-LedgerMachineDir {
     param(
         [string]$RunDir
@@ -300,12 +267,14 @@ function Get-EventName {
 function Get-MachinaRunDir {
     param(
         [string]$SessionId,
-        [string]$RunDir,
         [string]$RunId
     )
     if ([string]::IsNullOrWhiteSpace($SessionId)) { return $null }
-    $sessionDir = Join-Path $env:USERPROFILE ".copilot-dojo\session-state\$SessionId"
-    $machinaDir = Join-Path $sessionDir "machina-runs"
+    $copiHome = $env:COPILOT_HOME
+    if ([string]::IsNullOrWhiteSpace($copiHome)) {
+        $copiHome = Join-Path $env:USERPROFILE ".copilot"
+    }
+    $machinaDir = Join-Path $copiHome "session-state\$SessionId\machina-runs"
     if ($RunId) {
         return Join-Path $machinaDir $RunId
     }
@@ -425,10 +394,26 @@ if ([string]::IsNullOrWhiteSpace($eventName) -or [string]::IsNullOrWhiteSpace($f
     exit 0
 }
 
-# Find the machine.json
-$cwd = $event.cwd
-if ([string]::IsNullOrWhiteSpace($cwd)) { $cwd = (Get-Location).Path }
-$machinePath = Find-MachineJson -Command $cmd -WorkingDir $cwd
+# Find the machine.json — prefer session-based canonical path, fall back to
+# command-parsed --run-dir when sessionId is unavailable (e.g. tests, CLI).
+$runDir = Get-MachinaRunDir -SessionId $sessionId -RunId $logRunId
+if ([string]::IsNullOrWhiteSpace($runDir) -or -not (Test-Path (Join-Path $runDir 'machine.json'))) {
+    # Fallback: derive run directory from the command's --run-dir / --run args
+    $tokens = Parse-CommandLine -Command $cmd
+    $cmdRunDir = Get-ArgValue -Tokens $tokens -Flag '--run-dir'
+    $cmdRunId = Get-ArgValue -Tokens $tokens -Flag '--run'
+    if (-not $cmdRunDir) { $cmdRunDir = '.machina\runs' }
+    if ([System.IO.Path]::IsPathRooted($cmdRunDir)) {
+        $runDir = $cmdRunDir
+    }
+    else {
+        $cwd = $event.cwd
+        if ([string]::IsNullOrWhiteSpace($cwd)) { $cwd = (Get-Location).Path }
+        $runDir = Join-Path $cwd $cmdRunDir
+    }
+    if ($cmdRunId) { $runDir = Join-Path $runDir $cmdRunId }
+}
+$machinePath = Join-Path $runDir 'machine.json'
 if (-not (Test-Path $machinePath)) {
     Write-HookLog -RunDir $logRunDir -HookName "ensures-runner" -Event "postToolUse" -ToolName $toolName -Command $cmd -Action "pass-through" -Output @{}
     Write-Output '{}'; exit 0
@@ -477,15 +462,13 @@ if ($ensures.Count -eq 0) {
 # the ledger's init record.  The machine.json in the run directory is a COPY;
 # tool commands are relative to the ORIGINAL machine directory where scripts/ lives.
 $machineDir = $null
-# Derive run directory from machinePath
-$runDirForLedger = Split-Path -Path $machinePath -Parent
-$ledgerMachineDir = Read-LedgerMachineDir -RunDir $runDirForLedger
+$ledgerMachineDir = Read-LedgerMachineDir -RunDir $runDir
 if (-not [string]::IsNullOrWhiteSpace($ledgerMachineDir) -and (Test-Path $ledgerMachineDir)) {
     $machineDir = $ledgerMachineDir
 }
 else {
-    # Fallback: machine.json location (legacy runs without ledger)
-    $machineDir = Split-Path -Path $machinePath -Parent
+    # Fallback: run directory (legacy runs without ledger)
+    $machineDir = $runDir
 }
 
 # Run ensures tools

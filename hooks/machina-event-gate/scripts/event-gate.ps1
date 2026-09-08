@@ -244,9 +244,7 @@ if ($command -match '--run-dir\s+"?([^"\s]+)"?') {
 if ($command -match '--run\s+"?([^"\s]+)"?') {
     $runId = $Matches[1]
 }
-if (-not $runDir) {
-    $runDir = '.machina/runs'
-}
+if (-not $runDir) { $runDir = 'machina-runs' }
 
 if ($runId) {
     $runDirPath = Join-Path $runDir $runId

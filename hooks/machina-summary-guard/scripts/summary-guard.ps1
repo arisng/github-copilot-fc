@@ -103,9 +103,11 @@ function Find-ReportJson {
     }
     
     # Search in multiple locations:
-    # 1. .machina/runs/ (standard machina run directory)
-    # 2. Directly in cwd (for test scenarios)
+    # 1. machina-runs/ under cwd (standard convention)
+    # 2. .machina/runs/ (legacy, for backward compatibility)
+    # 3. Directly in cwd (for test scenarios)
     $searchPaths = @(
+        (Join-Path $Cwd 'machina-runs'),
         (Join-Path $Cwd '.machina\runs'),
         $Cwd
     )
