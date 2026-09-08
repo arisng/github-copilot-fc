@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "powershell": "pwsh -NoProfile -File hooks\\machina-run-path-guard\\scripts\\run-path-guard.ps1",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
