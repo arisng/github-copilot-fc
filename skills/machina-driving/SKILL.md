@@ -15,7 +15,7 @@ description: >-
   maintainer of this skill upgrading the driver itself; general diagramming or
   XState/SCXML authoring.
 metadata:
-  version: 0.4.1
+  version: 0.4.2
 ---
 
 # Machina Driving
@@ -123,6 +123,12 @@ terminal detection, compliance scoring) from `machina-authoring/scripts/machine-
 Distributing this skill to a workspace **implicitly distributes `machina-authoring`**.
 The `machina-simulator` Copilot extension is **optional** (human UI only).
 
+For precision: the driver consumes the engine's **blocking validation**
+(`run_compliance(...)["blocking"]`) as the structural gate and executes the machine's declared
+tool scripts itself. It does **not** consume the authoring compliance *score* — see
+[machina-authoring's Compliance boundary](../machina-authoring/SKILL.md). "Excellent" is a
+declaration-quality signal; runtime soundness is established only by actually running the tools.
+
 ## Samples
 
 - [samples/docs-authoring.machine.json](samples/docs-authoring.machine.json) — a
@@ -135,6 +141,11 @@ The `machina-simulator` Copilot extension is **optional** (human UI only).
 The driver executes referenced checker scripts with the user's privileges.
 Machines are trusted artifacts (authored by the user or by `machina-authoring`).
 No sandboxing in v1.
+
+Corollary of the [compliance boundary](../machina-authoring/SKILL.md): a machine can be declared
+"Excellent" yet fail at runtime if its tool scripts are missing, incorrect, or hostile — the
+driver is what establishes runtime behavior by executing the declared read-only checkers, which is
+exactly why they must exist and stay read-only.
 
 ## Hook hardening (defense-in-depth)
 

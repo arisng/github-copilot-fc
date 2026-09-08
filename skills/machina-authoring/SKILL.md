@@ -12,7 +12,7 @@ description: >-
     machina-simulator-maintenance), debugging machine-validator.py scripts, XState config authoring,
   SCXML documents, or general diagramming.
 metadata:
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Machina Machine Authoring
@@ -37,7 +37,7 @@ Use these terms consistently — in prompts, output, and code comments:
 | **Action** | Declarative side effect `{ type:"increment"\|"assign" }` on context. No code strings, ever. |
 | **Context** | Extended state data available to guards/actions; supports dotted paths. |
 | **Scenario / entry point** | A named start into the state machine (`scenarios[]` with `initial`, `interface ∈ UI·API`). |
-| **Compliance scorer** | The deterministic 17-check evaluator producing score/grade/gaps (in-app or via `machine-validator.py`). Not "checker", "linter", or "validator" (validation is only its blocking subset). |
+| **Compliance scorer** | The deterministic 23-check evaluator producing score/grade/gaps (in-app or via `machine-validator.py`). 22 checks are weighted (total weight 100 at v2, 119 at v3); `tools-exist` is a weight-0 informational review check. Not "checker", "linter", or "validator" (validation is only its blocking subset). |
 | **Gap** | A failing check finding: `auto` (deterministically fillable) or `review` (needs human judgment). |
 
 ## Minimal viable machine
@@ -104,7 +104,7 @@ to a state key, and every transition `target` pointing at an existing state key.
 
 ## Deterministic tooling — use the bundled script
 
-All deterministic authoring logic from the Machina simulator (validation, the 17-check
+All deterministic authoring logic from the Machina simulator (validation, the 23-check
 compliance scorer, gap analysis, autofill patching, scenario generation, cycle detection,
 coverage building) is bundled as a standalone CLI. Run it instead of re-deriving logic or
 loading simulator source:
@@ -133,6 +133,29 @@ auto-fillable items → `apply` (or hand-fix review items) → final `score`.
 v2.0.0, weight = 100). When editing the simulator itself, follow
 [the machina-simulator extension's canonical maintenance docs](../../copilot-extensions/machina-simulator/simulator/docs/maintenance.md)
 and keep this divergence in mind.
+
+### Compliance boundary — what the scorer does and does not verify
+
+The scorer analyzes the machine **declaration** only; it never executes anything:
+
+| What it verifies | What it does NOT verify |
+|---|---|
+| Schema structure, internal consistency, reference resolution (targets, tools, `else_target`) | That any declared tool's **runtime behavior** actually holds |
+| `tools[]` registrations are well-formed and referenced correctly | That a `checks[]`/`requires[]`/`ensures[]` predicate will **pass when run** |
+| `tools-exist` — each tool `cmd`'s machine-relative path resolves to a file on disk (weight-0 **review** check; static file-stat, no execution) | That a present script is correct, safe, or even runnable |
+
+Consequences to teach authors and consumers alike:
+
+- **"Score 100 / Excellent" means *declaration-sound*, not *runtime-sound*.** A machine can score
+  100 while a tool's script fails in practice — the scorer never runs it.
+- The scorer **never executes** checker scripts. Only the driver actually runs them; see the
+  companion `machina-driving` skill's "Trust boundary" for where runtime verification happens.
+- `tools-exist` is **informational** (weight 0): a dangling `cmd` reports a `warn`/review gap
+  without lowering the score, because the scorer has no execution context. When the machine file
+  is scored from disk (`score <file>`), its machine-relative paths are stat'd; in in-memory or
+  workspace-copied contexts with no resolvable directory the check passes trivially.
+- `validate` + `--blocking` findings are the soundness gate; the semantic checks above are quality
+  guidance.
 
 ## Reference map (load on demand)
 
