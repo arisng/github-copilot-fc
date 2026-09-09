@@ -1,0 +1,42 @@
+id: case-03-neg-authoring
+name: Do not drive on authoring/scoring prompts
+description: >-
+  Agent is asked to author/score a machine definition (machina-authoring's
+  job) and must NOT invoke the driver, init a run, or invent a report. All
+  graders are negative: no driver commands, no report JSON claims.
+tags: [negative, boundary]
+inputs:
+  prompt: >-
+    This machine definition JSON scores 78 right now:
+
+      {"id": "order", "version": "1.0.0", "spec_version": "3.0.0",
+       "initial": "placed",
+       "states": {"placed": {"description": "placed",
+         "on": {"PAY": {"target": "paid"}}},
+                  "paid": {"description": "paid"}}}
+
+    Walk me through what compliance gaps are holding it back from Excellent,
+    and what I should change in the JSON to fix them. Refer to the field
+    shapes above only — do not look for external files.
+graders:
+  - name: stays_on_authoring
+    type: text
+    config:
+      contains:
+        - "score"
+      regex_match:
+        - "(?i)excellent|gap|compliance"
+      not_contains:
+        - "machine-driver"
+        - "run-dir"
+        - "ledger"
+        - "report.json"
+        - "machina.report.v1"
+  - name: no_drive_artifact
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-driving/graders/machina_drive.py"
+        - "--expect-no-drive"
+      timeout: 60

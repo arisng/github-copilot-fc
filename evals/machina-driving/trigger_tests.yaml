@@ -1,0 +1,41 @@
+skill: machina-driving
+
+should_trigger_prompts:
+  - prompt: "Drive the docs-authoring Machina machine to its terminal state and give me the report."
+    reason: "Explicit drive + report — core positive trigger."
+    confidence: high
+  - prompt: "A skill's SKILL.md declares a `machina:` machine — run it and drive to completion."
+    reason: "Discovery via machina: frontmatter — named in skill description."
+    confidence: high
+  - prompt: "Init the run, check status, fire DRAFT_REVIEWED when evidence passes, then report."
+    reason: "Command-surface workflow (init/status/fire/report) — named."
+    confidence: high
+  - prompt: "Execute this workflow deterministically and audibly, satisfying the state machine's evidence checks."
+    reason: "Deterministic workflow + evidence checks — core use."
+    confidence: high
+  - prompt: "The run is STUCK with zero enabled events — escalate to the human conductor."
+    reason: "STUCK escalation — named in skill description."
+    confidence: high
+  - prompt: "Produce the machina.report.v1 summary grounded to report facts."
+    reason: "Report grounding / machina.report.v1 — named."
+    confidence: high
+
+should_not_trigger_prompts:
+  - prompt: "Author a new Machina machine definition JSON for a docs review workflow."
+    reason: "Neighbor: machina-authoring — authoring explicitly excluded."
+    confidence: high
+  - prompt: "Score the compliance and coverage of this machine definition."
+    reason: "Neighbor: machina-authoring scoring — explicitly excluded."
+    confidence: high
+  - prompt: "Update the Machina simulator app UI to show phase states."
+    reason: "Neighbor: machina-simulator — explicitly excluded."
+    confidence: high
+  - prompt: "Draw an XState diagram of the workflow states."
+    reason: "Neighbor: XState/diagramming — explicitly excluded."
+    confidence: high
+  - prompt: "Explain what a state machine is in computing."
+    reason: "General concept, not driving — out of domain."
+    confidence: high
+  - prompt: "Refactor scripts/machine-driver.py to add a retry subcommand."
+    reason: "Driver/runtime tooling development — explicitly excluded."
+    confidence: high

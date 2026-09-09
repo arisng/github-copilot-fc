@@ -1,0 +1,31 @@
+schemaVersion: "1.0"
+name: machina-driving-eval
+description: >-
+  Measures whether the machina-driving skill reliably drives a Machina state
+  machine to a deterministic terminal outcome using the bundled
+  machine-driver.py: it init's real runs, fires events, produces the grounded
+  machina.report.v1, escalates STUCK runs instead of inventing success, and
+  stays silent on authoring/scoring prompts (machina-authoring's job).
+skill: machina-driving
+version: "1.0"
+
+config:
+  trials_per_task: 1
+  timeout_seconds: 600
+  executor: copilot-sdk
+  model: mimo-v2.5
+  # machina-driving depends on machina-authoring: machine-driver.py imports the
+  # shared engine (machine-validator.py) from the authoring skill. Both must be
+  # mounted so the driver can run inside the eval workspace.
+  skill_directories:
+    - ../../skills/machina-driving
+    - ../../skills/machina-authoring
+
+metrics:
+  - name: trigger_accuracy
+    threshold: 0.9
+    weight: 30
+    enabled: true
+
+tasks:
+  - tasks/*.yaml

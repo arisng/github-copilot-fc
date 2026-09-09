@@ -1,0 +1,98 @@
+id: case-01-drive-success
+name: Drive the test machine to terminal SUCCESS and report
+description: >-
+  Agent drives the canonical v3 test machine (test-machine.json) in the waza
+  workspace with machine-driver.py: creates draft/output files, init's a real
+  run with the scenario inputs, fires DRAFT_COMPLETE then APPROVED, and emits
+  the terminal machina.report.v1. Artifact-graded — the grader finds the run's
+  report.json (result SUCCESS, final_state published) and re-runs driver check.
+tags: [positive, drive, happy-path]
+inputs:
+  prompt: >-
+    Your task is to drive a Machina state machine to its terminal state and
+    produce the report. This is a self-contained task: everything you need is
+    in your current workspace — do NOT look for external sample files.
+
+    The workspace contains these files (paths shown are relative to the
+    workspace root):
+      - skills/machina-driving/scripts/machine-driver.py
+        (the machine driver you will run)
+      - skills/machina-driving/tests/machines/test-machine.json
+        (a v3.0.0 machine: initial state "drafting", transitions
+        DRAFT_COMPLETE -> "reviewing" then APPROVED -> "published" (a "final"
+        state); its tools file-exists / output-ready / validate-output use
+        checker scripts in the scripts/ folder next to the machine)
+      - skills/machina-driving/tests/machines/scripts/check_file.py
+      - skills/machina-driving/tests/machines/scripts/validate_output.py
+
+    Do the work with the machine driver (use PYTHON, not python3 — python3 is
+    not installed here):
+
+      python skills/machina-driving/scripts/machine-driver.py --help
+
+    1. Create two files in the current workspace:
+         draft.md   - any brief draft text
+         output.md  - any brief text that does NOT contain the word "error"
+       (the machine's validate-output checker counts that word).
+
+    2. Init a run (create a runs/ dir in the workspace first, e.g.
+       `New-Item -ItemType Directory runs` on PowerShell):
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine skills/machina-driving/tests/machines/test-machine.json
+           --scenario default
+           --input draft_path=<abs path of draft.md>
+           --input output_path=<abs path of output.md>
+           --run-dir <abs path of runs/>
+
+    3. Verify the state (note enabled vs blocked events):
+         python skills/machina-driving/scripts/machine-driver.py status
+           --run <run_id> --run-dir <abs path of runs/>
+
+    4. Fire the events to reach the terminal state, re-checking status if a
+       fire is blocked:
+         python skills/machina-driving/scripts/machine-driver.py fire
+           DRAFT_COMPLETE --run <run_id> --note "draft is ready"
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire APPROVED
+           --run <run_id> --note "review approved"
+           --run-dir <abs path of runs/>
+
+    5. Run the integrity check, then emit the terminal report:
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <run_id> --run-dir <abs path of runs/>
+
+    The report output is a strict-JSON machina.report.v1 object; when the run
+    reaches the "published" final state its result field is SUCCESS.
+
+    Finish by giving the user a short grounded report (under ~80 words) that
+    renders only the report facts: result, final_state, path, events, evidence.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+    - path: skills/machina-driving/tests/machines/test-machine.json
+    - path: skills/machina-driving/tests/machines/scripts/check_file.py
+    - path: skills/machina-driving/tests/machines/scripts/validate_output.py
+graders:
+  - name: names_report_contract
+    type: text
+    config:
+      contains:
+        - "result"
+        - "evidence"
+      regex_match:
+        - "(?i)final[_ -]?state"
+      not_contains:
+        - "IN_PROGRESS"
+  - name: drives_to_terminal
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-driving/graders/machina_drive.py"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-state"
+        - "published"
+      timeout: 60
