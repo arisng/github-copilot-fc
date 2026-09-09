@@ -1,0 +1,36 @@
+id: case-07-neg-driver-maintenance
+name: Do not drive on driver/runtime maintenance prompts
+description: >-
+  Agent is asked to modify scripts/machine-driver.py (engine development — the
+  skill's DO-NOT-USE boundary explicitly excludes this). The agent must NOT
+  init a run, drive a machine, or invent a report. All graders are negative:
+  no drive artifacts, no report leakage.
+tags: [negative, boundary]
+inputs:
+  prompt: >-
+    Someone wants to add a "retry" subcommand to the Machina driver. Explain
+    how you would approach adding `python3 skills/machina-driving/scripts/
+    machine-driver.py retry` as a new subcommand — what the subcommand should
+    do, where it would plug into the driver, and the considerations around the
+    ledger, tamper-evidence, and the driver being the sole mutator of run
+    state. This is engine development: do not init or drive any run, do not
+    produce a machina.report, and do not look for external files.
+graders:
+  - name: stays_on_engine_dev
+    type: text
+    config:
+      contains:
+        - "subcommand"
+      not_contains:
+        - "report.json"
+        - "machina.report.v1"
+        - "run-id"
+        - "fire APPROVED"
+  - name: no_drive_artifact
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-driving/graders/machina_drive.py"
+        - "--expect-no-drive"
+      timeout: 60

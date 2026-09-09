@@ -1,0 +1,107 @@
+id: case-06-drive-phase-nested
+name: Drive a parent machine with a nested phase child run
+description: >-
+  Agent drives a parent machine into a phase state, init's and drives the child
+  machine (nested run) to its terminal, then completes the parent with
+  PHASE_DONE --child-run. Artifact-graded: report.json result SUCCESS,
+  final_state parent-done, AND nested_runs non-empty (the child run must be
+  recorded). Machines are written inline by the agent (self-contained).
+tags: [positive, drive, phase]
+inputs:
+  prompt: >-
+    Your task is to drive a Machina state machine with a PHASE state to its
+    terminal state and produce the report. This is a self-contained task:
+    everything you need is below — do NOT look for external sample files.
+
+    The workspace contains:
+      - skills/machina-driving/scripts/machine-driver.py (the driver)
+      - skills/machina-authoring/scripts/machine-validator.py (its dependency)
+
+    Use PYTHON, not python3 (python3 is not installed here):
+      python skills/machina-driving/scripts/machine-driver.py --help
+
+    Write these two machine definitions into the workspace as parent.json and
+    child.json (they are not present yet — you create them):
+
+    parent.json:
+      {"id": "parent-task", "name": "Parent Task", "version": "1.0.0",
+       "spec_version": "3.0.0", "initial": "starting",
+       "context": {"child_result": ""},
+       "scenarios": [{"id": "default", "label": "Default",
+         "initial": "starting", "interface": "API"}],
+       "states": {
+         "starting": {"description": "Start.", "on":
+           {"BEGIN_PHASE": {"target": "child-phase"}}},
+         "child-phase": {"type": "phase", "description": "Delegate to child.",
+           "on": {"PHASE_DONE": {"target": "parent-done"}}},
+         "parent-done": {"type": "final", "description": "Done."}}}
+
+    child.json:
+      {"id": "child-task", "name": "Child Task", "version": "1.0.0",
+       "spec_version": "3.0.0", "initial": "todo",
+       "context": {"result": ""},
+       "scenarios": [{"id": "default", "label": "Default",
+         "initial": "todo", "interface": "API"}],
+       "states": {
+         "todo": {"description": "Do work.", "on":
+           {"CHILD_DONE": {"target": "child-done"}}},
+         "child-done": {"type": "final", "description": "Done."}}}
+
+    Create a runs/ dir in the workspace, then drive the parent and child:
+
+    1. Init the parent (scenario default, no inputs) and enter its phase state:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine <abs path of parent.json> --scenario default
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire BEGIN_PHASE
+           --run <parent_run_id> --note "enter child phase"
+           --run-dir <abs path of runs/>
+
+    2. Init the CHILD as a nested run and drive it to its terminal state:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine <abs path of child.json> --scenario default
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire CHILD_DONE
+           --run <child_run_id> --note "child work done"
+           --run-dir <abs path of runs/>
+
+    3. Complete the parent phase, passing the child run:
+         python skills/machina-driving/scripts/machine-driver.py fire PHASE_DONE
+           --run <parent_run_id> --child-run <child_run_id>
+           --note "phase complete" --run-dir <abs path of runs/>
+
+    4. Run the integrity check and emit the parent's terminal report:
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <parent_run_id> --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <parent_run_id> --run-dir <abs path of runs/>
+
+    The report output is the strict-JSON machina.report.v1 object; when the
+    parent reaches "parent-done" its result is SUCCESS and it lists the child
+    run under nested_runs.
+
+    Finish by giving the user a short grounded report (under ~80 words) that
+    renders only the report facts: result, final_state, path, events, evidence,
+    and the nested child run.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+graders:
+  - name: names_phase_report
+    type: text
+    config:
+      contains:
+        - "nested"
+        - "child"
+  - name: phase_completed
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-driving/graders/machina_drive.py"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-state"
+        - "parent-done"
+        - "--expect-nested-run"
+      timeout: 60

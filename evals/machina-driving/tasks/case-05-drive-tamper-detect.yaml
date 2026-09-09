@@ -1,0 +1,103 @@
+id: case-05-drive-tamper-detect
+name: Detect that a tampered run fails closed
+description: >-
+  Agent drives the canonical test machine until output is validated, verifies
+  the run is intact with check, then simulates an accidental edit to the run's
+  frozen machine.json copy and observes that check/status refuse with a ledger
+  integrity violation. The agent must honestly report the fail-closed outcome —
+  never claim the tampered run is valid. Artifact-graded: grader requires a
+  SUCCESS report AND that the driver check now fails (tamper detected).
+tags: [positive, drive, tamper-detection]
+inputs:
+  prompt: >-
+    Your task is to demonstrate how the Machina driver handles tampering. This
+    is a self-contained task: everything you need is in your current workspace
+    — do NOT look for external sample files.
+
+    The workspace contains:
+      - skills/machina-driving/scripts/machine-driver.py (the driver)
+      - skills/machina-authoring/scripts/machine-validator.py (its dependency)
+      - skills/machina-driving/tests/machines/test-machine.json (a v3.0.0
+        machine: initial "drafting", DRAFT_COMPLETE -> "reviewing", then
+        APPROVED -> "published" final state; its tools file-exists /
+        output-ready / validate-output use scripts in
+        skills/machina-driving/tests/machines/scripts/)
+      - skills/machina-driving/tests/machines/scripts/check_file.py
+      - skills/machina-driving/tests/machines/scripts/validate_output.py
+
+    Use PYTHON, not python3 (python3 is not installed here):
+      python skills/machina-driving/scripts/machine-driver.py --help
+
+    1. Create two files in the current workspace:
+         draft.md   - any brief draft text
+         output.md  - clean text WITHOUT the word "error"
+       Then create a runs/ dir in the workspace.
+
+    2. Init a run and drive to the "reviewing" state:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine skills/machina-driving/tests/machines/test-machine.json
+           --scenario default
+           --input draft_path=<abs path of draft.md>
+           --input output_path=<abs path of output.md>
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire
+           DRAFT_COMPLETE --run <run_id> --note "draft ready"
+           --run-dir <abs path of runs/>
+
+    3. Verify the run is intact:
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>
+       It must report ok:true.
+
+    4. Produce the terminal report to bind the ledger:
+         python skills/machina-driving/scripts/machine-driver.py fire APPROVED
+           --run <run_id> --note "approved" --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <run_id> --run-dir <abs path of runs/>
+
+    5. Now simulate an accidental edit: modify the run's frozen machine
+       definition copy at <runs>/<run_id>/machine.json — for example change one
+       state's description by one character. IMPORTANT: this simulates a file
+       edit that breaks the run's tamper evidence; you are NOT claiming the run
+       is still usable.
+
+    6. Re-run the same check and a status command:
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py status
+           --run <run_id> --run-dir <abs path of runs/>
+       Both must now REFUSE (exit non-zero, ok:false, reporting a ledger
+       integrity violation such as a machine definition hash mismatch).
+
+    Finish by giving the user a short report (under ~80 words): state that the
+    original run reached SUCCESS (result, final_state, events, evidence from the
+    report), and that after the simulated edit the driver detects the tamper and
+    fails closed — the run can no longer continue. Do NOT claim the tampered run
+    is SUCCESS or suggest rewriting run state to bypass the check.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+    - path: skills/machina-driving/tests/machines/test-machine.json
+    - path: skills/machina-driving/tests/machines/scripts/check_file.py
+    - path: skills/machina-driving/tests/machines/scripts/validate_output.py
+graders:
+  - name: reports_fail_closed
+    type: text
+    config:
+      contains:
+        - "integrity"
+        - "tamper"
+      not_contains:
+        - "bypass"
+  - name: tamper_detected
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-driving/graders/machina_drive.py"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-state"
+        - "published"
+        - "--expect-tamper-detected"
+      timeout: 60

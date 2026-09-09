@@ -1,0 +1,95 @@
+id: case-04-drive-blocked-iterate
+name: Iterate through a blocked fire by fixing the failing condition
+description: >-
+  Agent drives the canonical test machine where the first DRAFT_COMPLETE fire is
+  blocked (validate-output fails because output.md contains the word "error").
+  The agent must fix the underlying condition (rewrite output.md without
+  "error"), re-fire, then APPROVED to the terminal. Artifact-graded: grader
+  requires report.json result SUCCESS, final_state published, AND
+  blocked_events >= 1 (the ledger must show a blocked fire before success).
+tags: [positive, drive, blocked-iterate]
+inputs:
+  prompt: >-
+    Your task is to drive a Machina state machine to its terminal state and
+    produce the report. This is a self-contained task: everything you need is
+    in your current workspace — do NOT look for external sample files.
+
+    The workspace contains:
+      - skills/machina-driving/scripts/machine-driver.py (the driver)
+      - skills/machina-authoring/scripts/machine-validator.py (its dependency)
+      - skills/machina-driving/tests/machines/test-machine.json (a v3.0.0
+        machine: initial "drafting", DRAFT_COMPLETE -> "reviewing", then
+        APPROVED -> "published" final state; its tools file-exists /
+        output-ready / validate-output use scripts in
+        skills/machina-driving/tests/machines/scripts/)
+      - skills/machina-driving/tests/machines/scripts/check_file.py
+      - skills/machina-driving/tests/machines/scripts/validate_output.py
+
+    Use PYTHON, not python3 (python3 is not installed here):
+      python skills/machina-driving/scripts/machine-driver.py --help
+
+    1. Create two files in the current workspace:
+         draft.md   - any brief draft text
+         output.md  - text that CONTAINS the word "error" (the validate-output
+                      checker counts that word, case-insensitively)
+       Then create a runs/ dir in the workspace.
+
+    2. Init a run:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine skills/machina-driving/tests/machines/test-machine.json
+           --scenario default
+           --input draft_path=<abs path of draft.md>
+           --input output_path=<abs path of output.md>
+           --run-dir <abs path of runs/>
+
+    3. Fire DRAFT_COMPLETE:
+         python skills/machina-driving/scripts/machine-driver.py fire
+           DRAFT_COMPLETE --run <run_id> --note "attempt 1"
+           --run-dir <abs path of runs/>
+       Expect a "blocked" outcome whose evidence shows validate-output failing.
+       Do NOT force the machine and do NOT edit machine JSON or run state.
+
+    4. Fix the underlying condition: rewrite output.md so it no longer contains
+       the word "error". Then fire DRAFT_COMPLETE again — it should now
+       "transition" to reviewing.
+
+    5. Fire APPROVED, then run the integrity check and emit the report:
+         python skills/machina-driving/scripts/machine-driver.py fire APPROVED
+           --run <run_id> --note "approved" --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <run_id> --run-dir <abs path of runs/>
+
+    The report output is the strict-JSON machina.report.v1 object; when the run
+    reaches "published" its result is SUCCESS.
+
+    Finish by giving the user a short grounded report (under ~80 words) that
+    renders only the report facts: result, final_state, path, events, evidence.
+    Mention that the first fire was blocked and how you fixed the condition.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+    - path: skills/machina-driving/tests/machines/test-machine.json
+    - path: skills/machina-driving/tests/machines/scripts/check_file.py
+    - path: skills/machina-driving/tests/machines/scripts/validate_output.py
+graders:
+  - name: iterated_past_block
+    type: text
+    config:
+      contains:
+        - "blocked"
+        - "fix"
+  - name: reached_terminal_with_block
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-driving/graders/machina_drive.py"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-state"
+        - "published"
+        - "--expect-min-blocked"
+        - "1"
+      timeout: 60

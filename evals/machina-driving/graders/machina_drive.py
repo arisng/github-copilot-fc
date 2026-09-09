@@ -1,3 +1,20 @@
+"""Program grader for the machina-driving eval suite (hardening modes).
+
+Modes (combine as needed):
+  --expect-result SUCCESS|STUCK       expected report result
+  --expect-final-state <id>           expected final_state
+  --expect-min-blocked N              report.blocked_events >= N (blocked->iterate)
+  --expect-nested-run                 report.nested_runs non-empty (phase case)
+  --expect-tamper-detected            run's frozen machine.json was edited after
+                                      report; driver check MUST now FAIL (fail-closed)
+  --expect-no-drive                   negative: pass iff no report.json exists
+
+Base protocol (unchanged): find report.json under WAZA_WORKSPACE_DIR, assert
+machina.report.v1 schema/result/final_state/ledger binding, then re-run the
+driver's deterministic check (ledger chain + artifact hashes) as the integrity
+gate. Exit 0 only when a genuine drive produced the expected, verified report.
+"""
+
 import json
 import os
 import subprocess
@@ -29,6 +46,9 @@ def run_driver(args):
 def main(argv):
     expect_result = "SUCCESS"
     expect_final_state = None
+    expect_min_blocked = 0
+    expect_nested = False
+    expect_tamper = False
     expect_no_drive = False
     i = 0
     while i < len(argv):
@@ -38,6 +58,15 @@ def main(argv):
         elif argv[i] == "--expect-final-state" and i + 1 < len(argv):
             expect_final_state = argv[i + 1]
             i += 2
+        elif argv[i] == "--expect-min-blocked" and i + 1 < len(argv):
+            expect_min_blocked = int(argv[i + 1])
+            i += 2
+        elif argv[i] == "--expect-nested-run":
+            expect_nested = True
+            i += 1
+        elif argv[i] == "--expect-tamper-detected":
+            expect_tamper = True
+            i += 1
         elif argv[i] == "--expect-no-drive":
             expect_no_drive = True
             i += 1
@@ -95,6 +124,11 @@ def main(argv):
         problems.append(f"final_state is {report.get('final_state')!r}, expected {expect_final_state!r}")
     if not report.get("ledger_final_hash"):
         problems.append("ledger_final_hash missing - report is not bound to the ledger")
+    if report.get("blocked_events", 0) < expect_min_blocked:
+        problems.append(f"blocked_events is {report.get('blocked_events', 0)}, "
+                        f"expected >= {expect_min_blocked} (the run should have hit a blocked fire first)")
+    if expect_nested and not report.get("nested_runs"):
+        problems.append("nested_runs is empty - the phase case requires a child run")
 
     if problems:
         print(f"report {report_path} does not match expectations:")
@@ -111,13 +145,32 @@ def main(argv):
     except json.JSONDecodeError:
         chk_json = None
     ok = bool(chk_json and chk_json.get("ok"))
+
+    if expect_tamper:
+        # The frozen machine.json copy was edited after the report was produced.
+        # Fail-closed: the driver check (and any command) must now refuse.
+        if ok:
+            print(f"tamper case NOT proven: driver check returned ok for run {run_id} - "
+                  "expected an integrity violation (frozen machine.json was tampered).")
+            print(chk.stdout.strip())
+            return 1
+        print(f"OK: fail-closed tamper detected - driver check refuses run {run_id} "
+              f"({(chk_json or {}).get('error', chk.stderr.strip() or 'integrity violation')})")
+        return 0
+
     if not ok:
         print(f"driver check FAILED for run {run_id} ({report_path}):")
         print(chk.stdout.strip() or chk.stderr.strip())
         return 1
 
+    extra = []
+    if expect_min_blocked:
+        extra.append(f"blocked_events={report.get('blocked_events')}")
+    if expect_nested:
+        extra.append(f"nested_runs={len(report.get('nested_runs') or [])}")
     print(f"OK: genuine drive reached {expect_result}@{expect_final_state or '?'} "
-          f"and driver check verifies the ledger ({run_id})")
+          f"and driver check verifies the ledger ({run_id})"
+          + (f" [{', '.join(extra)}]" if extra else ""))
     return 0
 
 
