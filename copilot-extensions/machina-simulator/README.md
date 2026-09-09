@@ -98,7 +98,7 @@ by its discovery path. Both the canvas `open` handler and `scripts/replay-all.mj
 share one discovery convention (`scripts/discovery.mjs`):
 
 1. **Roots** — explicit roots > `MACHINA_RUN_ROOTS` env (`;`/`,`-separated) >
-   every `~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}` that exists.
+   every `~/.copilot/session-state/<uuid>/{machina-runs,machina-persist,machina-i2}` that exists.
 2. **Run** = any directory containing `ledger.jsonl` (+ optional `machine.json` sibling).
 3. **Ref formats** — `"<family>/<runid>"` or a bare `"<runid>"` (bare may be ambiguous
    across families → error).
@@ -111,9 +111,10 @@ E.g. open the canvas already replaying a persisted run:
 { "runRef": "i5-releasenotes/6c9dfff19bf2" }
 ```
 
-`machina-persist` is the canonical write location (written by `machina-driving`);
-`machina-i2` is a **legacy read-only** root from an earlier authoring round and is
-scanned for replay but never a write target.
+`machina-runs` is the canonical write location (written by `machina-driving`:
+`<session-workspace>/machina-runs/<run-id>/`); `machina-persist` and `machina-i2` are
+**legacy read-only** roots from earlier naming rounds, scanned for replay compatibility
+but never write targets.
 
 ### Auto-discovery & the Runs tab
 

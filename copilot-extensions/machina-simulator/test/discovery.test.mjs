@@ -55,8 +55,8 @@ function writeRun(dir, runid, opts = {}) {
   }
 }
 
-test("PERSIST_ROOT_NAMES lists the two canonical persist containers", () => {
-  assert.deepEqual([...PERSIST_ROOT_NAMES].sort(), ["machina-i2", "machina-persist"]);
+test("PERSIST_ROOT_NAMES lists the canonical + legacy persist containers", () => {
+  assert.deepEqual([...PERSIST_ROOT_NAMES].sort(), ["machina-i2", "machina-persist", "machina-runs"]);
 });
 
 test("explicitRootsFromEnv parses MACHINA_RUN_ROOTS (; and , and both)", () => {
@@ -76,12 +76,12 @@ test("explicitRootsFromEnv parses MACHINA_RUN_ROOTS (; and , and both)", () => {
   }
 });
 
-test("defaultRoots scans session-state for machina-persist / machina-i2", () => {
+test("defaultRoots scans session-state for machina-runs / machina-persist / machina-i2", () => {
   // No hard assertions on the real machine's corpus — assert shape: absolute paths only.
   const roots = defaultRoots();
   assert.ok(Array.isArray(roots));
   for (const r of roots) assert.ok(path.isAbsolute(r));
-  // Roots must be named machina-persist or machina-i2.
+  // Roots must be named machina-runs, machina-persist or machina-i2.
   for (const r of roots) assert.ok(PERSIST_ROOT_NAMES.includes(path.basename(r)), `unexpected root ${r}`);
 });
 
@@ -106,9 +106,9 @@ test("resolveRunRoots: explicit roots win over env over default", () => {
   }
 });
 
-test("discoverRunHistory walks family/runid layout and reads machine.json", () => {
+test("discoverRunHistory walks family/runid layout and reads machine.json (canonical machina-runs root)", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-disc-"));
-  const root = makeRoot(tmp, "machina-persist");
+  const root = makeRoot(tmp, "machina-runs");
   writeRun(path.join(root, "i1-triage"), "runA", { machineId: "pm-issue-triage" });
   writeRun(path.join(root, "i1-triage"), "runB", { machineId: "pm-issue-triage" });
   writeRun(path.join(root, "i2-milestone"), "runC", { machineId: "pm-milestone-triage" });

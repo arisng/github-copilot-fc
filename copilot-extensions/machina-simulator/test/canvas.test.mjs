@@ -321,9 +321,9 @@ test("canvas open without machine reports empty status", async () => {
 });
 
 test("canvas open with runRef auto-discovers a persisted run via run history", async () => {
-  // Build a temp machina-persist root and point discovery at it via MACHINA_RUN_ROOTS.
+  // Build a temp machina-runs root (canonical container) and point discovery at it via MACHINA_RUN_ROOTS.
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-runref-"));
-  const root = path.join(tmp, "machina-persist");
+  const root = path.join(tmp, "machina-runs");
   fs.mkdirSync(root, { recursive: true });
   const family = "i5-releasenotes";
   fs.mkdirSync(path.join(root, family), { recursive: true });
@@ -358,7 +358,7 @@ test("canvas open with runRef auto-discovers a persisted run via run history", a
 
 test("canvas open with unknown runRef reports a clear error", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-runref-"));
-  const root = path.join(tmp, "machina-persist");
+  const root = path.join(tmp, "machina-runs");
   fs.mkdirSync(root, { recursive: true });
   const prev = process.env.MACHINA_RUN_ROOTS;
   process.env.MACHINA_RUN_ROOTS = root;
@@ -381,7 +381,7 @@ test("canvas id is canonical machine-simulator (not machina-viewer)", () => {
 
 test("open() without input auto-discovers run history into /state inventory", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-auto-"));
-  const root = path.join(tmp, "machina-persist");
+  const root = path.join(tmp, "machina-runs");
   fs.mkdirSync(root, { recursive: true });
   const family = "i5-releasenotes";
   fs.mkdirSync(path.join(root, family), { recursive: true });
@@ -414,7 +414,7 @@ test("open() without input auto-discovers run history into /state inventory", as
 
 test("/runs route returns the disjoint run-history inventory", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-runs-"));
-  const root = path.join(tmp, "machina-persist");
+  const root = path.join(tmp, "machina-runs");
   fs.mkdirSync(root, { recursive: true });
   writePersistedRun(path.join(root, "i1-triage"), "routeRunA", "pm-issue-triage");
   const prev = process.env.MACHINA_RUN_ROOTS;
@@ -438,7 +438,7 @@ test("/runs route returns the disjoint run-history inventory", async () => {
 
 test("/open-run resolves a persisted run server-side and enters replay", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-openrun-"));
-  const root = path.join(tmp, "machina-persist");
+  const root = path.join(tmp, "machina-runs");
   fs.mkdirSync(root, { recursive: true });
   const family = "i5-releasenotes";
   fs.mkdirSync(path.join(root, family), { recursive: true });
@@ -471,7 +471,7 @@ test("/open-run resolves a persisted run server-side and enters replay", async (
 
 test("/open-run with unknown runRef returns a 404 and clear error", async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-openrun-"));
-  const root = path.join(tmp, "machina-persist");
+  const root = path.join(tmp, "machina-runs");
   fs.mkdirSync(root, { recursive: true });
   const prev = process.env.MACHINA_RUN_ROOTS;
   process.env.MACHINA_RUN_ROOTS = root;

@@ -234,7 +234,7 @@ const canvas = createCanvas({
         },
           runRef: {
             type: "string",
-            description: "Optional persisted-run reference (\"<family>/<runid>\" or bare \"<runid>\") resolved via the shared discovery convention (~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}). When provided, loads machine.json + ledger and enters replay mode.",
+            description: "Optional persisted-run reference (\"<family>/<runid>\" or bare \"<runid>\") resolved via the shared discovery convention (~/.copilot/session-state/<uuid>/{machina-runs,machina-persist,machina-i2}). When provided, loads machine.json + ledger and enters replay mode.",
           },
         },
       },

@@ -9,8 +9,9 @@
 // Discovery uses the shared convention (scripts/discovery.mjs): explicit argv
 // roots first, then MACHINA_RUN_ROOTS env (';'- or ','-separated), then the
 // default session-state scan
-//   C:\Users\<USER>\.copilot\session-state\<session>\machina-persist
-//   C:\Users\<USER>\.copilot\session-state\<session>\machina-i2
+//   C:\Users\<USER>\.copilot\session-state\<session>\machina-runs
+//   C:\Users\<USER>\.copilot\session-state\<session>\machina-persist   (legacy read-only)
+//   C:\Users\<USER>\.copilot\session-state\<session>\machina-i2        (legacy read-only)
 //
 // Exit code: 0 = gate green (all verifiable, 0 mismatch, 0 tampered, 0 read
 // errors, and — when MACHINA_EXPECTED_STUCK is set — the expected stuck count),
@@ -32,7 +33,7 @@ function pad(s, n) { return String(s ?? "").padEnd(n); }
 export async function main(argv = process.argv.slice(2)) {
   const roots = resolveRunRoots(argv.length ? argv : null);
   if (!roots.length) {
-    console.error("No run roots found. Pass explicit roots, set MACHINA_RUN_ROOTS, or set up session-state machina-persist/machina-i2.");
+    console.error("No run roots found. Pass explicit roots, set MACHINA_RUN_ROOTS, or set up session-state machina-runs/machina-persist/machina-i2.");
     return 1;
   }
   const runs = discoverRunHistory(roots);

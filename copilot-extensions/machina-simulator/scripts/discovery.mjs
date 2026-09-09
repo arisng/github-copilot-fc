@@ -4,14 +4,18 @@
 // roots that contains a ledger.jsonl (+ optional machine.json sibling). The
 // convention is deliberately pragmatic:
 //
-//   1. Default roots = every `~/.copilot/session-state/<uuid>/{machina-persist,
-//      machina-i2}` directory that exists (legacy `machina-i2` stays read-only;
-//      `machina-persist` is the canonical write target).
+//   1. Default roots = every `~/.copilot/session-state/<uuid>/{machina-runs,
+//      machina-persist,machina-i2}` directory that exists. `machina-runs` is
+//      the canonical write target (the `machina-driving` skill + its hooks
+//      store run history at `<session-workspace>/machina-runs/<run-id>/`);
+//      `machina-persist` and legacy `machina-i2` stay read-only scan roots for
+//      replay compatibility with earlier corpora.
 //   2. Override = explicit roots passed to `discoverRunHistory()` OR the
 //      `MACHINA_RUN_ROOTS` env var (';' or ',' separated absolute paths).
 //   3. A run   = any directory containing `ledger.jsonl`.
 //   4. family  = the nearest named container under the root
-//                (for `machina-i2/<runid>` the family equals the runid).
+//                (for a flat `machina-runs/<runid>` or `machina-i2/<runid>`
+//                layout the family equals the runid).
 //   5. runid   = the ledger's parent dir name.
 //   6. machine = sibling `machine.json` if present, else `null` (replay then
 //                falls back to the init record's machine_id identity).
@@ -25,8 +29,11 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-// Canonical persist container names written by the machina-driving skill.
-export const PERSIST_ROOT_NAMES = ["machina-persist", "machina-i2"];
+// Run-history container names: `machina-runs` is the canonical write target (a
+// `machina-driving` session stores `<session-workspace>/machina-runs/<run-id>/`);
+// `machina-persist` and `machina-i2` are read-only legacy roots scanned for
+// replay compatibility with earlier corpora.
+export const PERSIST_ROOT_NAMES = ["machina-runs", "machina-persist", "machina-i2"];
 
 // MACHINA_RUN_ROOTS="root1;root2" (or ",") — explicit escape hatch used by
 // tests and scripted corpora. Returns null when unset.

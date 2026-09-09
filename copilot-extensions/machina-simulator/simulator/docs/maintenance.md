@@ -110,12 +110,14 @@ AND the auto-discovery inventory `/runs` + `/open-run`) import it — never reim
 Editing invariants:
 
 - Root resolution: explicit roots > `MACHINA_RUN_ROOTS` env > default
-  `~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}` scan.
+  `~/.copilot/session-state/<uuid>/{machina-runs,machina-persist,machina-i2}` scan.
 - A run is a directory with `ledger.jsonl` (+ optional `machine.json`); `family`/`runid`
   derive from the layout. Read errors fail **open** in discovery (carry `readError`) and the
   gate fails **closed** on them.
-- `machina-persist` = canonical write target; `machina-i2` = legacy read-only (kept for
-  replay compatibility). Do not write new runs under `machina-i2`.
+- `machina-runs` = canonical write target (the `machina-driving` skill stores
+  `<session-workspace>/machina-runs/<run-id>/`); `machina-persist` + `machina-i2` = legacy
+  read-only roots (kept for replay compatibility). Do not write new runs under the legacy
+  roots.
 - `open()` **always** runs `discoverRunHistory()` (even with empty input) and exposes the
   lean inventory as `/state` → `runHistory`; the app's **Runs** tab consumes `/runs` and
   `/open-run`. `open()` may never throw on a discovery failure — errors go to `state.error`,

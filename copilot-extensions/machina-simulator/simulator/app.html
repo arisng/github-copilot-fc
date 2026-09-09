@@ -745,7 +745,7 @@
       <div class="insp-body">
         <div class="runs-meta" id="runs-meta">Scanning persisted run history…</div>
         <div class="runs-list" id="runs-list"></div>
-        <div class="limit-note" style="margin-top: 12px;">Persisted runs under <code>~/.copilot/session-state/<uuid>/{machina-persist,machina-i2}</code>. Click a run to replay it from its ledger.</div>
+        <div class="limit-note" style="margin-top: 12px;">Persisted runs under <code>~/.copilot/session-state/<uuid>/{machina-runs,machina-persist,machina-i2}</code>. Click a run to replay it from its ledger.</div>
       </div>
     </aside>
       </div>
@@ -2609,7 +2609,7 @@ async function refreshRuns() {
     if (!runs.length) {
       const empty = document.createElement('div');
       empty.className = 'runs-empty';
-      empty.innerHTML = 'Nothing to replay yet. Run a <code>machina-driving</code> session that persists a ledger under <code>machina-persist</code>.';
+      empty.innerHTML = 'Nothing to replay yet. Run a <code>machina-driving</code> session that persists a ledger under <code>machina-runs</code>.';
       runsList.appendChild(empty);
       return;
     }
