@@ -23,7 +23,7 @@ if (-not $RepoRoot) {
 }
 $SkillRoot = Join-Path $RepoRoot 'skills\machina-driving'
 $DriverScript = Join-Path $SkillRoot 'scripts\machine-driver.py'
-$TestMachine = Join-Path $SkillRoot 'tests\machines\hooks-test-machine.json'
+$TestMachine = Join-Path $SkillRoot 'tests\machines\test-machine.json'
 $TestScripts = Join-Path $SkillRoot 'tests\machines\scripts'
 $ExpectedDir = Join-Path $PSScriptRoot 'expected'
 $HooksFile = Join-Path $ExpectedDir 'hooks.jsonl'

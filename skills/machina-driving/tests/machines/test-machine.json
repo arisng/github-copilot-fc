@@ -1,6 +1,6 @@
 {
-  "id": "hooks-test-machine",
-  "name": "Hooks Test Machine",
+  "id": "test-machine",
+  "name": "Test Machine",
   "version": "2.0.0",
   "spec_version": "3.0.0",
   "initial": "drafting",

@@ -1,4 +1,4 @@
-# Hooks Test Machine
+# Test Machine
 
 A small Machina state machine used to validate hook-based tooling and the driving skill's lifecycle.
 
