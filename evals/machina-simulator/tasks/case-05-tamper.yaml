@@ -1,0 +1,94 @@
+id: case-05-tamper
+name: Tamper fail-closed - driver check refuses AND simulator replay shows HASH MISMATCH
+description: >-
+  Agent drives the canonical test machine to SUCCESS, produces the report, then
+  simulates an accidental edit to the run's frozen machine.json copy. The
+  program grader asserts BOTH fail-closed signals: the driver check now REFUSES
+  (ledger integrity violation) AND the simulator replay reports machineHashOk
+  false (HASH MISMATCH - the badge a human auditor would see in the canvas).
+tags: [positive, drive, tamper, replay]
+inputs:
+  prompt: >-
+    Your task is to demonstrate how a tampered run is detected. Everything you
+    need is in your current workspace — do NOT look for external sample files.
+    The workspace contains:
+      - skills/machina-driving/scripts/machine-driver.py (the driver)
+      - skills/machina-authoring/scripts/machine-validator.py (its dependency)
+      - skills/machina-driving/tests/machines/test-machine.json (a v3.0.0
+        machine: initial "drafting", DRAFT_COMPLETE -> "reviewing" then
+        APPROVED -> "published" final; tools file-exists / output-ready /
+        validate-output use scripts in skills/machina-driving/tests/machines/
+        scripts/)
+      - skills/machina-driving/tests/machines/scripts/check_file.py
+      - skills/machina-driving/tests/machines/scripts/validate_output.py
+
+    Use PYTHON, not python3: python skills/machina-driving/scripts/
+    machine-driver.py --help
+
+    1. Create draft.md (any brief text) and output.md (brief text WITHOUT the
+       word "error"). Create a runs/ dir in the workspace.
+
+    2. Init a run and drive it to the terminal state, then verify it is intact
+       and emit the report (result SUCCESS, final_state published):
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine skills/machina-driving/tests/machines/test-machine.json
+           --scenario default
+           --input draft_path=<abs path of draft.md>
+           --input output_path=<abs path of output.md>
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire
+           DRAFT_COMPLETE --run <run_id> --note "draft ready"
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire APPROVED
+           --run <run_id> --note "approved" --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>   # -> ok:true
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <run_id> --run-dir <abs path of runs/>
+
+    3. Now simulate an accidental edit to the run's frozen machine definition
+       copy at <runs>/<run_id>/machine.json (e.g. change one state description
+       by one character). This simulates a file edit that breaks the tamper
+       evidence — you are NOT claiming the run is still usable.
+
+    4. Re-run the check and a status command; BOTH must now REFUSE (ok:false,
+       ledger integrity violation such as a machine definition hash mismatch):
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py status
+           --run <run_id> --run-dir <abs path of runs/>
+
+    Finish by giving the user a short report (under ~80 words): state that the
+    ORIGINAL run reached SUCCESS (result, final_state, events, evidence from the
+    report), and that after the simulated edit the driver detects the tamper and
+    fails closed — the run can no longer continue and a replayer would flag the
+    machine hash mismatch. Do NOT claim the tampered run is SUCCESS and do NOT
+    suggest rewriting run state to bypass the check.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+    - path: skills/machina-driving/tests/machines/test-machine.json
+    - path: skills/machina-driving/tests/machines/scripts/check_file.py
+    - path: skills/machina-driving/tests/machines/scripts/validate_output.py
+graders:
+  - name: reports_fail_closed
+    type: text
+    config:
+      contains:
+        - "integrity"
+      regex_match:
+        - "(?i)(tamper|mismatch|refuse)"
+      not_contains:
+        - "bypass"
+  - name: tamper_replay_flags_hash_mismatch
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-simulator/graders/machina_replay.py"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-states"
+        - "published"
+        - "--expect-tamper-detected"
+      timeout: 90

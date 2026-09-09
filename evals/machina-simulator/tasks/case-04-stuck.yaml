@@ -1,0 +1,90 @@
+id: case-04-stuck
+name: Escalate a STUCK run - replay must show terminal stuck, not invented success
+description: >-
+  Agent drives a machine with a guard-blocked APPROVE (approved stays false),
+  fires it once (blocked record), then reports STUCK with a grounded escalation.
+  The program grader replays the run through the machina-simulator engine and
+  asserts terminal "stuck" + blockedCount >= 1 (the auditor must SEE a stuck
+  run, never a fabricated SUCCESS).
+tags: [positive, drive, stuck, replay]
+inputs:
+  prompt: >-
+    Your task is to drive a machine that is ABOUT to get stuck. Everything you
+    need is in your current workspace — do NOT look for external sample files.
+    The workspace contains:
+      - skills/machina-driving/scripts/machine-driver.py (the driver)
+
+    First, write this machine definition to a file named stuck-machine.json in
+    the current workspace (it is not present yet — you create it):
+
+      {"id": "stuck-machine", "name": "Stuck Machine", "version": "1.0.0",
+       "spec_version": "3.0.0", "initial": "waiting",
+       "context": {"approved": false},
+       "scenarios": [{"id": "default", "label": "Default", "initial":
+         "waiting"}],
+       "states": {
+         "waiting": {"description": "Waiting for approval that can never be
+           granted.", "on": {
+           "APPROVE": {"target": "done",
+             "guard": {"type": "compare", "key": "approved", "op": "eq",
+               "value": true},
+             "description": "Cannot pass because approved stays false."}}},
+         "done": {"type": "final", "description": "Done."}}}
+
+    Drive it with the machine driver (use PYTHON, not python3):
+
+    1. Create a runs/ dir in the workspace, then init a run:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine stuck-machine.json --scenario default
+           --run-dir <abs path of runs/>
+
+    2. Status — observe that APPROVE is blocked by the guard. Then fire it once
+       and CONFIRM the blocked outcome (this records the blocked event in the
+       ledger — the audit trail must show why the run cannot proceed):
+         python skills/machina-driving/scripts/machine-driver.py fire APPROVE
+           --run <run_id> --note "attempted to approve" --run-dir <abs path of runs/>
+
+    3. Do NOT improvise a transition and do NOT fabricate success. Emit the
+       terminal report (marking the STUCK disposition):
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <run_id> --run-dir <abs path of runs/>
+
+    STUCK is a modeling gap, not a crash. The report result must be STUCK with
+    final_state "waiting" and the blocked APPROVE event recorded.
+
+    Finish by giving the human conductor a grounded escalation (under ~80
+    words): the report's result (STUCK), the blocked event and why (guard
+    approved == true never becomes true), and the decision they need to make
+    (fix the machine or abort). Do NOT write result: SUCCESS.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+graders:
+  - name: stuck_escalation_not_success
+    type: text
+    config:
+      contains:
+        - "STUCK"
+      not_contains:
+        - "SUCCESS"
+      regex_match:
+        - "(blocked|guard)"
+        - "(decide|decision|abort|escalat)"
+  - name: stuck_replays_as_stuck
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-simulator/graders/machina_replay.py"
+        - "--expect-runs"
+        - "1"
+        - "--expect-result"
+        - "STUCK"
+        - "--expect-final-states"
+        - "waiting"
+        - "--expect-terminal"
+        - "stuck"
+        - "--expect-hash-ok"
+        - "--expect-min-blocked"
+        - "1"
+      timeout: 90
