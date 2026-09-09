@@ -1,0 +1,94 @@
+id: case-01-single-skill
+name: Drive one machine and replay the produced run in the simulator engine
+description: >-
+  Agent drives the canonical v3 test machine (test-machine.json) in the waza
+  workspace with machine-driver.py to terminal SUCCESS (published), producing a
+  real run directory (machine.json + ledger.jsonl + report.json). The program
+  grader replays that run through the machina-simulator engine and asserts the
+  replay is verifiable, the machine hash matches (raw machine.json text), the
+  terminal disposition is complete, and the final state is published.
+tags: [positive, drive, single-skill, replay]
+inputs:
+  prompt: >-
+    Your task is to drive a Machina state machine to its terminal state and
+    produce the report. Everything you need is in your current workspace — do
+    NOT look for external sample files. The workspace contains:
+    - skills/machina-driving/scripts/machine-driver.py (the driver)
+    - skills/machina-authoring/scripts/machine-validator.py (its dependency)
+    - skills/machina-driving/tests/machines/test-machine.json (a v3.0.0
+      machine: initial "drafting", transitions DRAFT_COMPLETE -> "reviewing"
+      then APPROVED -> "published" (a final state); its tools file-exists /
+      output-ready / validate-output use checker scripts in the scripts/ folder
+      next to the machine)
+    - skills/machina-driving/tests/machines/scripts/check_file.py
+    - skills/machina-driving/tests/machines/scripts/validate_output.py
+
+    Do the work with the machine driver (use PYTHON, not python3):
+
+      python skills/machina-driving/scripts/machine-driver.py --help
+
+    1. Create two files in the current workspace:
+         draft.md   - any brief draft text
+         output.md  - any brief text that does NOT contain the word "error"
+       (the machine's validate-output checker counts that word).
+
+    2. Create a runs/ dir in the workspace, then init a run:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine skills/machina-driving/tests/machines/test-machine.json
+           --scenario default
+           --input draft_path=<abs path of draft.md>
+           --input output_path=<abs path of output.md>
+           --run-dir <abs path of runs/>
+
+    3. Verify status, then fire the events to the terminal state:
+         python skills/machina-driving/scripts/machine-driver.py fire
+           DRAFT_COMPLETE --run <run_id> --note "draft is ready"
+           --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py fire APPROVED
+           --run <run_id> --note "review approved"
+           --run-dir <abs path of runs/>
+
+    4. Run the integrity check, then emit the terminal report:
+         python skills/machina-driving/scripts/machine-driver.py check
+           --run <run_id> --run-dir <abs path of runs/>
+         python skills/machina-driving/scripts/machine-driver.py report
+           --run <run_id> --run-dir <abs path of runs/>
+
+    The report is the strict-JSON machina.report.v1 object; when the run reaches
+    the "published" final state its result is SUCCESS.
+
+    Finish by giving the user a short grounded report (under ~80 words) that
+    renders only the report facts: result, final_state, path, events, evidence.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+    - path: skills/machina-driving/tests/machines/test-machine.json
+    - path: skills/machina-driving/tests/machines/scripts/check_file.py
+    - path: skills/machina-driving/tests/machines/scripts/validate_output.py
+graders:
+  - name: names_report_contract
+    type: text
+    config:
+      contains:
+        - "result"
+        - "evidence"
+      regex_match:
+        - "(?i)final[_ -]?state"
+      not_contains:
+        - "IN_PROGRESS"
+  - name: replay_is_verifiable
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-simulator/graders/machina_replay.py"
+        - "--expect-runs"
+        - "1"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-states"
+        - "published"
+        - "--expect-terminal"
+        - "complete"
+        - "--expect-hash-ok"
+      timeout: 90

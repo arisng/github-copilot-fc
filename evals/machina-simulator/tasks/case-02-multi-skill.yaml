@@ -1,0 +1,115 @@
+id: case-02-multi-skill
+name: Conductor request spanning two skills - drive both machines and replay both runs
+description: >-
+  A human conductor requests TWO governed work items in one session: publish
+  release notes (canonical test-machine, skill A) and run a feedback campaign
+  (inline feedback machine, skill B, whose CLOSE event is guard-blocked until
+  enough responses are collected). The agent must drive BOTH machines to their
+  terminal states in the same runs/ dir, producing two run directories. The
+  program grader replays BOTH runs through the machina-simulator engine and
+  asserts: two runs, both verifiable + machine-hash ok + terminal complete,
+  and at least one run shows a blocked fire (blockedCount >= 1) - the auditor
+  sees the blocked record and both runs in the Runs tab.
+tags: [positive, drive, multi-skill, replay]
+inputs:
+  prompt: >-
+    A human conductor has handed you TWO governed work items. Both are governed
+    by Machina state machines; you must drive each one with machine-driver.py
+    and produce a report for each. Everything you need is in your current
+    workspace — do NOT look for external sample files. The workspace contains:
+    - skills/machina-driving/scripts/machine-driver.py (the driver)
+    - skills/machina-authoring/scripts/machine-validator.py (its dependency)
+    - skills/machina-driving/tests/machines/test-machine.json (item A's
+      machine: v3.0.0, initial "drafting", DRAFT_COMPLETE -> "reviewing" then
+      APPROVED -> "published" final; its tools file-exists / output-ready /
+      validate-output use scripts in skills/machina-driving/tests/machines/
+      scripts/)
+    - skills/machina-driving/tests/machines/scripts/check_file.py
+    - skills/machina-driving/tests/machines/scripts/validate_output.py
+
+    Item B is governed by a feedback campaign machine that is NOT present yet —
+    you must write it yourself to a file named feedback.json in the workspace:
+
+      {"id": "feedback-campaign", "name": "Feedback Campaign", "version":
+       "1.0.0", "spec_version": "3.0.0", "initial": "collecting",
+       "context": {"responses": 0},
+       "scenarios": [{"id": "default", "label": "Default", "initial":
+         "collecting"}],
+       "states": {
+         "collecting": {"description": "Collect survey responses until at
+           least 3 arrive.", "on": {
+           "COLLECT": {"target": "collecting",
+             "guard": {"type": "compare", "key": "responses", "op": "lt",
+               "value": 5},
+             "actions": [{"type": "increment", "key": "responses"}]},
+           "CLOSE": {"target": "done",
+             "guard": {"type": "compare", "key": "responses", "op": "gte",
+               "value": 3}}}},
+         "done": {"type": "final", "description": "Campaign closed."}}}
+
+    Use PYTHON, not python3:  python skills/machina-driving/scripts/
+    machine-driver.py --help
+
+    WORK ITEM A (release notes):
+    1. Create draft.md (any brief text) and output.md (brief text WITHOUT the
+       word "error").
+    2. Create a runs/ dir in the workspace, then drive the test machine:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine skills/machina-driving/tests/machines/test-machine.json
+           --scenario default
+           --input draft_path=<abs path of draft.md>
+           --input output_path=<abs path of output.md>
+           --run-dir <abs path of runs/>
+       then fire DRAFT_COMPLETE then APPROVED with notes, and finally check and
+       report. result must be SUCCESS, final_state published.
+
+    WORK ITEM B (feedback campaign):
+    3. Init a SECOND run in the SAME runs/ dir against feedback.json:
+         python skills/machina-driving/scripts/machine-driver.py init
+           --machine <abs path of feedback.json> --scenario default
+           --run-dir <abs path of runs/>
+    4. First, try to fire CLOSE while responses is still 0 — the guard
+       (responses >= 3) must BLOCK it. Record what happened in the note.
+       Then fire COLLECT three times (each adds a response), then fire CLOSE
+       again — it must now transition to the "done" final state. Finally check
+       and report: result SUCCESS, final_state done.
+
+    IMPORTANT: use the SAME runs/ dir for both machines. Do not hand-edit any
+    machine or run state; only the driver mutates runs.
+
+    Finish by giving the user a short grounded report (under ~120 words) that
+    summarizes BOTH runs from their report facts: for each, machine_id,
+    result, final_state, events, evidence; and mention that item B's first
+    CLOSE fire was blocked and required collecting responses.
+  files:
+    - path: skills/machina-driving/scripts/machine-driver.py
+    - path: skills/machina-authoring/scripts/machine-validator.py
+    - path: skills/machina-driving/tests/machines/test-machine.json
+    - path: skills/machina-driving/tests/machines/scripts/check_file.py
+    - path: skills/machina-driving/tests/machines/scripts/validate_output.py
+graders:
+  - name: reports_two_runs
+    type: text
+    config:
+      contains:
+        - "result"
+      regex_match:
+        - "blocked"
+  - name: both_runs_replay_verifiable
+    type: program
+    config:
+      command: python
+      args:
+        - "evals/machina-simulator/graders/machina_replay.py"
+        - "--expect-runs"
+        - "2"
+        - "--expect-result"
+        - "SUCCESS"
+        - "--expect-final-states"
+        - "published,done"
+        - "--expect-terminal"
+        - "complete"
+        - "--expect-hash-ok"
+        - "--expect-min-blocked"
+        - "1"
+      timeout: 90

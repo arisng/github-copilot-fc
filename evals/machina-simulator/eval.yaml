@@ -1,0 +1,30 @@
+schemaVersion: "1.0"
+name: machina-simulator-replay-eval
+description: >-
+  Measures whether run history produced by the machina-driving skill is
+  faithfully re-playable by the machina-simulator extension: the agent drives
+  real machines (single-skill, multi-skill, nested phase, STUCK, tamper) in
+  each task workspace, and the artifact grader replays every produced run
+  through the simulator engine (machine-simulator.mjs replayRunLedger) and
+  asserts the replay verdict matches ground truth (verifiable, machine-hash
+  ok, correct terminal disposition, blocked records, nested child runs,
+  fail-closed tamper detection). Temp workspaces are kept and a consolidated
+  results/corpus/ is exported so the human conductor can open /machina-simulator
+  and audit every run visually.
+skill: machina-driving
+version: "1.0"
+
+config:
+  trials_per_task: 1
+  timeout_seconds: 600
+  executor: copilot-sdk
+  model: mimo-v2.5
+  # machina-driving depends on machina-authoring: machine-driver.py imports the
+  # shared engine (machine-validator.py) from the authoring skill. Both must be
+  # mounted so the driver can run inside the eval workspace.
+  skill_directories:
+    - ../../skills/machina-driving
+    - ../../skills/machina-authoring
+
+tasks:
+  - tasks/*.yaml
