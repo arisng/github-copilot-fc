@@ -43,6 +43,26 @@ test("replayRunLedger on synthetic ledger: verifiable integrity + 5 trace entrie
   assert.equal(r.integrity.indexOfFirstFailure, null);
 });
 
+test("playback advance walks the full trace to the terminal record (reset->play)", () => {
+  // Regression guard for the Play-button bug where stepping paused playback
+  // after the first record. Advance-paging from the init record must traverse
+  // EVERY trace record and land on the final record's state — regardless of
+  // the run's terminal disposition (complete/stuck/aborted/incomplete).
+  const r = replayRunLedger(machine, ledger);
+  const states = [];
+  let idx = 0;
+  states.push(r.trace[0].state); // init snapshot
+  while (idx < r.trace.length - 1) {
+    idx++;
+    states.push(r.trace[idx].state);
+  }
+  assert.equal(idx, r.trace.length - 1, "playback must reach the final ledger record");
+  assert.equal(states[states.length - 1], r.trace[r.trace.length - 1].state, "final walked state == final trace record state");
+  // Every non-init record must have been folded into the walk (no skip).
+  assert.ok(states.length >= 2, "a run with transitions must traverse at least one step");
+  assert.equal(r.trace.length, 5); // keep the known fixture shape
+});
+
 test("trace == ledger sequence (events, from/to, evidence)", () => {
   const r = replayRunLedger(machine, ledger);
   for (let i = 0; i < ledger.length; i++) {

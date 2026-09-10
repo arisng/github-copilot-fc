@@ -227,6 +227,74 @@
         .pill-trust.tampered .dot { background: #e5484d; }
         .pill-replay { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 40%, var(--border)); background: var(--accent-soft); }
         .pill-replay .dot { background: var(--accent); }
+                .pill-replay.stuck { color: var(--warn-text, #f5a623); border-color: color-mix(in oklch, #f5a623 45%, var(--border)); }
+                .pill-replay.stuck .dot { background: #f5a623; }
+                .pill-replay.aborted { color: #e5484d; border-color: color-mix(in oklch, #e5484d 45%, var(--border)); }
+                .pill-replay.aborted .dot { background: #e5484d; }
+                .pill-replay.incomplete { color: #8b5cf6; border-color: color-mix(in oklch, #8b5cf6 45%, var(--border)); }
+                .pill-replay.incomplete .dot { background: #8b5cf6; }
+                /* Audit banner — the adjudication header shown on open/replay */
+                .audit-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 9px 16px; margin: 0 0 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--fg-soft); font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); }
+                .audit-banner[hidden] { display: none; }
+                .audit-runid { font-weight: 600; color: var(--accent); }
+                .audit-kv { color: var(--muted); }
+                .audit-kv b { color: var(--fg); font-weight: 600; }
+                .audit-path { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+                .audit-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid var(--border); }
+                .audit-chip.ok { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 40%, var(--border)); background: var(--accent-soft); }
+                .audit-chip.warn { color: #f5a623; border-color: rgba(245, 166, 35, 0.4); background: var(--accent-soft); }
+                .audit-chip.err { color: #e5484d; border-color: rgba(229, 72, 77, 0.4); background: var(--accent-soft); }
+                .audit-chip.neutral { color: var(--muted); }
+                /* Run list — outcome chips + family grouping */
+                .run-family { display: flex; flex-direction: column; gap: 6px; }
+                .run-family + .run-family { margin-top: 14px; }
+                .run-family-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 2px; }
+                .run-family-name { font-weight: 600; font-size: 12px; color: var(--fg); }
+                .run-family-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.03em; }
+                .run-chip { display: inline-flex; align-items: center; gap: 4px; width: max-content; padding: 1px 7px; border-radius: 999px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid var(--border); }
+                .run-chip.ok { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 40%, var(--border)); background: transparent; }
+                .run-chip.warn { color: #f5a623; border-color: rgba(245, 166, 35, 0.4); background: transparent; }
+                .run-chip.err { color: #e5484d; border-color: rgba(229, 72, 77, 0.4); background: transparent; }
+                .run-chip.neutral { color: var(--muted); }
+                .run-chip.violet { color: #8b5cf6; border-color: rgba(139, 92, 246, 0.4); background: transparent; }
+                .run-row-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
+                .run-row-line .run-item-runid { flex: 1; }
+                .run-chip-holder { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+        .drill-link { cursor: pointer; color: var(--accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+        .drill-link:hover { color: var(--fg); }
+        .rpt-drill { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+        .rpt-drill:hover { color: var(--fg); }
+        /* Report modal */
+        .rpt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+        .rpt-kpi { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--fg-soft); }
+        .rpt-kpi .rpt-kpi-k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+        .rpt-kpi .rpt-kpi-v { font-family: var(--font-mono); font-size: 17px; font-weight: 600; margin-top: 3px; }
+        .rpt-result { display: inline-flex; align-items: center; gap: 7px; padding: 5px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.05em; font-weight: 700; border: 1px solid var(--border); }
+        .rpt-result.ok { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 45%, var(--border)); background: var(--accent-soft); }
+        .rpt-result.warn { color: #f5a623; border-color: rgba(245, 166, 35, 0.45); background: color-mix(in oklch, #f5a623 12%, transparent); }
+        .rpt-result.err { color: #e5484d; border-color: rgba(229, 72, 77, 0.45); background: color-mix(in oklch, #e5484d 12%, transparent); }
+        .rpt-result.violet { color: #8b5cf6; border-color: rgba(139, 92, 246, 0.45); background: color-mix(in oklch, #8b5cf6 12%, transparent); }
+        .rpt-section { margin-top: 16px; }
+        .rpt-section > h4 { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+        .rpt-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; }
+        .rpt-path .rpt-stop { padding: 2px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg); }
+        .rpt-path .rpt-stop.final { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 40%, var(--border)); background: var(--accent-soft); }
+        .rpt-path .rpt-sep { color: var(--muted); }
+        .rpt-notes { display: flex; flex-direction: column; gap: 6px; }
+        .rpt-note { display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; }
+        .rpt-note .rpt-note-ev { font-family: var(--font-mono); font-weight: 600; color: var(--accent); flex: 0 0 auto; }
+        .rpt-note .rpt-note-tx { color: var(--muted); font-style: italic; }
+        .rpt-ctx { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .rpt-ctx td { padding: 5px 8px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+        .rpt-ctx td.rpt-ctx-k { font-family: var(--font-mono); color: var(--muted); white-space: nowrap; }
+        .rpt-ctx td.rpt-ctx-v { font-family: var(--font-mono); word-break: break-all; }
+        .rpt-hash { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); word-break: break-all; }
+        .rpt-nested { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+        .rpt-raw { max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--fg-soft); }
+                /* "How to read this report" helper text */
+                .rpt-help { font-size: 11.5px; color: var(--muted); line-height: 1.55; margin: 6px 0 0; padding: 7px 10px; border-left: 2px solid var(--border); background: var(--fg-soft); border-radius: 0 var(--radius) var(--radius) 0; }
+                .rpt-help b { color: var(--fg-2); font-weight: 600; }
+                .rpt-help code { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); }
     @keyframes blink { 50% { opacity: 0.35; } }
 
     .canvas {
@@ -330,6 +398,10 @@
     .node .final-dot { fill: var(--muted); }
     .node .start-mark { fill: var(--success); stroke: var(--bg); stroke-width: 2; opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); }
     .node .end-mark { opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); }
+        .node-drill { cursor: pointer; }
+        .node-drill:hover .node-drill-bg { stroke: var(--accent); fill: color-mix(in oklch, var(--accent) 18%, transparent); }
+        .node-drill-bg { fill: color-mix(in oklch, var(--accent) 10%, var(--surface)); stroke: var(--accent); stroke-width: 1; }
+        .node-drill-txt { fill: var(--accent); font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.03em; pointer-events: none; }
     .node.is-start .start-mark { opacity: 1; }
     .node.is-end .end-mark { opacity: 1; }
     .node.is-start rect.body { stroke: color-mix(in oklch, var(--success) 55%, var(--border)); }
@@ -446,16 +518,24 @@
     .empty { font-size: 12.5px; color: var(--muted); }
     .loglist { list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: 12px; }
     .loglist li {
-      display: flex; align-items: baseline; gap: 10px;
-      padding: 7px 0; border-bottom: 1px solid var(--border);
-    }
-    .loglist li:first-child { color: var(--fg); }
-    .loglist li:first-child .lg-evt { color: var(--accent); }
-    .lg-time { color: var(--muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-    .lg-evt { font-weight: 600; flex: 0 0 auto; }
-    .lg-blocked { color: #e5484d; }
-    .lg-redirect { color: #8b5cf6; }
-    .lg-path { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          display: flex; align-items: flex-start; gap: 10px;
+          padding: 7px 0; border-bottom: 1px solid var(--border);
+        }
+        .loglist li:first-child { color: var(--fg); }
+        .loglist li:first-child .lg-evt { color: var(--accent); }
+        .lg-time { color: var(--muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+        .lg-evt { font-weight: 600; flex: 0 0 auto; }
+        .lg-blocked { color: #e5484d; }
+        .lg-redirect { color: #8b5cf6; }
+            .lg-mismatch { color: #f5a623; }
+            .lg-path { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lg-detail { min-width: 0; flex: 1 1 auto; }
+        .lg-note { display: block; color: var(--muted); font-size: 11px; font-style: italic; white-space: normal; line-height: 1.45; }
+        .lg-evidence { display: inline-flex; gap: 4px; flex-wrap: wrap; margin: 3px 0 0; }
+        .lg-ev { padding: 0 6px; border-radius: 999px; font-size: 10px; letter-spacing: 0.04em; border: 1px solid var(--border); color: var(--muted); }
+        .lg-ev.pass { color: var(--success-text); border-color: color-mix(in oklch, var(--success) 40%, var(--border)); background: var(--accent-soft); }
+        .lg-ev.fail { color: #e5484d; border-color: rgba(229, 72, 77, 0.4); background: var(--accent-soft); }
+        .lg-mismatch-line { color: #f5a623; }
 
     /* ─── coverage + cycle analysis ──────────────────────────── */
     .cov-score { display: flex; align-items: center; gap: 14px; }
@@ -765,7 +845,8 @@
           <span class="pill pill-trust" id="stage-trust" hidden><span class="dot"></span>replay</span>
         </div>
       </div>
-      <div class="canvas" id="canvas">
+              <div class="audit-banner" id="stage-audit" hidden data-od-id="stage-audit" aria-live="polite"></div>
+              <div class="canvas" id="canvas">
         <div class="empty-state" id="empty-state" data-od-id="empty-state">
           <div class="empty-state-inner">
             <div class="es-mark">M</div>
@@ -775,7 +856,7 @@
           </div>
         </div>
         <svg id="graph" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="State graph"></svg>
-        <div class="graph-notice" id="graph-notice" hidden data-od-id="graph-notice" aria-live="polite">
+                <div class="graph-notice" id="graph-notice" hidden data-od-id="graph-notice" aria-live="polite">
           <span id="graph-notice-text"></span>
           <button class="notice-close" id="graph-notice-close" aria-label="Dismiss">×</button>
         </div>
@@ -938,6 +1019,19 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="report-modal" hidden>
+    <div class="modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div class="modal-head">
+        <h3 id="report-title">Run Report</h3>
+        <div class="modal-head-actions">
+          <button class="btn btn-ghost" id="btn-copy-report-json">Copy JSON</button>
+          <button class="btn btn-ghost" id="btn-close-report">Close</button>
+        </div>
+      </div>
+      <div class="modal-body" id="report-content"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status"></div>
 
   <script type="module">
@@ -994,7 +1088,7 @@ const $ = id => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
 const clone = x => JSON.parse(JSON.stringify(x));
 const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const MODAL_TRIGGER = { 'spec-modal': 'btn-spec-top', 'compliance-modal': 'btn-compliance' }
+const MODAL_TRIGGER = { 'spec-modal': 'btn-spec-top', 'compliance-modal': 'btn-compliance', 'report-modal': 'btn-view-report' }
 
     function openModal(id) {
       $(id).hidden = false;
@@ -1007,7 +1101,7 @@ function closeModal(id) {
       if (t) t.focus();
     }
 function attachModalTraps() {
-      ['spec-modal', 'compliance-modal'].forEach(id => {
+      ['spec-modal', 'compliance-modal', 'report-modal'].forEach(id => {
         $(id).addEventListener('keydown', e => {
           if (e.key !== 'Tab') return;
           const focusables = Array.from($(id).querySelectorAll('.modal button, .modal input, .modal select, .modal textarea, .modal [href], .modal [tabindex]:not([tabindex="-1"])'));
@@ -1022,7 +1116,9 @@ const NODE_W = 168, NODE_H = 62, PADX = 96, PADY = 112, COLW = 256, ROWGAP = 148
 const MAX_GRAPH_STATES = 40;
 let spacing = 1;
 let machine, stateKey, context, initialSnapshot, history, log, playing, speedMs, scenarioId, loopMode;
-let replayMode = false, replayTrace = [], replayIdx = 0, replayIntegrity = null, replayEnded = false, replayMachineHashOk = null;
+let replayMode = false, replayTrace = [], replayIdx = 0, replayIntegrity = null, replayMachineHashOk = null, replayTerminal = null, replaySource = null, replayReport = null;
+let phaseChildMap = {}; // phase-state key → child_run id (drill-down targets)
+let replayEndState = null; // state where the replayed run ended (drill-up anchor)
 let edgeMap = {}
 , nodeEls = {}
 , nodePos = {}
@@ -1036,7 +1132,7 @@ function enabledEvents() {
       }));
     }
 function isTerminal() {
-      if (replayMode) return replayEnded;
+      if (replayMode) return replayIdx >= replayTrace.length - 1;
       const st = currentState();
       return st.type === 'final' || !hasOutgoing(stateKey);
     }
@@ -1049,8 +1145,15 @@ function updateStatusBadge() {
       if (!machine) return;
       if (replayMode) {
         const p = $('stage-status');
+        const atEnd = replayIdx >= replayTrace.length - 1;
         p.className = 'pill pill-replay';
-        p.innerHTML = '<span class="dot"></span>' + (replayEnded ? 'replay-done' : 'replaying');
+        if (atEnd) {
+          const label = replayTerminal === 'complete' ? 'done' : (replayTerminal === 'stuck' ? 'stuck' : (replayTerminal === 'aborted' ? 'aborted' : (replayTerminal === 'incomplete' ? 'incomplete' : 'replaying')));
+          p.className = 'pill pill-replay' + (label !== 'replaying' ? ' ' + label : '');
+          p.innerHTML = '<span class="dot"></span>replay-' + label;
+        } else {
+          p.innerHTML = '<span class="dot"></span>replay · ' + (replayIdx + 1) + '/' + replayTrace.length;
+        }
         return;
       }
       const final = isTerminal();
@@ -1082,7 +1185,9 @@ function loadMachine(m, scId) {
       machine = m;
       replayMode = false;
             renderTrustBadge(null, null);
-            replayTrace = []; replayIdx = 0; replayIntegrity = null; replayMachineHashOk = null;
+            replayTrace = []; replayIdx = 0; replayIntegrity = null; replayMachineHashOk = null; replayTerminal = null; replaySource = null; replayReport = null;
+                  const banner = $('stage-audit'); if (banner) banner.hidden = true;
+                  phaseChildMap = {}; replayEndState = null;
       generatedScenarios = generateScenarios();
       let sc = generatedScenarios.find(s => s.id === scId);
       if (!sc && generatedScenarios.length) {
@@ -1108,7 +1213,7 @@ function loadMachine(m, scId) {
       applyScenarioSelection();
       persist();
     }
-      function loadReplay(m, ledger, opts) {
+      async function loadReplay(m, ledger, opts, report) {
             // Enter replay mode: consume a recorded run ledger via the engine's
             // replayRunLedger, and render the history/log from the trace. Trust
             // badge reflects replay integrity; stepping walks the recorded trace.
@@ -1116,31 +1221,49 @@ function loadMachine(m, scId) {
             replayMode = true;
             generatedScenarios = [];
             scenarioId = null;
-            const r = replayRunLedger(m, ledger, opts || {});
+                  await ensureRunsIndex(); // so phase-drill child refs + parent pills resolve
+                  const r = replayRunLedger(m, ledger, opts || {});
             replayTrace = r.trace;
-            replayIdx = 0;
-            replayIntegrity = r.integrity;
-            replayMachineHashOk = r.machineHashOk;
-            const initEntry = r.trace[0];
-            const initState = initEntry.type === 'init' ? initEntry.state : (m.initial || null);
-            const initCtx = initEntry.type === 'init' ? initEntry.context : clone(m.context || {});
-            initialSnapshot = { state: initState, context: clone(initCtx) };
-            stateKey = initState;
-            context = clone(initCtx);
-            // history starts with the init snapshot; replay steps append trace entries
-            history = [{ state: stateKey, context: clone(context), replay: true, type: 'init' }];
-            log = [];
-            replayEnded = r.terminal === 'complete' ? true : false;
-            renderTrustBadge(r.integrity, r.machineHashOk);
-            setPlaying(false);
-            showEmptyState();
-            updateFileBar();
-            syncScenarioSelect();
-            renderGraph();
-            updateUI();
-            renderAnalysisPanel();
-            persist();
-          }
+                  replayIntegrity = r.integrity;
+                  replayMachineHashOk = r.machineHashOk;
+                  replayTerminal = r.terminal || null;
+                  replaySource = (opts && opts.runRef) ? { runRef: opts.runRef } : null;
+                        replayReport = report || null;
+                                                // Phase→child map: a transition that leaves a phase records its
+                                                // child_run id. Build it from the trace so phase nodes get a
+                                                // drill-down badge (and the canvas shows a drill-up parent pill).
+                                                phaseChildMap = {};
+                                                for (const e of r.trace) {
+                                                  if (e.child_run && e.from) phaseChildMap[e.from] = e.child_run;
+                                                }
+                                                replayEndState = r.trace.length ? r.trace[r.trace.length - 1].state : null;
+                                                const initEntry = r.trace[0];
+                        const initState = initEntry.type === 'init' ? initEntry.state : (m.initial || null);
+                  const initCtx = initEntry.type === 'init' ? initEntry.context : clone(m.context || {});
+                  initialSnapshot = { state: initState, context: clone(initCtx) };
+                  // Open at the FINAL record — a human auditor wants the result first,
+                  // then can step backwards. Replay stepping still walks the trace.
+                  replayIdx = replayTrace.length - 1;
+                  stateKey = replayTrace[replayIdx].state ?? initState;
+                  context = clone(replayTrace[replayIdx].context ?? initCtx);
+                  history = [{ state: replayTrace[0].state, context: clone(replayTrace[0].context), replay: true, type: 'init' }];
+                  log = [];
+                  for (let k = 1; k <= replayIdx; k++) {
+                    const e = replayTrace[k];
+                    history.push({ state: e.state, context: clone(e.context), replay: true, type: e.type, event: e.event, from: e.from, to: e.to, reason: e.reason, detail: e.detail, evidence: e.evidence, note: e.note, child_run: e.child_run, integrityOk: e.integrityOk, guardMismatch: e.guardMismatch, reevalTo: e.reevalTo });
+                    log.unshift({ index: k, ts: Date.now(), event: e.event || ('*' + e.type.toUpperCase()), from: e.from ?? e.state, to: e.to ?? e.state, replay: true, type: e.type, reason: e.reason, detail: e.detail, note: e.note, child_run: e.child_run, evidence: e.evidence, guardMismatch: e.guardMismatch, reevalTo: e.reevalTo });
+                  }
+                  setPlaying(false);
+                                    renderTrustBadge(r.integrity, r.machineHashOk);
+                                    renderAuditBanner(r, ledger.length);
+                                    showEmptyState();
+                  updateFileBar();
+                  syncScenarioSelect();
+                  renderGraph();
+                  updateUI();
+                  renderAnalysisPanel();
+                  persist();
+                }
       function applyScenario(scId) {
             setPlaying(false);
             resetTo(scId, true);
@@ -1171,11 +1294,17 @@ function setPlaying(on) {
       playing = on;
       if (timer) { clearInterval(timer); timer = null; }
       if (on) {
-        if (!enabledEvents().some(e => e.enabled)) {
-          if (loopMode) restart();
-          else { playing = false; updateUI(); return; }
+        if (replayMode) {
+          // Replay playback: walk the recorded trace record-by-record.
+          if (replayIdx >= replayTrace.length - 1) { playing = false; updateUI(); return; }
+                  timer = setInterval(() => { if (replayIdx >= replayTrace.length - 1) { setPlaying(false); return; } replayAdvance(); }, speedMs);
+        } else {
+          if (!enabledEvents().some(e => e.enabled)) {
+            if (loopMode) restart();
+            else { playing = false; updateUI(); return; }
+          }
+          timer = setInterval(() => fireNext(), speedMs);
         }
-        timer = setInterval(() => fireNext(), speedMs);
       }
       const b = $('btn-play');
       b.classList.toggle('is-playing', playing);
@@ -1184,6 +1313,18 @@ function setPlaying(on) {
         : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg>';
       b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
       updateStatusBadge();
+    }
+function transportNext() {
+      if (replayMode) replayStep();
+      else { setPlaying(false); fireNext(); }
+    }
+function transportBack() {
+      if (replayMode) replayBack();
+      else stepBack();
+    }
+function transportReset() {
+      if (replayMode) replayReset();
+      else resetAll();
     }
 function scenarioNextEvent() {
       const sc = (generatedScenarios || []).find(s => s.id === scenarioId);
@@ -1249,6 +1390,65 @@ function resetAll() {
       setPlaying(false);
       resetTo(scenarioId, false);
     }
+function renderAuditBanner(rep, recordCount) {
+      // Adjudication header for a persisted run: outcome + integrity + path at a
+      // glance, so a human conductor can see "what happened" without hunting.
+      const banner = $('stage-audit');
+      if (!banner || !replayMode) {
+        if (banner) banner.hidden = true;
+        return;
+      }
+      const t = rep.terminal || 'unknown';
+      const chipMap = {
+        complete: ['ok', '✓ complete'],
+        stuck: ['warn', '⚠ stuck'],
+        aborted: ['err', '■ aborted'],
+        incomplete: ['warn', '… incomplete'],
+      };
+      const [chipCls, chipLabel] = chipMap[t] || ['neutral', t];
+      const tampered = !rep.integrity.ok || rep.machineHashOk === false;
+      const verdictLabel = tampered
+        ? '✗ TAMPERED at record ' + rep.integrity.indexOfFirstFailure
+        : (rep.integrity.ok ? '✓ verified' : '? unverified');
+      const path = replayTrace.filter(e => e.state).map(e => e.state);
+      const finalState = path.length ? path[path.length - 1] : '—';
+            const report = replayReport;
+            const parts = [];
+            parts.push(`<span class="audit-runid">${machine.id}</span>`);
+            parts.push(`<span class="audit-chip ${chipCls}">${chipLabel}</span>`);
+            if (report && report.result) {
+                    // A tampered ledger cannot certify the result — never present it as clean.
+                    const rcls = tampered ? 'err' : (report.result === 'SUCCESS' ? 'ok' : (report.result === 'STUCK' ? 'warn' : (report.result === 'ABORTED' ? 'err' : 'violet')));
+                    parts.push(`<span class="audit-chip ${rcls}">${tampered ? '⚠ ' : ''}${report.result}${tampered ? ' (UNVERIFIED)' : ''}</span>`);
+                  }
+                  parts.push(`<span class="audit-kv">integrity <b>${verdictLabel}</b></span>`);
+                  parts.push(`<span class="audit-kv">final <b>${finalState}</b></span>`);
+                  parts.push(`<span class="audit-kv">records <b>${recordCount}</b></span>`);
+                  if (report && typeof report.events === 'number') parts.push(`<span class="audit-kv">events <b>${report.events}</b></span>`);
+                  if (rep.blockedCount) parts.push(`<span class="audit-kv">blocked <b>${rep.blockedCount}</b></span>`);
+                  if (rep.blockedCount === 0 && t === 'complete' && !tampered) parts.push('<span class="audit-chip ok">no blocks</span>');
+                  if (rep.machineMatch === false) parts.push('<span class="audit-chip err">✗ machine-id mismatch</span>');
+                  const started = currentRunStartedAt();
+                  const stTxt = started ? fmtRunStamp(started) : '';
+                  if (stTxt) parts.push(`<span class="audit-kv">started <b>${stTxt}</b></span>`);
+                  const curRunid = (replaySource && replaySource.runRef && replaySource.runRef.split('/').pop()) || (report && report.run_id);
+                  const parents = (curRunid && parentsByRunid.get(curRunid)) || [];
+                  if (parents.length) parts.push(`<span class="rpt-drill audit-drill" data-drill="${escapeHtml(parents[0])}" title="Open parent run">↑ parent</span>`);
+                  parts.push(`<span class="audit-path" title="${path.join(' → ')}">${path.join(' → ') || '—'}</span>`);
+                  if (report) parts.push(`<button type="button" class="btn btn-secondary btn-sm" id="btn-view-report" data-od-id="view-report">Report</button>`);
+                  banner.innerHTML = parts.join('');
+                  banner.hidden = false;
+                  banner.dataset.runRef = (replaySource && replaySource.runRef) || '';
+                  const rbtn = $('btn-view-report');
+                  if (rbtn) rbtn.addEventListener('click', openReport);
+                  banner.querySelectorAll('[data-drill]').forEach(sp => {
+                    sp.addEventListener('click', (ev) => {
+                      ev.stopPropagation();
+                      const ref = sp.dataset.drill;
+                      if (ref) openRun(ref);
+                    });
+                  });
+                }
 function renderTrustBadge(integrity, machineHashOk) {
       const b = $('stage-trust');
       if (!replayMode || !integrity) { if (b) b.hidden = true; return; }
@@ -1266,18 +1466,27 @@ function renderTrustBadge(integrity, machineHashOk) {
         ? 'SHA-256 chain + machine_sha256 verified'
         : 'Integrity failed at record ' + integrity.indexOfFirstFailure + (integrity.failureKind ? ' (' + integrity.failureKind + ')' : '');
     }
-function replayStep() {
+function replayAdvance() {
+      // Core replay stepping for the play timer — must NOT pause playback, or
+      // the timer self-cancels after the first record.
       if (!replayMode || !replayTrace.length) return;
-      if (replayIdx >= replayTrace.length - 1) { toast('Replay: already at the final record', false); return; }
-      setPlaying(false);
+      if (replayIdx >= replayTrace.length - 1) return;
       replayIdx++;
       const e = replayTrace[replayIdx];
-      history.push({ state: e.state, context: clone(e.context), replay: true, type: e.type, event: e.event, from: e.from, to: e.to, reason: e.reason, detail: e.detail, evidence: e.evidence, note: e.note, child_run: e.child_run, integrityOk: e.integrityOk });
+      history.push({ state: e.state, context: clone(e.context), replay: true, type: e.type, event: e.event, from: e.from, to: e.to, reason: e.reason, detail: e.detail, evidence: e.evidence, note: e.note, child_run: e.child_run, integrityOk: e.integrityOk, guardMismatch: e.guardMismatch, reevalTo: e.reevalTo });
       if (e.state) { stateKey = e.state; }
       if (e.context) { context = clone(e.context); }
-      log.unshift({ ts: Date.now(), event: e.event || ('*' + e.type.toUpperCase()), from: e.from ?? e.state, to: e.to ?? e.state, replay: true, type: e.type, reason: e.reason, detail: e.detail, note: e.note, child_run: e.child_run });
+      log.unshift({ index: e.index, ts: Date.now(), event: e.event || ('*' + e.type.toUpperCase()), from: e.from ?? e.state, to: e.to ?? e.state, replay: true, type: e.type, reason: e.reason, detail: e.detail, note: e.note, child_run: e.child_run, evidence: e.evidence, guardMismatch: e.guardMismatch, reevalTo: e.reevalTo });
       updateUI();
       persist();
+      if (replayIdx >= replayTrace.length - 1 && playing) setPlaying(false);
+    }
+function replayStep() {
+      // Manual single-step (button / arrow key): pause playback first, then step.
+      if (!replayMode || !replayTrace.length) return;
+      if (replayIdx >= replayTrace.length - 1) { toast('Replay: already at the final record', false); return; }
+      if (playing) setPlaying(false);
+      replayAdvance();
     }
 function replayBack() {
       if (!replayMode || history.length <= 1) { toast('Replay: at the beginning', false); return; }
@@ -1318,7 +1527,7 @@ function replayJump(i) {
       const cur = replayTrace[replayIdx];
       stateKey = cur.state;
       context = clone(cur.context);
-      log.unshift({ ts: Date.now(), event: 'JUMP#' + replayIdx, from: stateKey, to: stateKey, replay: true });
+            log.unshift({ index: replayIdx, ts: Date.now(), event: 'JUMP#' + replayIdx, from: stateKey, to: stateKey, replay: true, evidence: cur.evidence, guardMismatch: cur.guardMismatch, reevalTo: cur.reevalTo, note: cur.note, detail: cur.detail });
       updateUI();
     }
 function computeLayout(statesList) {
@@ -1508,7 +1717,43 @@ function renderGraph() {
         const sub = el('text', { class: 'sub', x: 0, y: 20 }, g);
         sub.textContent = st.type === 'final' ? 'final' : (nOut + ' event' + (nOut === 1 ? '' : 's'));
         if (st.description) el('title', null, g).textContent = st.description;
-        g.addEventListener('click', e => { e.stopPropagation(); jumpToState(key); });
+                // Drill-down: a PHASE state that delegated to a child run gets a clickable
+                // badge — opening the child run in the stage (drill-down into the machine
+                // that actually executed inside this state).
+                if (replayMode && phaseChildMap[key]) {
+                  const childId = phaseChildMap[key];
+                  const childRef = runsByRunid.get(childId);
+                  const d = el('g', { class: 'node-drill', transform: `translate(0,${32})` }, g);
+                  d.setAttribute('role', 'button');
+                  d.setAttribute('tabindex', '0');
+                  d.setAttribute('aria-label', 'Open child run ' + (childRef || childId) + (childRef ? '' : ' (not in inventory)'));
+                  el('rect', { class: 'node-drill-bg', x: -30, y: -9, width: 60, height: 18, rx: 9 }, d);
+                  const dt = el('text', { class: 'node-drill-txt', x: 0, y: 3, 'text-anchor': 'middle' }, d);
+                  dt.textContent = childRef ? '↳ ' + childId.slice(0, 6) + ' ↓' : '↳ child ?';
+                  el('title', null, d).textContent = childRef ? 'Drill down: open child run ' + childRef : 'Child run ' + childId + ' not in inventory';
+                  d.addEventListener('click', e => { e.stopPropagation(); if (childRef) openRun(childRef); else toast('Child run not in inventory', true); });
+                  d.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (childRef) openRun(childRef); } });
+                }
+                                // Drill-up: when the replayed run is itself a child (phase delegation),
+                                // pin an ↑ parent badge to the run's terminal node — mirroring how the
+                                // parent's phase node carries the ↳ child badge.
+                                if (replayMode && key === replayEndState) {
+                                  const runid = (replaySource && replaySource.runRef && replaySource.runRef.split('/').pop()) || (replayReport && replayReport.run_id);
+                                  const parentRefs = (runid && parentsByRunid.get(runid)) || [];
+                                  if (parentRefs.length) {
+                                    const up = el('g', { class: 'node-drill node-drill-up', transform: `translate(0,${NODE_H / 2 + 14})` }, g);
+                                    up.setAttribute('role', 'button');
+                                    up.setAttribute('tabindex', '0');
+                                    up.setAttribute('aria-label', 'Open parent run ' + parentRefs[0]);
+                                    el('rect', { class: 'node-drill-bg', x: -34, y: -9, width: 68, height: 18, rx: 9 }, up);
+                                    const ut = el('text', { class: 'node-drill-txt', x: 0, y: 3, 'text-anchor': 'middle' }, up);
+                                    ut.textContent = '↑ parent';
+                                    el('title', null, up).textContent = parentRefs.length === 1 ? 'Drill up: open parent run ' + parentRefs[0] : 'Drill up: ' + parentRefs.length + ' parents (' + parentRefs.join(', ') + ')';
+                                    up.addEventListener('click', e => { e.stopPropagation(); openRun(parentRefs[0]); });
+                                    up.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openRun(parentRefs[0]); } });
+                                  }
+                                }
+                                g.addEventListener('click', e => { e.stopPropagation(); jumpToState(key); });
         g.addEventListener('keydown', e => nodeKeydown(e, key));
         nodeEls[key] = g;
       }
@@ -1701,12 +1946,12 @@ function updateUI() {
 
       updateStatusBadge();
 
-      renderStateCard();
-      renderContext();
-      renderEvents();
-      renderLog();
-    }
-function renderStateCard() {
+                  renderStateCard();
+                  renderContext();
+                  renderEvents();
+                  renderLog();
+                }
+      function renderStateCard() {
       const st = currentState();
       const type = st.type === 'final' ? 'final state' : 'atomic state';
       $('insp-state').innerHTML =
@@ -1771,10 +2016,46 @@ function renderLog() {
           }
           if (e.detail) p.setAttribute('title', e.detail);
           ev.classList.add(e.type === 'blocked' ? 'lg-blocked' : (e.type === 'redirect' ? 'lg-redirect' : ''));
+          // Narrative extension: guard deviation + evidence + agent note, so a
+          // human auditor sees *why* each record happened, not just the hop.
+          const detail = document.createElement('span');
+          detail.className = 'lg-detail';
+          if (e.guardMismatch) {
+            const mm = document.createElement('div');
+            mm.className = 'lg-mismatch-line';
+            mm.textContent = `⚑ spec re-eval disagrees: recorded ${e.to} vs expected ${e.reevalTo === undefined ? '?': e.reevalTo}`;
+            detail.appendChild(mm);
+          }
+          if (Array.isArray(e.evidence) && e.evidence.length) {
+            const evd = document.createElement('span');
+            evd.className = 'lg-evidence';
+            e.evidence.forEach(evr => {
+              const c = document.createElement('span');
+              c.className = 'lg-ev ' + (evr.passed ? 'pass' : 'fail');
+              c.textContent = (evr.passed ? '✓' : '✗') + ' ' + (evr.tool || '?');
+              c.title = evr.output || evr.error || '';
+              evd.appendChild(c);
+            });
+            detail.appendChild(evd);
+          }
+          if (e.note) {
+            const n = document.createElement('div');
+            n.className = 'lg-note';
+            n.textContent = '「' + e.note + '」';
+            detail.appendChild(n);
+          }
+                    li.appendChild(t); li.appendChild(ev); li.appendChild(p);
+                    if (detail.childNodes.length) {
+                      const wrap = document.createElement('div');
+                      wrap.style.flex = '1 1 100%';
+                      li.style.flexWrap = 'wrap';
+            wrap.appendChild(detail);
+            li.appendChild(wrap);
+          }
         } else {
           p.textContent = e.event === 'BACK' ? '↩ ' + e.to : (e.event === 'JUMP' ? '↪ ' + e.to : `${e.from} → ${e.to}`);
-        }
-        li.appendChild(t); li.appendChild(ev); li.appendChild(p);
+                    li.appendChild(t); li.appendChild(ev); li.appendChild(p);
+                  }
         ol.appendChild(li);
       });
     }
@@ -2168,6 +2449,9 @@ function toast(text, isErr) {
       clearTimeout(t._t);
       t._t = setTimeout(() => t.className = 'toast', 2000);
     }
+function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
 function openSpec() { renderSpecBrowser(LATEST_SPEC_VERSION); openModal('spec-modal'); }
 function closeSpec() { closeModal('spec-modal'); }
 const TAB_PANELS = {
@@ -2467,6 +2751,113 @@ function applyPatches(items) {
       if (m) m.focus({ preventScroll: true });
       toast('Applied ' + items.length + ' change(s) — unsaved. Review and save.');
     }
+async function openReport() {
+      // Terminal report (machina.report.v1) viewer for the current replay run.
+      if (!replayMode || !replayReport) { toast('No report for this run', true); return; }
+      // Ensure the drill indexes are populated even if the Runs tab wasn't opened.
+      if (!runsIndex.length) {
+        try {
+          const res = await fetch('/runs');
+          if (res.ok) { const body = await res.json(); if (body.ok) indexRuns(body.runs || []); }
+        } catch (e) {}
+      }
+      renderReport();
+      openModal('report-modal');
+    }
+function closeReport() { closeModal('report-modal'); }
+function rptHelp(text) {
+  // "How to read this report" guide line rendered under a section.
+  return '<div class="rpt-help">' + text + '</div>';
+}
+function renderReport() {
+      const box = $('report-content');
+      const rep = replayReport;
+      if (!rep) { box.innerHTML = '<div class="empty">No report.json for this run.</div>'; return; }
+            // Tamper awareness: a tampered ledger cannot certify the recorded result.
+            const tampered = !!(replayIntegrity && !replayIntegrity.ok);
+            const resultCls = tampered ? 'err' : (rep.result === 'SUCCESS' ? 'ok' : (rep.result === 'STUCK' ? 'warn' : (rep.result === 'ABORTED' ? 'err' : 'violet')));
+            const resultLabel = tampered ? (rep.result || 'UNKNOWN') + ' · UNVERIFIED' : (rep.result || 'UNKNOWN');
+            const path = Array.isArray(rep.path) ? rep.path : [];
+            const ev = rep.evidence || {};
+            let html = '';
+            if (tampered) {
+              html += '<div class="limit-note" style="border-color:rgba(229,72,77,0.5); color:#e5484d; background:color-mix(in oklch, #e5484d 10%, transparent);">⚠️ <b>TAMPERED LEDGER</b> — the SHA-256 chain failed at record ' + (replayIntegrity && replayIntegrity.indexOfFirstFailure != null ? replayIntegrity.indexOfFirstFailure : '?') + ' (' + (replayIntegrity && replayIntegrity.failureKind || 'integrity') + '). This report is <b>UNVERIFIED</b> and must not be treated as a trustworthy SUCCESS.</div>';
+            }
+            html += `<div class="rpt-result ${resultCls}">${escapeHtml(resultLabel)}</div>`;
+                        html += rptHelp('The <b>result</b> is the terminal disposition the driver recorded: <code>SUCCESS</code> means the run reached a final state, <code>STUCK</code> means it halted with no enabled events, <code>ABORTED</code> means it was closed early, and <code>IN_PROGRESS</code> means it was still active when the report was emitted. ' + (tampered ? 'Here it is flagged <b>UNVERIFIED</b> because the ledger failed verification — treat it with suspicion.' : 'Cross-check it against the integrity badge (✓ verified) and the path below.'));
+                        const started = currentRunStartedAt() || fmtRunStamp(replayTrace[0] && replayTrace[0].context && null);
+                        html += `<div class="rpt-section"><h4>Run</h4><div class="rpt-grid">`;
+                        const kpis = [
+                          ['Machine', rep.machine_id ?? '—'],
+                          ['Run id', rep.run_id ?? '—'],
+                          ['Started', started || '—'],
+                          ['Final state', rep.final_state ?? '—'],
+                          ['Events', rep.events ?? 0],
+                          ['Redirects', rep.redirects ?? 0],
+                          ['Blocked', rep.blocked_events ?? 0],
+                          ['Evidence ✓', ev.passed ?? 0],
+                    ['Evidence ✗', ev.failed ?? 0],
+                  ];
+                  kpis.forEach(([k, v]) => {
+                    html += `<div class="rpt-kpi"><div class="rpt-kpi-k">${escapeHtml(k)}</div><div class="rpt-kpi-v">${escapeHtml(String(v))}</div></div>`;
+                  });
+                  html += '</div><div class="rpt-help">Counts come from the driver: <b>Events</b> transitions fired, <b>Redirects</b> guard-driven else-targets taken, <b>Blocked</b> attempted fires that were rejected, and <b>Evidence ✓/✗</b> how many tool checks passed vs failed along the way.</div></div>';
+      if (path.length) {
+              html += '<div class="rpt-section"><h4>Path</h4><div class="rpt-help">The sequence of states this run walked through, in order. The <b>highlighted</b> stop is the final state the run landed on — compare it with the <b>result</b> above.</div><div class="rpt-path">';
+        path.forEach((s, i) => {
+          if (i) html += '<span class="rpt-sep">→</span>';
+          const final = i === path.length - 1;
+          html += `<span class="rpt-stop${final ? ' final' : ''}">${escapeHtml(s)}</span>`;
+        });
+        html += '</div></div>';
+      }
+      const notes = Array.isArray(rep.agent_notes) ? rep.agent_notes : [];
+      if (notes.length) {
+                    html += '<div class="rpt-section"><h4>Agent timeline</h4><div class="rpt-help">What the driving agent reported at each step: the <b>event</b> it fired and the <b>note</b> it attached (its own description of the action taken). These notes are the agent-facing narrative of the run.</div><div class="rpt-notes">';
+        notes.forEach(n => {
+          html += `<div class="rpt-note"><span class="rpt-note-ev">${escapeHtml(n.event || '')}</span><span class="rpt-note-tx">「${escapeHtml(n.note || '')}」</span></div>`;
+        });
+        html += '</div></div>';
+      }
+      const ctx = rep.context_snapshot;
+      if (ctx && typeof ctx === 'object' && Object.keys(ctx).length) {
+              html += '<div class="rpt-section"><h4>Context snapshot</h4><div class="rpt-help">The machine <b>context</b> (inputs and accumulated action results) as it stood when the run ended — useful for verifying why a guard passed or blocked a transition.</div><table class="rpt-ctx">';
+        Object.keys(ctx).forEach(k => {
+          const v = ctx[k];
+          html += `<tr><td class="rpt-ctx-k">${escapeHtml(k)}</td><td class="rpt-ctx-v">${escapeHtml(typeof v === 'string' ? v : JSON.stringify(v))}</td></tr>`;
+        });
+        html += '</table></div>';
+      }
+      const nested = Array.isArray(rep.nested_runs) ? rep.nested_runs.filter(Boolean) : [];
+            // Drill-down: each nested run becomes a clickable chip that opens the child
+            // run in the stage (resolved via the inventory by runid).
+            if (nested.length) {
+                          html += '<div class="rpt-section"><h4>Nested runs · drill down</h4><div class="rpt-help">This run delegated work to child machine(s) (phase states). Click a child id to open and replay that run in the stage.</div><div class="rpt-nested">' + nested.map(cid => {
+                const cRef = runsByRunid.get(cid);
+                const href = cRef ? ` data-drill="${cRef}"` : '';
+                return `<span class="rpt-drill"${href} data-runid="${escapeHtml(cid)}" title="${cRef ? 'Open child run ' + cRef : 'child not in inventory'}">↳ ${escapeHtml(cid)}${cRef ? ' ⤵' : ''}</span>`;
+              }).join('') + '</div></div>';
+            }
+            // Drill-up: which parent runs reference this one as a child?
+            const parents = (rep.run_id && parentsByRunid.get(rep.run_id)) || [];
+            if (parents.length) {
+                          html += '<div class="rpt-section"><h4>Parent run · drill up</h4><div class="rpt-help">This run was driven as a <b>child</b> inside a parent run phase state. Click a parent to jump back to its run.</div><div class="rpt-nested">' + parents.map(pRef =>
+                `<span class="rpt-drill" data-drill="${escapeHtml(pRef)}" title="Open parent run ${pRef}">↑ ${escapeHtml(pRef)}</span>`
+              ).join('') + '</div></div>';
+            }
+            if (rep.ledger_final_hash) {
+                          html += `<div class="rpt-section"><h4>Ledger hash</h4><div class="rpt-help">SHA-256 of the final ledger record — a tamper-evident fingerprint binding this report to the exact recorded run it summarizes.</div><div class="rpt-hash">${escapeHtml(rep.ledger_final_hash)}</div></div>`;
+            }
+                        html += '<div class="rpt-section"><h4>Raw JSON</h4><div class="rpt-help">The literal <code>machina.report.v1</code> payload emitted by the driver — use <b>Copy JSON</b> for archival or programmatic analysis.</div><div class="rpt-raw"><pre class="code-block">' + escapeHtml(JSON.stringify(rep, null, 2)) + '</pre></div></div>';
+            box.innerHTML = html;
+            box.querySelectorAll('[data-drill]').forEach(sp => {
+              sp.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const ref = sp.dataset.drill;
+                if (ref) { closeReport(); openRun(ref); }
+              });
+            });
+          }
 function speedToMs(v) { return Math.round(1400 - (v - 1) * 130); }
 function bind() {
       attachModalTraps();
@@ -2481,9 +2872,9 @@ function bind() {
       $('modeb-hint-close').addEventListener('click', () => { $('modeb-hint').hidden = true; });
       $('spec-modal').addEventListener('click', e => { if (e.target === $('spec-modal')) closeSpec(); });
       $('btn-play').addEventListener('click', () => setPlaying(!playing));
-      $('btn-next').addEventListener('click', () => { setPlaying(false); fireNext(); });
-      $('btn-back').addEventListener('click', stepBack);
-      $('btn-reset').addEventListener('click', resetAll);
+            $('btn-next').addEventListener('click', transportNext);
+            $('btn-back').addEventListener('click', transportBack);
+            $('btn-reset').addEventListener('click', transportReset);
       $('btn-loop').addEventListener('click', toggleLoop);
       $('btn-shuffle').addEventListener('click', shuffleNow);
       $('btn-gen-scenarios').addEventListener('click', runGeneration);
@@ -2494,6 +2885,15 @@ function bind() {
       $('btn-compliance').addEventListener('click', openCompliance);
       $('btn-close-compliance').addEventListener('click', closeCompliance);
       $('compliance-modal').addEventListener('click', e => { if (e.target === $('compliance-modal')) closeCompliance(); });
+            $('btn-close-report').addEventListener('click', closeReport);
+            $('btn-copy-report-json').addEventListener('click', () => {
+              if (!replayReport) { toast('No report for this run', true); return; }
+              const done = () => toast('Report JSON copied to clipboard');
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(JSON.stringify(replayReport, null, 2)).then(done).catch(() => legacyCopy(JSON.stringify(replayReport, null, 2), done));
+              } else legacyCopy(JSON.stringify(replayReport, null, 2), done);
+            });
+            $('report-modal').addEventListener('click', e => { if (e.target === $('report-modal')) closeReport(); });
       document.querySelectorAll('.tab').forEach(t => {
         t.addEventListener('click', () => setActiveTab(t.dataset.tab));
       });
@@ -2563,14 +2963,15 @@ function bind() {
         if (e.key === 'Escape') {
           if (!$('spec-modal').hidden) closeSpec();
           if (!$('compliance-modal').hidden) closeCompliance();
-          return;
-        }
-        if (!$('spec-modal').hidden || !$('compliance-modal').hidden) return;
+                  if (!$('report-modal').hidden) closeReport();
+                  return;
+                }
+                if (!$('spec-modal').hidden || !$('compliance-modal').hidden || !$('report-modal').hidden) return;
         const t = e.target;
         if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'BUTTON')) return;
         if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
-        else if (e.code === 'ArrowRight') { setPlaying(false); fireNext(); }
-        else if (e.code === 'ArrowLeft') stepBack();
+                else if (e.code === 'ArrowRight') { setPlaying(false); transportNext(); }
+                else if (e.code === 'ArrowLeft') transportBack();
       });
       speedMs = speedToMs(5);
       $('speed-val').textContent = speedMs + 'ms';
@@ -2593,6 +2994,59 @@ syncScenarioSelect();
 /* ── run history panel ─────────────────────────────────────── */
 const runsList = $('runs-list');
 const runsMeta = $('runs-meta');
+// Global index of discovered runs → runRef lookup + parent/child drill maps.
+let runsIndex = [];            // every discovered run row
+const runsByRunid = new Map(); // runid → runRef (family/runid)
+const parentsByRunid = new Map(); // runid → [parent runRef...]
+function indexRuns(runs) {
+  runsIndex = runs || [];
+  runsByRunid.clear();
+  parentsByRunid.clear();
+  for (const r of runsIndex) {
+    const ref = r.family + '/' + r.runid;
+    if (!runsByRunid.has(r.runid)) runsByRunid.set(r.runid, ref);
+    if (Array.isArray(r.childRuns) && r.childRuns.length) {
+      for (const cid of r.childRuns) {
+        if (!parentsByRunid.has(cid)) parentsByRunid.set(cid, []);
+        parentsByRunid.get(cid).push(ref);
+      }
+    }
+  }
+}
+function fmtRunStamp(s) {
+  // Normalize a ledger ISO timestamp to a compact local "YYYY-MM-DD HH:mm" (UTC).
+  if (!s) return '';
+  const t = new Date(s);
+  if (isNaN(t.getTime())) return String(s);
+  const p = (n) => String(n).padStart(2, '0');
+  return t.toISOString().slice(0, 10) + ' ' + p(t.getUTCHours()) + ':' + p(t.getUTCMinutes());
+}
+function currentRunStartedAt() {
+  const ref = replaySource && replaySource.runRef;
+  if (!ref) return null;
+  const cur = runsIndex.find(r => (r.family + '/' + r.runid) === ref);
+  return cur ? (cur.startedAt || null) : null;
+}
+function ensureRunsIndex() {
+  return new Promise((resolve) => {
+    if (runsIndex.length) return resolve();
+    fetch('/runs').then(r => r.json()).then(body => {
+      if (body && body.ok) indexRuns(body.runs || []);
+    }).catch(() => {}).finally(resolve);
+  });
+}
+function outcomeChip(r) {
+  // Outcome + integrity chip for a run row (adjudication at a glance).
+  const t = r.terminal;
+  const tampered = r.integrityOk === false;
+  if (tampered && t === 'complete') return '<span class="run-chip err">✗ tampered</span>';
+  if (tampered) return '<span class="run-chip err">✗ tampered</span>';
+  if (t === 'complete') return '<span class="run-chip ok">' + (r.terminal === 'complete' ? '✓ complete' : '?') + '</span>';
+  if (t === 'stuck') return '<span class="run-chip warn">⚠ stuck</span>';
+  if (t === 'aborted') return '<span class="run-chip err">■ aborted</span>';
+  if (t === 'incomplete') return '<span class="run-chip violet">… incomplete</span>';
+  return '<span class="run-chip neutral">? unknown</span>';
+}
 async function refreshRuns() {
   if (!runsList || !runsMeta) return;
   runsMeta.textContent = 'Scanning persisted run history…';
@@ -2602,9 +3056,11 @@ async function refreshRuns() {
     const body = await res.json();
     if (!body.ok) throw new Error(body.error || 'unknown error');
     const runs = body.runs || [];
-    runsMeta.textContent = runs.length === 0
-      ? 'No persisted runs found'
-      : runs.length + ' persisted run' + (runs.length === 1 ? '' : 's') + ' discovered';
+        indexRuns(runs);
+        const completeCount = runs.filter(r => r.terminal === 'complete').length;
+        runsMeta.textContent = runs.length === 0
+          ? 'No persisted runs found'
+          : runs.length + ' persisted run' + (runs.length === 1 ? '' : 's') + ' · ' + completeCount + ' complete';
     runsList.innerHTML = '';
     if (!runs.length) {
       const empty = document.createElement('div');
@@ -2613,24 +3069,73 @@ async function refreshRuns() {
       runsList.appendChild(empty);
       return;
     }
+    // Group by family (test-case / session container) with an aggregate line.
+    const byFamily = new Map();
     for (const r of runs) {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'run-item' + (r.readError ? ' run-item-error' : '');
-      const runidEl = document.createElement('span');
-      runidEl.className = 'run-item-runid';
-      runidEl.textContent = r.family + '/' + r.runid;
-      const metaEl = document.createElement('span');
-      metaEl.className = 'run-item-meta';
-      metaEl.textContent = (r.machine || 'no machine.json') + ' · ' + r.records + ' rec' + (r.readError ? ' · unreadable' : '');
-      row.appendChild(runidEl);
-      row.appendChild(metaEl);
-      row.dataset.runRef = r.family + '/' + r.runid;
-      if (selectedRunRef === row.dataset.runRef) row.classList.add('selected');
-      if (!r.readError) {
-        row.addEventListener('click', () => openRun(r.family + '/' + r.runid));
+      if (!byFamily.has(r.family)) byFamily.set(r.family, []);
+      byFamily.get(r.family).push(r);
+    }
+    for (const [family, familyRuns] of byFamily) {
+      const famWrap = document.createElement('div');
+      famWrap.className = 'run-family';
+      const head = document.createElement('div');
+      head.className = 'run-family-head';
+      const name = document.createElement('span');
+      name.className = 'run-family-name';
+      name.textContent = family;
+      const meta = document.createElement('span');
+      meta.className = 'run-family-meta';
+      const done = familyRuns.filter(r => r.terminal === 'complete').length;
+      const stuck = familyRuns.filter(r => r.terminal === 'stuck' || r.terminal === 'incomplete').length;
+      const tampered = familyRuns.filter(r => r.integrityOk === false).length;
+      meta.textContent = familyRuns.length + ' run' + (familyRuns.length === 1 ? '' : 's') + ' · ' + done + ' ✓' + (stuck ? ' · ' + stuck + ' stuck' : '') + (tampered ? ' · ' + tampered + ' tampered' : '');
+      head.appendChild(name); head.appendChild(meta);
+      famWrap.appendChild(head);
+      for (const r of familyRuns) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'run-item' + (r.readError ? ' run-item-error' : '');
+        const line = document.createElement('span');
+        line.className = 'run-row-line';
+        const runidEl = document.createElement('span');
+        runidEl.className = 'run-item-runid';
+        runidEl.textContent = r.runid;
+        const chips = document.createElement('span');
+        chips.className = 'run-chip-holder';
+        chips.innerHTML = outcomeChip(r);
+        line.appendChild(runidEl); line.appendChild(chips);
+        const metaEl = document.createElement('span');
+        metaEl.className = 'run-item-meta';
+                metaEl.textContent = (r.machineName || r.machine || 'no machine') + ' · ' + r.records + ' rec' + (r.startedAt ? ' · ' + fmtRunStamp(r.startedAt) : '') + (r.readError ? ' · unreadable' : '');
+        row.appendChild(line);
+        row.appendChild(metaEl);
+        if (r.childRuns && r.childRuns.length) {
+          const cl = document.createElement('span');
+          cl.className = 'run-item-meta';
+                  cl.style.cursor = 'pointer';
+                  cl.innerHTML = '→ child: ' + r.childRuns.map(cid => {
+                    const cRef = runsByRunid.get(cid);
+                    const attrs = cRef ? ` data-drill="${cRef}"` : '';
+                    return `<span class="drill-link"${attrs} data-runid="${cid}" title="${cRef ? 'Open child run ' + cRef : 'child not in inventory'}">${cid}</span>`;
+                  }).join(', ');
+                  cl.querySelectorAll('.drill-link').forEach(sp => {
+                    sp.addEventListener('click', (ev) => {
+                      ev.stopPropagation();
+                      const ref = sp.dataset.drill;
+                      if (ref) openRun(ref);
+                      else toast('Child run not in inventory', true);
+                    });
+                  });
+                  row.appendChild(cl);
+                }
+        row.dataset.runRef = r.family + '/' + r.runid;
+        if (selectedRunRef === row.dataset.runRef) row.classList.add('selected');
+        if (!r.readError) {
+          row.addEventListener('click', () => openRun(r.family + '/' + r.runid));
+        }
+        famWrap.appendChild(row);
       }
-      runsList.appendChild(row);
+      runsList.appendChild(famWrap);
     }
   } catch (err) {
     runsMeta.textContent = 'Run-history scan failed: ' + (err.message || err);
@@ -2670,7 +3175,7 @@ const __extBridge = (() => {
     try { d = JSON.parse(e.data); } catch (err) { return; }
     if (!d) return;
     if (d.type === 'load' && d.machine) {
-          if (d.replay && Array.isArray(d.replay.ledger)) loadReplay(d.machine, d.replay.ledger, { diffReeval: true });
+              if (d.replay && Array.isArray(d.replay.ledger)) loadReplay(d.machine, d.replay.ledger, { diffReeval: true, machineJson: d.replay.machineJson, runRef: d.replay.runRef }, d.report);
           else loadMachine(d.machine);
         }
         else if (d.type === 'command') {
