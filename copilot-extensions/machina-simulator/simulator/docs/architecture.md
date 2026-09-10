@@ -105,20 +105,34 @@ Transport semantics:
   **TAMPERED at record N** (red), or **machine-hash unverified** (raw text missing).
 - Blocked/redirect records render distinctly in the log (`↯ blocked` / `⇀ redirect`);
   blocked carries reason/evidence/note; child_run appears as a nested badge.
-- Non-terminal runs render `replaying`/`replay-done` via `isTerminal()` consulting
-  `replayEnded` (which is `r.terminal === 'complete'`).
-- Navigation: `replayStep()` / `replayBack()` / `replayReset()` / `replayJump(i)` walk
-  the recorded trace (commands `replayStep`/`replayBack`/`replayReset`/`replayJump`
-  over SSE).
+- Non-terminal runs render the **terminal disposition** (`replay-done` / `replay-stuck` /
+  `replay-aborted` / `replay-incomplete`) via `replayTerminal`; the badge also shows
+  record progress (`replay · n/N`) while stepping mid-trace, and the audit banner
+  (`#stage-audit`) summarizes outcome + integrity + path on open.
+- Replay opens **at the final record** (jump-to-end default) so the conductor lands on
+  the result, then steps backwards; transport buttons and arrow keys dispatch to
+  `replayStep()`/`replayBack()`/`replayReset()` when `replayMode` (replay-aware), and
+  the bridge commands `replayStep`/`replayBack`/`replayReset`/`replayJump` walk the trace.
+- Opening a persisted run also exposes **canvas drill navigation**: phase states that
+  delegated to a child run get a clickable `↳ child` badge on their graph node
+  (drill-down loads the child run), and when the replayed run is itself a child, its
+  **terminal node** carries a sticky `↑ parent` badge (drill-up reloads the parent).
+  Both require the run inventory (`runsByRunid` / `parentsByRunid`), lazily ensured by
+  `loadReplay` on demand.
 - `diffReeval` guards are re-evaluated against context-before per record; a
-  `guardMismatch` surfaces divergence between what happened and what the machine says.
+  `guardMismatch` surfaces divergence between what happened and what the machine says
+  (rendered inline in the log as a ⚑ spec-disagreement line).
 
 ## Run history panel (Runs tab)
 
 The **Runs** tab surfaces persisted run history with zero `runRef` plumbing:
 
-- On app bootstrap it fetches `/runs` (lean inventory from `discovery.mjs`) and renders a
-  row per run (family/runid, machine id, record count); unreadable runs render greyed.
+- On app bootstrap it fetches `/runs` (inventory from `discovery.mjs`, enriched by the
+  extension's `probeRun`: terminal disposition, integrity verdict, final state, blocked
+  count, machine match, child-run refs). Runs are grouped **by family** with a
+  family-level aggregate (e.g. "2 runs · 2 ✓"), and each row carries an **outcome chip**
+  (✓ complete / ⚠ stuck / ■ aborted / … incomplete / ✗ tampered) plus child-run links;
+  unreadable runs render greyed.
 - **Refresh** re-runs the discovery scan; clicking a run calls
   `/open-run?instance=…&runRef=<family>/<runid>`, which resolves the run server-side,
   enters replay, and broadcasts the same `load` event the stage consumes — so the run

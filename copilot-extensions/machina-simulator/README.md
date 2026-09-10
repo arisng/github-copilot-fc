@@ -67,7 +67,7 @@ The extension runs a loopback HTTP server (bound to `127.0.0.1`) that serves:
 | `/machine-simulator.mjs` | `machine-simulator.mjs` — the shared compliance/scoring/autofill engine |
 | `/events` | SSE stream carrying `machina` events (`{type:'load'}` with a state machine, or `{type:'command'}` for playback) |
 | `/state` | JSON snapshot of the loaded state machine + compliance summary for an instance; also exposes `runHistory` (auto-discovered run inventory) and `replay` (verdict, integrity, terminal) |
-| `/runs` | JSON run-history inventory: `{ ok, runs: [{ family, runid, machine, records, readError }] }` from the shared discovery convention |
+| `/runs` | JSON run-history inventory: `{ ok, runs: [{ root, family, runid, machine, machineName, records, readError, terminal, verdict, integrityOk, finalState, blockedCount, machineMatch, childRuns, report, startedAt }] }` from the shared discovery convention |
 | `/open-run` | `?instance=<id>&runRef=<family>/<runid>` — resolve a persisted run server-side, enter replay mode, and broadcast the replay `load` event to the app |
 
 The canvas `open` handler returns the app URL; the `machina_load` action live-loads
@@ -87,9 +87,12 @@ the SHA-256 chain:
 | Input | `machine` (definition) + `ledger` (array of `{prev_hash, payload, hash}` records: `init`/`transition`/`blocked`/`redirect`/`abort`) |
 | Integrity | Recomputes the Python-canonical hash chain; when `machineJson` (raw machine.json text) is passed, also verifies the pinned `machine_sha256` (sha256 of the parsed machine in Python-canonical form, lexeme-preserving). Verdict `verifiable` / `tampered` with `indexOfFirstFailure`, `expectedHash`, `actualHash`; `machineHashOk` is `true` / `false` / `null` (null = not verified because raw text wasn't provided). |
 | Terminality | `terminal: complete` / `stuck` (blocked-final) / `aborted` / `incomplete` — non-terminal runs are surfaced, not silently "complete" |
-| Evidence | Blocked records carry `reason` + `evidence[]` + `note`; transition records carry `child_run` (nested-badge renders the delegation) |
+| Evidence | Blocked records carry `reason` + `evidence[]` + `note`; transition records carry `child_run` (nested-badge renders the delegation). The app's log timeline renders these inline: evidence chips (✓/✗ tool), the agent's `note` («…»), and a ⚑ **spec-disagreement** line when `guardMismatch` fires |
 | Diff | `diffReeval` re-evaluates guards against the context-before; `guardMismatch` flags when what happened disagrees with what the machine says should have happened |
 | Trust | The app renders a **✓ verified** (green) or **TAMPERED at record N** (red) badge; when raw machine text is provided, machine-hash verification is folded in (`machineHashOk` false → HASH MISMATCH). |
+| Report | When the run dir has a `report.json` (`machina.report.v1`, written by `machine-driver.py report`), discovery parses it into every run's inventory and `/open-run`. The app shows a colored **result chip** (SUCCESS / STUCK / ABORTED / IN_PROGRESS) in the audit banner and a **Report** button that opens a full report modal: result, run KPI grid (events / redirects / blocked / evidence ✓✗, started time), path, **Agent timeline**, context snapshot, nested runs (**drill-down**), parent runs (**drill-up**), `ledger_final_hash`, and a raw JSON view with **Copy JSON**. A **tampered** ledger is never presented as clean SUCCESS — the result chip becomes "⚠ SUCCESS (UNVERIFIED)", the banner shows the TAMPERED verdict, and the modal opens with a red warning banner. |
+| Timestamps | Every run row carries `startedAt` (the `init` record's `timestamp`); rendered in the run list, the audit banner, and the report modal's Run KPI grid. |
+| Drill navigation | **Canvas-level:** a PHASE state node in the graph carries a clickable **↳ child** badge when the ledger records the child run it delegated to — clicking opens that child machine/run in the stage (drill-down). When the replayed run is itself a child, its **terminal node** carries a sticky **↑ parent** badge that reopens the parent run (drill-up) — mirroring the drill-down UX node badge. The run list child chips, the report modal's "Nested runs", and the audit banner's "↑ parent" link provide the same navigation outside the graph. |
 
 ### Run-history discovery (`runRef`)
 
@@ -99,7 +102,8 @@ share one discovery convention (`scripts/discovery.mjs`):
 
 1. **Roots** — explicit roots > `MACHINA_RUN_ROOTS` env (`;`/`,`-separated) >
    every `~/.copilot/session-state/<uuid>/{machina-runs,machina-persist,machina-i2}` that exists.
-2. **Run** = any directory containing `ledger.jsonl` (+ optional `machine.json` sibling).
+2. **Run** = any directory containing `ledger.jsonl` (+ optional `machine.json` sibling,
+   and optional `report.json` terminal report, which is parsed into `run.report`).
 3. **Ref formats** — `"<family>/<runid>"` or a bare `"<runid>"` (bare may be ambiguous
    across families → error).
 4. **Machine** — sibling `machine.json` if present; otherwise replay falls back to the
@@ -121,14 +125,22 @@ but never write targets.
 Opening the canvas with **no input** auto-discovers the persisted run history and
 exposes it without a `runRef`:
 
-- `open()` always runs `discoverRunHistory()` and stores the lean inventory in
-  `/state` → `runHistory` (`[{ family, runid, machine, records, readError }]`).
-  An empty open shows the discovered count in the status line (e.g.
-  "Empty — load a machine or pick a run (21 discovered)").
-- The app's **Runs** tab (`/runs` + `/open-run`) lists every discovered run
-  (family/runid, machine id, record count); unreadable runs are shown greyed.
+- `open()` always runs `discoverRunHistory()` and stores the adjudication-summary
+  inventory in `/state` → `runHistory` (`[{ family, runid, machine, records,
+  readError, terminal, verdict, integrityOk, finalState, blockedCount, machineMatch,
+  childRuns }]`). An empty open shows the discovered count in the status line
+  (e.g. "Empty — load a machine or pick a run (21 discovered)").
+- The app's **Runs** tab (`/runs` + `/open-run`) groups runs by family with a
+  family-level aggregate, and each run row carries an **outcome chip**
+  (✓ complete / ⚠ stuck / ■ aborted / … incomplete / ✗ tampered), the final state,
+  record count, **started timestamp**, and child-run references (clickable
+  drill-down; a tampered run's chip is always ✗ tampered even if it reached a
+  final state).
 - Clicking a run calls `/open-run` and the SSE `load` event replays that run from
-  its ledger in the stage — no `runRef` plumbing needed from the conductor.
+  its ledger in the stage — **opening at the final record** (with an audit banner:
+  outcome, integrity verdict, final state, blocked count, path) so the conductor
+  lands on the *result* and steps backwards to inspect. Transport buttons and
+  arrow keys are replay-aware in replay mode (`replayStep`/`replayBack`/`replayReset`).
 
 ### Conducting from the browser
 

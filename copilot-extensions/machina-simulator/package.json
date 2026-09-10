@@ -1,6 +1,6 @@
 {
   "name": "machina-simulator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Machina state-machine validation, autofill, spec reference, and canvas viewer extension for GitHub Copilot CLI.",

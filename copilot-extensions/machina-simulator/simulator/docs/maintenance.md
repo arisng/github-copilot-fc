@@ -119,11 +119,19 @@ Editing invariants:
   read-only roots (kept for replay compatibility). Do not write new runs under the legacy
   roots.
 - `open()` **always** runs `discoverRunHistory()` (even with empty input) and exposes the
-  lean inventory as `/state` → `runHistory`; the app's **Runs** tab consumes `/runs` and
-  `/open-run`. `open()` may never throw on a discovery failure — errors go to `state.error`,
-  status stays Empty.
+  adjudication-summary inventory as `/state` → `runHistory` (enriched by `probeRun`:
+  terminal disposition, verdict, final state, blocked count, machine match, child runs,
+  and the parsed `report.json` when present); the app's **Runs** tab consumes `/runs` and
+  `/open-run`, grouped by family with outcome chips. `open()` may never throw on a
+  discovery failure — errors go to `state.error`, status stays Empty.
 - `test/discovery.test.mjs`, the canvas auto-discovery/`/runs`/`/open-run` tests, and the two
   `replay-all`/canvas `runRef` tests guard the contract.
+- `test/syntax.test.mjs` re-parses the inline `<script type="module">` from
+  `simulator/app.html` on every run. The app shell binds ALL listeners (Runs/Schema left
+  tabs included) from that one inline module — a single syntax error (e.g. an apostrophe
+  inside a single-quoted string) silently kills the whole module, so `bind()` never runs
+  and the left-tab nav stops working. **Always run `node test/syntax.test.mjs` (or `npm
+  test`) after editing `app.html` markup or JS.**
 
 ## Reference map (load on demand)
 
