@@ -50,16 +50,62 @@ function cleanFindings(f) {
   }));
 }
 
-// Lean, serializable run-history inventory for the canvas surface. Carries no
-// ledger payloads — the app fetches a specific run via /open-run.
+// Probe a run's replayed outcome without transferring ledger payloads. The
+// app fetches the specific run via /open-run; the inventory only carries the
+// adjudication-relevant summary each run row needs at-a-glance.
+function probeRun(r) {
+  const base = {
+    terminal: null,
+    verdict: null,
+    integrityOk: null,
+    finalState: null,
+    blockedCount: 0,
+    machineMatch: null,
+    childRuns: [],
+    report: null,
+    startedAt: null,
+  };
+  if (r.readError || !r.ledger || !r.ledger.length || !r.machine) {
+    if (r.report) base.report = r.report;
+    base.startedAt = r.ledger && r.ledger.length ? (r.ledger[0].payload?.timestamp ?? null) : null;
+    return base;
+  }
+  try {
+    const machineJson = r.machinePath ? fs.readFileSync(r.machinePath, "utf8") : null;
+    const rep = replayRunLedger(r.machine, r.ledger, { diffReeval: false, machineJson });
+    base.terminal = rep.terminal;
+    base.verdict = rep.integrity.verdict;
+    base.integrityOk = rep.integrity.ok;
+    base.finalState = rep.state;
+    base.blockedCount = rep.blockedCount || 0;
+    base.machineMatch = rep.machineMatch;
+    base.childRuns = r.ledger
+      .map((rec) => (rec.payload && rec.payload.child_run) || null)
+      .filter(Boolean);
+    base.startedAt = r.ledger[0].payload?.timestamp ?? null;
+    if (r.report) base.report = r.report;
+  } catch {
+    // Probe is best-effort — a failed probe stays null and the UI shows '?'
+    if (r.report) base.report = r.report;
+    base.startedAt = r.ledger && r.ledger.length ? (r.ledger[0].payload?.timestamp ?? null) : null;
+  }
+  return base;
+}
+
+// Adjudication-focused run-history inventory for the canvas surface. Carries
+// no ledger payloads — the app fetches a specific run via /open-run — but
+// does carry each run's terminal disposition + integrity verdict so the Runs
+// tab can render outcome chips and family aggregates at-a-glance.
 function runInventory(runs) {
   return (runs || []).map((r) => ({
     root: r.root,
     family: r.family,
     runid: r.runid,
     machine: r.machine?.id ?? null,
+    machineName: r.machine?.name ?? null,
     records: r.ledger ? r.ledger.length : 0,
     readError: r.readError ?? null,
+    ...probeRun(r),
   }));
 }
 
@@ -171,28 +217,30 @@ const server = http.createServer((req, res) => {
       entry.state.error = null;
       entry.state.compliance = runCompliance(m);
       entry.state.replaySource = { root: run.root, family: run.family, runid: run.runid, runRef };
-      const machineJson = run.machinePath ? fs.readFileSync(run.machinePath, "utf8") : null;
-      const rep = replayRunLedger(m, ledger, { diffReeval: true, machineJson });
-      entry.state.replay = {
-        ledger,
-        trace: rep.trace,
-        integrity: rep.integrity,
-        terminal: rep.terminal,
-        state: rep.state,
-        context: rep.context,
-        blockedCount: rep.blockedCount,
-        machineMatch: rep.machineMatch,
-        machineHashOk: rep.machineHashOk,
-      };
-      broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson } });
+            entry.state.report = run.report ?? null;
+            const machineJson = run.machinePath ? fs.readFileSync(run.machinePath, "utf8") : null;
+            const rep = replayRunLedger(m, ledger, { diffReeval: true, machineJson });
+            entry.state.replay = {
+              ledger,
+              trace: rep.trace,
+              integrity: rep.integrity,
+              terminal: rep.terminal,
+              state: rep.state,
+              context: rep.context,
+              blockedCount: rep.blockedCount,
+              machineMatch: rep.machineMatch,
+              machineHashOk: rep.machineHashOk,
+            };
+                    broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson, runRef: entry.state.replaySource?.runRef ?? null }, report: run.report ?? null });
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({
         ok: true,
         verdict: rep.integrity.verdict,
         integrityOk: rep.integrity.ok,
         terminal: rep.terminal,
-        source: entry.state.replaySource,
-      }));
+              report: run.report ?? null,
+              source: entry.state.replaySource,
+            }));
     } catch (err) {
       entry.state.error = String(err.message || err);
       broadcast(entry, "machina", { type: "load", machine: null, error: entry.state.error });
@@ -350,7 +398,7 @@ const canvas = createCanvas({
                             machineMatch: rep.machineMatch,
                             machineHashOk: rep.machineHashOk,
                           };
-                          broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson } });
+                                                    broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson, runRef: entry.state.replaySource?.runRef ?? null } });
                           return {
                             ok: true,
                             verdict: rep.integrity.verdict,
@@ -406,19 +454,21 @@ const canvas = createCanvas({
                       entry.state.error = null;
                       entry.state.compliance = runCompliance(m);
                       entry.state.replaySource = { root: run.root, family: run.family, runid: run.runid, runRef: input.runRef };
-                      const machineJson = run.machinePath ? fs.readFileSync(run.machinePath, "utf8") : null;
-                      const rep = replayRunLedger(m, ledger, { diffReeval: true, machineJson });
-                      entry.state.replay = {
-                        ledger,
-                        trace: rep.trace,
-                        integrity: rep.integrity,
-                        terminal: rep.terminal,
-                        state: rep.state,
-                        context: rep.context,
-                        blockedCount: rep.blockedCount,
-                        machineMatch: rep.machineMatch,
-                        machineHashOk: rep.machineHashOk,
-                      };
+                                            entry.state.report = run.report ?? null;
+                                            const machineJson = run.machinePath ? fs.readFileSync(run.machinePath, "utf8") : null;
+                                            const rep = replayRunLedger(m, ledger, { diffReeval: true, machineJson });
+                                            entry.state.replay = {
+                                              ledger,
+                                              trace: rep.trace,
+                                              integrity: rep.integrity,
+                                              terminal: rep.terminal,
+                                              state: rep.state,
+                                              context: rep.context,
+                                              blockedCount: rep.blockedCount,
+                                              machineMatch: rep.machineMatch,
+                                              machineHashOk: rep.machineHashOk,
+                                            };
+                                            broadcast(entry, "machina", { type: "load", machine: m, replay: { ledger, diffReeval: true, machineJson, runRef: entry.state.replaySource?.runRef ?? null }, report: run.report ?? null });
                     } else if (input.machine) {
                       const m = parseMachine(input.machine);
                       entry.state.machine = m;

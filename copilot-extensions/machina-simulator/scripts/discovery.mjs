@@ -87,12 +87,13 @@ export function discoverRunHistory(explicitRoots = null) {
       else if (e.name === "ledger.jsonl") {
         const dirPath = path.dirname(p);
         const machinePath = path.join(dirPath, "machine.json");
-        const runid = path.basename(dirPath);
-        const run = {
-          root,
-          family: family || runid,
-          runid,
-          ledgerPath: p,
+              const reportPath = path.join(dirPath, "report.json");
+              const runid = path.basename(dirPath);
+              const run = {
+                root,
+                family: family || runid,
+                runid,
+                ledgerPath: p,
           machinePath: fs.existsSync(machinePath) ? machinePath : null,
           ledger: null,
           machine: null,
@@ -115,7 +116,18 @@ export function discoverRunHistory(explicitRoots = null) {
             run.readError = (run.readError ? run.readError + "; " : "") + `machine.json unreadable: ${err.message}`;
           }
         }
-        runs.push(run);
+                if (fs.existsSync(reportPath)) {
+                  run.reportPath = reportPath;
+                  try {
+                    run.report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+                  } catch (err) {
+                    run.readError = (run.readError ? run.readError + "; " : "") + `report.json unreadable: ${err.message}`;
+                  }
+                } else {
+                  run.reportPath = null;
+                  run.report = null;
+                }
+                runs.push(run);
       }
     }
   };

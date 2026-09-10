@@ -17,7 +17,7 @@ import { canonicalizeMachinaText, sha256Hex } from "../machine-simulator.mjs";
 function rec(payload, prev = null) {
   return { prev_hash: prev, payload, hash: sha256Hex(canonicalizeMachinaText(JSON.stringify(payload))) };
 }
-function writePersistedRun(root, runid, machineId = "pm-release-notes") {
+function writePersistedRun(root, runid, machineId = "pm-release-notes", withReport = false) {
   const runDir = path.join(root, runid);
   fs.mkdirSync(runDir, { recursive: true });
   const machineJson = JSON.stringify(
@@ -30,6 +30,28 @@ function writePersistedRun(root, runid, machineId = "pm-release-notes") {
   const r2 = rec({ type: "transition", event: "GO", from: "a", to: "b", guard: null, evidence: [], exit_actions: [], transition_actions: [], entry_actions: [], context_after: {}, note: "ok", child_run: null, timestamp: "2026-09-03T00:00:01Z" }, r1.hash);
   fs.writeFileSync(path.join(runDir, "ledger.jsonl"), [r1, r2].map((l) => JSON.stringify(l)).join("\n") + "\n", "utf8");
   fs.writeFileSync(path.join(runDir, "machine.json"), machineJson, "utf8");
+  if (withReport) {
+    fs.writeFileSync(
+      path.join(runDir, "report.json"),
+      JSON.stringify({
+        schema: "machina.report.v1",
+        run_id: runid,
+        machine_id: machineId,
+        result: "SUCCESS",
+        final_state: "b",
+        path: ["a", "b"],
+        events: 1,
+        redirects: 0,
+        blocked_events: 0,
+        evidence: { passed: 0, failed: 0 },
+        context_snapshot: {},
+        agent_notes: [{ event: "GO", note: "ok" }],
+        nested_runs: [],
+        ledger_final_hash: r2.hash,
+      }, null, 2),
+      "utf8",
+    );
+  }
 }
 
 // Note: extension.mjs registers its HTTP server at import time. The test stub
@@ -430,6 +452,43 @@ test("/runs route returns the disjoint run-history inventory", async () => {
     assert.equal(body.runs.length, 1);
     assert.equal(body.runs[0].runid, "routeRunA");
     assert.equal(body.runs[0].machine, "pm-issue-triage");
+    // Adjudication probe: a completed run must surface terminal + verdict.
+    assert.equal(body.runs[0].terminal, "complete");
+    assert.equal(body.runs[0].verdict, "verifiable");
+    assert.equal(body.runs[0].integrityOk, true);
+    assert.equal(body.runs[0].finalState, "b");
+    assert.deepEqual(body.runs[0].childRuns, []);
+    assert.equal(body.runs[0].startedAt, "2026-09-03T00:00:00Z");
+  } finally {
+    if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
+    else process.env.MACHINA_RUN_ROOTS = prev;
+  }
+});
+
+test("/runs inventory surfaces the terminal report (report.json)", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "machina-canvas-rpt-"));
+  const root = path.join(tmp, "machina-runs");
+  fs.mkdirSync(root, { recursive: true });
+  writePersistedRun(path.join(root, "i1-triage"), "reportRun", "pm-issue-triage", true);
+  const prev = process.env.MACHINA_RUN_ROOTS;
+  process.env.MACHINA_RUN_ROOTS = root;
+  try {
+    const opened = await canvas.open({ instanceId: "rpt-run-inst", input: {} });
+    const port = new URL(opened.url).port;
+    const res = await fetch(`http://127.0.0.1:${port}/runs`);
+    const body = await res.json();
+    const run = body.runs[0];
+    assert.ok(run.report, "inventory must carry the parsed report.json");
+    assert.equal(run.report.result, "SUCCESS");
+    assert.equal(run.report.final_state, "b");
+    assert.equal(run.report.events, 1);
+    assert.deepEqual(run.report.path, ["a", "b"]);
+    // open-run response should surface the report too (for the app to render)
+    const or = await fetch(`http://127.0.0.1:${port}/open-run?instance=rpt-run-inst&runRef=${encodeURIComponent("i1-triage/reportRun")}`);
+    const ob = await or.json();
+    assert.equal(ob.ok, true);
+    assert.ok(ob.report, "open-run must return report");
+    assert.equal(ob.report.result, "SUCCESS");
   } finally {
     if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
     else process.env.MACHINA_RUN_ROOTS = prev;
