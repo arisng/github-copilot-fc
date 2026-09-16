@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.16.0
+  version: 0.17.0
   lastVerified: 2026-08-09
 ---
 
@@ -31,6 +31,7 @@ Read the provider file first, then the harness file:
 |----------|-------------|--------------|
 | OpenCode Go | [`references/provider/opencode-go/cli.md`](references/provider/opencode-go/cli.md) | [`references/provider/opencode-go/vs-code.md`](references/provider/opencode-go/vs-code.md) |
 | OpenRouter | [`references/provider/openrouter/cli.md`](references/provider/openrouter/cli.md) | [`references/provider/openrouter/vs-code.md`](references/provider/openrouter/vs-code.md) |
+| Command Code | [`references/provider/commandcode/cli.md`](references/provider/commandcode/cli.md) | [`references/provider/commandcode/vs-code.md`](references/provider/commandcode/vs-code.md) |
 
 ### Shared references (any provider, any harness)
 
@@ -141,6 +142,12 @@ References are grouped by **provider** (under `references/provider/`) and by **u
   - Read when configuring **OpenRouter** for **VS Code Chat** (`chatLanguageModels.json`). Covers the UI quick-add path and the ready-to-use provider JSON.
 - `references/provider/openrouter/README.md`
   - OpenRouter provider index: harness router + key provider facts.
+- `references/provider/commandcode/cli.md`
+  - Read when configuring **Command Code** for **Copilot CLI**: prerequisites and keys, base URL, available models with token overrides, manual env-var examples, CLI profiles, multiple accounts.
+- `references/provider/commandcode/vs-code.md`
+  - Read when configuring **Command Code** for **VS Code Chat** (`chatLanguageModels.json`): UI quick-add and the full 9-model provider JSON.
+- `references/provider/commandcode/README.md`
+  - Command Code provider index: harness router + key provider facts.
 - `references/shared/environment-variables.md`
   - Read when you need CLI env-var semantics, provider types, wire-format rules, model requirements, token-override calculation, or offline-mode notes (any provider).
 - `references/shared/api-key-storage.md`
