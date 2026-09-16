@@ -32,6 +32,7 @@ Read the provider file first, then the harness file:
 | OpenCode Go | [`references/provider/opencode-go/cli.md`](references/provider/opencode-go/cli.md) | [`references/provider/opencode-go/vs-code.md`](references/provider/opencode-go/vs-code.md) |
 | OpenRouter | [`references/provider/openrouter/cli.md`](references/provider/openrouter/cli.md) | [`references/provider/openrouter/vs-code.md`](references/provider/openrouter/vs-code.md) |
 | Command Code | [`references/provider/commandcode/cli.md`](references/provider/commandcode/cli.md) | [`references/provider/commandcode/vs-code.md`](references/provider/commandcode/vs-code.md) |
+| Moonshot | [`references/provider/moonshot/cli.md`](references/provider/moonshot/cli.md) | [`references/provider/moonshot/vs-code.md`](references/provider/moonshot/vs-code.md) |
 
 ### Shared references (any provider, any harness)
 
@@ -148,6 +149,12 @@ References are grouped by **provider** (under `references/provider/`) and by **u
   - Read when configuring **Command Code** for **VS Code Chat** (`chatLanguageModels.json`): UI quick-add and the full 9-model provider JSON.
 - `references/provider/commandcode/README.md`
   - Command Code provider index: harness router + key provider facts.
+- `references/provider/moonshot/cli.md`
+  - Read when configuring **Moonshot (Kimi AI)** for **Copilot CLI**: prerequisites, base URL, available models, proxy setup for `top_p` workaround, profile examples, troubleshooting.
+- `references/provider/moonshot/vs-code.md`
+  - Read when configuring **Moonshot (Kimi AI)** for **VS Code Chat** (`chatLanguageModels.json`): UI quick-add, full provider JSON with proxy support, VS Code tasks configuration.
+- `references/provider/moonshot/README.md`
+  - Moonshot provider index: key facts, model list, special requirements (`top_p` proxy).
 - `references/shared/environment-variables.md`
   - Read when you need CLI env-var semantics, provider types, wire-format rules, model requirements, token-override calculation, or offline-mode notes (any provider).
 - `references/shared/api-key-storage.md`
@@ -164,14 +171,12 @@ References are grouped by **provider** (under `references/provider/`) and by **u
 ## Apply these operating rules
 
 - Prefer `${ENV_VAR}` placeholders over raw API keys in JSON.
-- Treat `openai` as the default provider type for OpenAI-compatible endpoints such as Ollama, vLLM, Foundry Local, and Moonshot.
+- Treat `openai` as the default provider type for OpenAI-compatible endpoints (Ollama, vLLM, Foundry Local, Moonshot, Command Code).
 - Set `COPILOT_PROVIDER_TYPE=azure` only for Azure OpenAI and `anthropic` only for Anthropic.
-- **OpenCode Go** serves all models from the single base URL `https://opencode.ai/zen/go/v1`. Live probe (2026-08-03, CLI 1.0.77): DeepSeek, GLM, Kimi, MiMo, **Qwen3.x and MiniMax all work via `COPILOT_PROVIDER_TYPE=openai` (chat/completions)** — the `anthropic` path is not required. `gpt-5.6-luna` also responds via chat/completions, so the documented "Responses-API only" constraint no longer holds for this gateway (both wire formats work). Store the personal OpenCode key as `OPENCODE_API_KEY_HOME` and the work key as `OPENCODE_API_KEY_WORK` — both at **User scope** (never Machine scope).
-- **CRITICAL: `COPILOT_MODEL` must use the bare model ID** (e.g., `deepseek-v4-flash`), **not** the `opencode-go/` prefix. The prefix is only used in OpenCode TUI config and in Copilot CLI profile names — never in `COPILOT_MODEL`.
-- For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`. On OpenCode Go both `completions` and `responses` work for `gpt-5.6-luna` (probe 2026-08-03); `responses` remains the recommended default for GPT-5-class.
+- For GPT-5 class OpenAI models, prefer `COPILOT_PROVIDER_WIRE_API=responses`.
 - Use `COPILOT_OFFLINE=true` only when the user explicitly wants Copilot CLI isolated from GitHub services; note that full isolation still depends on the provider endpoint being local or private.
 - If the model is not in Copilot CLI's built-in catalog, set explicit prompt and output token overrides instead of assuming Copilot will infer them correctly.
-- **Profile `proxyPort` field**: For Kimi models from `https://api.moonshot.ai` (which require `top_p=0.95`), add `"proxyPort": 443` to the profile and the `run` command will auto-start the local proxy and route through `https://moonshot.local/v1`. The proxy strips `top_p` to `0.95` before forwarding to Moonshot.
+- Provider-specific rules (base URLs, model ID formats, proxy configuration, special requirements) are documented in each provider's `references/provider/<provider>/cli.md` file.
 
 ## Configure reasoning effort correctly
 
@@ -192,27 +197,17 @@ For OpenAI models, you may also enable summaries:
 
 ### Model compatibility warning
 
-Not all models support Copilot CLI's `--reasoning-effort` levels. If you get:
+Not all models support Copilot CLI's `--reasoning-effort` levels. If you get an error like:
 
 ```
 Model "glm-5.2" does not support reasoning effort configuration (requested: "high").
 ```
 
-it means the model's API does not expose controllable reasoning effort levels. Known families **without** reasoning-effort support:
+it means the model's API does not expose controllable reasoning effort levels. See `references/shared/reasoning-effort-lookup.md` for the authoritative per-model lookup.
 
-- **GLM** (`glm-5`, `glm-5.1`, `glm-5.2`) — Zhipu AI / OpenCode Go (no controllable levels)
-- **GLM-5.3-Flash** (`glm-5.3-flash`) — Zhipu AI / OpenCode Go (thinking always-on, defaults to `max`; model supports `low`/`high`/`max` but gateway may not expose)
-- **MiMo** (`mimo-v2.5`, `mimo-v2.5-pro`, `mimo-v2-pro`, `mimo-v2-omni`) — Xiaomi / OpenCode Go
-- **Kimi K2.x** (`kimi-k2.7-code`, `kimi-k2.6`, `kimi-k2.5`) — Moonshot AI / OpenCode Go (thinking is implicit / always-on)
-- **Qwen3.x** (`qwen3.7-plus`, `qwen3.7-max`, `qwen3.6-plus`, `qwen3.5-plus`) — Alibaba / OpenCode Go (implicit thinking; `anthropic` type per OpenCode Go docs)
-- **Qwen3.8-Flash** (`qwen3.8-flash`) — Alibaba / OpenCode Go (`anthropic` type; may support reasoning effort `low`/`medium`/`high`/`xhigh` — verify on gateway)
-- **MiniMax** (`minimax-m3`, `minimax-m2.7`, `minimax-m2.5`) — MiniMax / OpenCode Go (implicit thinking; `openai` type per 2026-08-03 probe)
+When using models without reasoning-effort support, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.
 
-When using these models, omit `--reasoning-effort` entirely. The model will use its built-in default reasoning behavior.
-
-To check whether a model supports it, try `--reasoning-effort none` (the least demanding level). If that also fails, the model simply doesn't support the feature.
-
-The profile system tracks this per model. Profiles for models that do not support reasoning effort set `"reasoningEffortSupported": false`. The `run` command detects incompatible `--reasoning-effort`/`--effort` arguments, **strips them before forwarding to Copilot CLI**, and displays a clear notice. This prevents the API error. Support is derived from the shared no-support model list when the profile flag is absent (hand-added profiles), so `run`/`set-env`/`show` and `Invoke-CopilotCliSubSession.ps1` stay consistent.
+The profile system tracks this per model. Profiles for models that do not support reasoning effort set `"reasoningEffortSupported": false`. The `run` command detects incompatible `--reasoning-effort`/`--effort` arguments, **strips them before forwarding to Copilot CLI**, and displays a clear notice.
 
 Do not claim a dedicated `COPILOT_*` environment variable exists for reasoning effort unless `copilot help environment` in the user's installed CLI version explicitly lists one.
 
@@ -264,98 +259,6 @@ This same limit discovery process applies to any provider whose gateway enforces
 3. If using a stored profile, run `show` or `list` to verify the saved values.
 4. If `${ENV_VAR}` placeholders are used, confirm the environment variable actually exists.
 5. If long-context models fail, add or lower explicit max prompt and output token overrides.
-
-## OpenCode Go session-header proxy
-
-**Problem:** OpenCode Go requires an `x-opencode-session` header (one stable UUID per conversation) on all API requests. Without it, requests error. Copilot CLI and VS Code Chat do not natively support custom headers.
-
-**Solution:** A local HTTPS proxy that injects the `x-opencode-session` header before forwarding. Scripts live in the skill's `scripts/` folder; runtime cert data is shared with the Moonshot proxy at `~/.copilot/moonshot-proxy/`.
-
-| File | Location | Purpose |
-|------|----------|---------|
-| `opencode-proxy.js` | `scripts/opencode-proxy.js` | HTTPS proxy server (Node.js) — dual-port: 3001 (always) + 443 (elevated). Generates UUID v4 at startup, injects as `x-opencode-session`. |
-| `start-opencode-proxy.ps1` | `scripts/start-opencode-proxy.ps1` | Auto-elevates admin, kills old proxy, starts via `node opencode-proxy.js` |
-| `setup-opencode-proxy-dns.ps1` | `scripts/setup-opencode-proxy-dns.ps1` | One-time admin setup: adds `127.0.0.1 opencode-go.local` to hosts + trusted cert |
-| Certs | `~/.copilot/moonshot-proxy/` | Shared with Moonshot proxy (moonshot.pfx, cert.pfx) |
-
-### How to use
-
-```powershell
-# One-time setup (run once, elevated):
-.\scripts\setup-opencode-proxy-dns.ps1
-
-# Start proxy (after every reboot):
-.\scripts\start-opencode-proxy.ps1
-
-# Or from published skill location:
-pwsh -NoProfile "~\.copilot\skills\copilot-byok\scripts\start-opencode-proxy.ps1"
-
-# Check status:
-curl -s https://opencode-go.local/health
-```
-
-### Profile integration
-
-Profiles with `"opencodeSessionHeader": true` automatically start the proxy and rewrite `baseUrl` to `https://opencode-go.local/v1`. Existing profiles pointing to `https://opencode.ai/zen/go/v1` are auto-migrated on first access. See [`references/provider/opencode-go/cli.md`](references/provider/opencode-go/cli.md) for details.
-
-### VS Code integration
-
-Use the automation scripts to set up VS Code:
-
-```powershell
-# Migrate existing chatLanguageModels.json URLs:
-.\scripts\opencode-vscode-migrate-urls.ps1
-
-# Add auto-start task to .vscode/tasks.json:
-.\scripts\opencode-vscode-add-proxy-task.ps1
-```
-
-The URL migration script creates a timestamped backup before modifying. The task script creates `tasks.json` if missing, skips if the task already exists. After running, reload VS Code (**Developer: Reload Window**).
-
-### Limitation
-
-The proxy generates one session ID per proxy lifetime. Multiple CLI invocations during one proxy lifetime share the same session ID (same cache behavior as a static ID). This is the best available workaround until Copilot CLI adds native custom-header support ([github/copilot-cli#3399](https://github.com/github/copilot-cli/issues/3399)).
-
-## Moonshot proxy (top_p workaround)
-
-**Problem:** Kimi models from `https://api.moonshot.ai` only accepts `top_p=0.95`, but VS Code Copilot BYOK always sends `top_p=1.0` and the `chatLanguageModels.json` schema doesn't support per-model parameter overrides.
-
-**Solution:** A local HTTPS proxy that strips `top_p` before forwarding. Scripts live in the skill's `scripts/` folder; runtime cert data is stored at `~/.copilot/moonshot-proxy/`.
-
-| File | Location | Purpose |
-|------|----------|---------|
-| `proxy.js` | `scripts/proxy.js` | HTTPS proxy server (Node.js) — dual-port: 3002 (always) + 443 (elevated) |
-| `start-proxy.ps1` | `scripts/start-proxy.ps1` | Auto-elevates admin, kills old proxy, starts via `node proxy.js` |
-| `setup-dns.ps1` | `scripts/setup-dns.ps1` | One-time admin setup: adds `127.0.0.1 moonshot.local` to hosts + trusted cert |
-| Certs | `~/.copilot/moonshot-proxy/` | Runtime cert data (moonshot.pfx, cert.pfx) |
-
-### How to use
-
-```powershell
-# One-time setup (run once, elevated):
-.\scripts\setup-dns.ps1
-
-# Start proxy (after every reboot):
-.\scripts\start-proxy.ps1
-
-# Or from published skill location:
-pwsh -NoProfile "~\.copilot\skills\copilot-byok\scripts\start-proxy.ps1"
-
-# Check status:
-curl -s https://moonshot.local/health
-```
-
-### Profile integration
-
-Add `"proxyPort": 443` to any `byok-profiles.json` profile that needs the proxy. The `run` command auto-starts the proxy and routes through `https://moonshot.local/v1`.
-
-### VS Code integration
-
-Configure the Moonshot provider's `url` to `https://moonshot.local/v1/chat/completions` in `chatLanguageModels.json`. The `.vscode/tasks.json` background task with `runOn: "folderOpen"` auto-starts the proxy, or run **Terminal → Run Task → "Moonshot Proxy"**.
-
-## Moonshot/Kimi AI credentials
-
-Use `MOONSHOT_API_KEY` for the Kimi AI Platform (`api.moonshot.ai/v1`). All models use OpenAI-compatible format, 262K context, and support tool calling and streaming.
 
 ## Related skill
 
