@@ -443,9 +443,10 @@ function Invoke-ProfileAdd {
     Write-Host "  4) Ollama (local)"
     Write-Host "  5) Kimi AI / Moonshot"
     Write-Host "  6) OpenCode Go"
-    Write-Host "  7) Custom"
-    $preset = Read-Host "Preset number [7]"
-    if ([string]::IsNullOrWhiteSpace($preset)) { $preset = '7' }
+    Write-Host "  7) Command Code"
+    Write-Host "  8) Custom"
+    $preset = Read-Host "Preset number [8]"
+    if ([string]::IsNullOrWhiteSpace($preset)) { $preset = '8' }
 
     $type = 'openai'
     $baseUrl = ''
@@ -566,6 +567,41 @@ function Invoke-ProfileAdd {
                 }
             }
             $defaultMaxPromptTokens = 200000
+        }
+        '7' {
+            $type = 'openai'
+            $baseUrl = 'https://api.commandcode.ai/provider/v1'
+            $defaultApiKeyPrompt = '${COMMANDCODE_API_KEY}'
+            $defaultMaxPromptTokens = 1000000
+            $defaultMaxOutputTokens = 32768
+
+            Write-Host "Select Command Code model:" -ForegroundColor Cyan
+            Write-Host "  1) DeepSeek V4 Flash (cheapest paid, recommended)"
+            Write-Host "  2) DeepSeek V4.1 Flash"
+            Write-Host "  3) DeepSeek V4 Pro"
+            Write-Host "  4) GPT-5.6 Luna"
+            Write-Host "  5) MiMo V2.5"
+            Write-Host "  6) MiMo V2.5 Pro"
+            Write-Host "  7) Muse Spark 1.3 Contributor"
+            Write-Host "  8) Ling 3.0 Flash Sante (free)"
+            Write-Host "  9) Laguna S 2.1 (free)"
+            Write-Host " 10) LongCat 2.0 (free)"
+            Write-Host " 11) Other (type model ID manually)"
+            $modelChoice = Read-Host "Model [1]"
+            $model = switch ($modelChoice) {
+                '1'  { 'deepseek/deepseek-v4-flash' }
+                '2'  { 'deepseek/deepseek-v4.1-flash' }
+                '3'  { 'deepseek/deepseek-v4-pro' }
+                '4'  { 'gpt-5.6-luna' }
+                '5'  { 'xiaomi/mimo-v2.5' }
+                '6'  { 'xiaomi/mimo-v2.5-pro' }
+                '7'  { 'meta/muse-spark-1.3-contributor' }
+                '8'  { 'inclusionai/ling-3.0-flash-sante:free' }
+                '9'  { 'poolside/laguna-s-2.1-free' }
+                '10' { 'meituan/longcat-2.0:free' }
+                '11' { Read-Host "Enter model ID (provider/model-name format)" }
+                default { 'deepseek/deepseek-v4-flash' }
+            }
         }
         default {
             $type = Read-Host "Provider type (openai/azure/anthropic) [openai]"
