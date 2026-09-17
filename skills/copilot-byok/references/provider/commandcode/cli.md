@@ -41,7 +41,7 @@ Profile names use `cc-goat-` prefix for easy identification (e.g., `cc-goat-deep
 | MiMo V2.5 | `xiaomi/mimo-v2.5` | `openai` | `completions` | 1M | Not supported |
 | MiMo V2.5 Pro | `xiaomi/mimo-v2.5-pro` | `openai` | `completions` | 1M | Not supported |
 | Muse Spark 1.3 Contributor | `meta/muse-spark-1.3-contributor` | `openai` | `completions` | 1.05M | Supported (verify) |
-| GPT-5.6 Luna | `openai/gpt-5.6-luna` | `openai` | `completions` | 1.05M | Supported (full range) |
+| GPT-5.6 Luna | `gpt-5.6-luna` | `openai` | `completions` | 1.05M | Supported (full range) |
 | Ling 3.0 Flash Sante (free) | `inclusionai/ling-3.0-flash-sante:free` | `openai` | `completions` | 262K | Not supported |
 | Laguna S 2.1 (free) | `poolside/laguna-s-2.1-free` | `openai` | `completions` | 256K | Not supported |
 | LongCat 2.0 (free) | `meituan/longcat-2.0:free` | `openai` | `completions` | 1.05M | Not supported |

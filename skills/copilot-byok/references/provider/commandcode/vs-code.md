@@ -82,7 +82,7 @@ Add this provider entry to `chatLanguageModels.json` (open via **Chat: Manage La
 			"thinking": true
 		},
 		{
-			"id": "openai/gpt-5.6-luna",
+			"id": "gpt-5.6-luna",
 			"name": "GPT-5.6 Luna (CC)",
 			"url": "https://api.commandcode.ai/provider/v1/chat/completions",
 			"toolCalling": true,

@@ -32,7 +32,7 @@ Shared facts that apply to both harnesses (and every provider) live in [`../../s
 | MiMo V2.5 | `xiaomi/mimo-v2.5` | 1M | Not supported | 99% off deal |
 | MiMo V2.5 Pro | `xiaomi/mimo-v2.5-pro` | 1M | Not supported | 99% off deal |
 | Muse Spark 1.3 Contributor | `meta/muse-spark-1.3-contributor` | 1.05M | Supported (verify) | Meta contributor tier |
-| GPT-5.6 Luna | `openai/gpt-5.6-luna` | 1.05M | Supported (full range) | Premium |
+| GPT-5.6 Luna | `gpt-5.6-luna` | 1.05M | Supported (full range) | Premium |
 | Ling 3.0 Flash Sante | `inclusionai/ling-3.0-flash-sante:free` | 262K | Not supported | Free, 100 req/day |
 | Laguna S 2.1 | `poolside/laguna-s-2.1-free` | 256K | Not supported | Free |
 | LongCat 2.0 | `meituan/longcat-2.0:free` | 1.05M | Not supported | Free (while it lasts) |
