@@ -1,8 +1,8 @@
 ---
 name: git-atomic-commit
-description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md.'
+description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md, plain-English messages, and the repository''s established CONTEXT.md vocabulary.'
 metadata: 
-   version: 2.1.0
+   version: 2.2.0
    author: arisng
 ---
 
@@ -242,6 +242,44 @@ Streamlines agent portfolio and reduces maintenance overhead.
 refactor: update agent definitions
 ```
 
+**Plain English, in the repository's own words:**
+
+Specific is necessary but not sufficient. A message must be readable by someone
+who was not in the session — and it must use the words the repository already
+uses for the thing being described.
+
+- **Write plain English.** No session-only shorthand, no plan labels
+  ("pass 2", "ship 1", "phase 3 step 4"), no undefined acronyms. A reader who
+  opens the repository tomorrow must be able to resolve every noun without the
+  session that produced it.
+- **Prefer the repository's established vocabulary.** Before naming a domain
+  concept, check what this repository already calls it. Many repositories keep a
+  `CONTEXT.md` (and often a `CONTEXT-MAP.md`) per bounded context; read the
+  owning one and use its terms. Heed any `_Avoid_:` list — those are the synonyms
+  that are specifically wrong.
+- **Prefer durable references over session references.** Point at other
+  issue/PR numbers, committed file paths, and committed docs — not at
+  registers, notes, or artifacts that only exist in the session.
+
+> **Repository conformance:** if the repository defines a terminology rule (for
+> example an instructions file under `.github/instructions/`, a style guide, or
+> an audit script), that rule wins over this guidance and is the source of truth
+> for which terms are banned and which are encouraged. This section is the
+> portable craft; the repository owns the specifics.
+
+**Example (vague and session-scoped → plain English in context):**
+```text
+# ❌ leans on session vocabulary that the repository cannot resolve
+feat(session): finish pass 2 spoke work for the brainstorm flow
+
+# ✅ same change, resolved from the repository alone
+feat(session): add grounded hierarchy checks to the brainstorm flow
+
+The third-level hierarchy cap was not exercised end to end, so a recursive
+child could be created below the documented limit. Adds coverage in
+src/Tests/Integration.Tests/Session/PmBrainstormHierarchyGroundingTests.cs.
+```
+
 ### 9. Execution & Review
 
 **Interactive Mode (User-Guided):**
@@ -277,7 +315,16 @@ After all commits are done, show a summary of all commits created.
 - **MANDATORY: Use approved scopes from constitution** - Check `.github/git-scope-constitution.md` if available
 - Keep commits atomic: one logical change per commit
 - Ensure commit order maintains a buildable state
-- Use English for all commit messages unless instructed otherwise
+- **MANDATORY: Write commit messages in plain English** - no session-only
+  shorthand, plan labels, or undefined acronyms
+- **MANDATORY: Use the repository's established vocabulary** - read the owning
+  `CONTEXT.md` (and `CONTEXT-MAP.md` for cross-context work) and use its terms;
+  heed its `_Avoid_:` list
+- **MANDATORY: Reference durable context only** - other issue/PR numbers,
+  committed file paths, committed docs; never session-local registers or notes
+- If the repository defines its own terminology rule (e.g. an
+  `.github/instructions/` file or an audit script), that rule is authoritative
+  over this skill's guidance
 
 ## Integration with git-commit-scope-constitution Skill
 
