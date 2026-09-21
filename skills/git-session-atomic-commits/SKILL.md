@@ -2,6 +2,8 @@
 name: git-session-atomic-commits
 description: "Session-scoped git commit orchestrator with hard scope enforcement: commits ONLY files with evidence of belonging to the current agent session and leaves every other dirty worktree change untouched. Builds an evidence-based allowlist (user-provided scope, files the agent created/edited this session, session logs) and an ignore list of everything else; enforces a blocking pre-commit gate so unrelated files or hunks can never be staged or committed. Inherits git-atomic-commit for atomic grouping and commit message execution (constrained to the allowlist only) and git-commit-scope-constitution for scope governance and validation. Use when asked to commit this session only, isolate commits from mixed worktree state, or when the worktree contains pre-existing dirty changes that must not be committed."
 argument-hint: "Optional session scope hint: feature, issue, files, or short intent"
+metadata:
+  version: 0.2.0
 ---
 
 # Session-Scoped Atomic Commits
