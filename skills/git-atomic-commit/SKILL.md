@@ -1,8 +1,8 @@
 ---
 name: git-atomic-commit
-description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md, plain-English messages, and the repository''s established CONTEXT.md vocabulary.'
+description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md, plain-English messages, and the repository''s established CONTEXT.md vocabulary. Honors caller-constrained file scopes (e.g. from git-session-atomic-commits): commits only the provided files, never stages out-of-scope worktree changes, and verifies the staged set before every commit.'
 metadata: 
-   version: 2.2.0
+   version: 2.3.0
    author: arisng
 ---
 
@@ -10,31 +10,26 @@ metadata:
 
 ## Overview
 
-This skill enables crafting clean, atomic git commits with conventional commit messages by analyzing all changes in the repository, intelligently grouping them into logical commits, and guiding the user through the process.
+Craft clean, atomic git commits with conventional commit messages: analyze changes, group them into logical commits, and guide execution. Honors a caller-constrained file scope when provided; otherwise analyzes the full worktree.
 
-## ⚠️ Critical: Distinguish Commit Type vs. Commit Scope
+## Type vs. Scope (Three-Tier Model)
 
-Commit messages follow the pattern `type(scope): subject`. **Type** and **Scope** are governed by a three-tier hierarchy:
+Messages follow `type(scope): subject`. **Type** = intent of the change; **Scope** = domain/module/location of the change.
 
 | Tier | What it governs | Defined by | Stability |
 |------|----------------|------------|-----------|
 | **1. Universal** | Standard Conventional Commits types | Industry convention | Fixed across all repos |
-| **2. Author Preferences** | Extended types + default file-path mappings | Skill author (opinionated) | Portable across repos; users may override |
+| **2. Author Preferences** | Extended types + default file-path mappings | Skill author (opinionated) | Portable; users may override |
 | **3. Workspace-Specific** | Scopes, additional types, file-path overrides | `.github/git-scope-constitution.md` per repo | Unique per repository |
 
-**Commit Types** = Tier 1 + Tier 2. Types represent the *intent* of the change.
-**Commit Scopes** = Tier 3. Scopes represent the *domain, module, or location* of the change, tightly coupled to the repository's context.
-
-### Tier 1: Universal Commit Types
-
-Standard Conventional Commits — these are immutable and apply everywhere:
+### Tier 1: Universal Types (immutable)
 
 | Type | Use Case |
 |------|----------|
 | `feat` | New features |
 | `fix` | Bug fixes |
 | `docs` | Documentation changes |
-| `style` | Formatting, whitespace, missing semi colons |
+| `style` | Formatting, whitespace, missing semicolons |
 | `refactor` | Code restructuring (no behavior change) |
 | `perf` | Performance improvements |
 | `test` | Adding or updating tests |
@@ -43,377 +38,135 @@ Standard Conventional Commits — these are immutable and apply everywhere:
 | `chore` | Maintenance that doesn't modify src or test files |
 | `revert` | Reverts a previous commit |
 
-### Tier 2: Author Preferences (Opinionated Extended Types)
+### Tier 2: Extended Types (author preferences, win over Tier 1)
 
-> **Note for other users:** These extended types reflect the author's (`arisng`) personal conventions for AI/DevTool-heavy repositories. You are free to modify, remove, or add your own extended types to suit your workflow.
+`agent` (skills, `**/AGENTS.md`), `copilot` (`*.agent.md`, `*.prompt.md`, `instructions/*.md`, `.vscode/mcp.json`, `memory.json`), `devtool` (`scripts/*`, `.vscode/settings.json`, `.vscode/tasks.json`), `codex` (`.codex/*`).
 
-Extended types take precedence over universal types when the file matches a known pattern:
+**Rule:** if a file matches an extended type pattern, always use the extended type. Full table: [references/type-scope-mapping.md](references/type-scope-mapping.md).
 
-| Extended Type | Replaces | Domain | Typical File Patterns |
-|---------------|----------|--------|-----------------------|
-| `agent` | `feat`, `chore` | AI agent assets (skills, instructions) | `skills/*`, `**/AGENTS.md` |
-| `copilot` | `feat`, `chore` | GitHub Copilot assets | `*.agent.md`, `*.prompt.md`, `instructions/*.md`, `.vscode/mcp.json`, `memory.json` |
-| `devtool` | `chore`, `build` | Developer tooling & editor config | `scripts/*`, `.vscode/settings.json`, `.vscode/tasks.json` |
-| `codex` | `chore` | OpenAI Codex assets | `.codex/*` |
+### Tier 3: Workspace-Specific Scopes
 
-**Rule:** When a file matches an extended type pattern, always use the extended type instead of the universal one. Fall back to universal types for everything else.
-
-### Tier 3: Workspace-Specific (Scopes + Overrides)
-
-Scopes are entirely repo-specific and governed by `.github/git-scope-constitution.md`. The file-path-to-scope mapping below is an **example** from the author's workspace. Each repository should define its own via the `git-commit-scope-constitution` skill.
-
-**Scope Granularity Principle:** Scopes represent the **artifact category**, not a specific instance. When scanning `git log --oneline`, `type(category)` tells you *what kind of thing* changed; the commit subject tells you *which one*.
-
-| File Path Pattern | Type (Tier 2) | Scope (Tier 3) | Rationale |
-|-------------------|---------------|----------------|-----------|
-| `.issues/*` | `docs` | `issue` | Issue documentation and tracking |
-| `.docs/changelogs/*` | `docs` | `changelog` | Changelog files |
-| `.github/git-scope-constitution.md` | `docs` | `constitution` | Scope constitution governance |
-| `instructions/*.md` | `copilot` | `instruction` | Repository-level Copilot instructions |
-| `skills/*` | `agent` | `skill` | Agent skill definitions and implementations |
-| `scripts/*` | `devtool` | `script` | Automation scripts (PowerShell, Python, Bash) |
-| `*.agent.md` | `copilot` | `custom-agent` | Custom agent definitions |
-| `**/AGENTS.md` | `agent` | `instruction` | Standard AI agent custom instructions |
-| `*.prompt.md` | `copilot` | `prompt` | Copilot prompt files |
-| `memory.json` | `copilot` | `memory` | Knowledge graph memory systems |
-| `.codex/*.json` | `codex` | `config` | Codex configuration files |
-| `.codex/*.md` | `codex` | `instruction` | Codex instruction files |
-| `.vscode/mcp.json` | `copilot` | `mcp` | MCP server configuration |
-| `.vscode/settings.json` | `devtool` | `vscode` | VS Code workspace settings |
-| `.vscode/tasks.json` | `devtool` | `vscode` | VS Code workspace task configurations |
+Repo-specific, governed by `.github/git-scope-constitution.md`. **Scope granularity:** scopes are the *artifact category*, not a specific instance — `type(category)` tells what kind of thing changed; the subject tells *which one*. Example mappings: [references/type-scope-mapping.md](references/type-scope-mapping.md).
 
 ## File Assignment Rules
 
-**MANDATORY STEP: Before any grouping or planning, assign a Commit Type and a Commit Scope to EACH changed file individually. Files with different types or unrelated scopes MUST be in separate commits — this is non-negotiable for atomicity.**
+**MANDATORY: Before any grouping, assign a Commit Type AND Scope to EACH changed file individually. Files with different types must be in separate commits.**
 
-**Critical Rules:**
-- **Different commit types = Different commits** — Even related files must be separated if they have different types.
-- **Different scopes = Usually different commits** — Keep commits atomic by scope unless the change is a cross-cutting concern.
-- **Extended type wins** — If a file matches a Tier 2 pattern, never use a Tier 1 universal type.
-- **Check mapping first** — Assign types and scopes to individual files before considering relationships.
+- Different commit types = different commits (non-negotiable)
+- Different scopes = usually different commits (unless cross-cutting)
+- Extended type wins over universal type
+- Assign per file before considering relationships
 
-**Common Mistakes to Avoid:**
-
-- ❌ Conflating type and scope: `docs(issue)` is NOT a type. `docs` is the type, `issue` is the scope.
-- ❌ `feat(instructions)` → ✅ `copilot(instruction)` — Use extended type `copilot` (Tier 2)
-- ❌ `feat(skill)` → ✅ `agent(skill)` — Use extended type `agent` (Tier 2)
-- ❌ `ai(skill)` → ✅ `agent(skill)` — `ai` type is deprecated; use `agent` for all AI model-facing behavior
-- ❌ `ai(agent)` → ✅ `agent(instruction)` — deprecated `ai` type; the old `agent` scope maps to `instruction` under `agent`
-- ❌ `chore(issue)` → ✅ `docs(issue)` — `docs` is the appropriate universal type
-- ❌ `docs` (no scope) → ✅ `docs(issue)` or `docs(changelog)` — Always include a scope
-- ❌ `agent(pdf)` → ✅ `agent(skill)` — Use category-level scope, put specific item in subject
-- ❌ Mixing `copilot(mcp)` + `devtool(vscode)` in one commit → ✅ Separate commits
-- ❌ Grouping files with different types → ✅ One type per commit
+Common mistakes (conflating type/scope, deprecated `ai`, missing scope, type mixing) and the full catalog: [references/type-scope-mapping.md](references/type-scope-mapping.md).
 
 ## Workflow
 
-### 1. Analyze All Changes
+### 0. Honor Caller-Constrained Scope
 
-- Retrieve all changed files (both staged and unstaged)
-- If no changes exist, inform the user there's nothing to commit
-- Read relevant file diffs to understand the nature of each change
+If a caller (e.g. `git-session-atomic-commits`) passes a constrained file list, that list is the **complete scope** of this run:
 
-### 2. Assign Commit Types and Scopes to Individual Files
+- Analyze, group, stage, and commit **only** the provided files.
+- Every other worktree change is **out of scope**: do not read its diff, stage it, commit it, or suggest it.
+- If the caller states an ignore list, never touch any path on it.
+- If staging would include any out-of-scope path, stop and report.
 
-**MANDATORY: For each changed file, determine its exact commit type AND scope using the mapping table above. Document this assignment - it drives the entire commit strategy.**
+When no constrained list is provided, analyze the full worktree.
 
-### 3. Validate Scope Selection
+### 1. Analyze Changes
 
-**MANDATORY: After types and scopes are assigned, validate scope choices.**
+- Retrieve all changed files (staged + unstaged); restrict to the constrained list when a scope is active.
+- If no changes exist, report there's nothing to commit.
+- Read relevant diffs to understand each change.
 
-**Scope Validation Process:**
-1. Check if repository has a scope constitution at `.github/git-scope-constitution.md`
-2. If constitution exists, verify chosen scopes are approved for their commit type
-3. If no constitution exists, use the `git-commit-scope-constitution` skill to:
-   - Analyze repository structure (folders, modules, domains)
-   - Extract historical scopes from git history
-   - Propose appropriate scopes based on project structure
-4. Ensure scope names follow conventions:
-   - Kebab-case, lowercase, singular form
-   - Domain/module/feature-based (not file-path-based)
-   - Concise and descriptive (1-3 words)
+### 2. Assign Types and Scopes Per File
 
-**Scope Cross-Reference:**
-- Commit type (Tier 1/2) determines WHAT kind of change
-- Scope (Tier 3) specifies WHERE in the project
-- Together they form: `type(scope): subject`
+**MANDATORY:** Determine each file's exact type and scope using the tables above. Document the assignment — it drives the entire plan.
 
-**Example:**
-```text
-File: skills/pdf/SKILL.md
-  → Type: agent            [Tier 2 extended type for AI agent assets]
-  → Scope: skill           [Tier 3 category-level scope]
-  → Result: agent(skill): add table extraction to pdf
-```
+### 3. Validate Scopes
 
-### 4. Pre-Commit Verification Checklist
+1. If `.github/git-scope-constitution.md` exists, verify every chosen scope is approved for its type.
+2. If not, use the `git-commit-scope-constitution` skill to propose scopes.
+3. Scope names: kebab-case, lowercase, singular, 1-3 words, domain/module-based.
 
-**MANDATORY: Complete this checklist before presenting any commit plan:**
+### 4. Pre-Commit Verification Checklist (MANDATORY)
 
-- [ ] **Type Mapping**: Every file path mapped to correct type (Tier 2 extended type when applicable, otherwise Tier 1 universal)
-- [ ] **Scope Selection**: Every commit has an appropriate scope from the constitution (Tier 3)
-- [ ] **No Generic Types**: No commits using Tier 1 types (`feat`, `fix`, `chore`) when a Tier 2 extended type applies
-- [ ] **Atomic Grouping**: Changes grouped by logical feature/module boundaries
-- [ ] **Dependency Order**: Commit order maintains buildable state
-- [ ] **Scope Accuracy**: Commit scopes match actual module/feature names
+- [ ] Every file mapped to the correct type (Tier 2 when applicable)
+- [ ] Every commit has an approved scope from the constitution
+- [ ] No Tier 1 type used when a Tier 2 extended type applies
+- [ ] Atomic grouping by feature/module boundaries
+- [ ] Commit order maintains a buildable state
+- [ ] Scopes match actual module/feature names
 
-**If any checklist item fails, revise the plan before proceeding.**
+If any item fails, revise the plan before proceeding.
 
-### 5. Group Changes into Logical Commits
+### 5. Group into Logical Commits
 
-**CRITICAL CONSTRAINT: Files with different commit types CANNOT be grouped together - they must be in separate commits.**
+**CRITICAL: Files with different commit types CANNOT be grouped together.**
 
-Group remaining related changes based on:
-- **Same commit type**: Only group files that share the same required commit type
-- **Feature scope**: Files related to the same feature/module (within same type)
-- **Change type**: Separate refactors from features from fixes (within same type)
-- **Domain boundaries**: Respect module/bounded context boundaries (within same type)
-- **Dependencies**: Ensure commits can be applied sequentially without breaking the build
+Group by: same type → feature scope → change kind (refactor vs feat vs fix) → domain boundaries → dependency order. If grouping would mix types, split immediately. Track planned commits in a todo list.
 
-**If grouping would mix commit types, split into separate commits immediately.**
+### 6. Validate Plan
 
-Create a todo list tracking each planned commit with their assigned types.
+Each planned commit must: share one type, represent one logical change, apply in sequence without conflicts, use valid scopes. If validation fails, revise immediately.
 
-### 6. Validate Commit Plan
+### 7. Generate Commit Messages
 
-**MANDATORY VALIDATION: Review each planned commit to ensure:**
-- All files in a commit share the same commit type
-- No commit mixes different types
-- Each commit represents one logical change within its type
-- Commits can be applied in sequence without conflicts
-- Scopes are valid per the constitution (if available)
+Format: `<type>(<scope>): <subject>` — exactly ONE scope; mention secondary areas in the subject.
 
-**If validation fails, revise the grouping immediately.**
+- **Type**: Tier 1 or Tier 2 (extended wins)
+- **Scope**: single, concise, from the constitution
+- **Subject**: imperative, lowercase, no period, ≤50 chars
+- **Body**: what and why, wrap at 72 chars
 
-### 7. Generate Conventional Commit Messages
+Quality standards (plain English, repository vocabulary, durable references) and worked examples: [references/message-quality.md](references/message-quality.md).
 
-For each group, generate a commit message following **Conventional Commits** format:
+### 8. Execute with Verification Gates (MANDATORY)
 
-```text
-<type>(<scope>): <subject>
+**Interactive mode:** present the full plan, wait for explicit approval, then commit sequentially.
+**Autonomous mode:** validate internally, then execute all planned commits.
 
-<body>
+Before EACH `git commit`:
+- [ ] **Staged set matches this commit's plan exactly**: `git diff --cached --name-only` equals the planned file list — no more, no fewer.
+- [ ] **No out-of-scope files staged**: with a constrained scope active, every staged path is on the allowed list.
+- [ ] **Mixed-hunk files handled per-hunk**: if a file contains both in-scope and out-of-scope changes, stage only the in-scope hunks with `git add -p`; never `git add` the whole file.
+- [ ] **No broad staging**: never `git add .`, `git add -A`, `git add <dir>`, or `git commit -a`/`-am`.
+- [ ] **Untracked files handled explicitly**: enumerate them; never sweep them in implicitly.
 
-<footer>
-```
+After EACH commit:
+- [ ] **Post-commit check**: `git show --stat --oneline HEAD` contains exactly the intended files; `git status --short` shows no unintended leftovers staged.
 
-**MANDATORY: Conventional Commit Syntax**
-Every commit MUST follow this exact structure:
-- `<type>(<scope>): <subject>`
-- Never use multiple scopes like `<type>(<scope>)(<scope_2>)` or `<type>(<scope1,scope2>)`. Use ONE primary scope that best represents the change.
-- **Secondary Areas**: If the change involves a second area (scope_2), mention it explicitly inside the `<subject>` part (e.g., `<type>(primary-scope): [scope2] actual message` or `<type>(primary-scope): fix scope2 bug`).
+If any gate fails: unstage offending paths (`git restore --staged <path>`), re-verify, then proceed. If a commit fails mid-sequence, stop and report — do not continue with remaining commits until the user decides.
 
-**Message Format Rules:**
-- **Type**: Must be a Tier 1 universal type or Tier 2 extended type (see tables above).
-- **Scope**: Must be a single, concise module or feature name (Tier 3).
-- **Subject**: Imperative mood, lowercase, no period, ≤50 chars
-- **Body**: Explain *what* and *why*, wrap at 72 chars
+### 9. Completion
 
-**Type Selection:** Refer to the Tier 1 and Tier 2 tables in the "Distinguish Commit Type vs. Commit Scope" section above.
-
-**CRITICAL:** Use Tier 2 extended types (e.g., `agent`, `copilot`) instead of Tier 1 universal types (`feat`, `chore`) when the file matches an extended type pattern. Always pair the Type with a valid Scope from the repository's constitution.
-
-**Scope Selection:**
-- Prefer scopes from `.github/git-scope-constitution.md` if available
-- Ensure scope aligns with repository structure (module, domain, feature)
-- Follow kebab-case, lowercase naming conventions
-- Use `git-commit-scope-constitution` skill if unclear
-
-### 8. Commit Message Quality Standards
-
-**KEY:** Provide sufficient detail for accurate changelog generation and knowledge graph tracking. Vague messages lead to misleading summaries.
-
-**Quality Requirements:**
-- **Deletions:** List specific items removed (files, features, agents, etc.)
-- **Bulk changes:** Specify each major component affected
-- **Refactors:** Detail what was restructured and why
-- **Additions:** Describe new capabilities or features clearly
-
-**Good Example (Specific):**
-```text
-copilot(custom-agent): remove unused agents - conductor, context7, implementation, microsoft-docs
-
-Removes four specialized agents that were redundant.
-Streamlines agent portfolio and reduces maintenance overhead.
-```
-
-**Bad Example (Vague):**
-```text
-refactor: update agent definitions
-```
-
-**Plain English, in the repository's own words:**
-
-Specific is necessary but not sufficient. A message must be readable by someone
-who was not in the session — and it must use the words the repository already
-uses for the thing being described.
-
-- **Write plain English.** No session-only shorthand, no plan labels
-  ("pass 2", "ship 1", "phase 3 step 4"), no undefined acronyms. A reader who
-  opens the repository tomorrow must be able to resolve every noun without the
-  session that produced it.
-- **Prefer the repository's established vocabulary.** Before naming a domain
-  concept, check what this repository already calls it. Many repositories keep a
-  `CONTEXT.md` (and often a `CONTEXT-MAP.md`) per bounded context; read the
-  owning one and use its terms. Heed any `_Avoid_:` list — those are the synonyms
-  that are specifically wrong.
-- **Prefer durable references over session references.** Point at other
-  issue/PR numbers, committed file paths, and committed docs — not at
-  registers, notes, or artifacts that only exist in the session.
-
-> **Repository conformance:** if the repository defines a terminology rule (for
-> example an instructions file under `.github/instructions/`, a style guide, or
-> an audit script), that rule wins over this guidance and is the source of truth
-> for which terms are banned and which are encouraged. This section is the
-> portable craft; the repository owns the specifics.
-
-**Example (vague and session-scoped → plain English in context):**
-```text
-# ❌ leans on session vocabulary that the repository cannot resolve
-feat(session): finish pass 2 spoke work for the brainstorm flow
-
-# ✅ same change, resolved from the repository alone
-feat(session): add grounded hierarchy checks to the brainstorm flow
-
-The third-level hierarchy cap was not exercised end to end, so a recursive
-child could be created below the documented limit. Adds coverage in
-src/Tests/Integration.Tests/Session/PmBrainstormHierarchyGroundingTests.cs.
-```
-
-### 9. Execution & Review
-
-**Interactive Mode (User-Guided):**
-1. Present the complete commit plan with all details.
-2. **Wait for explicit user approval** before proceeding.
-3. Execute commits sequentially:
-   - Stage only files for the current commit
-   - Execute commit
-   - Confirm success
-4. Allow user to edit or reject commits.
-
-**Autonomous Mode (Subagent):**
-1. Analyze changes and generate the complete commit plan.
-2. **Validate internally** against all constraints.
-3. Execute all planned commits automatically without user prompts.
-4. Return a comprehensive summary of all created commits.
-
-**Safety:**
-- Never discard or reset changes without consent.
-- If validation fails, stop and report the issue.
-
-### 10. Completion
-
-After all commits are done, show a summary of all commits created.
+Show a summary of all commits created.
 
 ## Constraints
 
-- **Never commit without explicit user approval** (unless operating in authorized autonomous mode)
-- **Never discard or reset user's changes**
-- **MANDATORY: Use project-specific commit types - no exceptions**
-- **MANDATORY: Complete pre-commit verification checklist**
-- **MANDATORY: Different commit types require separate commits** - No exceptions for atomicity
-- **MANDATORY: Use approved scopes from constitution** - Check `.github/git-scope-constitution.md` if available
-- Keep commits atomic: one logical change per commit
-- Ensure commit order maintains a buildable state
-- **MANDATORY: Write commit messages in plain English** - no session-only
-  shorthand, plan labels, or undefined acronyms
-- **MANDATORY: Use the repository's established vocabulary** - read the owning
-  `CONTEXT.md` (and `CONTEXT-MAP.md` for cross-context work) and use its terms;
-  heed its `_Avoid_:` list
-- **MANDATORY: Reference durable context only** - other issue/PR numbers,
-  committed file paths, committed docs; never session-local registers or notes
-- If the repository defines its own terminology rule (e.g. an
-  `.github/instructions/` file or an audit script), that rule is authoritative
-  over this skill's guidance
+- Never commit without explicit user approval (unless authorized autonomous mode)
+- Never discard or reset user's changes
+- **Never stage or commit out-of-scope files when a caller-constrained scope is active**
+- Never use broad staging (`git add .` / `-A` / `<dir>`, `git commit -a`); stage mixed-hunk files per-hunk with `git add -p`
+- MANDATORY: project-specific commit types; pre-commit checklist; one type per commit; approved scopes; plain-English messages; repository vocabulary; durable references only
+- Keep commits atomic; commit order maintains a buildable state
+- Repository terminology rules (e.g. `.github/instructions/`, audit scripts) are authoritative
 
-## Integration with git-commit-scope-constitution Skill
+## Integration with git-commit-scope-constitution
 
-This skill works in tandem with the `git-commit-scope-constitution` skill to ensure complete commit message consistency:
+- **git-atomic-commit**: maps files → types, groups atomic commits, validates structure/order, executes with approval
+- **git-commit-scope-constitution**: defines valid scopes per type, naming conventions, structural alignment
 
-**Division of Responsibility:**
-- **git-atomic-commit** (this skill):
-  - Maps file paths to commit types
-  - Groups changes into atomic commits
-  - Validates commit structure and ordering
-  - Executes commits with user approval
+Flow: Changed Files → map types → select scopes → generate messages → commit. Constitution: `.github/git-scope-constitution.md`; Inventory: `.github/git-scope-inventory.md`. Use the constitution skill when the repo lacks a constitution, needs new scopes, or scope selection is unclear.
 
-- **git-commit-scope-constitution**:
-  - Defines valid scopes for each commit type
-  - Maintains scope naming conventions
-  - Aligns scopes with repository structure
-  - Provides scope selection guidelines
+## References
 
-**Workflow Integration:**
-```
-Changed Files
-    ↓
-git-atomic-commit: Map files → Commit types
-    ↓
-git-commit-scope-constitution: Select scopes for each type
-    ↓
-git-atomic-commit: Generate commit messages
-    ↓
-Final Commits: type(scope): subject
-```
-
-**When to Use Each:**
-- Use `git-atomic-commit` for every commit workflow
-- Use `git-commit-scope-constitution` when:
-  - Repository lacks `.github/git-scope-constitution.md`
-  - Need to add new scopes
-  - Weekly constitution refinement
-  - Scope selection is unclear
-
-**Constitution Location:** `.github/git-scope-constitution.md`
-**Scopes Inventory:** `.github/git-scope-inventory.md`
-
-## Commands Reference
-
-```powershell
-# View all changed files (staged + unstaged)
-git status --short
-
-# View diff for unstaged changes
-git diff -- <filepath>
-
-# View diff for staged changes
-git diff --cached -- <filepath>
-
-# Stage specific files
-git add <filepath>
-
-# Unstage specific files
-git reset HEAD -- <filepath>
-
-# Commit with message
-git commit -m "<message>"
-
-# Commit with multi-line message
-git commit -m "<subject>" -m "<body>"
-```
-
-## Example Output
-
-```text
-📦 Commit Plan (3 commits)
-
-1. agent(skill): add vscode-docs skill for researching VS Code docs
-   Files: skills/vscode-docs/SKILL.md, skills/vscode-docs/assets/toc.md
-
-2. copilot(instruction): update claude-skills orchestration guidelines
-   Files: instructions/claude-skills.instructions.md
-
-3. docs(issue): remove deprecated copilot-skills design decision issue
-   Files: .issues/251210_copilot-skills.md
-
-✅ Pre-commit verification: All file paths mapped to correct project-specific types
-Ready to proceed with commit #1? (yes/no/edit)
-```
+- [references/type-scope-mapping.md](references/type-scope-mapping.md) — Tier 2 extended-type table, Tier 3 example mappings, common mistakes
+- [references/message-quality.md](references/message-quality.md) — message quality standards, plain-English rules, worked examples
+- [references/commands.md](references/commands.md) — git command cheat sheet
 
 ## Error Handling
 
-- If a commit fails, show the error and ask how to proceed
-- If conflicts arise, guide the user to resolve them
-- Always provide a way to abort and restore original staging state
-- **If commit types are incorrect, stop and revise the entire plan**
-- **If validation fails due to type mixing, immediately revise the grouping**
+- Commit failed → show the error, ask how to proceed
+- Conflicts → guide the user to resolve them
+- Always provide a way to abort and restore the original staging state
+- Incorrect types or type mixing → stop and revise the entire plan
