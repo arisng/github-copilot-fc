@@ -1,8 +1,8 @@
 ---
 name: copilot-cli-plugin-builder
-description: "Author, scaffold, test, and distribute GitHub Copilot CLI plugins. Use when the user wants to: (1) create a new Copilot CLI plugin, (2) add skills, agents, hooks, or MCP servers to a plugin, (3) write a plugin.json manifest, (4) use the Copilot SDK to build programmable plugins, (5) publish a plugin to a marketplace, (6) scaffold plugin boilerplate, or (7) migrate from legacy Copilot Extensions. Covers the Agent Plugins 1.0 format (agent-plugins.org) and the @github/copilot-sdk in all 6 languages. Do NOT use for Copilot CLI extensions (tools/commands/canvas via @github/copilot-sdk/extension) — use copilot-cli-extension-builder instead."
+description: "Author, scaffold, test, and distribute GitHub Copilot CLI plugins. Use when the user wants to: (1) create a new Copilot CLI plugin, (2) add skills, agents, hooks, or MCP servers to a plugin, (3) write a plugin.json manifest, (4) use the Copilot SDK to build programmable plugins, (5) publish a plugin to a marketplace, (6) scaffold plugin boilerplate, (7) migrate from legacy Copilot Extensions, or (8) bump or update a plugin's version. Covers the Agent Plugins 1.0 format (agent-plugins.org) and the @github/copilot-sdk in all 6 languages. Do NOT use for Copilot CLI extensions (tools/commands/canvas via @github/copilot-sdk/extension) — use copilot-cli-extension-builder instead."
 metadata:
-  version: 0.1.0
+  version: 0.1.1
 ---
 
 # Copilot CLI Plugin Builder
@@ -180,6 +180,15 @@ copilot plugin install OWNER/REPO:PATH/TO/PLUGIN
 ```
 
 **Via marketplace:** See `references/marketplace-guide.md` for creating and distributing through marketplaces.
+
+### Version Bump
+
+When bumping a plugin's version, **always update both files atomically**:
+
+1. `plugin.json` → `version` (source of truth)
+2. `marketplace.json` → `plugins[name=X].version` (must mirror plugin.json)
+
+These MUST match. Drift causes users to miss updates or install unexpected versions. See `references/marketplace-guide.md` → "Bump Procedure" for the full checklist including verification and commit steps.
 
 ## SDK Usage
 

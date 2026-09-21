@@ -163,16 +163,32 @@ When you bump the plugin version, update **both** `plugin.json` and the correspo
 | Change to `source` path or target (repo moved, ref changed) | ✅ Yes | Any bump | The install target changed — users need to re-fetch |
 | No marketplace (direct local install) | ❌ Not needed | — | `copilot plugin install ./path` loads live from disk; edits take effect on `/restart` |
 
-**Checklist when bumping a plugin version:**
+### Bump Procedure (Atomic, Two-File)
+
+When bumping a plugin version, follow this exact sequence. Both files must be updated together — never one without the other.
+
+1. **Decide the new version** — determine SemVer bump type (patch/minor/major) from the change type table above.
+2. **Edit `plugin.json`** — update the `version` field. This is the source of truth.
+3. **Edit `marketplace.json`** — update the matching `plugins[]` entry's `version` field to the same value.
+4. **Verify alignment** — run the verification script:
+   ```bash
+   python3 scripts/verify-version-sync.py <marketplace-dir>
+   ```
+   This checks every `plugins[].version` against its `plugin.json` and exits non-zero on drift. If the script is unavailable, manually confirm both files show the same version string.
+5. **Commit atomically** — stage and commit both files in a single commit. Never commit one without the other.
 
 ```diff
-  # plugin.json
+  # Step 2: plugin.json
 - "version": "1.2.0"
 + "version": "1.2.1"
 
-  # marketplace.json → plugins[]
+  # Step 3: marketplace.json → plugins[]
 - { "name": "my-plugin", "version": "1.2.0", ... }
 + { "name": "my-plugin", "version": "1.2.1", ... }
+
+  # Step 5: single atomic commit
+  git add plugin.json .github/plugin/marketplace.json
+  git commit -m "bump(my-plugin): 1.2.0 → 1.2.1"
 ```
 
 ### When to Bump the Catalog Version (`metadata.version`)
@@ -186,6 +202,8 @@ Bump the marketplace-level version **only** when the catalog structure changes �
 | Plugin entry metadata changed (description, keywords) | ⚠️ Optional | ⚠️ Optional |
 | Plugin source code changed (bug fix, feature) | ❌ **No** | ✅ **Yes** (both `plugin.json` and `plugins[]`) |
 | `metadata.description` text changed | ✅ Yes | ❌ No |
+
+**SemVer for `metadata.version`:** Use **minor** bump for structural changes (plugin added/removed). Use **patch** for description-only updates. This version is informational — the CLI does not use it for update detection.
 
 ### Multi-Plugin Marketplace: Version Bump Examples
 
@@ -251,10 +269,11 @@ plugins/analyzer/plugin.json   →  "version": "0.5.0"
 
 **Scenario 3: Breaking change in `formatter` + bug fix in `analyzer`**
 
+Only plugin versions change — no catalog structural change, so `metadata.version` stays at `1.0.0`:
+
 ```diff
-  # marketplace.json
-- "metadata": { "version": "1.1.0" }
-+ "metadata": { "version": "1.2.0" }           // ← bumped (catalog changed)
+  # marketplace.json — plugin entries only
+  "metadata": { "version": "1.0.0" },           // ← unchanged (no catalog change)
   "plugins": [
 -   { "name": "formatter", "version": "1.2.0", ... },
 +   { "name": "formatter", "version": "2.0.0", ... },   // ← major bump
@@ -263,11 +282,11 @@ plugins/analyzer/plugin.json   →  "version": "0.5.0"
 +   { "name": "analyzer",  "version": "0.5.1", ... }     // ← patch bump
   ]
 
-  # plugins/formatter/plugin.json
+  # plugins/formatter/plugin.json — must match marketplace entry
 - "version": "1.2.0"
 + "version": "2.0.0"
 
-  # plugins/analyzer/plugin.json
+  # plugins/analyzer/plugin.json — must match marketplace entry
 - "version": "0.5.0"
 + "version": "0.5.1"
 ```
