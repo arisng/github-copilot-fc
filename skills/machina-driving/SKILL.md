@@ -66,6 +66,52 @@ Every command prints exactly one strict-JSON object. A blocked `fire` is a first
    verification and returns `{ok:true}` only when the run is intact.
 7. **Report** at terminal — ground your final summary to the report facts.
 
+## Simulator canvas integration
+
+When the `machina-simulator` Copilot extension is installed, the driving skill
+auto-opens its interactive canvas so the human conductor can visually observe
+the state machine being driven in real time.
+
+### Open on init
+
+After a successful `init`, open the simulator canvas:
+
+```
+open_canvas(canvasId: "machine-simulator", input: {
+  runRef: "<run-id>",
+  sessionWorkspace: "<session-folder>"
+})
+```
+
+- `runRef`: the run ID returned by `init` (the directory name under `machina-runs/`).
+- `sessionWorkspace`: the agent's current session folder (from the system prompt,
+  e.g. `~/.copilot/session-state/<uuid>`). This scopes run-history discovery to
+  the current session so the canvas Shows only this session's runs.
+
+The canvas enters **replay mode**, loading `machine.json` + `ledger.jsonl` from
+the persisted run and displaying the state graph, compliance score, and ledger
+trace.
+
+### Refresh on fire
+
+After each successful `fire`, **re-open** the canvas with the same `runRef` +
+`sessionWorkspace` to refresh the replay with the updated ledger. The canvas
+open handler is idempotent — it re-reads the ledger and broadcasts a `load`
+SSE event to the browser, so the conductor sees the latest state without
+manual intervention.
+
+### STUCK / escalation
+
+When the run enters `STUCK` or `ESCALATED`, the canvas is already showing the
+stuck state and blocked events. No extra canvas action is needed — the
+grounded report to the human conductor is the escalation channel.
+
+### Graceful fallback
+
+If `open_canvas` fails (extension not installed, canvas unavailable, or any
+error), **skip silently**. The run continues normally without canvas
+visibility. The simulator is a convenience, not a requirement.
+
 ## Tamper prevention
 
 The driver makes accidental or silent tampering fail closed. Four mechanisms
@@ -121,7 +167,10 @@ This skill **depends on** [`machina-authoring`](../machina-authoring/SKILL.md):
 `scripts/machine-driver.py` imports the shared engine (guard/action evaluation,
 terminal detection, compliance scoring) from `machina-authoring/scripts/machine-validator.py`.
 Distributing this skill to a workspace **implicitly distributes `machina-authoring`**.
-The `machina-simulator` Copilot extension is **optional** (human UI only).
+The [`machina-simulator`](../../.copilot/extensions/machina-simulator) Copilot
+extension is **auto-invoked** when installed — the driving skill opens its
+canvas on `init` for live visual observability. When absent, the skill degrades
+gracefully (no canvas, run continues normally).
 
 For precision: the driver consumes the engine's **blocking validation**
 (`run_compliance(...)["blocking"]`) as the structural gate and executes the machine's declared

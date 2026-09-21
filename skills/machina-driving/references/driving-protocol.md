@@ -151,6 +151,50 @@ ledger record — and a fail-closed refusal to continue the run.
    to the report facts** — status, final state, path, events, evidence, context
    snapshot. Never invent claims beyond the report.
 
+## Simulator canvas
+
+When the `machina-simulator` Copilot extension is installed, the driving skill
+auto-opens its interactive canvas for live visual observability. The canvas
+renders the state graph, compliance score, ledger replay trace, and run-history
+inventory.
+
+### Session scoping
+
+The agent's system prompt provides the current session folder (e.g.
+`~/.copilot/session-state/<uuid>`). This path is passed as `sessionWorkspace`
+to the canvas, which scopes run-history discovery to the current session's
+`machina-runs/`, `machina-persist/`, and `machina-i2/` directories. Without
+this, the canvas scans all sessions — functional but noisy.
+
+### Open-on-init
+
+After a successful `init`, the agent opens the canvas:
+
+```
+open_canvas(canvasId: "machine-simulator", input: {
+  runRef: "<run-id>",
+  sessionWorkspace: "<session-folder>"
+})
+```
+
+The canvas resolves `runRef` via the discovery convention, loads
+`machine.json` + `ledger.jsonl`, and enters **replay mode** showing the
+initial state and compliance summary.
+
+### Refresh-on-fire
+
+After each `fire`, the agent re-opens the canvas with the same `runRef` +
+`sessionWorkspace`. The open handler is idempotent: it re-reads the ledger
+(now containing the new fire record), replays it, and broadcasts a `load` SSE
+event to the browser. The conductor sees the updated state without manual
+intervention.
+
+### Fallback
+
+If `open_canvas` fails (extension not installed, canvas unavailable), the agent
+skips silently. The run continues normally — the simulator is a convenience,
+not a requirement.
+
 ## Evidence checks
 
 - State `checks[]` gate **all** exits from that state.
