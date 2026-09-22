@@ -20,6 +20,11 @@ metadata:
 Guidance for writing state-machine definitions that open cleanly in the Machina simulator and
 score well against its compliance scorer.
 
+**Declaration-sound ≠ runtime-sound.** The scorer reads the definition and never runs a tool, so a
+100 / "Excellent" score attests the JSON — never that a declared checker decides the right fact, or
+that it would pass at runtime. Scoring a file from disk additionally verifies that one referenced
+checker resolves (see "Compliance boundary"); nothing scores the rest.
+
 ## Glossary
 
 Use these terms consistently — in prompts, output, and code comments:
@@ -37,8 +42,10 @@ Use these terms consistently — in prompts, output, and code comments:
 | **Action** | Declarative side effect `{ type:"increment"\|"assign" }` on context. No code strings, ever. |
 | **Context** | Extended state data available to guards/actions; supports dotted paths. |
 | **Scenario / entry point** | A named start into the state machine (`scenarios[]` with `initial`, `interface ∈ UI·API`). |
-| **Compliance scorer** | The deterministic 23-check evaluator producing score/grade/gaps (in-app or via `machine-validator.py`). 22 checks are weighted (total weight 100 at v2, 119 at v3); `tools-exist` is a weight-0 informational review check. Not "checker", "linter", or "validator" (validation is only its blocking subset). |
-| **Gap** | A failing check finding: `auto` (deterministically fillable) or `review` (needs human judgment). |
+| **Checker** | A named script in `tools[]` that inspects the world and reports — read-only, never a mutator. |
+| **Evidence** | A live reference to a checker from a state `checks[]` or a transition `requires[]` (the slots the driver executes). A reference from `ensures[]` or `invariants[]` never runs, so it is not evidence. |
+| **Compliance scorer** | The deterministic 24-check evaluator producing score/grade/findings (in-app or via `machine-validator.py`). 22 checks are weighted (total weight 100 at v2.0.0, 134 at v3.0.0); `spec-version` and `tools-exist` are weight-0 informational review checks, and the whole `tools` family is `since 3.0.0`, so v1/v2 targets are graded without it. Not "checker", "linter", or "validator" (validation is only its blocking subset). |
+| **Finding / gap** | Any check result. Failing findings are "gaps": `auto` (deterministically fillable) or `review` (needs human judgment). Only `auto` findings appear in the `gaps` patch list — a failed `review` check such as `tools-exist` or `checkers-used` appears in `score` output and never in `gaps`, and `apply` never re-scores. |
 
 ## Minimal viable machine
 
@@ -70,6 +77,9 @@ to a state key, and every transition `target` pointing at an existing state key.
 }
 ```
 
+This example is deliberately free of evidence, so it scores as a *viable* definition rather than an
+Excellent one — a v3.0.0 definition needs a checker before it can reach the top band (see step 7).
+
 ## Authoring workflow
 
 1. Read [references/schema-spec.md](references/schema-spec.md) — full field reference, naming
@@ -86,17 +96,32 @@ to a state key, and every transition `target` pointing at an existing state key.
    it — this is the only pattern the compliance scorer recognizes as cycle protection.
 6. Give every state a real, human `description` — placeholder text is auto-detectable
    (`generated: true`) and reads as a gap.
-7. Validate & score — use the bundled deterministic engine (see below) or open in Machina:
+7. Declare evidence — a v3.0.0 definition needs at least one **usable checker**: a script beside the
+   machine (`scripts/check_<fact>.py`), registered in `tools[]` with a path-bearing `cmd` and
+   `expect_exit: 0`, and referenced from a state `checks[]` or a transition `requires[]`. The scorer
+   weights that declaration (`checkers-used`), and when you score a file from disk it also verifies
+   the required checker's script resolves — but the *other* tools in the registry are only reported
+   (`tools-exist`, weight 0), so confirm their `cmd` paths yourself. Deriving the facts and the script
+   contract: [references/checker-scripts.md](references/checker-scripts.md).
+8. Validate & score — use the bundled deterministic engine (see below) or open in Machina:
    `validate` → iterate → target **≥90 ("Excellent")** via `score --text`.
    - Gaps flagged `auto` can be applied deterministically with the script's `apply`
-     (or "Generate missing" in-app).
+     (or "Generate missing" in-app). `apply` rewrites the file only — it never re-scores, so run
+     `score --text` again to see the result.
    - Gaps flagged `review` need your judgment: missing transitions, convention renames, event/state
-     naming, unreachable states. Fix these by hand — see [references/machine-quality.md](machine-quality.md)
-     for what each check demands.
+     naming, unreachable states, missing evidence. They never appear in the `gaps` patch list — read
+     them in `score` output. See [references/machine-quality.md](references/machine-quality.md) for what each
+     check demands.
+   - Finish only when `score --text` is at target **and** every `tools[].cmd` path token resolves next
+     to the machine: only the one checker `checkers-used` requires is scored, and `tools-exist` reports
+     every other dangling path at weight 0 — so it stays invisible to `gaps`. Never present a score as
+     proof that the checkers exist or work.
 
 ## Hard rules
 
-- Declare `"spec_version": "3.0.0"` explicitly so scoring never assumes latest silently.
+- Declare `"spec_version": "3.0.0"` explicitly so scoring never assumes latest silently. (`spec-version`
+  is a weight-0 informational check, so nothing punishes an omission — and the target you declare decides
+  whether the v3 `tools` checks apply at all.)
 - Event names `UPPER_SNAKE`; state keys `kebab-case`.
 - Guard `value` may be a literal number/string or a context-key name (resolved then numeric-coerced).
 - Context paths support dotted notation (`"payment.attempts"`).
@@ -104,7 +129,7 @@ to a state key, and every transition `target` pointing at an existing state key.
 
 ## Deterministic tooling — use the bundled script
 
-All deterministic authoring logic from the Machina simulator (validation, the 23-check
+All deterministic authoring logic from the Machina simulator (validation, the 24-check
 compliance scorer, gap analysis, autofill patching, scenario generation, cycle detection,
 coverage building) is bundled as a standalone CLI. Run it instead of re-deriving logic or
 loading simulator source:
@@ -125,14 +150,21 @@ python3 skills/machina-authoring/scripts/machine-validator.py <command> <machine
 | `coverage <file>` | Exact coverage block "Generate missing" would embed |
 
 Typical authoring loop: `validate` → iterate → `score --text` until ≥90 → `gaps` for remaining
-auto-fillable items → `apply` (or hand-fix review items) → final `score`.
+auto-fillable items → `apply` (or hand-fix review items — they never appear in `gaps`) → confirm every
+`tools[].cmd` path resolves → final `score`.
 
-**Known divergence (deliberate):** the simulator source's check-inclusion filter
-(`specRank(since) <= specRank(target)` over newest-first ranks) inverts v1/v2 inclusion versus
-§14's documented model. The ported script implements the documented semantics (all 17 checks at
-v2.0.0, weight = 100). When editing the simulator itself, follow
+**Known divergences (deliberate, both ported-script-side):**
+
+1. The simulator source's check-inclusion filter (`specRank(since) <= specRank(target)` over
+   newest-first ranks) inverts v1/v2 inclusion versus §14's documented model. The ported script
+   implements the documented semantics (all 17 checks at v2.0.0, weight = 100).
+2. The ported script carries a **v3-only check set the simulator's engine does not have** (24 checks /
+   134 at v3.0.0, against the simulator's documented 17 checks / total weight exactly 100). The
+   in-app scorer therefore grades v3.0.0 definitions differently from `machine-validator.py`.
+
+When editing the simulator itself, follow
 [the machina-simulator extension's canonical maintenance docs](../../copilot-extensions/machina-simulator/simulator/docs/maintenance.md)
-and keep this divergence in mind.
+and keep these divergences in mind.
 
 ### Compliance boundary — what the scorer does and does not verify
 
@@ -142,7 +174,8 @@ The scorer analyzes the machine **declaration** only; it never executes anything
 |---|---|
 | Schema structure, internal consistency, reference resolution (targets, tools, `else_target`) | That any declared tool's **runtime behavior** actually holds |
 | `tools[]` registrations are well-formed and referenced correctly | That a `checks[]`/`requires[]`/`ensures[]` predicate will **pass when run** |
-| `tools-exist` — each tool `cmd`'s machine-relative path resolves to a file on disk (weight-0 **review** check; static file-stat, no execution) | That a present script is correct, safe, or even runnable |
+| `checkers-used` (weight 15) — one checker is referenced from a driver-executed slot, by path, expecting exit 0, and (when the machine directory is known) resolving on disk | That the checker decides the fact it claims to decide. `python3 -c pass` is caught; a script that inspects the wrong thing is not |
+| `tools-exist` — per tool, whether a path-bearing `cmd` resolves to a file on disk (weight-0 **review** check; static file-stat, no execution) | That a pathless `cmd` (e.g. `python3 check.py`) is checkable at all — it is skipped and passes — nor that a present script is correct, safe, or even runnable |
 
 Consequences to teach authors and consumers alike:
 
@@ -150,24 +183,31 @@ Consequences to teach authors and consumers alike:
   100 while a tool's script fails in practice — the scorer never runs it.
 - The scorer **never executes** checker scripts. Only the driver actually runs them; see the
   companion `machina-driving` skill's "Trust boundary" for where runtime verification happens.
-- `tools-exist` is **informational** (weight 0): a dangling `cmd` reports a `warn`/review gap
-  without lowering the score, because the scorer has no execution context. When the machine file
-  is scored from disk (`score <file>`), its machine-relative paths are stat'd; in in-memory or
-  workspace-copied contexts with no resolvable directory the check passes trivially.
-- `validate` + `--blocking` findings are the soundness gate; the semantic checks above are quality
-  guidance.
+- `checkers-used` (weight 15) is the one check that weights evidence, and it is deliberately
+  context-sensitive in a single bit: `score <file>` also verifies that the required checker's script
+  resolves on disk, while in-memory callers (the driver's gate, unit tests, temp workspaces) judge the
+  declaration only, because they have no directory to look in.
+- `tools-exist` is **informational** (weight 0): a dangling `cmd` reports a `warn`/review finding
+  without lowering the score. When the machine file is scored from disk its machine-relative paths are
+  stat'd; in in-memory or workspace-copied contexts with no resolvable directory the check passes
+  trivially. A pathless `cmd` is skipped in both cases, and only the first path-bearing token is stat'd.
+- `validate` (structural errors) and `score`'s `blocking` findings cover identity and structure only —
+  `id-present`, `states-present`, `initial-resolves`, `targets-resolve`. Everything else, including
+  evidence, is quality guidance.
 
 ## Reference map (load on demand)
 
 | File | Load when |
 |---|---|
 | [references/schema-spec.md](references/schema-spec.md) | Any authoring work — field tables, versioning, guard/action semantics |
-| [references/machine-quality.md](references/machine-quality.md) | Scoring below target, or proactively before finishing a definition — per-check author guidance, grade bands, review-vs-auto gaps |
+| [references/checker-scripts.md](references/checker-scripts.md) | Any v3.0.0 definition that needs evidence — deriving the facts, the script contract, which slots execute, the skeleton |
+| [references/machine-quality.md](references/machine-quality.md) | Scoring below target, or proactively before finishing a definition — per-check author guidance, grade bands, review-vs-auto findings |
 
 ## Naming discipline in generated output
 
 When authoring definitions or writing about them: say "state machine" or "machine definition"
 (never bare "machine"), qualify "Machina simulator" vs "Machina schema spec", and use "final
-state", "compliance scorer", and "gap (`auto`/`review`)" per the glossary. Field-level vocabulary
+state", "compliance scorer", "checker" vs "evidence", and "finding/gap (`auto`/`review`)" per the
+glossary. Field-level vocabulary
 (`guard`, `action`, `event`, `transition`, `context`, `scenario`) is already industry-standard —
 keep it verbatim.

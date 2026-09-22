@@ -3,7 +3,7 @@
 
 Faithful Python port of the deterministic routines in the Machina simulator
 (served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/machine-simulator.mjs):
-validation, the 23-check compliance scorer, gap analysis, autofill patches,
+validation, the 24-check compliance scorer, gap analysis, autofill patches,
 scenario generation, cycle detection, and coverage-block building.
 
 This module is also the **shared engine** for the `machina-driving` skill:
@@ -259,7 +259,7 @@ def detect_cycles(m):
     return cycles
 
 
-# ── compliance scoring (23 checks; 22 weighted — totals: 100 for v2, 119 for v3) ───
+# ── compliance scoring (24 checks; 22 weighted — totals: 100 for v2, 134 for v3) ───
 
 def cycle_counter_key(m):
     for k in (m.get("context") or {}):
@@ -346,12 +346,19 @@ def _check_cycle_guards(m):
 
 
 def _check_tools_registry(m):
-    """Validate tools registry structure and fields (v3.0.0)."""
+    """Validate tools registry structure and fields (v3.0.0).
+
+    An absent `tools` key passes — a machine without checkers is legitimate, and
+    `checkers-used` is the check that judges that choice. A declared but empty
+    registry does not pass: it names no checker, so it is not a registry.
+    """
     tools = m.get("tools")
     if tools is None:
         return _pass(True)
     if not isinstance(tools, dict):
         return _fail('"tools" must be an object')
+    if not tools:
+        return _fail('"tools" is declared but empty — remove it or register a checker')
     for name, tool in tools.items():
         if not isinstance(tool, dict):
             return _fail(f'Tool "{name}" must be an object')
@@ -494,6 +501,57 @@ def _check_tools_exist(m, base_dir=None):
     return _pass(True)
 
 
+def _check_checkers_used(m, base_dir=None):
+    """At least one declared checker must be usable as evidence (weight 15, v3.0.0).
+
+    A checker counts when a tool is named from a **driver-executed slot** — a state
+    `checks[]` or a transition `requires[]` — its `cmd` names a script by path, it
+    expects exit code 0, and, when `base_dir` is known, that script resolves
+    machine-relative. `ensures[]` (delivered by the ensures-runner hook, which is not
+    installed) and `invariants[]` (never executed) do not count.
+
+    With no `base_dir` the resolvability condition is skipped rather than guessed: the
+    check then judges the reference only. That is the single context-dependent bit of
+    the scorer, and it is deliberate — a caller with no filesystem context cannot know.
+    """
+    tools = m.get("tools")
+    if not isinstance(tools, dict):
+        return _fail('No "tools" registry — nothing can fail independently of the agent\'s word')
+    if not tools:
+        return _fail('Empty "tools" registry — no checker is declared')
+    referenced = []
+    for s, st in (m.get("states") or {}).items():
+        for ref in ((st or {}).get("checks") or []):
+            if isinstance(ref, str):
+                referenced.append((ref, f'state "{s}" checks[]'))
+    for sk, evt, tr in transitions(m):
+        if not isinstance(tr, dict):
+            continue
+        for ref in (tr.get("requires") or []):
+            if isinstance(ref, str):
+                referenced.append((ref, f'transition "{sk} → {evt}" requires[]'))
+    if not referenced:
+        return _fail("No checker is referenced from a state checks[] or a transition requires[]")
+    base = Path(base_dir) if base_dir else None
+    reasons = []
+    for name, where in referenced:
+        tool = tools.get(name)
+        if not isinstance(tool, dict):
+            continue  # tools-refs already reports unknown references
+        rel = _cmd_path_token(tool.get("cmd"))
+        if rel is None:
+            reasons.append(f'"{name}" ({where}) cmd names no script path')
+            continue
+        if tool.get("expect_exit", 0) != 0:
+            reasons.append(f'"{name}" ({where}) expect_exit is {tool.get("expect_exit")}, not 0')
+            continue
+        if base is not None and not (base / rel).is_file():
+            reasons.append(f'"{name}" ({where}) script "{rel}" not found next to the machine')
+            continue
+        return _pass(True)
+    return _fail("No usable checker — " + "; ".join(reasons))
+
+
 COMPLIANCE_CHECKS = [
     {"id": "id-present", "category": "Identity & metadata", "since": "1.0.0", "weight": 5,
      "severity": "blocking", "autofill": "review",
@@ -571,10 +629,14 @@ COMPLIANCE_CHECKS = [
      "severity": "warn", "autofill": "review",
      "remediation": 'All checks[], requires[], and ensures[] must reference tools in the registry.',
      "check": _check_tools_refs},
-        {"id": "tools-exist", "category": "Tools & execution", "since": "3.0.0", "weight": 0,
-         "severity": "warn", "autofill": "review",
-         "remediation": 'Each tool "cmd" path must resolve to an existing file machine-relative (static check; does not execute).',
-         "check": lambda m: _check_tools_exist(m, None)},
+    {"id": "tools-exist", "category": "Tools & execution", "since": "3.0.0", "weight": 0,
+     "severity": "warn", "autofill": "review", "needs_base_dir": True,
+     "remediation": 'Each tool "cmd" path must resolve to an existing file machine-relative (static check; does not execute).',
+     "check": _check_tools_exist},
+    {"id": "checkers-used", "category": "Tools & execution", "since": "3.0.0", "weight": 15,
+     "severity": "warn", "autofill": "review", "needs_base_dir": True,
+     "remediation": 'Reference a checker from a state "checks[]" or transition "requires[]" whose "cmd" names a script path, expects exit 0, and resolves next to the machine.',
+     "check": _check_checkers_used},
     {"id": "phase-states", "category": "State quality", "since": "3.0.0", "weight": 3,
      "severity": "warn", "autofill": "review",
      "remediation": 'Phase states (type "phase") must have a "description".',
@@ -612,13 +674,9 @@ def run_compliance(m, spec_version=None, base_dir=None):
     findings, by_cat = [], {}
     earned = total = 0
     for c in checks:
-        if c["id"] == "tools-exist":
-            # needs the machine's base dir for machine-relative resolution; the
-            # lambda in COMPLIANCE_CHECKS passes None (backward-compatible), so
-            # override with the caller-provided base_dir here.
-            r = _check_tools_exist(m, base_dir)
-        else:
-            r = c["check"](m)
+        # Checks flagged `needs_base_dir` resolve machine-relative paths: they receive the
+        # caller's base_dir, and skip that condition when it is unknown.
+        r = c["check"](m, base_dir) if c.get("needs_base_dir") else c["check"](m)
         total += c["weight"]
         if r["pass"]:
             earned += c["weight"]
