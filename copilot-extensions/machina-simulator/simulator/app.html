@@ -3098,6 +3098,10 @@
               title="Re-scan persisted run history">Refresh</button>
           </div>
           <div class="insp-body">
+            <select class="select" id="runs-workspace" data-od-id="runs-workspace"
+              title="Browse session workspaces with machina run history — scope the list below to one workspace">
+              <option value="">All sessions</option>
+            </select>
             <div class="runs-meta" id="runs-meta">Scanning persisted run history…</div>
             <div class="runs-list" id="runs-list"></div>
             <div class="limit-note" style="margin-top: 12px;">Persisted runs under
@@ -5143,7 +5147,7 @@
       // Ensure the drill indexes are populated even if the Runs tab wasn't opened.
       if (!runsIndex.length) {
         try {
-          const res = await fetch('/runs');
+          const res = await fetch(runsUrl());
           if (res.ok) { const body = await res.json(); if (body.ok) indexRuns(body.runs || []); }
         } catch (e) { }
       }
@@ -5380,6 +5384,70 @@
     /* ── run history panel ─────────────────────────────────────── */
     const runsList = $('runs-list');
     const runsMeta = $('runs-meta');
+    const runsWorkspaceSelect = $('runs-workspace');
+    // Instance id — declared BEFORE the first refreshRuns() call so /runs
+    // requests can carry it (server-side instance scope fallback would
+    // otherwise never apply — the list and /open-run must share a scope).
+    const inst = new URLSearchParams(location.search).get('instance') || '';
+    // Session-workspace scope for the Runs tab — tri-state:
+    //   non-empty    → explicit scope (deep link, adopted instance scope, picker)
+    //   '' + touched → explicit "All sessions" clear (sends sessionWorkspace=)
+    //   '' + untouched → unset; defer to the instance's server-side scope
+    let activeSessionWorkspace = new URLSearchParams(location.search).get('sessionWorkspace') || '';
+    let workspaceTouched = new URLSearchParams(location.search).has('sessionWorkspace');
+    let runsGen = 0; // refreshRuns generation counter (drop stale responses)
+    function withWs(url) {
+      const base = url + (url.includes('?') ? '&' : '?');
+      if (activeSessionWorkspace) return base + 'sessionWorkspace=' + encodeURIComponent(activeSessionWorkspace);
+      if (workspaceTouched) return base + 'sessionWorkspace='; // explicit clear-all
+      return url; // untouched + empty → defer to instance scope
+    }
+    function runsUrl() {
+      return withWs('/runs?instance=' + encodeURIComponent(inst));
+    }
+    async function refreshWorkspaces() {
+      // Populate the workspace picker from /sessions (workspaces with history only).
+      if (!runsWorkspaceSelect) return;
+      try {
+        const res = await fetch('/sessions');
+        const body = await res.json();
+        if (!body || !body.ok) return;
+        const sessions = body.sessions || [];
+        runsWorkspaceSelect.innerHTML = '';
+        const all = document.createElement('option');
+        all.value = '';
+        all.textContent = sessions.length ? 'All sessions (' + sessions.length + ' with history)' : 'All sessions';
+        runsWorkspaceSelect.appendChild(all);
+        for (const s of sessions) {
+          const o = document.createElement('option');
+          o.value = s.path;
+          const short = s.session.length > 12 ? s.session.slice(0, 8) + '…' : s.session;
+          o.textContent = short + ' · ' + s.runs + ' run' + (s.runs === 1 ? '' : 's')
+            + (s.machines.length ? ' · ' + s.machines.slice(0, 2).join(', ') + (s.machines.length > 2 ? '…' : '') : '')
+            + (s.lastActivity ? ' · ' + fmtRunStamp(s.lastActivity) : '');
+          o.title = s.path;
+          runsWorkspaceSelect.appendChild(o);
+        }
+        // Apply the CURRENT scope (re-read after the await so an adoption that
+        // landed mid-fetch is reflected; never clobber an explicit scope).
+        const cur = activeSessionWorkspace;
+        if (cur) {
+          runsWorkspaceSelect.value = cur;
+          if (runsWorkspaceSelect.value !== cur) {
+            // Scope not in the /sessions list (vanished workspace or stale
+            // list) — keep it selectable instead of blanking the display.
+            const o = document.createElement('option');
+            o.value = cur;
+            o.textContent = cur;
+            o.title = cur;
+            runsWorkspaceSelect.insertBefore(o, runsWorkspaceSelect.childNodes[1] || null);
+            runsWorkspaceSelect.value = cur;
+          }
+        } else {
+          runsWorkspaceSelect.value = '';
+        }
+      } catch { /* keep previous options */ }
+    }
     // Global index of discovered runs → runRef lookup + parent/child drill maps.
     let runsIndex = [];            // every discovered run row
     const runsByRunid = new Map(); // runid → runRef (family/runid)
@@ -5416,7 +5484,7 @@
     function ensureRunsIndex() {
       return new Promise((resolve) => {
         if (runsIndex.length) return resolve();
-        fetch('/runs').then(r => r.json()).then(body => {
+        fetch(runsUrl()).then(r => r.json()).then(body => {
           if (body && body.ok) indexRuns(body.runs || []);
         }).catch(() => { }).finally(resolve);
       });
@@ -5435,14 +5503,28 @@
     }
     async function refreshRuns() {
       if (!runsList || !runsMeta) return;
+      const gen = ++runsGen; // ignore out-of-order responses from rapid scope changes
       runsMeta.textContent = 'Scanning persisted run history…';
       try {
-        const res = await fetch('/runs');
+        const res = await fetch(runsUrl());
+        if (gen !== runsGen) return;
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const body = await res.json();
+        if (gen !== runsGen) return;
         if (!body.ok) throw new Error(body.error || 'unknown error');
         const runs = body.runs || [];
         indexRuns(runs);
+        // Adopt the server-resolved scope (e.g. the instance's session scope
+        // set by canvas open) so the picker shows what the list is actually
+        // showing, and the tab becomes deep-linkable. Only before any
+        // user interaction with the picker.
+        if (!workspaceTouched && !activeSessionWorkspace && body.scopedTo) {
+          activeSessionWorkspace = body.scopedTo;
+          const u = new URL(location.href);
+          u.searchParams.set('sessionWorkspace', activeSessionWorkspace);
+          history.replaceState(null, '', u);
+          refreshWorkspaces(); // rebuild options so the adopted value is selectable
+        }
         const completeCount = runs.filter(r => r.terminal === 'complete').length;
         runsMeta.textContent = runs.length === 0
           ? 'No persisted runs found'
@@ -5524,7 +5606,7 @@
           runsList.appendChild(famWrap);
         }
       } catch (err) {
-        runsMeta.textContent = 'Run-history scan failed: ' + (err.message || err);
+        if (gen === runsGen) runsMeta.textContent = 'Run-history scan failed: ' + (err.message || err);
       }
     }
     let selectedRunRef = null;
@@ -5534,7 +5616,7 @@
         el.classList.toggle('selected', el.dataset.runRef === runRef);
       });
       try {
-        const res = await fetch('/open-run?instance=' + encodeURIComponent(inst) + '&runRef=' + encodeURIComponent(runRef));
+        const res = await fetch(withWs('/open-run?instance=' + encodeURIComponent(inst) + '&runRef=' + encodeURIComponent(runRef)));
         const body = await res.json();
         if (!res.ok || !body.ok) {
           toast('Run load failed: ' + (body.error || 'HTTP ' + res.status), true);
@@ -5548,12 +5630,25 @@
     }
     if (runsList) {
       const btn = $('btn-refresh-runs');
-      if (btn) btn.addEventListener('click', refreshRuns);
+      if (btn) btn.addEventListener('click', () => { refreshWorkspaces(); refreshRuns(); });
+      if (runsWorkspaceSelect) {
+        runsWorkspaceSelect.addEventListener('change', () => {
+          workspaceTouched = true;
+          activeSessionWorkspace = runsWorkspaceSelect.value;
+          // Keep the URL deep-linkable so tabs can be bookmarked/shared.
+          const url = new URL(location.href);
+          if (activeSessionWorkspace) url.searchParams.set('sessionWorkspace', activeSessionWorkspace);
+          else url.searchParams.delete('sessionWorkspace');
+          history.replaceState(null, '', url);
+          refreshRuns();
+        });
+      }
+      refreshWorkspaces();
       refreshRuns();
     }
 
     /* ── extension bridge ──────────────────────────────────────────── */
-    const inst = new URLSearchParams(location.search).get('instance') || '';
+    // (inst is declared in the runs-workspace section above.)
     const __extBridge = (() => {
       const es = new EventSource('/events?instance=' + encodeURIComponent(inst));
       es.addEventListener('machina', (e) => {

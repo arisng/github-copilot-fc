@@ -62,6 +62,61 @@ export function defaultRoots() {
   return roots;
 }
 
+// Return persist roots scoped to a single session workspace directory.
+// Used when the caller knows the current session folder (e.g. from the
+// agent's system prompt) and wants run-history discovery limited to that
+// session rather than scanning every ~/.copilot/session-state/<uuid>/.
+export function sessionRoots(workspace) {
+  if (!workspace) return null;
+  const ws = path.resolve(workspace);
+  const roots = [];
+  for (const container of PERSIST_ROOT_NAMES) {
+    const p = path.join(ws, container);
+    if (fs.existsSync(p) && fs.statSync(p).isDirectory()) roots.push(p);
+  }
+  return roots.length ? roots : null;
+}
+
+// Browse discoverability: list every ~/.copilot/session-state/<uuid> workspace
+// that actually contains machina run history, with a per-workspace summary so
+// a human conductor can pick one to load into the simulator. Sorted by most
+// recent activity first.
+export function listSessionWorkspaces() {
+  const sessionBase = path.join(os.homedir(), ".copilot", "session-state");
+  const out = [];
+  if (!fs.existsSync(sessionBase)) return out;
+  for (const sesDir of fs.readdirSync(sessionBase, { withFileTypes: true })) {
+    if (!sesDir.isDirectory()) continue;
+    const roots = sessionRoots(path.join(sessionBase, sesDir.name));
+    if (!roots || !roots.length) continue; // sessionRoots returns null when no persist roots
+    let runs = 0;
+    let readErrors = 0;
+    const machines = new Set();
+    let lastActivity = null;
+    for (const r of discoverRunHistory(roots)) {
+      if (r.readError) { readErrors++; continue; }
+      runs++;
+      if (r.machine?.id) machines.add(r.machine.id);
+      const ledger = r.ledger || [];
+      const ts = ledger.length
+        ? (ledger[ledger.length - 1].payload?.timestamp ?? ledger[0].payload?.timestamp ?? null)
+        : null;
+      if (ts && (!lastActivity || ts > lastActivity)) lastActivity = ts;
+    }
+    if (!runs && !readErrors) continue; // persist roots exist but no runs to browse
+    out.push({
+      session: sesDir.name,
+      path: path.join(sessionBase, sesDir.name),
+      runs,
+      readErrors,
+      machines: [...machines].sort(),
+      lastActivity,
+    });
+  }
+  out.sort((a, b) => String(b.lastActivity || "").localeCompare(String(a.lastActivity || "")));
+  return out;
+}
+
 // Explicit roots (args) > env override > default session-state scan.
 export function resolveRunRoots(explicitRoots = null) {
   const roots = explicitRoots ?? explicitRootsFromEnv() ?? defaultRoots();

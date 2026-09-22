@@ -386,8 +386,11 @@ test("canvas open with unknown runRef reports a clear error", async () => {
   process.env.MACHINA_RUN_ROOTS = root;
   try {
     const opened = await canvas.open({ instanceId: "runref-missing", input: { runRef: "nowhere/nope" } });
-    // open never throws; status stays empty (error is captured, machine null)
-    assert.equal(opened.status, "Empty — load a machine to begin");
+    // open never throws; the status must SURFACE the failure — a failed open
+    // must not masquerade as an empty-but-healthy canvas ("Empty — load a
+    // machine to begin") or a stale one ("Ready").
+    assert.match(opened.status, /^Error — /);
+    assert.ok(opened.status.includes("nowhere/nope"), "status carries the offending runRef: " + opened.status);
   } finally {
     if (prev === undefined) delete process.env.MACHINA_RUN_ROOTS;
     else process.env.MACHINA_RUN_ROOTS = prev;
