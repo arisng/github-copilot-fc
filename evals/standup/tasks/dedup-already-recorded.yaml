@@ -1,0 +1,33 @@
+id: behavioral-004
+name: Dedup - already recorded
+description: >
+  When all composed entries for the current author are already recorded
+  in the existing standup file, skips without writing.
+tags:
+  - behavioral
+  - dedup
+inputs:
+  prompt: "standup"
+  context:
+    scenario: >
+      .standup/standup-2026-09-21.md already contains an entry for @Bob
+      with feature "API refactoring" on branch feature/api-refactor.
+  files:
+    - path: ".standup/standup-2026-09-21.md"
+      content: |
+        # Standup — 2026-09-21
+        ## @Bob
+        **✅ Done**
+        API refactoring
+          - Session: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          - Branch: `feature/api-refactor`
+expected:
+  should_trigger: true
+  output_contains:
+    - "already"
+graders:
+  - type: text
+    name: reports-already-recorded
+    config:
+      contains:
+        - "already"

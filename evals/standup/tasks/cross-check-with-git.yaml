@@ -1,0 +1,33 @@
+id: behavioral-005
+name: Cross-check with git
+description: >
+  Verifies done status by cross-referencing session data with git commits.
+  Sessions with matching commits are Done; sessions without are In Progress.
+  Git data never appears in output.
+tags:
+  - behavioral
+  - git
+inputs:
+  prompt: "standup"
+  context:
+    scenario: >
+      CWD is a git repo. The current user has two sessions for today:
+      one with commits on feature/auth (Done), one without commits on
+      feature/dashboard (In Progress).
+  files: []
+expected:
+  should_trigger: true
+  output_contains:
+    - "✅ Done"
+    - "🚧 In Progress"
+    - "Session:"
+  output_not_contains:
+    - "## Git Commits"
+graders:
+  - type: text
+    name: both-statuses
+    config:
+      contains:
+        - "Done"
+        - "In Progress"
+        - "Session:"

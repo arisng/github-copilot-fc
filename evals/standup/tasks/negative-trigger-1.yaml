@@ -1,0 +1,18 @@
+id: negative-trigger-001
+name: Compile error should not trigger
+description: Fixing a compile error is unrelated to standup generation.
+tags:
+  - negative-trigger
+  - trigger
+inputs:
+  prompt: "fix this compile error in src/app.ts"
+expected:
+  should_trigger: false
+graders:
+  - type: text
+    name: no-standup-output
+    config:
+      not_contains:
+        - "✅ Done"
+        - "🚧 In Progress"
+

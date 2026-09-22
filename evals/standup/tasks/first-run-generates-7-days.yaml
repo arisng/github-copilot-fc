@@ -1,0 +1,27 @@
+id: behavioral-001
+name: First run generates 7 days
+description: >
+  On first run with no .standup/ directory, generates standup files
+  for the last 7 completed days using the canonical template.
+tags:
+  - behavioral
+  - first-run
+inputs:
+  prompt: "standup"
+  context:
+    scenario: "No .standup/ directory exists. CWD is a git repo with recent commits."
+  files: []
+expected:
+  should_trigger: true
+  output_contains:
+    - ".standup/standup-"
+    - "✅ Done"
+    - "Session:"
+graders:
+  - type: text
+    name: output-structure
+    config:
+      contains:
+        - "standup"
+        - "Done"
+        - "Session:"

@@ -1,0 +1,25 @@
+id: behavioral-002
+name: Nothing to generate
+description: >
+  When all recent dates already have entries for the current author,
+  reports "nothing to generate" and does not write or modify any files.
+tags:
+  - behavioral
+  - dedup
+inputs:
+  prompt: "standup"
+  context:
+    scenario: >
+      .standup/ directory has standup files for all dates in the last 7 days,
+      each containing an entry for the current author.
+  files: []
+expected:
+  should_trigger: true
+  output_contains:
+    - "nothing to generate"
+graders:
+  - type: text
+    name: reports-current
+    config:
+      contains:
+        - "nothing to generate"

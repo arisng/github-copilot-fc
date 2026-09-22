@@ -1,0 +1,19 @@
+id: positive-trigger-001
+name: Standup keyword trigger
+description: Exact single-word "standup" triggers the skill.
+tags:
+  - positive-trigger
+  - trigger
+inputs:
+  prompt: "standup"
+expected:
+  should_trigger: true
+graders:
+  - type: text
+    name: contains-keywords
+    config:
+      contains:
+        - "standup"
+        - "Done"
+        - "Session"
+

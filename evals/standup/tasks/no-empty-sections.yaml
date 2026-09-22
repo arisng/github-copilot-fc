@@ -1,0 +1,26 @@
+id: behavioral-006
+name: No empty sections
+description: >
+  Never writes an author section with both Done and In Progress empty.
+  If composing yields no usable entries for a date, skips that date.
+tags:
+  - behavioral
+  - edge-case
+inputs:
+  prompt: "standup"
+  context:
+    scenario: >
+      For one target date, the current user has sessions but all are noise
+      (empty summary and firstMessage). No git commits exist for that date.
+  files: []
+expected:
+  should_trigger: true
+  output_not_contains:
+    - "**✅ Done**\n\n**🚧 In Progress**"
+graders:
+  - type: text
+    name: no-empty-sections
+    config:
+      not_contains:
+        - "✅ Done"
+        - "🚧 In Progress"

@@ -1,0 +1,18 @@
+id: positive-trigger-002
+name: Daily standup phrase trigger
+description: 'daily standup phrase triggers the skill.'
+tags:
+  - positive-trigger
+  - trigger
+inputs:
+  prompt: "daily standup"
+expected:
+  should_trigger: true
+graders:
+  - type: text
+    name: contains-keywords
+    config:
+      contains:
+        - "standup"
+        - "Done"
+

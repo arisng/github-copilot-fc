@@ -1,0 +1,42 @@
+should_trigger_prompts:
+  - prompt: "standup"
+    reason: Exact single-word trigger keyword"
+    confidence: high
+  - prompt: "/standup"
+    reason: Slash command trigger"
+    confidence: high
+  - prompt: "daily standup"
+    reason: Core use case phrase"
+    confidence: high
+  - prompt: "daily update"
+    reason: Alternative phrasing for standup"
+    confidence: high
+  - prompt: "what did I work on yesterday"
+    reason: Paraphrased intent — asks for recent work summary"
+    confidence: high
+  - prompt: "yesterday's work"
+    reason: Similar intent — asks for past work"
+    confidence: medium
+  - prompt: "what have I been working on"
+    reason: Open-ended session history query"
+    confidence: medium
+
+should_not_trigger_prompts:
+  - prompt: "fix this compile error"
+    reason: Unrelated to standup — debugging task"
+    confidence: high
+  - prompt: "create a new branch"
+    reason: Git operation, not standup generation"
+    confidence: high
+  - prompt: "review my pull request"
+    reason: PR review, different workflow"
+    confidence: high
+  - prompt: "explain recursion in Python"
+    reason: General knowledge question"
+    confidence: high
+  - prompt: "deploy to production"
+    reason: Deployment task, unrelated"
+    confidence: high
+  - prompt: "write unit tests for auth module"
+    reason: Testing task, unrelated"
+    confidence: high

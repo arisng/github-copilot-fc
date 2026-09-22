@@ -1,0 +1,35 @@
+name: standup-eval
+description: >
+  Behavioral evaluation for the standup skill — daily standup report
+  generation from Copilot session history and git data. Tests trigger
+  accuracy, output structure, dedup behavior, and edge cases.
+skill: standup
+version: "0.6.2"
+config:
+  trials_per_task: 2
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+  skill_directories:
+    - ../../skills/standup
+metrics:
+  - name: task_completion
+    weight: 0.4
+    threshold: 0.8
+    description: Overall completion quality target.
+  - name: trigger_accuracy
+    weight: 0.3
+    threshold: 0.9
+    description: Skill triggers on correct prompts and ignores unrelated ones.
+  - name: behavior_quality
+    weight: 0.3
+    threshold: 0.7
+    description: Output follows template structure and dedup rules.
+graders:
+  - type: behavior
+    name: token-budget
+    config:
+      max_tokens: 4000
+tasks:
+  - "tasks/*.yaml"

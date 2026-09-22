@@ -1,0 +1,35 @@
+id: behavioral-003
+name: Append to existing file
+description: >
+  When a standup file exists for a date but does not contain the current
+  author's section, appends a new ## @name section.
+tags:
+  - behavioral
+  - merge
+inputs:
+  prompt: "standup"
+  context:
+    scenario: >
+      .standup/standup-2026-09-20.md exists with an entry for @Alice
+      but not for the current user (@Bob).
+  files:
+    - path: ".standup/standup-2026-09-20.md"
+      content: |
+        # Standup — 2026-09-20
+        ## @Alice
+        **✅ Done**
+        Implemented login flow
+          - Session: 4839574f-070c-47f4-969e-d94a000ff6c1
+          - Branch: `feature/login`
+expected:
+  should_trigger: true
+  output_contains:
+    - "## @Bob"
+    - "✅ Done"
+graders:
+  - type: text
+    name: appended-author-section
+    config:
+      contains:
+        - "@Bob"
+        - "Done"
