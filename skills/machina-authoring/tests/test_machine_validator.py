@@ -144,8 +144,10 @@ class TestCompliance(unittest.TestCase):
         m = sample_machine(spec_version="3.0.0")
         res = mv.run_compliance(m)
         self.assertEqual(res["specVersion"], "3.0.0")
-        # v3 machine without v3 features scores lower due to new v3 checks
+        # A v3 machine with no v3 features scores lower: the v3 checks apply, and a
+        # definition with no usable checker fails checkers-used (weight 15).
         self.assertGreaterEqual(res["score"], 80)
+        self.assertFalse(next(f for f in res["findings"] if f["id"] == "checkers-used")["pass"])
 
     def test_cycle_guards_autofill_review_without_counter(self):
         m = sample_machine(context={})
@@ -190,6 +192,22 @@ class TestV3Features(unittest.TestCase):
         res = mv.run_compliance(m)
         tools_finding = next(f for f in res["findings"] if f["id"] == "tools-registry")
         self.assertFalse(tools_finding["pass"])
+
+    def test_tools_registry_empty_fails_absent_passes(self):
+        """A declared-but-empty registry is not a registry; an absent key still passes,
+        because a machine without checkers is judged by checkers-used instead."""
+        empty = sample_machine(spec_version="3.0.0")
+        empty["tools"] = {}
+        res = mv.run_compliance(empty)
+        finding = next(f for f in res["findings"] if f["id"] == "tools-registry")
+        self.assertFalse(finding["pass"])
+        self.assertIn("empty", finding["detail"])
+
+        absent = sample_machine(spec_version="3.0.0")
+        absent.pop("tools", None)
+        res = mv.run_compliance(absent)
+        finding = next(f for f in res["findings"] if f["id"] == "tools-registry")
+        self.assertTrue(finding["pass"])
 
     def test_tools_refs_unknown_tool(self):
         m = sample_machine(spec_version="3.0.0")
@@ -261,70 +279,72 @@ class TestV3Features(unittest.TestCase):
         }
         self.assertEqual(len(v3_ids), 0)
 
-        def _v3_with_tools(self):
-            m = sample_machine(spec_version="3.0.0")
-            m["tools"] = {
-                "validate-order": {"cmd": "scripts/validate_order.py", "expect_exit": 0},
-            }
-            m["states"]["pending"]["checks"] = ["validate-order"]
-            return m
+    def _v3_with_tools(self):
+        m = sample_machine(spec_version="3.0.0")
+        m["tools"] = {
+            "validate-order": {"cmd": "scripts/validate_order.py", "expect_exit": 0},
+        }
+        m["states"]["pending"]["checks"] = ["validate-order"]
+        return m
 
-        def test_tools_exist_passes_trivially_without_base_dir(self):
-            """When base_dir is None (unit tests, waza temp files, driver import) the
-            informational tools-exist check passes without a file-stat."""
-            m = self._v3_with_tools()
-            res = mv.run_compliance(m)  # no base_dir
+    def test_tools_exist_passes_trivially_without_base_dir(self):
+        """When base_dir is None (unit tests, waza temp files, driver import) the
+        informational tools-exist check passes without a file-stat."""
+        m = self._v3_with_tools()
+        res = mv.run_compliance(m)  # no base_dir
+        f = next(x for x in res["findings"] if x["id"] == "tools-exist")
+        self.assertTrue(f["pass"])
+        self.assertEqual(f["weight"], 0)
+        self.assertEqual(f["autofill"], "review")
+
+    def test_tools_exist_reports_without_moving_the_score(self):
+        """A dangling cmd path with a base_dir yields a weight-0 warn finding; the
+        score is moved by checkers-used, which owns the evidence weight."""
+        m = self._v3_with_tools()
+        base = Path(mv.__file__).resolve().parent  # scripts/ does not exist here
+        res = mv.run_compliance(m, base_dir=str(base))
+        f = next(x for x in res["findings"] if x["id"] == "tools-exist")
+        self.assertFalse(f["pass"])
+        self.assertEqual(f["weight"], 0)
+        self.assertEqual(f["severity"], "warn")
+        # the deduction belongs to checkers-used, not to tools-exist
+        cu = next(x for x in res["findings"] if x["id"] == "checkers-used")
+        self.assertFalse(cu["pass"])
+        self.assertLess(res["score"], mv.run_compliance(m)["score"])
+
+    def test_tools_exist_passes_when_script_exists(self):
+        """A cmd whose script really exists next to the machine passes."""
+        m = self._v3_with_tools()
+        d = Path(tempfile.mkdtemp())
+        (d / "scripts").mkdir()
+        (d / "scripts" / "validate_order.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        try:
+            res = mv.run_compliance(m, base_dir=str(d))
             f = next(x for x in res["findings"] if x["id"] == "tools-exist")
             self.assertTrue(f["pass"])
-            self.assertEqual(f["weight"], 0)
-            self.assertEqual(f["autofill"], "review")
+        finally:
+            import shutil
+            shutil.rmtree(d)
 
-        def test_tools_exist_gap_when_script_missing(self):
-            """A dangling cmd path with a base_dir yields a review warn gap but does
-            not lower the score (weight 0)."""
-            m = self._v3_with_tools()
-            base = Path(mv.__file__).resolve().parent  # scripts/ does not exist here
-            res = mv.run_compliance(m, base_dir=str(base))
+    def test_tools_exist_array_cmd_form(self):
+        """Array-form cmd resolves its first path-bearing element machine-relative."""
+        m = self._v3_with_tools()
+        m["tools"] = {"validate-order": {"cmd": ["py", "services/checker.py", "{ctx.order_id}"]}}
+        d = Path(tempfile.mkdtemp())
+        (d / "services").mkdir()
+        (d / "services" / "checker.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        try:
+            res = mv.run_compliance(m, base_dir=str(d))
             f = next(x for x in res["findings"] if x["id"] == "tools-exist")
-            self.assertFalse(f["pass"])
-            self.assertEqual(f["severity"], "warn")
-            # weight-0: score identical to the trivial case
-            base_score = mv.run_compliance(m)["score"]
-            self.assertEqual(res["score"], base_score)
-
-        def test_tools_exist_passes_when_script_exists(self):
-            """A cmd whose script really exists next to the machine passes."""
-            m = self._v3_with_tools()
-            d = Path(tempfile.mkdtemp())
-            (d / "scripts").mkdir()
-            (d / "scripts" / "validate_order.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-            try:
-                res = mv.run_compliance(m, base_dir=str(d))
-                f = next(x for x in res["findings"] if x["id"] == "tools-exist")
-                self.assertTrue(f["pass"])
-            finally:
-                import shutil
-                shutil.rmtree(d)
-
-        def test_tools_exist_array_cmd_form(self):
-            """Array-form cmd resolves its first path-bearing element machine-relative."""
-            m = self._v3_with_tools()
-            m["tools"] = {"validate-order": {"cmd": ["py", "services/checker.py", "{ctx.order_id}"]}}
-            d = Path(tempfile.mkdtemp())
-            (d / "services").mkdir()
-            (d / "services" / "checker.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-            try:
-                res = mv.run_compliance(m, base_dir=str(d))
-                f = next(x for x in res["findings"] if x["id"] == "tools-exist")
-                self.assertTrue(f["pass"])
-                # and a dangling array element fails
-                m["tools"]["validate-order"]["cmd"] = ["py", "services/nowhere.py"]
-                res2 = mv.run_compliance(m, base_dir=str(d))
-                f2 = next(x for x in res2["findings"] if x["id"] == "tools-exist")
-                self.assertFalse(f2["pass"])
-            finally:
-                import shutil
-                shutil.rmtree(d)
+            self.assertTrue(f["pass"])
+            # and a dangling array element fails
+            m["tools"]["validate-order"]["cmd"] = ["py", "services/nowhere.py"]
+            res2 = mv.run_compliance(m, base_dir=str(d))
+            f2 = next(x for x in res2["findings"] if x["id"] == "tools-exist")
+            self.assertFalse(f2["pass"])
+        finally:
+            import shutil
+            shutil.rmtree(d)
 
 
 class TestValidate(unittest.TestCase):
@@ -422,6 +442,125 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(rc, 0)
         finally:
             os.unlink(path)
+
+
+class TestCheckersUsed(unittest.TestCase):
+    """The evidence check: a v3 machine must offer one usable checker (weight 15).
+
+    These pin the policy (a v3 machine with no usable checker cannot be Excellent) and the
+    loopholes a rubber-stamp declaration would otherwise slip through.
+    """
+
+    def _complete(self, **overrides):
+        """A v3 machine that passes every check except, by default, checkers-used."""
+        m = sample_machine(spec_version="3.0.0")
+        m["coverage"] = {"states": {}, "transitions": {}}
+        m["cycle_prevention"] = {"guards": ["RETRY_PAY"]}
+        m.update(overrides)
+        return m
+
+    def _tool(self, cmd, **extra):
+        tool = {"cmd": cmd}
+        tool.update(extra)
+        return {"check-order": tool}
+
+    def _with_checker(self, cmd, **extra):
+        m = self._complete(tools=self._tool(cmd, **extra))
+        m["states"]["pending"]["checks"] = ["check-order"]
+        return m
+
+    def _check(self, m, base_dir=None):
+        res = mv.run_compliance(m, "3.0.0", base_dir=base_dir)
+        return res, next(f for f in res["findings"] if f["id"] == "checkers-used")
+
+    def test_no_registry_cannot_reach_excellent(self):
+        res, f = self._check(self._complete())
+        self.assertFalse(f["pass"])
+        self.assertNotEqual(res["grade"], "Excellent")
+        # checkers-used is the only thing standing between it and the top band
+        others = [x["id"] for x in res["findings"] if not x["pass"] and x["id"] != "checkers-used"]
+        self.assertEqual(others, [])
+        self.assertEqual(f["weight"], 15)
+        self.assertEqual(f["autofill"], "review")
+
+    def test_registry_without_a_live_reference_fails(self):
+        m = self._complete(tools=self._tool("scripts/check_order.py"))
+        _, f = self._check(m)
+        self.assertFalse(f["pass"])
+        self.assertIn("requires[]", f["detail"])
+
+    def test_pathless_cmd_is_not_a_usable_checker(self):
+        _, f = self._check(self._with_checker("python3 -c pass"))
+        self.assertFalse(f["pass"])
+        self.assertIn("no script path", f["detail"])
+
+    def test_nonzero_expect_exit_is_not_a_usable_checker(self):
+        _, f = self._check(self._with_checker(["python3", "scripts/check_order.py"], expect_exit=1))
+        self.assertFalse(f["pass"])
+        self.assertIn("expect_exit", f["detail"])
+
+    def test_ensures_only_reference_is_not_usable(self):
+        m = self._complete(tools=self._tool(["python3", "scripts/check_order.py"]))
+        m["states"]["pending"]["on"]["PAY"]["ensures"] = ["check-order"]
+        _, f = self._check(m)
+        self.assertFalse(f["pass"])
+
+    def test_invariants_only_reference_is_not_usable(self):
+        m = self._complete(tools=self._tool(["python3", "scripts/check_order.py"]))
+        m["states"]["pending"]["invariants"] = ["check-order"]
+        _, f = self._check(m)
+        self.assertFalse(f["pass"])
+
+    def test_usable_checker_passes(self):
+        m = self._with_checker(["python3", "scripts/check_order.py"])
+        res, f = self._check(m)
+        self.assertTrue(f["pass"])
+        self.assertEqual(res["grade"], "Excellent")
+
+    def test_missing_script_fails_only_when_the_directory_is_known(self):
+        """The single context-dependent bit: with a machine directory the checker's script
+        must exist; without one the check judges the reference only."""
+        import shutil
+
+        d = Path(tempfile.mkdtemp())
+        m = self._with_checker(["python3", "scripts/check_order.py"])
+        try:
+            _, with_dir = self._check(m, base_dir=str(d))
+            self.assertFalse(with_dir["pass"])
+            self.assertIn("not found", with_dir["detail"])
+            _, without_dir = self._check(m)
+            self.assertTrue(without_dir["pass"])
+
+            (d / "scripts").mkdir()
+            (d / "scripts" / "check_order.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+            res, with_script = self._check(m, base_dir=str(d))
+            self.assertTrue(with_script["pass"])
+            self.assertEqual(res["grade"], "Excellent")
+        finally:
+            shutil.rmtree(d)
+
+    def test_review_findings_never_appear_in_gaps(self):
+        """`gaps` is a patch list: neither weight-0 tools-exist nor a failed checkers-used
+        appears there, which is why the score report has to be read directly."""
+        m = self._with_checker(["python3", "scripts/check_order.py"])
+        ids = {item["id"] for item in mv.auto_patch_items(m)}
+        self.assertNotIn("tools-exist", ids)
+        self.assertNotIn("checkers-used", ids)
+
+    def test_weight_zero_contract(self):
+        """Update these numbers deliberately on any rebalance — the totals are a contract
+        with the docs (SKILL.md glossary, machine-quality.md, the module docstring)."""
+        zero = {c["id"] for c in mv.COMPLIANCE_CHECKS if c["weight"] == 0}
+        self.assertEqual(zero, {"spec-version", "tools-exist"})
+        weighted = [c for c in mv.COMPLIANCE_CHECKS if c["weight"] > 0]
+        self.assertEqual(len(weighted), 22)
+
+        def total(target):
+            sel = [c for c in mv.COMPLIANCE_CHECKS if mv.spec_rank(c["since"]) >= mv.spec_rank(target)]
+            return len(sel), sum(c["weight"] for c in sel)
+
+        self.assertEqual(total("2.0.0"), (17, 100))
+        self.assertEqual(total("3.0.0"), (24, 134))
 
 
 if __name__ == "__main__":

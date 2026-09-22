@@ -10,9 +10,11 @@ waza is the **official eval approach** for this repo. The legacy dual-loop artif
 at repo root `evals/machina-authoring/`. The fixture `machina-order.json` is a **genuine v3.0.0**
 machine — declared `spec_version`, `tools` registry (with machine-relative `cmd`), `limits`,
 per-state `checks[]`/`invariants[]`, per-transition `requires[]`/`ensures[]`/`else_target`,
-scenario `inputs` — scoring **100.0 Excellent** on all 23 checks (22 weighted; `tools-exist` is a
-weight-0 informational review check). A deliberately legacy `legacy-order.json` (score **75.6
-Fair**) drives the explain-low-score case.
+scenario `inputs` — scoring **100.0 Excellent** on all 24 checks (22 weighted; `spec-version` and
+`tools-exist` are weight-0 informational review checks). A deliberately legacy `legacy-order.json`
+(score **67.2 Needs work**) drives the explain-low-score case. Both numbers reflect the v3 scorer
+after `checkers-used` (weight 15) was added; earlier revisions of this report recorded 100.0/75.6
+under the 23-check model.
 
 ## How to reproduce
 
@@ -34,7 +36,7 @@ waza grade evals/machina-authoring/eval.yaml --results results/copilot-sdk-retry
 | Task | Result | Note |
 |---|---|---|
 | case-01 generate machine | ✅ 1.00 | Fenced JSON, spec_version, scenarios, initial, compare/lt retry guard |
-| case-02 explain low score | ✅ 1.00 | `legacy-order.json` (75.6), names actions-used/state-naming, auto vs review |
+| case-02 explain low score | ✅ 1.00 | `legacy-order.json` (67.2), names actions-used/state-naming, auto vs review |
 | case-03 validate/score workflow | ✅ 1.00 | Bundled script path, `validate`, `--text`, Excellent target, code block |
 | case-04 add retry guard | ✅ 1.00 | compare/lt guard + context counter; emitted machine validates |
 | case-05 fix validation errors | ✅ 1.00 | initial + dangling target fixed; machine validates structurally |
@@ -49,6 +51,33 @@ non-existent reference files in the isolated waza workspace — prompt was refer
 after making the prompt self-contained it passes (first-pass + retry both). Trigger accuracy:
 77.8% (TP 8, FP 2, FN 2, TN 6) — consistent with the known 72–89% noise band; FP/FN sets vary
 every run.
+
+## Run 2026-09-22 (compliance-boundary round)
+
+Environment: `waza` 0.38.7 · Copilot CLI 1.0.87 (`COPILOT_CLI_PATH` → WindowsApps exe) ·
+`copilot-sdk` / `mimo-v2.5` (from `eval.yaml`) · sequential · duration **16m46s** · stdout-only
+(no `-o` results file written).
+
+| Signal | Result |
+|---|---|
+| Tasks | ✅ **7/7 passed · aggregate 1.00 · stddev 0.0000** (all tasks avg=1.00) |
+| Trigger accuracy | ⚠️ **88.9%** (TP 8, FP 0, FN 2, TN 8) — below the 90% threshold → exit 1 |
+| `waza quality` | ✅ **4.6/5** — completeness/trigger_precision/scope_coverage 5; clarity/anti-patterns 4 (density, repetition of declaration-sound vs runtime-sound, limited error-recovery guidance) |
+| `waza check` | ✅ spec 9/9 · token budget **3682/4000** after fixing `.waza.yaml` schema (`tokens.limits.max` is invalid in 0.38.7 → converted to `tokens.limits.defaults` glob map) |
+| Unit tests | ✅ 57 passed (`python3 -m pytest skills/machina-authoring/tests/`) |
+| Links | ⚠️ 4 "escape skill directory" warnings — all targets resolve; workspace-idiomatic cross-refs (1 pre-existing in SKILL.md, 3 from new `checker-scripts.md`), accepted |
+
+Interpretation: behavioral results are unchanged from the prior round (7/7 · 1.00); trigger
+accuracy **improved** from 77.8% → 88.9% (FP 0 this run) and stays inside the documented
+72–89% noise band, so the exit-1 threshold trip is noise, not a regression. Quality feedback
+flags the expanded SKILL.md density as the main cost of the compliance-boundary additions.
+
+Mutation note (recurred): the case-06 agent again wrote into the **real repo** during the run —
+`copilot-extensions/machina-simulator/simulator/app.html` + `simulator/docs/architecture.md`
+(23:31) and the published `%USERPROFILE%\.copilot\extensions\machina-simulator\test\qa-handlers.mjs`
+(23:37, v2→v3 test expectations). All three were restored after the run (repo via `git checkout --`,
+live copy re-synced from the tracked repo file; hash-verified). Skill sources were untouched
+(mtimes predate the run).
 
 ### Prior-run learnings (2026-09-08, pre-v3)
 
@@ -70,15 +99,16 @@ every run.
   `invariants[]` (paid); per-transition `requires[]`/`ensures[]`/`else_target` on the retry and
   refund transitions; scenario `inputs`; plus kebab-case states, inline `compare` guard +
   `increment` action, `coverage`, and `cycle_prevention`. `validate` → OK; `score --spec 3.0.0` →
-  **Score: 100.0 / Excellent**, no gaps (Tools & execution 10/10).
+  **Score: 100.0 / Excellent**, no gaps (Tools & execution 25/25 — its `checks[]`/`requires[]`
+  references resolve to the fixture's real scripts, so `checkers-used` passes).
 - `fixtures/scripts/` — the four read-only checker scripts referenced by the fixture's `tools`
   registry (`check_payment.py`, `check_inventory.py`, `check_label.py`, `check_refund.py`), so the
   canonical fixture is honest: its declared `cmd`s genuinely resolve and the `tools-exist` check
   passes (scripts exit 0 on a valid arg / 2 on usage).
 - `fixtures/legacy-order.json` — v2-era reduction (snake_case keys, no spec_version, no inline
   guard/action, no coverage/cycle_prevention, one state without description). `validate` → OK;
-  `score --spec 3.0.0` → **75.6 / Fair** with gaps: state-descriptions, actions-used, state-naming,
-  cycle-guards, spec-version, coverage-present. Used by case-02.
+  `score --spec 3.0.0` → **67.2 / Needs work** with gaps: state-descriptions, actions-used,
+  state-naming, cycle-guards, spec-version, coverage-present, checkers-used. Used by case-02.
 - `fixtures/broken-machine.json` — structurally invalid (initial + dangling target) for case-05.
 - `fixtures/unguarded-retry.json` — RETRY_PAY loop without guard for case-04.
 
@@ -86,17 +116,19 @@ every run.
 
 | Layer | Runs at | What it verifies | Executes scripts? |
 |---|---|---|---|
-| **Compliance scorer / `machine-validator.py`** | Authoring time (static, deterministic) | The machine **declaration** is schema-sound: `tools` entries exist + have `cmd`; `checks[]`/`requires[]`/`ensures[]` reference registry names; `else_target` resolves; inputs/limits well-formed; **`tools-exist`** stats each tool's machine-relative `cmd` path (weight-0, informational). | **Never** |
+| **Compliance scorer / `machine-validator.py`** | Authoring time (static, deterministic) | The machine **declaration** is schema-sound: `tools` entries exist + have `cmd`; `checks[]`/`requires[]`/`ensures[]` reference registry names; `else_target` resolves; inputs/limits well-formed; **`checkers-used`** (weight 15) requires one usable checker declared in a driver-executed slot; **`tools-exist`** stats each tool's machine-relative `cmd` path (weight-0, informational). | **Never** |
 | **Tool checker scripts (`fixtures/scripts/*.py`)** | Runtime (driving / simulation) | The **behavioral predicate** actually holds (payment authorized, inventory held, label ready, refund eligible). Exit code + optional stdout JSON gate transitions. | (they are the executable) |
 
 Consequence: **"Score 100 / Excellent" = declaration-sound, not runtime-sound.** The scorer never
-runs a declared tool; a machine can score 100 with a broken or missing script in practice. The
-**`tools-exist`** check (23rd, `since 3.0.0`, weight 0, `autofill: review`, `warn`) narrows this:
-with a resolvable machine dir (`score <file>` from disk) it stats each machine-relative `cmd`
-(string or array form) and reports a review gap for missing files — without lowering the score.
-When no base dir is available (in-memory unit tests, waza temp-workspace graded files,
-`machine-driver.py` calls) the check passes trivially. The companion `machina-driving` skill
-documents the same boundary (Dependency + Trust boundary sections) and gates only on
+runs a declared tool. The **`checkers-used`** check (weight 15, `since 3.0.0`) is what weights
+evidence: it requires one checker referenced from a driver-executed slot (`checks[]`/`requires[]`)
+whose `cmd` names a script by path, expects exit 0, and — when the machine file is scored from disk —
+resolves beside the machine. The **`tools-exist`** check (weight 0, `autofill: review`, `warn`) stays
+the per-tool detail line: with a resolvable machine dir it stats each machine-relative `cmd` (string
+or array form) and reports a review finding for missing files without lowering the score, skips
+pathless commands, and passes trivially when no base dir is available (in-memory unit tests, waza
+temp-workspace graded files, `machine-driver.py` calls). `machina-driving` documents the same boundary
+(Dependency + Trust boundary sections) and gates only on
 `run_compliance(...)["blocking"]`; runtime soundness is established by actually executing the
 tools.
 
@@ -141,10 +173,11 @@ and could drop `graded-machine.json` into the repo root). The temp file is remov
 
 - Program grader gates on **structural validation** (validate exit code), not a ≥90 score gate —
   the Excellent target is an authoring goal, not a correctness gate for one-shot generated machines.
-- **`tools-exist` is informational**: it closes the "declared tool points at a missing file"
-  false-positive for `machina-driving` (review gap, weight 0), but it never executes a script — a
-  present-but-broken script still only fails at runtime. Runtime soundness remains the driver's job
-  by design.
+- **`tools-exist` is informational and `checkers-used` is declaration-level**: `checkers-used` (weight
+  15) makes a v3 machine with no usable checker unable to reach Excellent, and it closes the
+  "declared tool points at a missing file" false-positive for `machina-driving` — but neither check
+  executes a script, so a present-but-broken script still only fails at runtime. Runtime soundness
+  remains the driver's job by design.
 - `waza run --executor` is not a flag in this binary; executor comes from `eval.yaml config.executor`.
   `--model` overrides the BYOK model at runtime. Mock runs require flipping `config.executor` to `mock`
   (this repo keeps the committed default `copilot-sdk`).
