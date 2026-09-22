@@ -210,6 +210,7 @@ Efficiency rules:
 - If no source matches an entry → write "No issue found" — never attach an unrelated issue
 
 ### Formatting rules
+- **Session line uses the full session UUID** — e.g. `Session: 4839574f-070c-47f4-969e-d94a000ff6c1`. The `sessions[].id` value from the script output is the full UUID; never truncate it to 8 characters or any other short prefix
 - Link PRs/Issues as `[#123](https://github.com/owner/repo/pull/123)` if found in `refs`
 - If no refs found for a session, write "No PR found"
 - For sessions only, show the most recent session per feature

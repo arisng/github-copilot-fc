@@ -6,7 +6,7 @@
 
 {Feature description}
   - {3-7 words describing the outcome}
-  - Session: {session-uuid}
+  - Session: {full-session-uuid}
   - Branch: `{branch-name}`
   - Issue: [#{number}](https://github.com/{org}/{repo}/issues/{number})
   - PR: [#{pr-number}](https://github.com/{org}/{repo}/pull/{pr-number})
@@ -15,7 +15,7 @@
 
 {Feature description}
   - {3-7 words describing current state}
-  - Session: {session-uuid}
+  - Session: {full-session-uuid}
   - Branch: `{branch-name}`
   - Issue: [#{number}](https://github.com/{org}/{repo}/issues/{number})
   - No PR found
@@ -28,7 +28,7 @@
 
 {Feature description}
   - {3-7 words describing outcome}
-  - Session: {session-uuid}
+  - Session: {full-session-uuid}
   - Branch: `{branch-name}`
   - Issue: [#{number}](https://github.com/{org}/{repo}/issues/{number})
   - No PR found
