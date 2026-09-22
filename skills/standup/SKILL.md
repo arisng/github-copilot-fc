@@ -129,14 +129,14 @@ Standup files follow this convention under `.standup/`:
 For each date in the computed range:
 
 1. Collect session data for the date (see How to Use above) — this only returns sessions matching the current repo and author
-2. Compose entries for the current author from the filtered session data
-3. Cross-check with the current user's git commits to verify done status (see [Cross-check with Git](#cross-check-with-git-verification-only-current-user-only) below) — **skip this step when `isRepo` is false**
+2. Compose entries for the current author from the filtered session data — if filtering leaves zero usable entries **and** `gitCommits` has no commits for this date → **skip this date** (fire `NO_ENTRIES` from `composing-entries`); never author an empty section
+3. Cross-check with the current user's git commits to verify done status (see [Cross-check with Git](#cross-check-with-git-verification-only-current-user-only) below) — **skip this step when `isRepo` is false**; if neither sessions nor commits yield any entry → **skip this date** (fire `NO_ENTRIES` from `cross-checking-git`)
 4. Check if `.standup/standup-<yyyy>-<mm>-<dd>.md` already exists
 5. If it does not exist → write the file fresh using `assets/templates/standup.md` as the format reference
-6. If it does exist → read it, then check whether the file already has entries for the current user:
+6. If it does exist → read it, then dedup against the current user's entries (see [Dedup rules](#dedup-rules)):
    - Scan for `Author: @<current-user>` lines matching the current git user name
-   - If entries found → **skip this date** — this user is already recorded
-   - If no entries found → append the new `## @<current-user>` section before writing
+   - If the author's section already contains **every** composed entry → **skip this date** (fire `ALREADY_RECORDED`) — this user is already recorded
+   - If some entries are new → append/merge only the new entries under this author's section (create the `## @<current-user>` section if absent)
 
 #### Dedup rules
 
@@ -169,6 +169,12 @@ It also auto-detects the current git user from `git config user.name` and the cu
 Skip sessions that have:
 - An empty `summary` AND empty `firstMessage` (noise/boot sessions)
 - A `summary` that is only "/chronicle standup" or "/standup" (previous standup runs)
+
+### Never emit empty entries
+
+- Drop any candidate entry that would have **no outcome line** after the noise filter above
+- Never write an author section whose `✅ Done` **and** `🚧 In Progress` are both empty — if composing yields nothing usable for a date, **skip that date entirely** (machine events `NO_ENTRIES` / `ALREADY_RECORDED`); a standup file is never created or appended with empty sections
+- Never leave template placeholders (`{...}`) or blank bullets in output — `No PR found` / `No issue found` alone do not make an entry; the entry still needs a description line and a `Session:` line with the full UUID
 
 ### Classifying work status
 
