@@ -39,6 +39,7 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - Plugins: `plugins/<runtime>/<name>/plugin.json` (runtime = `cli` or `vscode`)
 - OpenSpec Specs: `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`
 - Skills: `skills/<name>/SKILL.md` with optional `scripts/`, `references/`, `assets/`
+- Skill evals: `evals/<name>/eval.yaml` with `tasks/` and `trigger_tests.yaml` (→ see `instructions/waza-eval.instructions.md`)
 - Use forward slashes in markdown links, even on Windows paths.
 - Kebab-case for directory and file names.
 
