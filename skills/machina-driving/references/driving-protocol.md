@@ -164,7 +164,10 @@ The agent's system prompt provides the current session folder (e.g.
 `~/.copilot/session-state/<uuid>`). This path is passed as `sessionWorkspace`
 to the canvas, which scopes run-history discovery to the current session's
 `machina-runs/`, `machina-persist/`, and `machina-i2/` directories. Without
-this, the canvas scans all sessions — functional but noisy.
+this, the canvas scans all sessions — functional but noisy. For human browsing,
+the simulator serves `GET /sessions` (every session workspace with run
+history, run counts, machines, last activity) and the Runs tab has a workspace
+picker; tabs deep-link with `?sessionWorkspace=<path>`.
 
 ### Open-on-init
 
