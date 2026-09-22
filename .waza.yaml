@@ -1,0 +1,7 @@
+# Waza evaluation config for github-copilot-fc workspace.
+tokens:
+  limits:
+    # Standup skill SKILL.md is ~3500 tokens (Machina-driven, needs state
+    # mapping table + data interpretation rules inline). Override the
+    # default 500-token budget to accommodate.
+    max: 4000
