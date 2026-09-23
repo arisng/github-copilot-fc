@@ -19,7 +19,7 @@ Shared facts that apply to both harnesses (and every provider) live in [`../../s
 - **Plan**: GOAT ($10/month) required for API access. Go plan ($1/month) has CLI-only access, no API.
 - **Model ID format**: `provider/model-name` (e.g., `deepseek/deepseek-v4-flash`) — differs from bare model IDs used by OpenCode Go profiles.
 - **API key**: `COMMANDCODE_API_KEY` at User scope (see [`../shared/api-key-storage.md`](../../shared/api-key-storage.md)).
-- **Token limits**: Context windows from official docs; `maxOutputTokens` = 32,768 (docs don't publish per-model max output).
+- **Token limits**: Context windows from official docs; `maxOutputTokens` = 32,768 by default (docs don't publish per-model max output) — exception: **MiMo V2.6 Flash = 128,000** per Xiaomi docs (prompt 872,000).
 - **No special headers or proxies required** — standard OpenAI-compatible endpoint.
 - **Free models available**: Ling 3.0 Flash Sante (`:free`), Laguna S 2.1, LongCat 2.0 (`:free`).
 
@@ -29,6 +29,7 @@ Shared facts that apply to both harnesses (and every provider) live in [`../../s
 |-------|----------|---------|-----------------|-------|
 | DeepSeek V4.1 Flash | `deepseek/deepseek-v4.1-flash` | 1M | Supported (`low`, `medium`, `high`) | Off-peak pricing |
 | DeepSeek V4 Flash | `deepseek/deepseek-v4-flash` | 1M | Supported (`low`, `medium`, `high`) | Off-peak pricing |
+| MiMo V2.6 Flash | `xiaomi/mimo-v2.6-flash` | 1M (128K max output) | Not supported (binary `thinking` toggle, on by default) | Deep thinking on by default; 128K max output |
 | MiMo V2.5 | `xiaomi/mimo-v2.5` | 1M | Not supported | 99% off deal |
 | MiMo V2.5 Pro | `xiaomi/mimo-v2.5-pro` | 1M | Not supported | 99% off deal |
 | Muse Spark 1.3 Contributor | `meta/muse-spark-1.3-contributor` | 1.05M | Supported (verify) | Meta contributor tier |

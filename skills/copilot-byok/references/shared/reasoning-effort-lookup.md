@@ -24,7 +24,7 @@ For these, never pass `--reasoning-effort`; thinking is implicit or always-on. F
 
 - **Kimi K2.x** (Moonshot AI) — thinking always-on / implicit
 - **GLM** (Zhipu AI) — no controllable levels (includes `glm-5.3-flash`)
-- **MiMo** (Xiaomi) — no controllable levels
+- **MiMo** (Xiaomi) — no controllable levels; the official API exposes only a binary `thinking.type` toggle (`enabled`/`disabled`), enabled by default for `mimo-v2.6-flash` ([Deep Thinking doc](https://mimo.mi.com/static/docs/quick-start/usage-guide/text-generation/deep-thinking.md))
 - **Qwen3.x** (Alibaba) — implicit thinking (`anthropic` type, `messages` wire per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints); includes `qwen3.8-flash`)
 - **MiniMax** (MiniMax) — implicit thinking (`anthropic` type, `messages` wire)
 - **LongCat-2.0** (Meituan) — no controllable levels (coding model, 1M context; thinking is implicit via `enable_thinking`)
@@ -56,7 +56,7 @@ These appear in the live catalog (`https://opencode.ai/zen/go/v1/models`, 2026-0
 
 ## Grounding
 
-- **Evidence-backed**: GPT-5.6 Luna full range incl. `max` (models.dev capabilities; OpenCode Go docs; VS Code `supportsReasoningEffort: ["low","medium","high","max"]`); DeepSeek V4 Flash/Pro limited to `low|medium|high` (VS Code `supportsReasoningEffort` lists; API error signature for out-of-range levels); Kimi / GLM / MiMo / Qwen / MiniMax lack of support (API error signature `does not support reasoning effort configuration`; `$noReasoningEffortModels` in `byok-profile.ps1`).
+- **Evidence-backed**: GPT-5.6 Luna full range incl. `max` (models.dev capabilities; OpenCode Go docs; VS Code `supportsReasoningEffort: ["low","medium","high","max"]`); DeepSeek V4 Flash/Pro limited to `low|medium|high` (VS Code `supportsReasoningEffort` lists; API error signature for out-of-range levels); Kimi / GLM / MiMo / Qwen / MiniMax lack of support (API error signature `does not support reasoning effort configuration`; `$noReasoningEffortModels` in `byok-profile.ps1`; Xiaomi official Deep Thinking doc for MiMo — binary `thinking.type` toggle, no effort levels).
 - **Inferred (operational)**: the `high` recommended default — a tuning choice, not an API constraint. It matches the `byok-profile.ps1` and `Invoke-CopilotCliSubSession.ps1` defaults and the documented GPT-5.6 Luna example (`copilot --reasoning-effort high`).
 
 `Grounding status: mixed (evidence + inference)` — per-model support facts are evidence-backed; the `high` default is inferred operational guidance.

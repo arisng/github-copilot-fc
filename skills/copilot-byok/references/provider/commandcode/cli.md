@@ -38,6 +38,7 @@ Profile names use `cc-goat-` prefix for easy identification (e.g., `cc-goat-deep
 |-------|---------------------------|---------------|-------------|---------|-----------------|
 | DeepSeek V4.1 Flash | `deepseek/deepseek-v4.1-flash` | `openai` | `completions` | 1M | Supported (`low`, `medium`, `high`) |
 | DeepSeek V4 Flash | `deepseek/deepseek-v4-flash` | `openai` | `completions` | 1M | Supported (`low`, `medium`, `high`) |
+| MiMo V2.6 Flash | `xiaomi/mimo-v2.6-flash` | `openai` | `completions` | 1M (128K max output) | Not supported (binary `thinking` toggle, on by default) |
 | MiMo V2.5 | `xiaomi/mimo-v2.5` | `openai` | `completions` | 1M | Not supported |
 | MiMo V2.5 Pro | `xiaomi/mimo-v2.5-pro` | `openai` | `completions` | 1M | Not supported |
 | Muse Spark 1.3 Contributor | `meta/muse-spark-1.3-contributor` | `openai` | `completions` | 1.05M | Supported (verify) |
@@ -50,12 +51,13 @@ Profile names use `cc-goat-` prefix for easy identification (e.g., `cc-goat-deep
 
 ## Token overrides
 
-Context windows are from official Command Code docs. `maxOutputTokens` = 32,768 (docs don't publish per-model max output).
+Context windows are from official Command Code docs. `maxOutputTokens` = 32,768 (docs don't publish per-model max output) — except **MiMo V2.6 Flash**, which uses the Xiaomi-documented 128,000 cap (see grounding note below).
 
 | Model | Context Window | maxPromptTokens | maxOutputTokens |
 |-------|---------------|-----------------|-----------------|
 | DeepSeek V4.1 Flash | 1M | 1,000,000 | 32,768 |
 | DeepSeek V4 Flash | 1M | 1,000,000 | 32,768 |
+| MiMo V2.6 Flash | 1M | 872,000 | 128,000 |
 | MiMo V2.5 | 1M | 1,000,000 | 32,768 |
 | MiMo V2.5 Pro | 1M | 1,000,000 | 32,768 |
 | Muse Spark 1.3 Contributor | 1.05M | 1,050,000 | 32,768 |
@@ -66,10 +68,22 @@ Context windows are from official Command Code docs. `maxOutputTokens` = 32,768 
 
 > Unlike OpenCode Go, Command Code does not appear to enforce gateway-level token caps below the model's theoretical context window. If you encounter compaction failures, reduce `maxPromptTokens` by 5-10%.
 
+**MiMo V2.6 Flash grounding** (Xiaomi official docs — [model page](https://mimo.mi.com/models/en-US/mimo-v2.6-flash), [Models](https://mimo.mi.com/static/docs/quick-start/summary/model.md), verified 2026-09-23): Context Window **1M**, Maximum Output **128K**, Deep Thinking enabled by default. Override derivation: `maxOutputTokens = 128000` (documented cap; thinking tokens share this budget) and `maxPromptTokens = 872000` (= 1,000,000 − 128,000), so prompt + output never exceed the documented 1M context (≈4.6% headroom remains if the true window is 1,048,576 as third-party catalogs report — inference).
+
+### MiMo V2.6 Deep Thinking notes
+
+Grounded by the [Deep Thinking doc](https://mimo.mi.com/static/docs/quick-start/usage-guide/text-generation/deep-thinking.md):
+
+- The Xiaomi API controls reasoning with a **binary `thinking.type` toggle** (`enabled` / `disabled`) — there are **no `reasoning_effort` levels**, so keep `"reasoningEffortSupported": false` and omit `--reasoning-effort`. Deep Thinking is **enabled by default** for `mimo-v2.6-flash`.
+- In thinking mode, `temperature` / `top_p` are forced to `1.0` / `0.95` even if passed (see [Model Hyperparameters](https://mimo.mi.com/static/docs/api/guidance/model-hyperparameters.md)).
+- `max_completion_tokens` (= `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS`) limits **thinking + final answer combined** — keep the 128K budget so long thinking does not truncate answers.
+- In multi-turn tool-call conversations with thinking enabled, historical assistant messages must pass back `reasoning_content` or the API returns **400**. Whether the Command Code gateway preserves this field for Copilot CLI traffic is unverified (inference) — if 400s appear on tool-heavy turns, this is the likely cause.
+
 ## Pricing notes
 
 - **DeepSeek V4.1/V4 Flash**: Peak pricing (01–04 & 06–10 UTC Mon–Fri): input $0.30/MTok, output $1.20/MTok. Off-peak: input $0.15/MTok, output $0.60/MTok.
 - **MiMo V2.5/Pro**: 99% off deal active.
+- **MiMo V2.6 Flash**: official Xiaomi pay-as-you-go list price (overseas) — input $0.14/MTok (cache miss), $0.0028/MTok (cache hit), output $0.28/MTok ([pricing doc](https://mimo.mi.com/static/docs/price/pay-as-you-go.md)); Command Code gateway billing may differ (inference).
 - **Free models**: Ling 3.0 Flash Sante (100 req/day), Laguna S 2.1, LongCat 2.0 (while it lasts).
 
 ## Examples (manual env-var setup)
@@ -112,6 +126,23 @@ Profiles use `cc-goat-` prefix. Add to `~/.copilot/byok-profiles.json`:
     "type": "openai",
     "baseUrl": "https://api.commandcode.ai/provider/v1",
     "maxOutputTokens": 32768
+  }
+}
+```
+
+MiMo V2.6 Flash with grounded token overrides:
+
+```json
+{
+  "cc-goat-mimo-v26-flash": {
+    "offline": false,
+    "model": "xiaomi/mimo-v2.6-flash",
+    "reasoningEffortSupported": false,
+    "apiKey": "${COMMANDCODE_API_KEY}",
+    "maxPromptTokens": 872000,
+    "type": "openai",
+    "baseUrl": "https://api.commandcode.ai/provider/v1",
+    "maxOutputTokens": 128000
   }
 }
 ```

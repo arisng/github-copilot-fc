@@ -157,6 +157,9 @@ function Get-NoReasoningEffortModels {
         'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
         'glm-5.2', 'glm-5.1', 'glm-5',
         'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
+        # MiMo V2.6: Xiaomi API exposes only a binary thinking toggle (mimo.mi.com docs).
+        # Bare form (OpenCode Go) + provider/model form (Command Code) — match is exact.
+        'mimo-v2.6-flash', 'xiaomi/mimo-v2.6-flash',
         'qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-plus', 'qwen3.5-plus',
         'minimax-m3', 'minimax-m2.7', 'minimax-m2.5'
     )
@@ -580,27 +583,34 @@ function Invoke-ProfileAdd {
             Write-Host "  2) DeepSeek V4.1 Flash"
             Write-Host "  3) DeepSeek V4 Pro"
             Write-Host "  4) GPT-5.6 Luna"
-            Write-Host "  5) MiMo V2.5"
-            Write-Host "  6) MiMo V2.5 Pro"
-            Write-Host "  7) Muse Spark 1.3 Contributor"
-            Write-Host "  8) Ling 3.0 Flash Sante (free)"
-            Write-Host "  9) Laguna S 2.1 (free)"
-            Write-Host " 10) LongCat 2.0 (free)"
-            Write-Host " 11) Other (type model ID manually)"
+            Write-Host "  5) MiMo V2.6 Flash (grounded: 872K prompt / 128K output)"
+            Write-Host "  6) MiMo V2.5"
+            Write-Host "  7) MiMo V2.5 Pro"
+            Write-Host "  8) Muse Spark 1.3 Contributor"
+            Write-Host "  9) Ling 3.0 Flash Sante (free)"
+            Write-Host " 10) Laguna S 2.1 (free)"
+            Write-Host " 11) LongCat 2.0 (free)"
+            Write-Host " 12) Other (type model ID manually)"
             $modelChoice = Read-Host "Model [1]"
             $model = switch ($modelChoice) {
                 '1'  { 'deepseek/deepseek-v4-flash' }
                 '2'  { 'deepseek/deepseek-v4.1-flash' }
                 '3'  { 'deepseek/deepseek-v4-pro' }
                 '4'  { 'gpt-5.6-luna' }
-                '5'  { 'xiaomi/mimo-v2.5' }
-                '6'  { 'xiaomi/mimo-v2.5-pro' }
-                '7'  { 'meta/muse-spark-1.3-contributor' }
-                '8'  { 'inclusionai/ling-3.0-flash-sante:free' }
-                '9'  { 'poolside/laguna-s-2.1-free' }
-                '10' { 'meituan/longcat-2.0:free' }
-                '11' { Read-Host "Enter model ID (provider/model-name format)" }
+                '5'  { 'xiaomi/mimo-v2.6-flash' }
+                '6'  { 'xiaomi/mimo-v2.5' }
+                '7'  { 'xiaomi/mimo-v2.5-pro' }
+                '8'  { 'meta/muse-spark-1.3-contributor' }
+                '9'  { 'inclusionai/ling-3.0-flash-sante:free' }
+                '10' { 'poolside/laguna-s-2.1-free' }
+                '11' { 'meituan/longcat-2.0:free' }
+                '12' { Read-Host "Enter model ID (provider/model-name format)" }
                 default { 'deepseek/deepseek-v4-flash' }
+            }
+            # Grounded by Xiaomi MiMo docs (mimo.mi.com): 1M context, 128K max output.
+            if ($model -eq 'xiaomi/mimo-v2.6-flash') {
+                $defaultMaxPromptTokens = 872000
+                $defaultMaxOutputTokens = 128000
             }
         }
         default {

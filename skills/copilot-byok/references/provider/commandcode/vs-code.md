@@ -49,6 +49,17 @@ Add this provider entry to `chatLanguageModels.json` (open via **Chat: Manage La
 			"supportsReasoningEffort": ["low", "medium", "high"]
 		},
 		{
+			"id": "xiaomi/mimo-v2.6-flash",
+			"name": "MiMo V2.6 Flash (CC)",
+			"url": "https://api.commandcode.ai/provider/v1/chat/completions",
+			"toolCalling": true,
+			"vision": true,
+			"streaming": true,
+			"maxInputTokens": 872000,
+			"maxOutputTokens": 128000,
+			"thinking": true
+		},
+		{
 			"id": "xiaomi/mimo-v2.5",
 			"name": "MiMo V2.5 (CC)",
 			"url": "https://api.commandcode.ai/provider/v1/chat/completions",
