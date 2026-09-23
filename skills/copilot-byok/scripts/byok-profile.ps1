@@ -19,10 +19,13 @@
     Additional arguments passed through to the copilot command when using 'run'.
 
 .PARAMETER Interactive
-    Opt-in wizard flag (alias -i). When the target name (profile/account) is
-    omitted for show/remove/run/set-env/use, opens numbered selection menus
-    instead of failing fast. Never auto-triggered: a missing name without this
-    flag still exits non-zero. On 'run' with an explicit profile name, the
+    Opt-in wizard flag (alias -i). All pickers are ACCOUNT-FIRST: choose the
+    scoping account (or skip), then only profiles whose 'scope' matches are
+    listed; enabled:false profiles are hidden where unusable and marked
+    [disabled] where they can be re-enabled or removed. Consulted ONLY when
+    the target name is omitted (or for list/accounts, which map to the wizard
+    entry point); never auto-triggered - a missing name without this flag
+    still exits non-zero. On 'run' with an explicit profile name, the
     canonical --interactive token is re-forwarded to copilot (copilot defines
     -i/--interactive) so existing pass-through invocations keep working.
 
@@ -46,6 +49,11 @@
 
     Interactively creates a new provider profile.
 
+.EXAMPLE
+    .\byok-profile.ps1 -i
+
+    Bare -i wizard entry: pick a scoping account, then a profile belonging to
+    it, then an action (Run / Show / Set-env / Enable-Disable).
 #>
 param(
     [Parameter(Mandatory = $false, Position = 0)]
@@ -731,26 +739,52 @@ function Invoke-ProfileUse {
     if ($a.keyEnv) { Write-Host "  API key env: $($a.keyEnv)" -ForegroundColor Gray }
 }
 
+function Get-ScopedProfileNames {
+    <#
+    .SYNOPSIS
+        Profile names visible to the wizard: scope-filtered, enabled-only
+        (unless -IncludeDisabled), sorted. Profiles without a scope are only
+        reachable when no scope filter is active (the skip-scoping escape).
+    #>
+    param(
+        [Parameter(Mandatory)] [hashtable]$Config,
+        [string]$Scope,
+        [switch]$IncludeDisabled
+    )
+    $out = @(foreach ($n in @($Config.profiles.Keys)) {
+        $p = $Config.profiles[$n]
+        if (-not $IncludeDisabled -and $p.enabled -eq $false) { continue }
+        if ($Scope) {
+            $ps = if ($p.scope) { "$($p.scope)" } else { '' }
+            if ($ps -ne $Scope) { continue }
+        }
+        $n
+    })
+    return @($out | Sort-Object)
+}
+
 function Invoke-InteractiveSelect {
     <#
     .SYNOPSIS
-        Opt-in (-i) wizard: resolves the target name when none was given.
+        Opt-in (-i) wizard: account-first target resolution when no name was given.
     .DESCRIPTION
-        Discovers candidates from the live config (never hardcoded), renders
-        numbered menus, and returns @{ Profile; Account; Cancelled }.
-        Cancel (q at any menu) returns Cancelled=$true with no side effects.
-        Account picker rules (plan H3): only for grouped profiles on
-        run/set-env, only when >1 account is registered, and skipped entirely
-        when the caller already passed an explicit --account.
-        Empty candidate sets fail with guidance (non-zero), never an empty menu.
+        Step 1: pick the scoping account (or skip); an explicit --account skips
+        the menu and provides the scope instead. Step 2: pick from the profiles
+        belonging to that account (profile.scope == account.scope), applying
+        enabled-visibility per command (-IncludeDisabled for list/accounts/
+        remove so disabled profiles stay reachable for re-enable/delete).
+        An empty scope result prints guidance and re-loops to the account menu;
+        q at any menu returns Cancelled=$true with no side effects.
+        Returns @{ Profile; Account; Cancelled }.
     #>
     param(
         [Parameter(Mandatory)] [string]$CommandName,
         [Parameter(Mandatory)] [hashtable]$Config,
-        [string[]]$ArgumentList = @()
+        [string[]]$ArgumentList = @(),
+        [switch]$IncludeDisabled
     )
 
-    # 'use' targets accounts; the others target profiles.
+    # 'use' targets accounts (no scoping step; labels carry scope tags).
     if ($CommandName -eq 'use') {
         $acctNames = @($Config.accounts.Keys | Sort-Object)
         if ($acctNames.Count -eq 0) {
@@ -758,51 +792,136 @@ function Invoke-InteractiveSelect {
             exit 1
         }
         $options = @(foreach ($n in $acctNames) {
-            $label = if ($Config.accounts[$n].label) { $Config.accounts[$n].label } else { '(no label)' }
+            $a = $Config.accounts[$n]
+            $label = if ($a.label) { $a.label } else { '(no label)' }
+            $scopeTag = if ($a.scope) { " [scope: $($a.scope)]" } else { '' }
             $marker = if ($n -eq $Config.activeAccount) { '  [active]' } else { '' }
-            @{ Label = "$n | $label$marker"; Value = $n }
+            @{ Label = "$n | $label$scopeTag$marker"; Value = $n }
         })
         $picked = Read-MenuChoice -Prompt 'Select account' -Options $options -AllowQuit
         if ($null -eq $picked) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
         return @{ Profile = $null; Account = $picked; Cancelled = $false }
     }
 
-    $names = @($Config.profiles.Keys | Sort-Object)
-    if ($names.Count -eq 0) {
+    if (-not $Config.profiles -or $Config.profiles.Count -eq 0) {
         Write-Error "No profiles defined in $profilePath. Run 'byok-profile.ps1 add' to create one."
         exit 1
     }
+
+    # ---- Step 0: resolve the scoping account ----
+    $explicit = Remove-AccountArg -ArgList $ArgumentList
+    $scopeAccount = $null   # account name feeding --account for grouped profiles
+    $scopeValue = $null     # scope filter ($null = all profiles)
+    $acctNames = @()
+    if ($Config.accounts) { $acctNames = @($Config.accounts.Keys | Sort-Object) }
+
+    $names = @()
+    if ($explicit.Account) {
+        # Explicit --account wins: no account menu; it provides the scope.
+        if ($Config.accounts -and $Config.accounts.ContainsKey($explicit.Account)) {
+            $scopeAccount = $explicit.Account
+            $scopeValue = $Config.accounts[$explicit.Account].scope
+        }
+        $names = Get-ScopedProfileNames -Config $Config -Scope $scopeValue -IncludeDisabled:$IncludeDisabled
+        if ($names.Count -eq 0) {
+            $what = if ($scopeValue) { "profiles with scope '$scopeValue' (from --account $scopeAccount)" } else { 'visible profiles' }
+            Write-Error "No $what in $profilePath."
+            exit 1
+        }
+    }
+    elseif ($acctNames.Count -gt 0) {
+        $acctOptions = @(foreach ($n in $acctNames) {
+            $a = $Config.accounts[$n]
+            $label = if ($a.label) { $a.label } else { '(no label)' }
+            $scopeTag = if ($a.scope) { " [scope: $($a.scope)]" } else { ' [no scope]' }
+            $marker = if ($n -eq $Config.activeAccount) { '  [active]' } else { '' }
+            @{ Label = "$n  |  $label$scopeTag$marker"; Value = $n }
+        })
+        $acctOptions += @{ Label = '(all profiles - skip scoping)'; Value = '' }
+        for (;;) {
+            $acctPick = Read-MenuChoice -Prompt 'Select account (scope filter)' -Options $acctOptions -Default '' -AllowQuit
+            if ($null -eq $acctPick) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
+            if ("$acctPick" -eq '') {
+                $scopeAccount = $null
+                $scopeValue = $null
+            }
+            else {
+                $scopeAccount = "$acctPick"
+                $scopeValue = $Config.accounts["$acctPick"].scope
+            }
+            $names = Get-ScopedProfileNames -Config $Config -Scope $scopeValue -IncludeDisabled:$IncludeDisabled
+            if ($names.Count -gt 0) { break }
+            $what = if ($scopeValue) { "profiles with scope '$scopeValue'" } else { 'visible profiles' }
+            Write-Host "  No $what. Pick another account or skip scoping." -ForegroundColor Yellow
+        }
+    }
+    else {
+        # No accounts registry at all: flat list.
+        $names = Get-ScopedProfileNames -Config $Config -Scope $null -IncludeDisabled:$IncludeDisabled
+        if ($names.Count -eq 0) {
+            $why = if (-not $IncludeDisabled) { 'enabled ' } else { '' }
+            Write-Error "No $why`profiles defined in $profilePath. Run 'byok-profile.ps1 add' to create one."
+            exit 1
+        }
+    }
+
+    # ---- Step 2: profile menu over the scoped/visible names ----
     $options = @(foreach ($n in $names) {
         $p = $Config.profiles[$n]
         $type = if ($p.type) { $p.type } else { 'openai' }
         $group = if ($p.accountGroup) { "  [accountGroup: $($p.accountGroup)]" } else { '' }
-        @{ Label = "$n  ($type | $($p.model))$group"; Value = $n }
+        $dis = if ($p.enabled -eq $false) { '  [disabled]' } else { '' }
+        @{ Label = "$n  ($type | $($p.model))$group$dis"; Value = $n }
     })
     $picked = Read-MenuChoice -Prompt 'Select profile' -Options $options -AllowQuit
     if ($null -eq $picked) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
 
-    # Account picker: run/set-env + grouped profile + >1 account + no explicit --account.
+    # Chosen scope account flows into run/set-env as --account (grouped only;
+    # non-grouped profiles already carry the matching keyEnv placeholder).
+    # Explicit --account keeps precedence: it stays in $Arguments untouched.
     $account = $null
-    $withAccount = $CommandName -in @('run', 'set-env')
-    if ($withAccount) {
-        $explicit = Remove-AccountArg -ArgList $ArgumentList
+    if ($CommandName -in @('run', 'set-env') -and -not $explicit.Account -and $scopeAccount) {
         $isGrouped = [bool]$Config.profiles[$picked].accountGroup
-        $acctNames = if ($Config.accounts) { @($Config.accounts.Keys | Sort-Object) } else { @() }
-        if ($isGrouped -and -not $explicit.Account -and $acctNames.Count -gt 1) {
-            $activeLabel = if ($Config.activeAccount) { $Config.activeAccount } else { 'profile apiKey fallback' }
-            $acctOptions = @(foreach ($n in $acctNames) {
-                $label = if ($Config.accounts[$n].label) { $Config.accounts[$n].label } else { '(no label)' }
-                $marker = if ($n -eq $Config.activeAccount) { '  [active]' } else { '' }
-                @{ Label = "$n | $label$marker"; Value = $n }
-            })
-            $acctOptions += @{ Label = "(keep default: $activeLabel)"; Value = '' }
-            $acctPick = Read-MenuChoice -Prompt 'Select account' -Options $acctOptions -Default '' -AllowQuit
-            if ($null -eq $acctPick) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
-            $account = if ("$acctPick" -eq '') { $null } else { "$acctPick" }
-        }
+        if ($isGrouped) { $account = $scopeAccount }
     }
 
     return @{ Profile = $picked; Account = $account; Cancelled = $false }
+}
+
+function Invoke-ProfileToggleEnabled {
+    <#
+    .SYNOPSIS
+        Confirmed on/off toggle for a profile's 'enabled' flag (kept in JSON).
+    .DESCRIPTION
+        Prints a confirmation summary first (confirm before mutating); a
+        declined confirmation is a clean cancel ($false, nothing written).
+        Absent flag = enabled; both directions write an explicit boolean.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [hashtable]$Config
+    )
+    if (-not $Config.profiles.ContainsKey($Name)) {
+        Write-Error "Profile '$Name' not found."
+        exit 1
+    }
+    $p = $Config.profiles[$Name]
+    $currently = -not ($p.enabled -eq $false)
+    $newState = -not $currently
+    $rows = [ordered]@{
+        'Profile'       = $Name
+        'Model'         = "$($p.model)"
+        'Current state' = $(if ($currently) { 'enabled' } else { 'disabled' })
+        'New state'     = $(if ($newState) { 'enabled' } else { 'disabled' })
+    }
+    if (-not (Show-ConfirmationSummary -Title "$(if ($newState) { 'Enable' } else { 'Disable' }) profile '$Name'?" -Rows $rows)) {
+        Write-Host 'Cancelled.' -ForegroundColor Yellow
+        return $false
+    }
+    $p.enabled = $newState
+    Save-ProfileConfig -Config $Config
+    Write-Host "Profile '$Name' is now $(if ($newState) { 'enabled' } else { 'disabled' })." -ForegroundColor Green
+    return $true
 }
 
 function Invoke-ProfileAdd {
@@ -1334,9 +1453,13 @@ if ($Interactive -and -not [string]::IsNullOrWhiteSpace($Profile)) {
     }
 }
 if ($Interactive) {
-    if ($Command -in @('show', 'remove', 'run', 'set-env', 'use')) {
+    if ($Command -in @('show', 'remove', 'run', 'set-env', 'use', 'list', 'accounts')) {
         $wizConfig = Get-ProfileConfig
-        $selection = Invoke-InteractiveSelect -CommandName $Command -Config $wizConfig -ArgumentList $Arguments
+        # Disabled profiles stay reachable only where the action makes sense:
+        # list/accounts (Enable-Disable) and remove (delete). run/set-env/show
+        # hide them; their functions refuse explicit names anyway.
+        $includeDisabled = $Command -in @('list', 'accounts', 'remove')
+        $selection = Invoke-InteractiveSelect -CommandName $Command -Config $wizConfig -ArgumentList $Arguments -IncludeDisabled:$includeDisabled
         if ($selection.Cancelled) {
             Write-Host 'Cancelled.' -ForegroundColor Yellow
             return
@@ -1350,6 +1473,28 @@ if ($Interactive) {
                 $Arguments = @($Arguments) + @('--account', $selection.Account)
             }
         }
+
+        if ($Command -in @('list', 'accounts')) {
+            # Bare `-i` entry point: account -> scoped profile -> action menu.
+            $action = Read-MenuChoice -Prompt 'Action' -AllowQuit -Options @(
+                @{ Label = 'Run - launch Copilot with this profile'; Value = 'run' }
+                @{ Label = 'Show - print profile JSON'; Value = 'show' }
+                @{ Label = 'Set-env - apply profile to the current shell'; Value = 'set-env' }
+                @{ Label = 'Enable-Disable - toggle profile enabled state'; Value = 'toggle' }
+            )
+            if ($null -eq $action) {
+                Write-Host 'Cancelled.' -ForegroundColor Yellow
+                return
+            }
+            switch ($action) {
+                'run'     { Invoke-ProfileRun -Name $Profile }
+                'show'    { Invoke-ProfileShow -Name $Profile }
+                'set-env' { Invoke-ProfileSetEnv -Name $Profile -Arguments $Arguments }
+                'toggle'  { Invoke-ProfileToggleEnabled -Name $Profile -Config $wizConfig | Out-Null }
+            }
+            return
+        }
+
         if ($Command -eq 'remove') {
             # Wizard-path confirmation (confirm before mutating). Direct
             # `remove <name>` keeps its historical no-prompt behavior.
@@ -1369,7 +1514,7 @@ if ($Interactive) {
         Write-Host ''
     }
     else {
-        # list / accounts / add ignore the flag (add already is interactive).
+        # add ignores the flag (add already is interactive).
         $Interactive = $false
     }
 }

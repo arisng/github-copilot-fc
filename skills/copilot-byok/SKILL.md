@@ -1,9 +1,9 @@
 ---
 name: copilot-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI (including the interactive -i profile/account picker wizard); switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI (including the account-first interactive -i wizard with scope filtering and enable/disable); switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.19.0
+  version: 0.20.0
   lastVerified: 2026-09-23
 ---
 
@@ -73,16 +73,24 @@ Common commands:
 . .\scripts\byok-profile.ps1 set-env openai
 
 # Opt-in wizard (-i / -Interactive): numbered pickers instead of typing names.
-# Consulted ONLY when the name is omitted; never auto-triggered (a missing name
-# without -i still fails fast, so agents/CI can never hang on a prompt).
+# ALL pickers are account-first: pick the scoping account (or skip), then only
+# profiles with a matching `scope` are listed. Consulted ONLY when the name is
+# omitted; never auto-triggered (a missing name without -i still fails fast,
+# so agents/CI can never hang on a prompt).
 .\scripts\byok-profile.ps1 run -i
 .\scripts\byok-profile.ps1 show -i
 .\scripts\byok-profile.ps1 remove -i
 . .\scripts\byok-profile.ps1 set-env -i
 .\scripts\byok-profile.ps1 use -i
+
+# Bare -i entry point: account -> scoped profile -> action menu
+# (Run / Show / Set-env / Enable-Disable)
+.\scripts\byok-profile.ps1 -i
 ```
 
-Wizard semantics: `q` at any prompt cancels cleanly (exit 0, no side effects); `remove -i` and `add` print a confirmation summary and require an explicit yes before anything is written. On `run` with an **explicit** profile name, `-i`/`--interactive` is treated as pass-through and the canonical `--interactive` token is forwarded to Copilot CLI (which defines `-i, --interactive <prompt>`); when the wizard picks the account, an explicit `--account` always wins. `use -i` with an empty `accounts` registry errors with guidance, while non-interactive `run` of a non-grouped profile falls back to its legacy `apiKey` field.
+Wizard semantics: `q` at any prompt cancels cleanly (exit 0, no side effects); `remove -i`, `add`, and Enable-Disable print a confirmation summary and require an explicit yes before anything is written. On `run` with an **explicit** profile name, `-i`/`--interactive` is treated as pass-through and the canonical `--interactive` token is forwarded to Copilot CLI (which defines `-i, --interactive <prompt>`); an explicit `--account` skips the account menu and supplies the scope instead. `use -i` with an empty `accounts` registry errors with guidance, while non-interactive `run` of a non-grouped profile falls back to its legacy `apiKey` field.
+
+Profile fields: `scope` (kebab-case, backfilled by a write-once migration from baseUrl/keyEnv — drives account-first filtering; profiles without one are reachable via the *skip scoping* escape) and `enabled` (absent = enabled; `enabled: false` profiles are kept in the JSON, hidden from `run`/`show`/`set-env` pickers, marked `[disabled]` in bare `-i`/`remove -i`, listed with a marker by `list`, and **refused by `run`/`set-env`** — re-enable via bare `-i` → Enable-Disable).
 
 Pass extra Copilot CLI arguments through `run` (do not pass `--model`; model is sourced from the profile):
 
@@ -94,21 +102,25 @@ Profiles are stored in `~/.copilot/byok-profiles.json` or `$env:COPILOT_HOME\byo
 
 ## Switch between multiple provider accounts
 
-When you have multiple subscriptions for the same provider (for example, **two OpenCode Zen accounts** with separate API keys), register the accounts once and switch per session — no profile edits needed.
+When you have multiple subscriptions for the same provider (for example, **separate OpenCode Go Home and Work subscriptions**), register the accounts once and switch per session — no profile edits needed.
+
+Account keys follow the uniform **`<scope>-<variant>`** convention: the key always starts with the account's `scope` (the same string the account-first wizard filters on), e.g. `opencode-go-home`, `opencode-go-work`, `opencode-zen-home`, `commandcode-goat`. A write-once migration renames legacy keys (`opencode-home`, `opencode-work`, `opencode-zen`, `commandcode`) and updates `activeAccount` on first read.
 
 ### 1. Register accounts in `~/.copilot/byok-profiles.json`
 
 ```json
 {
   "accounts": {
-    "opencode-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
-    "opencode-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
+    "opencode-go-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Go (Home)", "scope": "opencode-go" },
+    "opencode-go-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Go (Work)", "scope": "opencode-go" },
+    "opencode-zen-home": { "keyEnv": "OPENCODE_ZEN_API_KEY", "label": "OpenCode Zen (Home)", "scope": "opencode-zen" },
+    "commandcode-goat": { "keyEnv": "COMMANDCODE_API_KEY", "label": "Command Code GOAT", "scope": "commandcode" }
   },
-  "activeAccount": "opencode-home"
+  "activeAccount": "opencode-go-work"
 }
 ```
 
-`keyEnv` holds the **name** of an environment variable with that account's key — never the raw key. `activeAccount` sets the default.
+`keyEnv` holds the **name** of an environment variable with that account's key — never the raw key. `activeAccount` sets the default. `scope` is backfilled automatically if omitted (keyEnv inference) and drives account-first wizard filtering; account resolution also refuses to apply an account whose scope differs from the profile's (falls back to the profile's legacy `apiKey` with a warning).
 
 ### 2. Opt profiles in with `accountGroup`
 
@@ -118,12 +130,12 @@ Add `"accountGroup": "opencode"` to each profile that should use the registry (t
 
 ```powershell
 .\scripts\byok-profile.ps1 accounts
-.\scripts\byok-profile.ps1 use opencode-work
+.\scripts\byok-profile.ps1 use opencode-go-work
 .\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash
-.\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-work
+.\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-go-work
 ```
 
-Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-work` to `Invoke-CopilotCliSubSession.ps1`.
+Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves **or the account's `scope` differs from the profile's**, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-go-work` to `Invoke-CopilotCliSubSession.ps1`.
 
 ### 4. Add the second account in VS Code Chat
 
