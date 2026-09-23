@@ -45,6 +45,7 @@
     .\byok-profile.ps1 add
 
     Interactively creates a new provider profile.
+
 #>
 param(
     [Parameter(Mandatory = $false, Position = 0)]
@@ -125,6 +126,133 @@ function Migrate-OpenCodeGoProfiles {
     return $Config
 }
 
+function Migrate-AccountNames {
+    <#
+    .SYNOPSIS
+        One-time rename of account registry keys to the uniform
+        <scope>-<variant> convention (account key starts with its scope).
+    .DESCRIPTION
+        Rewrites accounts keys, activeAccount, normalizes the four labels
+        during the rename, and defensively rewrites any profile 'account' pin.
+        Prints a notice; a second read is a no-op.
+    #>
+    param($Config)
+    $renameMap = @{
+        'opencode-home' = 'opencode-go-home'
+        'opencode-work' = 'opencode-go-work'
+        'opencode-zen'  = 'opencode-zen-home'
+        'commandcode'   = 'commandcode-goat'
+    }
+    $labelMap = @{
+        'opencode-go-home'  = 'OpenCode Go (Home)'
+        'opencode-go-work'  = 'OpenCode Go (Work)'
+        'opencode-zen-home' = 'OpenCode Zen (Home)'
+        'commandcode-goat'  = 'Command Code GOAT'
+    }
+    $renamed = @()
+    if ($Config.accounts) {
+        foreach ($old in @($Config.accounts.Keys)) {
+            if (-not $renameMap.ContainsKey($old)) { continue }
+            $new = $renameMap[$old]
+            if (-not $Config.accounts.ContainsKey($new)) {
+                $Config.accounts[$new] = $Config.accounts[$old]
+                if ($labelMap.ContainsKey($new)) { $Config.accounts[$new].label = $labelMap[$new] }
+            }
+            $Config.accounts.Remove($old)
+            $renamed += "$old -> $new"
+        }
+    }
+    if ($Config.activeAccount -and $renameMap.ContainsKey($Config.activeAccount)) {
+        $Config.activeAccount = $renameMap[$Config.activeAccount]
+    }
+    if ($Config.profiles) {
+        foreach ($name in @($Config.profiles.Keys)) {
+            $p = $Config.profiles[$name]
+            if ($p.account -and $renameMap.ContainsKey($p.account)) {
+                $p.account = $renameMap[$p.account]
+                $renamed += "profile '$name' account pin -> $($p.account)"
+            }
+        }
+    }
+    if ($renamed.Count -gt 0) {
+        Save-ProfileConfig -Config $Config
+        Write-Host "  Renamed BYOK account(s):" -ForegroundColor Yellow
+        foreach ($r in $renamed) { Write-Host "    - $r" -ForegroundColor Yellow }
+        Write-Host "    (old keys are invalid; update scripts using them)" -ForegroundColor DarkYellow
+        Write-Host ""
+    }
+    return $Config
+}
+
+function Get-ScopeForAccount {
+    param([System.Collections.IDictionary]$Account)
+    if ($Account.scope) { return $Account.scope }
+    $ke = "$($Account.keyEnv)"
+    if ($ke -match '^COMMANDCODE_') { return 'commandcode' }
+    if ($ke -match '^OPENCODE_ZEN_') { return 'opencode-zen' }
+    if ($ke -match '^OPENCODE_API_KEY_') { return 'opencode-go' }
+    if ($ke -match '^DPROCESS_') { return 'dprocess' }
+    if ($ke -match '^(.+)_API_KEY$') { return ($Matches[1] -replace '_', '-').ToLower() }
+    return $null
+}
+
+function Get-ScopeForProfile {
+    param([System.Collections.IDictionary]$Profile)
+    if ($Profile.scope) { return $Profile.scope }
+    $b = "$($Profile.baseUrl)"
+    if ($b -match 'commandcode\.ai') { return 'commandcode' }
+    if ($b -match 'opencode-go\.local') { return 'opencode-go' }
+    if ($b -match 'opencode\.ai/zen') { return 'opencode-zen' }
+    if ($b -match 'openrouter\.ai') { return 'openrouter' }
+    if ("$($Profile.apiKey)" -match '^\$\{(.+?)\}') {
+        $ke = $Matches[1]
+        if ($ke -match '^COMMANDCODE_') { return 'commandcode' }
+        if ($ke -match '^OPENCODE_ZEN_') { return 'opencode-zen' }
+        if ($ke -match '^OPENCODE_API_KEY_') { return 'opencode-go' }
+        if ($ke -match '^DPROCESS_') { return 'dprocess' }
+        if ($ke -match '^(.+)_API_KEY$') { return ($Matches[1] -replace '_', '-').ToLower() }
+    }
+    return $null
+}
+
+function Migrate-WizardScope {
+    <#
+    .SYNOPSIS
+        One-time backfill of the optional 'scope' field on accounts and
+        profiles (drives account-first wizard filtering).
+    .DESCRIPTION
+        Writes only fields that are missing; a second read is a no-op.
+        Profiles/accounts whose scope cannot be inferred stay without one and
+        are reachable only via the wizard's skip-scoping escape.
+    #>
+    param($Config)
+    $changed = $false
+    if ($Config.accounts) {
+        foreach ($n in @($Config.accounts.Keys)) {
+            $a = $Config.accounts[$n]
+            if (-not $a.scope) {
+                $s = Get-ScopeForAccount -Account $a
+                if ($s) { $a.scope = $s; $changed = $true }
+            }
+        }
+    }
+    if ($Config.profiles) {
+        foreach ($n in @($Config.profiles.Keys)) {
+            $p = $Config.profiles[$n]
+            if (-not $p.scope) {
+                $s = Get-ScopeForProfile -Profile $p
+                if ($s) { $p.scope = $s; $changed = $true }
+            }
+        }
+    }
+    if ($changed) {
+        Save-ProfileConfig -Config $Config
+        Write-Host "  Backfilled missing 'scope' field(s) for the account-first wizard." -ForegroundColor DarkYellow
+        Write-Host ""
+    }
+    return $Config
+}
+
 function Get-ProfileConfig {
     if (-not (Test-Path $profilePath)) {
         return @{ profiles = @{} }
@@ -136,8 +264,11 @@ function Get-ProfileConfig {
     if (-not $raw.accounts) { $raw.accounts = @{} }
     if (-not $raw.ContainsKey('activeAccount')) { $raw.activeAccount = $null }
 
-    # Auto-migrate OpenCode Go profiles on first access
+    # Auto-migrate on first access (order matters: proxy rewrite, then account
+    # rename, then scope backfill against the final keys).
     $raw = Migrate-OpenCodeGoProfiles -Config $raw
+    $raw = Migrate-AccountNames -Config $raw
+    $raw = Migrate-WizardScope -Config $raw
 
     return $raw
 }
@@ -444,6 +575,14 @@ function Resolve-ProfileAccount {
         Write-Warning "Account '$accountName' has no 'keyEnv' set (via $source). Falling back to profile apiKey."
         return $null
     }
+    # Scope guard: an account only serves a profile when both scopes agree
+    # (e.g. an OpenCode Go account must never key an OpenCode Zen profile).
+    $acctScope = $Config.accounts[$accountName].scope
+    $profScope = $Profile.scope
+    if ($acctScope -and $profScope -and "$acctScope" -ne "$profScope") {
+        Write-Warning "Account '$accountName' has scope '$acctScope' but profile scope is '$profScope' (via $source). Falling back to profile apiKey."
+        return $null
+    }
     return @{
         Name   = $accountName
         KeyEnv = $keyEnv
@@ -500,9 +639,10 @@ function Invoke-ProfileList {
         $p = $profiles[$name]
         $type = if ($p.type) { $p.type } else { 'openai' }
         $offline = if ($p.offline -eq $true) { ' [offline]' } else { '' }
+        $disabled = if ($p.enabled -eq $false) { ' [disabled]' } else { '' }
         $accountInfo = if ($p.accountGroup) { " [accountGroup: $($p.accountGroup)]" } else { '' }
         Write-Host "$name" -ForegroundColor Green -NoNewline
-        Write-Host " -> $type | $($p.model) | $($p.baseUrl)$offline$accountInfo" -ForegroundColor Gray
+        Write-Host " -> $type | $($p.model) | $($p.baseUrl)$offline$accountInfo$disabled" -ForegroundColor Gray
     }
 }
 
@@ -880,6 +1020,10 @@ function Invoke-ProfileAdd {
     if ($maxPromptTokens) { $profileEntry.maxPromptTokens = $maxPromptTokens }
     if ($maxOutputTokens) { $profileEntry.maxOutputTokens = $maxOutputTokens }
 
+    # Stamp the wizard scope at creation time (same inference as migration).
+    $entryScope = Get-ScopeForProfile -Profile $profileEntry
+    if ($entryScope) { $profileEntry.scope = $entryScope }
+
     if ($supportsReasoningEffort -eq $false) {
         Write-Host "  Note: '$model' does not support --reasoning-effort. The profile has 'reasoningEffortSupported: false'." -ForegroundColor DarkYellow
     }
@@ -997,6 +1141,10 @@ function Invoke-ProfileRun {
     }
 
     $p = $config.profiles[$Name]
+    if ($p.enabled -eq $false) {
+        Write-Error "Profile '$Name' is disabled. Re-enable it via 'byok-profile.ps1 -i' (Enable-Disable action) or set enabled: true in $profilePath."
+        exit 1
+    }
 
     # Parse --account override (consumed here, never forwarded to copilot)
     $accountParse = Remove-AccountArg -ArgList $Arguments
@@ -1097,6 +1245,10 @@ function Invoke-ProfileSetEnv {
     }
 
     $p = $config.profiles[$Name]
+    if ($p.enabled -eq $false) {
+        Write-Error "Profile '$Name' is disabled. Re-enable it via 'byok-profile.ps1 -i' (Enable-Disable action) or set enabled: true in $profilePath."
+        exit 1
+    }
 
     # Parse --account override (consumed here, not part of the env)
     $accountParse = Remove-AccountArg -ArgList $Arguments

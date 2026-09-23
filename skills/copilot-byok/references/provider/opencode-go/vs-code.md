@@ -360,7 +360,7 @@ Use `vendor: "customendpoint"` with `apiType: "messages"`. Add via UI first to s
 
 If you hold two OpenCode Zen subscriptions — personal and work — VS Code does **not** read the CLI `accounts` registry in `byok-profiles.json`; that file only drives Copilot CLI (`byok-profile.ps1` / `Invoke-CopilotCliSubSession.ps1`). In VS Code each account is a **separate provider entry**, each with its own API key in secret storage.
 
-To mirror the CLI convention (`opencode-home` / `opencode-work`), create one provider per account per API type:
+To mirror the CLI convention (`opencode-go-home` / `opencode-go-work`), create one provider per account per API type:
 
 | Provider `name` in `chatLanguageModels.json` | Account | Env var (CLI) | `apiType` |
 |----------------------------------------------|---------|---------------|-----------|

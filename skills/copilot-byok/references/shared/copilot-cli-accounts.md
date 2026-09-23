@@ -11,10 +11,10 @@ Shared Copilot CLI mechanism, usable with any provider. When you hold multiple s
 ```json
 {
   "accounts": {
-    "opencode-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Zen (Home)" },
-    "opencode-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Zen (Work)" }
+    "opencode-go-home": { "keyEnv": "OPENCODE_API_KEY_HOME", "label": "OpenCode Go (Home)", "scope": "opencode-go" },
+    "opencode-go-work": { "keyEnv": "OPENCODE_API_KEY_WORK", "label": "OpenCode Go (Work)", "scope": "opencode-go" }
   },
-  "activeAccount": "opencode-home",
+  "activeAccount": "opencode-go-home",
   "profiles": {
     "opencode-go-deepseek-v4-flash": {
       "baseUrl": "https://opencode.ai/zen/go/v1",

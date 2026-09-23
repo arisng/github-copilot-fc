@@ -160,7 +160,7 @@ Register Command Code accounts in the `accounts` section of `byok-profiles.json`
 ```json
 {
   "accounts": {
-    "commandcode": { "keyEnv": "COMMANDCODE_API_KEY", "label": "Command Code GOAT" }
+    "commandcode-goat": { "keyEnv": "COMMANDCODE_API_KEY", "label": "Command Code GOAT", "scope": "commandcode" }
   }
 }
 ```
