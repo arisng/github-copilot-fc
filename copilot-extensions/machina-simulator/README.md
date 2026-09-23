@@ -159,6 +159,21 @@ fix before the next live run. The re-eval diff in `machina_replay` output is wha
 powers that instruction — "record N says X, but the machine says the guard should
 have gone to Y".
 
+## Standalone pre-start (manual conductor)
+
+Bind the fixed simulator port without starting a Copilot session:
+
+```bash
+node scripts/start-standalone.mjs   # or: npm start
+```
+
+The server claims `127.0.0.1:7750` and serves the full UI plus `/action/*`
+endpoints. Copilot sessions started later detect the port in use, **skip
+auto-start**, and attach as secondaries: their agents' `open_canvas` and
+canvas actions delegate to this process over HTTP, and every browser tab
+(`?instance=<id>`) shares the one server. Running the launcher twice is safe —
+the second run exits with "already running" (exit 0).
+
 ## Install
 
 Extensions are experimental. Run `copilot --experimental` (or use

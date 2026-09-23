@@ -1,10 +1,11 @@
 {
   "name": "machina-simulator",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "Machina state-machine validation, autofill, spec reference, and canvas viewer extension for GitHub Copilot CLI.",
   "scripts": {
+    "start": "node scripts/start-standalone.mjs",
     "test": "node test/engine.test.mjs && node test/canonical-json.test.mjs && node test/replay.test.mjs && node test/replay-all.test.mjs && node test/discovery.test.mjs && node test/syntax.test.mjs && node test/qa-handlers.mjs && node --experimental-loader ./test/sdk-stub-loader.mjs test/canvas.test.mjs"
   }
 }

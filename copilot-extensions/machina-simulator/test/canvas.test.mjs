@@ -56,6 +56,11 @@ function writePersistedRun(root, runid, machineId = "pm-release-notes", withRepo
 
 // Note: extension.mjs registers its HTTP server at import time. The test stub
 // (test/stubs/copilot-sdk-extension.mjs) records joinSession opts.
+// Ephemeral port: suite runs must never collide with a live session's
+// simulator already bound to the fixed port (127.0.0.1:7750) — otherwise
+// this module silently becomes a secondary and assertions hit the foreign
+// primary's state.
+process.env.MACHINA_SIM_PORT = "0";
 const { __opts } = await import("../extension.mjs").then(() => globalThis.__machinaTestSession);
 
 const sample = JSON.parse(

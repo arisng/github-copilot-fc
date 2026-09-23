@@ -9,7 +9,15 @@ import * as path from "node:path";
 import http from "node:http";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
-import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
+// The Copilot SDK exists only inside the CLI extension host. Standalone mode
+// (MACHINA_STANDALONE=1, launched manually via scripts/start-standalone.mjs)
+// runs only the HTTP server — no canvas registration, no session join — so
+// the module must not import the SDK at all in that mode.
+const STANDALONE = process.env.MACHINA_STANDALONE === "1";
+let createCanvas, joinSession;
+if (!STANDALONE) {
+  ({ createCanvas, joinSession } = await import("@github/copilot-sdk/extension"));
+}
 import {
   LATEST_SPEC_VERSION,
   SPEC_REGISTRY,
@@ -31,7 +39,11 @@ const appHtml = fs.readFileSync(APP_HTML, "utf8");
 const engineJs = fs.readFileSync(ENGINE_JS, "utf8");
 
 // --- Fixed port for multi-session sharing ----------------------------------
-const FIXED_PORT = 7750;
+// MACHINA_SIM_PORT overrides the port (tests use "0" for an ephemeral port
+// so a suite run never collides with a live session's simulator on 7750).
+// NB: cannot use `Number(env) || 7750` — 0 (ephemeral) is falsy.
+const RAW_PORT = process.env.MACHINA_SIM_PORT;
+const FIXED_PORT = RAW_PORT === undefined || RAW_PORT === "" ? 7750 : Number(RAW_PORT);
 
 function isPortInUse(port) {
   return new Promise((resolve) => {
@@ -658,9 +670,10 @@ if (!(await isPortInUse(FIXED_PORT))) {
 // If the port is already in use (or the race was lost), don't start the
 // server — delegate to the primary via /action/* (invokeAction).
 server.unref(); // do not keep the host process alive solely for this loopback server
+if (isPrimary) port = server.address().port; // MACHINA_SIM_PORT=0 → actual ephemeral port
 
 // --- Canvas ----------------------------------------------------------------
-const canvas = createCanvas({
+const canvas = STANDALONE ? null : createCanvas({
   id: "machine-simulator",
   displayName: "Machina Simulator",
   description: "Render and drive a Machina state machine in the full simulator (graph, scenario playback, coverage, cycle guards, compliance, schema editor). Live-load machines and send playback commands from the agent.",
@@ -775,6 +788,17 @@ const canvas = createCanvas({
 });
 
 // --- Extension entry point -------------------------------------------------
+if (STANDALONE) {
+  // Manual pre-start: serve the simulator UI + /action/* endpoints only.
+  // Later Copilot sessions detect the port, skip auto-start, and attach as
+  // secondaries — their agents' open_canvas / actions delegate over HTTP.
+  if (!isPrimary) {
+    console.log(`[machina-simulator] 127.0.0.1:${FIXED_PORT} already in use — a simulator is already running; nothing to start.`);
+    process.exit(0);
+  }
+  console.log(`[machina-simulator] standalone server ready: http://127.0.0.1:${port}/ — open one tab per session (?instance=<id>)`);
+  setInterval(() => {}, 1 << 30); // keep alive (the HTTP server is unref'd)
+} else {
 const session = await joinSession({
   tools: [
     {
@@ -902,3 +926,4 @@ const session = await joinSession({
     name: "machina-simulator",
   },
 });
+}
