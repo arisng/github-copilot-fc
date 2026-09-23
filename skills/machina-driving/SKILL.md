@@ -15,7 +15,7 @@ description: >-
   maintainer of this skill upgrading the driver itself; general diagramming or
   XState/SCXML authoring.
 metadata:
-  version: 0.5.1
+  version: 0.5.2
 ---
 
 # Machina Driving
@@ -110,13 +110,24 @@ When the run enters `STUCK` or `ESCALATED`, the canvas is already showing the
 stuck state and blocked events. No extra canvas action is needed — the
 grounded report to the human conductor is the escalation channel.
 
-### Graceful fallback
+### Graceful fallback (three tiers)
 
-If the `open_canvas` tool is missing (runtime without canvas support) or the
-call fails, emit **one line** — e.g. `simulator canvas unavailable
-(open_canvas not present); continuing without it` — then continue the run.
-Never retry, never treat it as an error. The simulator is a convenience, not
-a requirement.
+1. **`open_canvas` unavailable** (e.g. VS Code / Agent-Host SDK runtimes
+   without canvas tools): **auto-start the standalone simulator** instead of
+   giving up — run `node "<extension>/scripts/start-standalone.mjs"` where
+   `<extension>` is the installed machina-simulator folder
+   (`~/.copilot/extensions/machina-simulator`; the workspace copy's
+   `scripts/start-standalone.mjs` works too). The launcher is idempotent: if
+   a simulator already listens on `127.0.0.1:7750` it exits 0 with
+   "already running" — treat both outcomes as success. Then emit **one line**
+   for the human conductor:
+   `machina-simulator ready at http://127.0.0.1:7750/ — open it to watch this run (runRef <run-id>)`
+   and continue driving; the conductor browses Runs/Live tabs manually.
+2. **Start failed** (no shell, no node, script missing): emit **one line** —
+   `simulator unavailable (open_canvas absent, standalone start failed); continuing without it` —
+   then continue the run.
+3. **Never retry, never treat as an error.** The simulator is a convenience,
+   not a requirement.
 
 ## Tamper prevention
 

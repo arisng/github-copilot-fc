@@ -195,12 +195,18 @@ After each `fire`, the agent re-opens the canvas with the same `runRef` +
 event to the browser. The conductor sees the updated state without manual
 intervention.
 
-### Fallback
+### Fallback (three tiers — non-CLI runtimes)
 
-If the `open_canvas` tool is missing or the call fails, the agent notes it in
-**one line** (e.g. `simulator canvas unavailable; continuing without it`) and
-proceeds — never retries, never treats it as an error. The run continues
-normally; the simulator is a convenience, not a requirement.
+1. `open_canvas` missing (VS Code / Agent-Host SDK runtimes): **auto-start
+   the standalone server** — `node "<extension>/scripts/start-standalone.mjs"`
+   (installed path `~/.copilot/extensions/machina-simulator/…`). Idempotent:
+   "already running" (exit 0) or "ready" both count as success. Emit one
+   line with `http://127.0.0.1:7750/` + the runRef for the conductor, then
+   keep driving.
+2. Start failed (no shell/node): emit one line — `simulator unavailable;
+   continuing without it` — and proceed.
+3. Never retry, never treat as an error; the run continues normally either
+   way — the simulator is a convenience, not a requirement.
 
 ### Manual pre-start (conductor)
 
