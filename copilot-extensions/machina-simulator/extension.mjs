@@ -36,7 +36,9 @@ import { createLiveWatcher } from "./scripts/live-watcher.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = path.join(__dirname, "simulator", "app.html");
 const ENGINE_JS = path.join(__dirname, "machine-simulator.mjs");
-const appHtml = fs.readFileSync(APP_HTML, "utf8");
+const appHtml = fs.readFileSync(APP_HTML, "utf8")
+  // Single source of truth: the UI banner version comes from package.json.
+  .replaceAll("__PKG_VERSION__", String(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version));
 const engineJs = fs.readFileSync(ENGINE_JS, "utf8");
 
 // --- Fixed port for multi-session sharing ----------------------------------

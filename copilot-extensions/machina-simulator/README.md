@@ -325,6 +325,13 @@ Verify with `/extensions manage`.
 
 ## Development
 
+**Versioning — one source of truth:** bump `package.json` `"version"` only.
+The banner version shown in the UI is injected from it at serve time
+(`__PKG_VERSION__` replacement in `extension.mjs`), so `package.json` and the
+visible version can never drift. Add a dated entry to the `app version`
+changelog comment in `simulator/app.html` per release, using the same
+`package.json` version string.
+
 ```powershell
 # Run the full suite (engine + handler contracts + canvas/HTTP integration)
 npm test
