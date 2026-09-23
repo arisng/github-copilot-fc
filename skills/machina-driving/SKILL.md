@@ -15,7 +15,7 @@ description: >-
   maintainer of this skill upgrading the driver itself; general diagramming or
   XState/SCXML authoring.
 metadata:
-  version: 0.5.0
+  version: 0.5.1
 ---
 
 # Machina Driving
@@ -57,14 +57,18 @@ Every command prints exactly one strict-JSON object. A blocked `fire` is a first
    frontmatter (`machina: { machine, scenario }`), or use the machine file the
    human conductor names.
 2. **Init** the run with all required scenario inputs.
-3. **Work the current state** — the state's `description` tells you what the
+3. **Open the simulator canvas** — immediately after `init`, attempt
+   `open_canvas` per [Simulator canvas integration](#simulator-canvas-integration)
+   so the human conductor watches the run live. If the `open_canvas` tool does
+   not exist in this runtime, say so in one line and continue — never retry.
+4. **Work the current state** — the state's `description` tells you what the
    state demands. Do real work before firing events.
-4. **Check status** — `status` shows enabled vs blocked events and why.
-5. **Fire** events with a `--note`; iterate on `blocked` outcomes by fixing the
+5. **Check status** — `status` shows enabled vs blocked events and why.
+6. **Fire** events with a `--note`; iterate on `blocked` outcomes by fixing the
    underlying condition (guard or evidence), never by forcing the machine.
-6. **Verify integrity** — `check` re-runs the full ledger + artifact-hash
+7. **Verify integrity** — `check` re-runs the full ledger + artifact-hash
    verification and returns `{ok:true}` only when the run is intact.
-7. **Report** at terminal — ground your final summary to the report facts.
+8. **Report** at terminal — ground your final summary to the report facts.
 
 ## Simulator canvas integration
 
@@ -86,7 +90,7 @@ open_canvas(canvasId: "machine-simulator", input: {
 - `runRef`: the run ID returned by `init` (the directory name under `machina-runs/`).
 - `sessionWorkspace`: the agent's current session folder (from the system prompt,
   e.g. `~/.copilot/session-state/<uuid>`). This scopes run-history discovery to
-  the current session so the canvas Shows only this session's runs.
+  the current session so the canvas shows only this session's runs.
 
 The canvas enters **replay mode**, loading `machine.json` + `ledger.jsonl` from
 the persisted run and displaying the state graph, compliance score, and ledger
@@ -108,9 +112,11 @@ grounded report to the human conductor is the escalation channel.
 
 ### Graceful fallback
 
-If `open_canvas` fails (extension not installed, canvas unavailable, or any
-error), **skip silently**. The run continues normally without canvas
-visibility. The simulator is a convenience, not a requirement.
+If the `open_canvas` tool is missing (runtime without canvas support) or the
+call fails, emit **one line** — e.g. `simulator canvas unavailable
+(open_canvas not present); continuing without it` — then continue the run.
+Never retry, never treat it as an error. The simulator is a convenience, not
+a requirement.
 
 ## Tamper prevention
 

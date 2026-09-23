@@ -134,20 +134,23 @@ ledger record — and a fail-closed refusal to continue the run.
 1. **Discover** the governing machine (see [Discovery](#discovery)).
 2. **Init**: `init --machine <machine.json> --scenario <id> --input k=v ...`.
    All required scenario inputs must be supplied or `init` fails.
-3. **Work the current state**: perform the real work the state demands (the
+3. **Open the simulator canvas**: attempt `open_canvas` per
+   [Simulator canvas](#simulator-canvas) right after `init`. If the tool does
+   not exist in this runtime, note it in one line and continue — never retry.
+4. **Work the current state**: perform the real work the state demands (the
    state's `description` tells you what). Do not fire events until the work is
    genuinely done.
-4. **Check status**: `status` shows enabled vs blocked events and why. A blocked
+5. **Check status**: `status` shows enabled vs blocked events and why. A blocked
    event means a guard or evidence check failed — fix the underlying condition,
    then retry. Never fire an event whose evidence you have not satisfied.
-5. **Fire**: `fire <EVENT> --note "what you did"`. The driver re-verifies guards
+6. **Fire**: `fire <EVENT> --note "what you did"`. The driver re-verifies guards
    and evidence deterministically. A `blocked` outcome is normal feedback —
    iterate.
-6. **Repeat** until the run reaches a terminal state.
-7. **Verify integrity (optional but recommended before reporting)**: `check`
+7. **Repeat** until the run reaches a terminal state.
+8. **Verify integrity (optional but recommended before reporting)**: `check`
    re-runs the full ledger + artifact-hash verification and returns `{ok:true}`
    only when the run is intact.
-8. **Report**: `report` emits the terminal report. **Ground your final summary
+9. **Report**: `report` emits the terminal report. **Ground your final summary
    to the report facts** — status, final state, path, events, evidence, context
    snapshot. Never invent claims beyond the report.
 
@@ -194,9 +197,25 @@ intervention.
 
 ### Fallback
 
-If `open_canvas` fails (extension not installed, canvas unavailable), the agent
-skips silently. The run continues normally — the simulator is a convenience,
-not a requirement.
+If the `open_canvas` tool is missing or the call fails, the agent notes it in
+**one line** (e.g. `simulator canvas unavailable; continuing without it`) and
+proceeds — never retries, never treats it as an error. The run continues
+normally; the simulator is a convenience, not a requirement.
+
+### Manual pre-start (conductor)
+
+The conductor can bind the fixed port before any session starts:
+
+```
+node scripts/start-standalone.mjs   # from the installed extension directory
+```
+
+Session extension processes then detect `127.0.0.1:7750` already listening,
+skip auto-start, and attach as secondaries — no configuration needed. Starting
+it twice is safe: the second start exits immediately with an "already
+running" message. When the standalone server is the primary, it serves the UI
+and `/action/*` endpoints, so delegated canvas actions from any session work
+without a Copilot session of its own.
 
 ## Evidence checks
 
