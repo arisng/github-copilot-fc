@@ -2344,6 +2344,70 @@
       padding: 6px 2px;
     }
 
+    /* ─── live runs panel ───────────────────────────────────── */
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--success-text);
+      border: 1px solid color-mix(in oklch, var(--success) 45%, var(--border));
+      background: transparent;
+    }
+
+    .live-badge .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: blink 1.4s ease-in-out infinite;
+    }
+
+    .run-item.live-quiet {
+      border-color: color-mix(in oklch, var(--muted) 50%, var(--border));
+      background: color-mix(in oklch, var(--muted) 7%, var(--fg-soft));
+    }
+
+    .run-item.live-child {
+      margin-left: 14px;
+      border-left: 2px solid color-mix(in oklch, var(--accent) 50%, var(--border));
+    }
+
+    .run-item.live-nomachine {
+      opacity: .7;
+      cursor: not-allowed;
+    }
+
+    .run-item.live-nomachine:hover {
+      border-color: var(--border);
+    }
+
+    .live-nomachine-note {
+      font-size: 11px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .live-heartbeat {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    #follow-pill {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #follow-pill:hover {
+      border-color: var(--accent);
+    }
+
     .notice-close {
       flex: 0 0 auto;
       width: 20px;
@@ -3052,6 +3116,14 @@
           </svg>
           <span>Runs</span>
         </button>
+        <button class="left-tab" role="tab" aria-selected="false" aria-controls="live-panel" data-left-tab="live"
+          id="left-tab-live">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true" width="14" height="14">
+            <path d="M3 12h4l2.5-7 4 14 2.5-7H21" />
+          </svg>
+          <span>Live</span>
+        </button>
       </div>
       <div class="left-tab-content">
         <aside class="panel panel-schema tab-pane" id="schema-panel" role="tabpanel" aria-labelledby="left-tab-schema"
@@ -3109,6 +3181,18 @@
               replay it from its ledger.</div>
           </div>
         </aside>
+
+        <aside class="panel panel-live tab-pane" id="live-panel" role="tabpanel" aria-labelledby="left-tab-live"
+          data-od-id="live-panel" data-left-pane="live" hidden>
+          <div class="panel-title">Live</div>
+          <div class="insp-body">
+            <div class="runs-meta" id="live-meta">Open the Live tab to load live runs…</div>
+            <div class="runs-list" id="live-list"></div>
+            <div class="limit-note" style="margin-top: 12px;">Watch-only inventory streamed from
+              <code>/live-events</code> (5s <code>/live</code> poll fallback). Click a run to open it in the shared
+              stage and follow it until it finishes.</div>
+          </div>
+        </aside>
       </div>
     </aside>
 
@@ -3124,6 +3208,7 @@
         <div class="stage-badges">
           <span class="pill" id="stage-status"><span class="dot"></span>idle</span>
           <span class="pill pill-trust" id="stage-trust" hidden><span class="dot"></span>replay</span>
+          <span class="pill" id="follow-pill" hidden title="Live follow mode — click to toggle"></span>
         </div>
       </div>
       <div class="audit-banner" id="stage-audit" hidden data-od-id="stage-audit" aria-live="polite"></div>
@@ -3572,6 +3657,7 @@
       if (data.spacing != null) setSpacing(Number(data.spacing));
     }
     function loadMachine(m, scId) {
+      stopFollowing(); // stage left replay — a Live follow must never yank it back
       machine = m;
       replayMode = false;
       renderTrustBadge(null, null);
@@ -3888,6 +3974,7 @@
       context = clone(prev.context);
       log.unshift({ ts: Date.now(), event: 'BACK', from: prev.state, to: prev.state, replay: true });
       updateUI();
+      pauseFollowIfSteppedBack(); // manual step-back auto-pauses follow — no yank-forward
     }
     function replayReset() {
       if (!machine || !replayMode) return;
@@ -3902,6 +3989,7 @@
       log = [];
       updateUI();
       persist();
+      pauseFollowIfSteppedBack(); // reset leaves the final record — user intent wins
     }
     function replayJump(i) {
       // Jump to a specific ledger record index (0-based); folds all records up
@@ -3919,6 +4007,7 @@
       context = clone(cur.context);
       log.unshift({ index: replayIdx, ts: Date.now(), event: 'JUMP#' + replayIdx, from: stateKey, to: stateKey, replay: true, evidence: cur.evidence, guardMismatch: cur.guardMismatch, reevalTo: cur.reevalTo, note: cur.note, detail: cur.detail });
       updateUI();
+      pauseFollowIfSteppedBack(); // jumping off the final record pauses follow
     }
     function computeLayout(statesList) {
       const states = statesList || Object.keys(machine.states);
@@ -4405,7 +4494,7 @@
             p.textContent = e.event === 'BACK' ? '↩ ' + e.to : (e.event === 'JUMP' || /^JUMP#/.test(e.event) ? '↪ #' + e.to : `${e.from} → ${e.to}`);
           }
           if (e.detail) p.setAttribute('title', e.detail);
-          ev.classList.add(e.type === 'blocked' ? 'lg-blocked' : (e.type === 'redirect' ? 'lg-redirect' : ''));
+          ev.classList.add(e.type === 'blocked' ? 'lg-blocked' : (e.type === 'redirect' ? 'lg-redirect' : 'lg-main'));
           // Narrative extension: guard deviation + evidence + agent note, so a
           // human auditor sees *why* each record happened, not just the hop.
           const detail = document.createElement('span');
@@ -5291,6 +5380,7 @@
         t.addEventListener('click', () => {
           setLeftTab(t.dataset.leftTab);
           if (t.dataset.leftTab === 'runs') refreshRuns();
+          if (t.dataset.leftTab === 'live') openLiveTab();
         });
       });
       const tabbar = document.querySelector('.tabbar');
@@ -5522,7 +5612,7 @@
           activeSessionWorkspace = body.scopedTo;
           const u = new URL(location.href);
           u.searchParams.set('sessionWorkspace', activeSessionWorkspace);
-          history.replaceState(null, '', u);
+          window.history.replaceState(null, '', u);
           refreshWorkspaces(); // rebuild options so the adopted value is selectable
         }
         const completeCount = runs.filter(r => r.terminal === 'complete').length;
@@ -5610,21 +5700,29 @@
       }
     }
     let selectedRunRef = null;
-    async function openRun(runRef) {
+    async function openRun(runRef, opts) {
+      const follow = !!(opts && opts.follow);
       selectedRunRef = runRef;
       document.querySelectorAll('.run-item').forEach(el => {
         el.classList.toggle('selected', el.dataset.runRef === runRef);
       });
+      // Live-tab opens arm follow mode; every other open (Runs list, drill
+      // links) disarms it — the shared stage must never yank back to a run
+      // the user navigated away from.
+      if (follow) startFollowing(runRef);
+      else stopFollowing();
       try {
         const res = await fetch(withWs('/open-run?instance=' + encodeURIComponent(inst) + '&runRef=' + encodeURIComponent(runRef)));
         const body = await res.json();
         if (!res.ok || !body.ok) {
+          if (follow) stopFollowing();
           toast('Run load failed: ' + (body.error || 'HTTP ' + res.status), true);
           return;
         }
         setActiveTab('stage');
         toast('Replaying ' + runRef + ' — ' + body.verdict);
       } catch (err) {
+        if (follow) stopFollowing();
         toast('Run load failed: ' + (err.message || err), true);
       }
     }
@@ -5639,13 +5737,461 @@
           const url = new URL(location.href);
           if (activeSessionWorkspace) url.searchParams.set('sessionWorkspace', activeSessionWorkspace);
           else url.searchParams.delete('sessionWorkspace');
-          history.replaceState(null, '', url);
-          refreshRuns();
+          window.history.replaceState(null, '', url);
+          refreshRuns(); // picker scopes RUNS only — Live is a global feed
         });
       }
       refreshWorkspaces();
       refreshRuns();
     }
+
+    /* ── live runs panel (Live tab) ────────────────────────────── */
+    // Contract (frozen): GET /live (initial render + poll fallback) and the
+    // instance-agnostic SSE GET /live-events — ONE event name `machina-live`
+    // whose JSON payload `type` is `live-update` (delta rows) or `live-final`
+    // (terminal row). Rows: root, family, runid, runRef, machineId,
+    // machineName, session, currentState, records, lastActivity, advisory,
+    // childRuns, machineMissing, terminal, live (+ optional stale).
+    const liveList = $('live-list');
+    const liveMeta = $('live-meta');
+    const livePanel = $('live-panel');
+    const followPill = $('follow-pill');
+    let liveRows = new Map();    // runRef → latest row (server's live-only view)
+    let liveGen = 0;             // refreshLive generation counter (drop stale)
+    let livePollSeq = 0;         // fallback-poll sequence (drop out-of-order)
+    let liveAttached = false;    // EventSource attached at most once per resume
+    let liveEs = null;
+    let liveEsErrors = 0;        // consecutive hard stream failures
+    let livePollTimer = null;    // 5s /live poll — never live alongside the ES
+    let followRunRef = null;     // run the shared stage is following (from Live)
+    let followActive = false;    // Following ● vs Paused ⏸
+    let followPrimed = false;    // stage confirmed showing followRunRef at least once
+    let followDebounce = null;
+
+    function liveUrl() {
+      // Live is a global attention feed: plain /live with NO params — the
+      // server returns {ok, rows} live-only with no scoping, so the RUNS
+      // picker can never mutate this tab.
+      return '/live';
+    }
+    function liveRowsFrom(payload) {
+      // Tolerant of where the frozen row list is carried: a bare array, or an
+      // envelope under rows/runs/live/delta/final, or a single row/final item.
+      if (payload == null) return null;
+      if (Array.isArray(payload)) return payload;
+      for (const k of ['rows', 'runs', 'live', 'delta', 'final']) {
+        if (Array.isArray(payload[k])) return payload[k];
+      }
+      for (const k of ['row', 'final']) {
+        if (payload[k] && typeof payload[k] === 'object') return [payload[k]];
+      }
+      return null;
+    }
+    function normalizeLiveRow(r) {
+      if (!r || typeof r !== 'object') return null;
+      const runRef = r.runRef || ((r.family && r.runid) ? r.family + '/' + r.runid : (r.runid || ''));
+      if (!runRef) return null;
+      const out = Object.assign({}, r, { runRef });
+      const slash = runRef.lastIndexOf('/');
+      if (out.family == null && slash > 0) out.family = runRef.slice(0, slash);
+      if (out.runid == null) out.runid = slash >= 0 ? runRef.slice(slash + 1) : runRef;
+      return out;
+    }
+    function isLiveRow(r) {
+      // Render gate (contract): terminal rows never render in this tab; an
+      // explicit live:false never renders; tolerate `live` absence by
+      // falling back to terminal == null until every producer carries it.
+      if (r.terminal != null) return false;
+      return r.live !== false;
+    }
+    async function refreshLive() {
+      if (!liveList || !liveMeta) return;
+      const gen = ++liveGen;
+      liveMeta.textContent = 'Loading live runs…';
+      try {
+        const res = await fetch(liveUrl());
+        if (gen !== liveGen) return;
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const body = await res.json();
+        if (gen !== liveGen) return;
+        if (body && body.ok === false) throw new Error(body.error || 'unknown error');
+        upsertLiveRows(liveRowsFrom(body) || [], { replace: true });
+      } catch (err) {
+        if (gen === liveGen) liveMeta.textContent = 'Live scan failed: ' + (err.message || err);
+      }
+    }
+    function upsertLiveRows(rows, opts) {
+      const replace = !!(opts && opts.replace);
+      if (replace) liveRows.clear();
+      for (const raw of rows) {
+        const nr = normalizeLiveRow(raw);
+        if (!nr) continue;
+        // Deltas are partial: merge over the previous row for the same runRef.
+        const prev = replace ? null : liveRows.get(nr.runRef);
+        liveRows.set(nr.runRef, prev ? Object.assign({}, prev, nr) : nr);
+      }
+      renderLive();
+    }
+    function fmtAgo(ms) {
+      if (!isFinite(ms) || ms < 0) ms = 0;
+      const s = Math.floor(ms / 1000);
+      if (s < 60) return s + 's';
+      const m = Math.floor(s / 60);
+      if (m < 60) return m + 'm';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '');
+      return Math.floor(h / 24) + 'd' + (h % 24 ? ' ' + (h % 24) + 'h' : '');
+    }
+    function liveChipHtml(r) {
+      // isLiveRow() keeps terminal rows out of this tab; the terminal-chip
+      // branch is only defensive for a racing delta.
+      let html = '';
+      if (r.terminal == null) {
+        html += '<span class="live-badge"><span class="live-dot"></span>LIVE</span>';
+      } else {
+        const t = String(r.terminal);
+        if (t === 'complete') html += '<span class="run-chip ok">✓ complete</span>';
+        else if (t === 'stuck') html += '<span class="run-chip warn">⚠ stuck-ish</span>';
+        else if (t === 'aborted') html += '<span class="run-chip err">✗ aborted</span>';
+        else if (t === 'incomplete') html += '<span class="run-chip violet">… incomplete</span>';
+        else html += '<span class="run-chip neutral">… ' + escapeHtml(t) + '</span>';
+      }
+      if (r.advisory === 'no-exits') html += '<span class="run-chip warn">⚠ no-exits</span>';
+      return html;
+    }
+    function buildLiveChildDrill(cid) {
+      // Existing childRuns drill pattern (mirrors the Runs tab) for a child
+      // that is referenced but has no row in the live inventory.
+      const cRef = runsByRunid.get(cid);
+      const cl = document.createElement('span');
+      cl.className = 'run-item-meta';
+      cl.style.cursor = 'pointer';
+      const refAttr = cRef ? ' data-drill="' + escapeHtml(cRef) + '"' : '';
+      cl.innerHTML = '→ child: <span class="drill-link"' + refAttr + ' data-runid="' + escapeHtml(cid)
+        + '" title="' + (cRef ? 'Open child run ' + escapeHtml(cRef) : 'child not in inventory') + '">'
+        + escapeHtml(cid) + '</span>';
+      const sp = cl.querySelector('.drill-link');
+      if (sp) sp.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (cRef) openRun(cRef);
+        else toast('Child run not in inventory', true);
+      });
+      return cl;
+    }
+    function buildLiveRow(r, isChild) {
+      const terminal = r.terminal != null;
+      const quietMs = r.lastActivity ? (Date.now() - new Date(r.lastActivity).getTime()) : NaN;
+      const quiet = !terminal && isFinite(quietMs) && quietMs > 60000; // quiet tint >60s
+      const openable = !r.machineMissing; // /open-run 404s machine-less runs
+      const el = document.createElement(openable ? 'button' : 'div');
+      if (openable) el.type = 'button';
+      el.className = 'run-item live-item'
+        + (isChild ? ' live-child' : '')
+        + (quiet ? ' live-quiet' : '')
+        + (openable ? '' : ' live-nomachine');
+      el.dataset.runRef = r.runRef;
+      if (selectedRunRef === r.runRef) el.classList.add('selected');
+      el.title = [r.runRef, r.root, r.session, r.family, r.machineId]
+        .filter(v => v != null && v !== '').join(' · ') || r.runRef;
+
+      const line = document.createElement('span');
+      line.className = 'run-row-line';
+      const runidEl = document.createElement('span');
+      runidEl.className = 'run-item-runid';
+      runidEl.textContent = (isChild ? '↳ ' : '') + (r.runid || r.runRef);
+      const chips = document.createElement('span');
+      chips.className = 'run-chip-holder';
+      chips.innerHTML = liveChipHtml(r);
+      line.appendChild(runidEl);
+      line.appendChild(chips);
+      el.appendChild(line);
+
+      const metaEl = document.createElement('span');
+      metaEl.className = 'run-item-meta';
+      const bits = [r.machineName || r.machineId || 'no machine'];
+      if (r.currentState) bits.push(r.currentState);
+      if (typeof r.records === 'number') bits.push(r.records + ' rec');
+      metaEl.textContent = bits.join(' · ');
+      el.appendChild(metaEl);
+
+      if (!terminal && r.lastActivity) {
+        // Display-only heartbeat — both spans derive from lastActivity (the
+        // only timestamp in the row contract). Never affects membership.
+        const hb = document.createElement('span');
+        hb.className = 'live-heartbeat';
+        hb.textContent = 'in ' + (r.currentState || 'current state')
+          + ' for ' + fmtAgo(quietMs) + ' · no event for ' + fmtAgo(quietMs);
+        el.appendChild(hb);
+      }
+      if (openable) {
+        el.addEventListener('click', () => openRun(r.runRef, { follow: true }));
+      } else {
+        el.setAttribute('aria-disabled', 'true');
+        const note = document.createElement('span');
+        note.className = 'live-nomachine-note';
+        note.textContent = 'no machine.json';
+        el.appendChild(note);
+      }
+      return el;
+    }
+    function renderLive() {
+      if (!liveList || !liveMeta) return;
+      const rows = Array.from(liveRows.values()).filter(isLiveRow);
+      liveMeta.textContent = rows.length === 0
+        ? 'No live runs'
+        : rows.length + ' live now';
+      liveList.innerHTML = '';
+      if (!rows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'runs-empty';
+        empty.textContent = 'Nothing live right now. Runs appear here as soon as a ledger grows under a persist root.';
+        liveList.appendChild(empty);
+        return;
+      }
+      const byRunid = new Map();
+      for (const r of rows) if (r.runid && !byRunid.has(r.runid)) byRunid.set(r.runid, r);
+      const claimedChild = new Map(); // child runid → parent runRef (first wins)
+      for (const r of rows) {
+        for (const cid of (r.childRuns || [])) {
+          if (byRunid.has(cid) && !claimedChild.has(cid)) claimedChild.set(cid, r.runRef);
+        }
+      }
+      const rendered = new Set();
+      const emit = (r, isChild) => {
+        if (!r || rendered.has(r.runRef)) return;
+        rendered.add(r.runRef);
+        const el = buildLiveRow(r, isChild);
+        liveList.appendChild(el);
+        for (const cid of (r.childRuns || [])) {
+          const child = byRunid.get(cid);
+          if (child) emit(child, true);                      // indented under parent
+          else el.appendChild(buildLiveChildDrill(cid));     // drill link fallback
+        }
+      };
+      for (const r of rows) {
+        // Children render indented beneath their parent, not at the top level.
+        const claimedBy = claimedChild.get(r.runid);
+        if (claimedBy && claimedBy !== r.runRef) continue;
+        emit(r, false);
+      }
+      for (const r of rows) emit(r, false); // orphans/cycles still render flat
+    }
+    function openLiveTab() {
+      refreshLive();       // initial GET /live (a re-click re-scans too)
+      attachLiveStream();  // idempotent — one EventSource for the page lifetime
+    }
+    /* ── SSE client + 5s poll fallback (audit #6a contract) ───── */
+    function attachLiveStream() {
+      if (liveAttached) return;
+      liveAttached = true;
+      try {
+        liveEs = new EventSource('/live-events'); // instance-agnostic, no ?instance
+      } catch (err) {
+        liveEs = null;
+        enterLiveFallback();
+        return;
+      }
+      liveEsErrors = 0;
+      liveEs.addEventListener('open', () => { liveEsErrors = 0; stopLiveFallback(); });
+      // Envelope (canonical): ONE event name `machina-live` (mirrors the
+      // `machina` event on /events); the JSON payload's `type` field
+      // discriminates live-update (deltas) vs live-final (terminal row).
+      liveEs.addEventListener('machina-live', (e) => {
+        liveEsErrors = 0;
+        let d = null;
+        try { d = JSON.parse(e.data); } catch (err) { return; }
+        if (!d || typeof d !== 'object') return;
+        if (d.type === 'live-update') onLiveUpdate(d);
+        else if (d.type === 'live-final') onLiveFinal(d);
+      });
+      liveEs.addEventListener('error', () => {
+        // EventSource auto-reconnects while CONNECTING — fall back only when
+        // the socket is CLOSED or errors pile up rapidly, and never run both.
+        if (!liveEs || liveEs.readyState === EventSource.CLOSED) { enterLiveFallback(); return; }
+        liveEsErrors++;
+        if (liveEsErrors >= 3) enterLiveFallback();
+      });
+    }
+    function enterLiveFallback() {
+      if (liveEs) { try { liveEs.close(); } catch (e) { } liveEs = null; } // close ES FIRST
+      if (livePollTimer) return;
+      livePollTimer = setInterval(pollLive, 5000);
+      pollLive();
+    }
+    function stopLiveFallback() {
+      if (!livePollTimer) return;
+      clearInterval(livePollTimer);
+      livePollTimer = null;
+    }
+    async function pollLive() {
+      const seq = ++livePollSeq; // drop out-of-order/overlapping poll responses
+      try {
+        const res = await fetch(liveUrl());
+        if (seq !== livePollSeq) return;
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const body = await res.json();
+        if (seq !== livePollSeq) return;
+        if (body && body.ok === false) throw new Error(body.error || 'unknown error');
+        const rows = liveRowsFrom(body) || [];
+        // Follow mode keeps working without SSE: only a *changed* polled row
+        // for the followed runRef schedules the debounced reload (mirrors a
+        // live-update delta — never refetch on unchanged 5s ticks).
+        let followHit = false;
+        if (followActive && followRunRef) {
+          const prev = liveRows.get(followRunRef);
+          if (prev) {
+            for (const raw of rows) {
+              const nr = normalizeLiveRow(raw);
+              if (nr && nr.runRef === followRunRef
+                && (nr.records !== prev.records
+                  || nr.lastActivity !== prev.lastActivity
+                  || nr.terminal !== prev.terminal)) {
+                followHit = true;
+                break;
+              }
+            }
+          }
+        }
+        upsertLiveRows(rows, { replace: true });
+        if (followHit) scheduleFollowRefresh();
+        // Recovery: a successful poll swaps back to the stream — the interval
+        // is closed FIRST so the two can never deliver simultaneously.
+        if (livePollTimer) resumeLiveStream();
+      } catch (err) {
+        // Keep polling; the next 5s tick retries.
+      }
+    }
+    function resumeLiveStream() {
+      stopLiveFallback(); // close interval before the stream can deliver
+      liveAttached = false;
+      if (liveEs) { try { liveEs.close(); } catch (e) { } liveEs = null; }
+      attachLiveStream();
+    }
+    function onLiveUpdate(d) {
+      const rows = liveRowsFrom(d);
+      if (!rows || !rows.length) return;
+      let followHit = false;
+      if (followActive && followRunRef) {
+        for (const raw of rows) {
+          const nr = normalizeLiveRow(raw);
+          if (nr && nr.runRef === followRunRef) { followHit = true; break; }
+        }
+      }
+      upsertLiveRows(rows); // delta upsert → re-render (gate drops non-live rows)
+      if (followHit) scheduleFollowRefresh();
+    }
+    function onLiveFinal(d) {
+      const rows = (liveRowsFrom(d) || []).map(normalizeLiveRow).filter(Boolean);
+      let ref = rows[0] ? rows[0].runRef : '';
+      if (!ref && d && typeof d === 'object') {
+        ref = d.runRef || (d.row ? (normalizeLiveRow(d.row) || {}).runRef : '') || '';
+      }
+      if (!ref) return;
+      const term = (rows[0] && rows[0].terminal) != null ? rows[0].terminal
+        : (d && typeof d === 'object' ? d.terminal : null);
+      // Final row LEAVES the Live tab — it belongs to RUNS now (live-only feed).
+      liveRows.delete(ref);
+      renderLive();
+      toast('Run ' + ref + ' finished: ' + (term == null ? 'done' : term));
+      // Plan Q6: auto-load the final replay only if the stage follows this run.
+      // refreshFollowedNow captures followRunRef synchronously before its
+      // first await, so disarming right after cannot cancel the load.
+      const followed = followRunRef === ref;
+      if (followActive && followed) refreshFollowedNow();
+      // Verified: loadReplay does NOT disarm follow (only loadMachine does) —
+      // stop here exactly once; the row is no longer part of this tab.
+      if (followed) stopFollowing();
+    }
+    /* ── follow mode (shared stage, audit #8) ──────────────────── */
+    function renderFollowPill() {
+      if (!followPill) return;
+      if (!followRunRef) { followPill.hidden = true; followPill.textContent = ''; return; }
+      followPill.hidden = false;
+      followPill.className = 'pill ' + (followActive ? 'ok' : 'done');
+      followPill.innerHTML = '<span class="dot"></span>' + (followActive ? 'Following' : 'Paused ⏸');
+      followPill.title = followActive
+        ? 'Following ' + followRunRef + ' — the stage reloads the latest replay on live updates. Click to pause.'
+        : 'Paused on ' + followRunRef + ' — click to resume at the latest record.';
+    }
+    function clearFollowDebounce() {
+      if (followDebounce) { clearTimeout(followDebounce); followDebounce = null; }
+    }
+    function startFollowing(runRef) {
+      followRunRef = runRef;
+      followActive = true;
+      followPrimed = false; // primed once the stage actually shows this run
+      renderFollowPill();
+    }
+    function stopFollowing() {
+      followRunRef = null;
+      followActive = false;
+      followPrimed = false;
+      clearFollowDebounce();
+      renderFollowPill();
+    }
+    function pauseFollowing() {
+      if (!followRunRef || !followActive) return;
+      followActive = false;
+      clearFollowDebounce();
+      renderFollowPill();
+    }
+    function pauseFollowIfSteppedBack() {
+      // Manual step-back/reset/jump away from the final record: user intent
+      // wins — never yank the stage forward on the next live update.
+      if (!followActive || !followPrimed) return;
+      if (replayMode && replayTrace.length && replayIdx < replayTrace.length - 1) pauseFollowing();
+    }
+    function scheduleFollowRefresh() {
+      if (!followActive || !followRunRef) return;
+      clearFollowDebounce();
+      followDebounce = setTimeout(() => {
+        followDebounce = null;
+        refreshFollowedNow();
+      }, 500);
+    }
+    async function refreshFollowedNow(force) {
+      if (!followActive || !followRunRef) return;
+      const onFollowed = !!(replaySource && replaySource.runRef === followRunRef);
+      if (onFollowed) followPrimed = true;
+      if (!force) {
+        // Stage left the followed run (schema load / external load) → pause.
+        if (followPrimed && !onFollowed) { pauseFollowing(); return; }
+        // Stepped back off the final record → pause, never yank forward.
+        if (followPrimed && replayMode && replayTrace.length && replayIdx < replayTrace.length - 1) {
+          pauseFollowing();
+          return;
+        }
+      }
+      await refetchFollowedRun();
+    }
+    async function refetchFollowedRun() {
+      const ref = followRunRef;
+      if (!ref) return;
+      try {
+        // Full replay reload — /open-run broadcasts the machina load event the
+        // stage consumes; loadReplay wholesale-replaces state and opens at the
+        // final record. No toast: this refetches on every live update.
+        await fetch(withWs('/open-run?instance=' + encodeURIComponent(inst) + '&runRef=' + encodeURIComponent(ref)));
+      } catch (err) {
+        // Transient — the next live update (or poll) retries.
+      }
+    }
+    if (followPill) followPill.addEventListener('click', () => {
+      if (!followRunRef) return;
+      if (followActive) {
+        pauseFollowing();
+        toast('Follow paused — ' + followRunRef);
+      } else {
+        followActive = true;
+        renderFollowPill();
+        refreshFollowedNow(true); // resume → explicit jump to the latest record
+        toast('Following ' + followRunRef);
+      }
+    });
+    // Cosmetic heartbeat: age the "for Xm" spans while the panel is visible.
+    setInterval(() => {
+      if (liveRows.size && livePanel && !livePanel.hidden) renderLive();
+    }, 30000);
 
     /* ── extension bridge ──────────────────────────────────────────── */
     // (inst is declared in the runs-workspace section above.)

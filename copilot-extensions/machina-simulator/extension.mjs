@@ -30,7 +30,8 @@ import {
   replayIntegrityOk,
   runCompliance,
 } from "./machine-simulator.mjs";
-import { discoverRunHistory, listSessionWorkspaces, resolveRunRef, sessionRoots } from "./scripts/discovery.mjs";
+import { discoverRunHistory, listSessionWorkspaces, resolveRunRef, resolveRunRoots, sessionRoots } from "./scripts/discovery.mjs";
+import { createLiveWatcher } from "./scripts/live-watcher.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = path.join(__dirname, "simulator", "app.html");
@@ -104,6 +105,7 @@ async function tryBecomePrimary() {
   if (!err && server.listening) {
     isPrimary = true;
     server.unref();
+    startLiveWatcher(); // promoted secondary must serve /live too (audit #4; idempotent)
     return true;
   }
   return false;
@@ -229,6 +231,57 @@ function broadcast(entry, event, data) {
   for (const res of entry.sseClients) {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   }
+}
+
+// --- Live tab: instance-agnostic SSE + primary-only file-watch watcher -----
+// Module-level client Set — never routed through getInstance with an empty
+// instance id (audit #6b): an "" entry would leak a permanent instance into
+// the map just to hold SSE sockets. Browsers talk only to the primary, so
+// no per-instance fanout.
+const liveClients = new Set();
+let liveHeartbeat = null; // lazily created with the first client
+let liveWatcher = null;   // primary-only; idempotent start guard
+
+// Clear the heartbeat once the last client drops (re-opened lazily by the
+// next /live-events request) so no timer outlives its subscribers.
+function stopLiveHeartbeatIfIdle() {
+  if (liveClients.size === 0 && liveHeartbeat !== null) {
+    clearInterval(liveHeartbeat);
+    liveHeartbeat = null;
+  }
+}
+
+// Canonical envelope (plan §1): SSE event name `machina-live` (mirrors the
+// existing `machina` event on /events); the JSON payload's `type` field
+// discriminates {type:"live-update", rows} deltas from {type:"live-final",
+// row} terminal events — app.html listens for exactly `machina-live` and
+// switches on `type`.
+function broadcastLive(payload) {
+  const frame = `event: machina-live\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const res of liveClients) {
+    try {
+      res.write(frame);
+    } catch {
+      liveClients.delete(res); // dead socket — write-guard (audit #6b)
+    }
+  }
+  stopLiveHeartbeatIfIdle(); // a write-failed client may never fire 'close'
+}
+
+// Start the file-watch poller — primary-only and idempotent (audit #3/#4):
+// called after the initial port election and again on failover promotion;
+// a secondary never runs one (browsers never talk to a secondary). The
+// poll interval inside live-watcher.mjs is already unref()'d (audit #3) —
+// no ref'd timer is added here.
+function startLiveWatcher() {
+  if (liveWatcher) return; // idempotent — never double-start
+  const roots = resolveRunRoots;
+  liveWatcher = createLiveWatcher({
+    roots,
+    onDelta: (rows) => broadcastLive({ type: "live-update", rows }),
+    onFinal: (row) => broadcastLive({ type: "live-final", row }),
+  });
+  liveWatcher.start();
 }
 
 // --- Standalone handler functions (shared by tools + HTTP action endpoints) -
@@ -434,6 +487,35 @@ const server = http.createServer((req, res) => {
     res.on("close", () => entry.sseClients.delete(res));
     return;
   }
+  if (url.pathname === "/live-events") {
+    // Live-tab SSE — instance-agnostic (no ?instance dependency), otherwise
+    // mirroring /events: 200 + text/event-stream, no-cache, keep-alive, :ok
+    // prime, membership in the module-level liveClients Set, close-removal.
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+    res.write(":ok\n\n");
+    liveClients.add(res);
+    if (liveHeartbeat === null) {
+      // Created lazily with the FIRST client and unref'd (audit #6b) so the
+      // 15s :hb heartbeat can never keep the host process / npm test chain
+      // alive; cleared by stopLiveHeartbeatIfIdle when the last client drops.
+      liveHeartbeat = setInterval(() => {
+        for (const c of liveClients) {
+          try {
+            c.write(":hb\n\n");
+          } catch {
+            liveClients.delete(c); // dead socket — write-guard (audit #6b)
+          }
+        }
+        stopLiveHeartbeatIfIdle();
+      }, 15000);
+      liveHeartbeat.unref();
+    }
+    res.on("close", () => {
+      liveClients.delete(res);
+      stopLiveHeartbeatIfIdle(); // re-opened lazily by the next client
+    });
+    return;
+  }
   if (url.pathname === "/machine-simulator.mjs") {
     res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
     res.end(engineJs);
@@ -503,6 +585,29 @@ const server = http.createServer((req, res) => {
     const runs = discoverRunHistory(sessionRoots(sw) || null);
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({ ok: true, scopedTo: sw || null, runs: runInventory(runs) }));
+    return;
+  }
+  if (url.pathname === "/live") {
+    // Current Live-tab inventory (initial render + 5s poll fallback).
+    // Live is a GLOBAL attention feed (Round-2 decoupling): the RUNS picker's
+    // workspace scope must not mutate this feed. No scope precedence and no
+    // scope field in the response — /runs above keeps its full contract.
+    if (!liveWatcher) {
+      // Secondary (or pre-election call): no watcher exists — serve an empty
+      // inventory rather than 500 (browsers should never reach a secondary).
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ ok: true, rows: [] }));
+      return;
+    }
+    // Data source = the watcher's inventory. live-watcher.mjs exposes no
+    // non-ticking getter (its public contract is start/stop/tick only), so
+    // tick() it is: cheap when nothing grew (stat cache; files re-parse only
+    // on size/mtime change) and it keeps /live fresh between poll intervals.
+    // Live rows only: consumers read the explicit `live` boolean (Round-2
+    // contract) — terminal and stale rows belong to /runs, not this feed.
+    const rows = liveWatcher.tick().filter((row) => row && row.live === true);
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ ok: true, rows }));
     return;
   }
   if (url.pathname === "/open-run") {
@@ -671,6 +776,7 @@ if (!(await isPortInUse(FIXED_PORT))) {
 // server — delegate to the primary via /action/* (invokeAction).
 server.unref(); // do not keep the host process alive solely for this loopback server
 if (isPrimary) port = server.address().port; // MACHINA_SIM_PORT=0 → actual ephemeral port
+if (isPrimary) startLiveWatcher(); // primary-only Live inventory (audit #4; idempotent)
 
 // --- Canvas ----------------------------------------------------------------
 const canvas = STANDALONE ? null : createCanvas({

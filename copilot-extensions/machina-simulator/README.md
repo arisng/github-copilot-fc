@@ -159,6 +159,104 @@ fix before the next live run. The re-eval diff in `machina_replay` output is wha
 powers that instruction — "record N says X, but the machine says the guard should
 have gone to Y".
 
+For runs that are still *executing* (not just replayed), the **Live** tab watches
+them progress without a reload — see [Live watching](#live-watching) below
+(`GET /live` + `GET /live-events`).
+
+## Live watching
+
+The **Live** left-panel tab (alongside Schema/Runs) lists every run the watcher
+marks live (`row.live === true`). Round 2 detection rules **explicitly supersede**
+Round 1's "lifecycle membership, **never clock-migrated**" claim — LIVE
+membership now means **all** of:
+
+- **No terminal report** — no `report.json` whose `result` is anything other than
+  `IN_PROGRESS`, **and no `abort` record**;
+- **R1 — disposition / grace** — the run's disposition is not yet terminal, **or**
+  it is replay-terminal but within the **30-minute grace window** since
+  `lastActivity` (the window in which the `report` command is expected to land);
+- **R2 — staleness cap** — for mid-state (non-final) candidates, `lastActivity`
+  is younger than **24 hours**; at the cap the row is no longer live.
+
+An `IN_PROGRESS` report is **not terminal evidence** and **does not
+short-circuit liveness** — such runs fall through to the same clock rules as
+reportless runs:
+
+- **Machine-gated final state** — live through the 30-min grace, then `live:
+  false` with `terminal` via precedence (report mapping first, else the replay
+  terminal verbatim — the real-world 8.6-day-old `f87fb459bce7` `IN_PROGRESS`
+  exemplar → `"complete"`). Same exit as P1: if it was live when grace expired,
+  `live-final` (toast + row leaves); born past grace → silent.
+- **Mid-state** — live while under the 24h cap, then the stale class
+  (`live: false`, `terminal: null`, silent).
+
+**Fresh `IN_PROGRESS` runs remain LIVE exactly as before** — that is the normal
+mid-run state: recent `lastActivity` sits inside both windows (grace for a
+replay-final disposition, the 24h cap for mid-state). Ledger growth after a
+terminal report makes the run live again (`reportStale`), and that re-live
+flows through the same clocks too — fresh `lastActivity` keeps it live, while
+quiet ≥24h in mid-state goes stale.
+
+The four pattern classes the rules cover:
+
+| Pattern | Behavior |
+|---|---|
+| **P1 — reportless-final** | Replay shows a machine-gated final state but the `report` command never ran: live through the 30-min grace, then the row **leaves the Live tab** with `live: false` and `terminal` from the report mapping first, else the replay terminal verbatim (e2ae-class → `"complete"`). If the run was live in the watcher's view when grace expires, that **is** a `live-final` (toast + row leaves — an observable exit for a real completion); rows already past grace when first seen are born terminal and were classified **silently, no toast**. |
+| **P2 — reportless-abandoned** | The agent died mid-state with no report/abort: **drops out of the Live tab silently at the 24h cap** (a staleness drop is not a terminal disposition — **no toast**) and **stays visible in RUNS**, where the stale row keeps `terminal: null`. |
+| **P3 — abort-record** | `abort` record → `terminal: "aborted"` — already correct. |
+| **P4 — has report** | Non-`IN_PROGRESS` `report.json` → mapped terminal — already correct. |
+
+The **heartbeat text** (`in <state> for Xm · no event for Xm`) and the **quiet
+tint** (>60s idle) remain **cosmetic only** — they never affect membership; the
+30-min grace window and the 24h staleness cap are what move it.
+
+The inventory is fed by `scripts/live-watcher.mjs`: a stat-poll (~5s over the
+discovered run roots — size/mtime only, re-parsing just the grown `ledger.jsonl`
+files). The watcher runs **only in the primary** — session-hosted or standalone,
+identical code path — and browsers always talk to whoever owns port 7750.
+
+| Element | Behavior |
+|---|---|
+| LIVE badge | Pulsing ● **LIVE** while live; quiet tint + heartbeat text are display-only cosmetics. |
+| Advisory chip | **⚠ no exits** — *syntactic* and machine-gated (computed only when a sibling `machine.json` exists): the current state is non-final with **zero outgoing transitions**. Display-only; deliberately avoids the protocol's "STUCK" vocabulary — the driver's report stays authoritative (semantic zero-*enabled* events would need the Python evidence checkers the simulator can't run). |
+| Terminal chip | On **`live-final`** (the `machina-live` event carrying a report/abort disposition): **toast + the row leaves the Live tab** — the run's final outcome is then viewed in **RUNS**. The clock-driven P1/P2 departures above are silent. |
+| Machine-less rows | Still listed but **click-disabled** — `/open-run` 404s them: replay skipped, no advisory, `terminal: null`. |
+| Child runs | **Indented** under their parent via `childRuns`. |
+
+A row carries exactly: `root`, `family`, `runid`, `runRef`, `machineId`,
+`machineName`, `session`, `currentState`, `records`, `lastActivity`, `advisory`,
+`childRuns`, `machineMissing`, `terminal`, `live` — the Round-1 14 fields plus
+**`live: boolean`**, which the UI reads directly instead of inferring liveness
+from `terminal == null`. Stale (P2) rows keep `terminal: null`.
+
+**Watch-only (INV-1):** the tab never drives or fires anything — driving stays the
+agent's job; the replay playback controls only steer the visualization. Clicking a
+row loads it into the shared stage via `/open-run` and switches the stage into
+**follow mode**:
+
+- The stage shows a **Following ● / Paused ⏸** toggle — ON when the run was opened
+  from the Live tab.
+- While Following, each live delta for the watched `runRef` triggers a
+  **debounced (~500ms) re-fetch of `/open-run`** — a full, idempotent replay reload
+  (there is no incremental append to make).
+- A manual step-back **auto-pauses** (user intent wins — no yank-forward); flipping
+  the toggle back on **jumps to the latest record**.
+- On the run's final event (`machina-live` → `live-final`): **toast**, and the
+  stage auto-loads the final replay **only if it is watching that run**; either
+  way the row **leaves the Live tab** — its final stays viewable in **RUNS**.
+- Viewers are concurrent and read-only: any number of browser tabs may watch the
+  same run — no locks; each tab loads/follows only what it clicks.
+
+The Live tab is a **global feed**: the RUNS tab's `sessionWorkspace` picker keeps
+its tri-state contract scoped to **`/runs` only** and does not affect the Live tab.
+
+### Endpoints
+
+| Route | Contract |
+|---|---|
+| `GET /live` | **Live rows only** (initial render + the poll fallback): `{ ok: true, rows: [...] }` — each entry the row shape above with `live: true`. Accepts **no scope parameters**: the Live tab is a global feed (the RUNS workspace picker does not affect it). |
+| `GET /live-events` | **Instance-agnostic** SSE — one module-level stream shared by every connected tab: `:ok` prime on connect, client removed on close (mirrors `/events`), write-guarded pushes, **15s heartbeat comment**. Updates arrive as the **`machina-live`** event carrying delta rows and final events. **Client contract:** plain `EventSource`; only after repeated hard errors (or a CLOSED stream) does the client **close the EventSource first, then poll `GET /live` every 5s** — never both at once — and it **resumes the stream on recovery**. |
+
 ## Standalone pre-start (manual conductor)
 
 Bind the fixed simulator port without starting a Copilot session:
@@ -173,6 +271,39 @@ auto-start**, and attach as secondaries: their agents' `open_canvas` and
 canvas actions delegate to this process over HTTP, and every browser tab
 (`?instance=<id>`) shares the one server. Running the launcher twice is safe —
 the second run exits with "already running" (exit 0).
+
+The listener binds **IPv4 loopback only** (`127.0.0.1`, plain HTTP): open
+`http://127.0.0.1:7750/` — not `https://`, and not `http://[::1]:7750/`
+(IPv6 loopback is refused; if your client resolves `localhost` to `::1`
+first, use the `127.0.0.1` form). If the URL is refused outright, nothing is
+listening yet — check with the command in
+[Stopping an instance](#stopping-an-instance) and start one.
+
+## Stopping an instance
+
+There are three kinds of running instance — how you stop one depends on which
+it is. Find the listener first:
+
+```powershell
+Get-NetTCPConnection -LocalPort 7750 -State Listen | Select-Object -ExpandProperty OwningProcess
+```
+
+| Instance | How it runs | How to stop |
+|---|---|---|
+| **Standalone** | `node scripts/start-standalone.mjs` / `npm start` (a foreground node process) | `Ctrl+C` in its terminal, or `Stop-Process -Id <PID>` for the PID above |
+| **Session primary** | the Copilot session's extension process that won the port election | **End that Copilot session** — the extension process is part of the session and exits with it. Killing the PID directly works but yanks the extension from a live session |
+| **Session secondary** | a session's extension process that found the port busy (no server of its own) | Nothing to stop — it holds no port and dies with its session |
+
+After stopping the primary, nothing needs manual restart:
+
+- Remaining session secondaries **re-elect on their next canvas action**
+  (`tryBecomePrimary`) — one binds `127.0.0.1:7750` again.
+- The next `start-standalone.mjs` or session start binds it fresh; the
+  launcher exits politely with "already running" if something else got there
+  first.
+- Open browser tabs recover on their own: the instance SSE auto-reconnects
+  and `/live-events` falls back to 5s `/live` polling until the stream is
+  back — no tab restart needed.
 
 ## Install
 
