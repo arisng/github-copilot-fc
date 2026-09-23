@@ -18,6 +18,14 @@
 .PARAMETER Arguments
     Additional arguments passed through to the copilot command when using 'run'.
 
+.PARAMETER Interactive
+    Opt-in wizard flag (alias -i). When the target name (profile/account) is
+    omitted for show/remove/run/set-env/use, opens numbered selection menus
+    instead of failing fast. Never auto-triggered: a missing name without this
+    flag still exits non-zero. On 'run' with an explicit profile name, the
+    canonical --interactive token is re-forwarded to copilot (copilot defines
+    -i/--interactive) so existing pass-through invocations keep working.
+
 .EXAMPLE
     .\byok-profile.ps1 list
 
@@ -47,7 +55,15 @@ param(
     [string]$Profile,
 
     [Parameter(Mandatory = $false, ValueFromRemainingArguments = $true)]
-    [string[]]$Arguments
+    [string[]]$Arguments,
+
+    # Opt-in wizard flag (cli-wizard-pattern). Consulted ONLY when no name is
+    # given; never auto-triggered. With an explicit name on 'run', the canonical
+    # --interactive token is re-forwarded to copilot (which defines
+    # -i/--interactive <prompt>) so pass-through behavior is preserved.
+    [Parameter(Mandatory = $false)]
+    [Alias('i')]
+    [switch]$Interactive
 )
 
 $ErrorActionPreference = 'Stop'
@@ -147,6 +163,160 @@ function Expand-EnvPlaceholder {
         }
         return $envValue
     })
+}
+
+# --- cli-wizard-pattern helpers ---------------------------------------------
+# Guided-input primitives shared by the pickers (-i) and the 'add' interview.
+# Rules (skills/cli-wizard-pattern): numbered menus over free text, validation
+# re-prompt loops, q quits cleanly (caller returns, never a non-zero exit),
+# empty option sets fail with guidance before a menu is ever drawn.
+
+function Read-MenuChoice {
+    <#
+    .SYNOPSIS
+        Numbered selection menu with validation loop, marked default, and quit token.
+    .OUTPUTS
+        The chosen option's Value (or the bare string for plain-string options).
+        Returns $null when the user quits (q/Q) — callers treat $null as a clean
+        cancel with no side effects. Blank input returns -Default when provided
+        and re-prompts otherwise.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Prompt,
+        [Parameter(Mandatory)] [object[]]$Options,   # hashtables @{Label;Value} or plain strings
+        [object]$Default,
+        [switch]$AllowQuit
+    )
+    $opts = @($Options)
+    if ($opts.Count -eq 0) {
+        # Defensive: callers must pre-check emptiness so this stays unreachable.
+        Write-Error "No options available for '$Prompt'."
+        return $null
+    }
+    $hasDefault = $PSBoundParameters.ContainsKey('Default')
+    for (;;) {
+        for ($idx = 0; $idx -lt $opts.Count; $idx++) {
+            $o = $opts[$idx]
+            $label = if ($o -is [hashtable] -and $o.ContainsKey('Label')) { [string]$o.Label } else { [string]$o }
+            Write-Host ("  {0}) {1}" -f ($idx + 1), $label)
+        }
+        $suffix = if ($hasDefault -and $null -ne $Default -and "$Default" -ne '') { " [$Default]" } else { '' }
+        $quitHint = if ($AllowQuit) { ' (q to quit)' } else { '' }
+        $raw = Read-Host ("{0}{1}{2}" -f $Prompt, $suffix, $quitHint)
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            if ($hasDefault) { return $Default }
+            continue
+        }
+        if ($AllowQuit -and $raw -in @('q', 'Q')) { return $null }
+        $num = 0
+        if ([int]::TryParse($raw, [ref]$num) -and $num -ge 1 -and $num -le $opts.Count) {
+            $choice = $opts[$num - 1]
+            if ($choice -is [hashtable] -and $choice.ContainsKey('Value')) { return $choice.Value }
+            return $choice
+        }
+        Write-Host ("  Invalid selection '{0}'. Enter a number 1-{1}." -f $raw, $opts.Count) -ForegroundColor Yellow
+    }
+}
+
+function Read-YesNo {
+    <#
+    .SYNOPSIS
+        Numbered 1) Yes / 2) No prompt with a marked default and re-prompt loop.
+        y/n are also accepted for muscle memory. Never trusts a single read.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Prompt,
+        [bool]$Default = $false
+    )
+    for (;;) {
+        Write-Host '  1) Yes   2) No'
+        $hint = if ($Default) { ' [1]' } else { ' [2]' }
+        $raw = Read-Host ("{0}{1}" -f $Prompt, $hint)
+        if ([string]::IsNullOrWhiteSpace($raw)) { return $Default }
+        switch ($raw) {
+            '1' { return $true }
+            '2' { return $false }
+            { $_ -in @('y', 'Y', 'yes', 'YES') } { return $true }
+            { $_ -in @('n', 'N', 'no', 'NO') } { return $false }
+        }
+        Write-Host '  Enter 1 or 2 (y/n also accepted).' -ForegroundColor Yellow
+    }
+}
+
+function Read-RequiredText {
+    <#
+    .SYNOPSIS
+        Non-empty text prompt with a re-prompt loop for values that cannot be
+        enumerated (profile name, base URL, model ID). Blank input accepts
+        -Default when one is documented; otherwise it re-prompts.
+        With -AllowQuit, 'q' returns $null — callers must treat that as a
+        clean cancel (callers can distinguish: valid values are never $null).
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Prompt,
+        [string]$Default,
+        [switch]$AllowQuit
+    )
+    $hasDefault = -not [string]::IsNullOrWhiteSpace($Default)
+    for (;;) {
+        $suffix = if ($hasDefault) { " [$Default]" } else { '' }
+        $quitHint = if ($AllowQuit) { ' (q to quit)' } else { '' }
+        $raw = Read-Host ("{0}{1}{2}" -f $Prompt, $suffix, $quitHint)
+        if ($AllowQuit -and -not [string]::IsNullOrWhiteSpace($raw) -and $raw -in @('q', 'Q')) { return $null }
+        if (-not [string]::IsNullOrWhiteSpace($raw)) { return $raw }
+        if ($hasDefault) { return $Default }
+        Write-Host '  A value is required.' -ForegroundColor Yellow
+    }
+}
+
+function Read-OptionalInt {
+    <#
+    .SYNOPSIS
+        Positive-integer prompt with a try/parse re-prompt loop (never a raw
+        [int] cast crash). Returns @{ Quit; Value }: Quit=$true when the user
+        pressed q (with -AllowQuit), else Value = the integer or $null (skip
+        when blank and no -Default is given). The object return keeps "blank =
+        skip" distinguishable from "q = cancel".
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Prompt,
+        $Default,
+        [switch]$AllowQuit
+    )
+    $hasDefault = $null -ne $Default
+    for (;;) {
+        $suffix = if ($hasDefault) { " [$Default]" } else { '' }
+        $quitHint = if ($AllowQuit) { ' (q to quit)' } else { '' }
+        $raw = Read-Host ("{0}{1}{2}" -f $Prompt, $suffix, $quitHint)
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            if ($hasDefault) { return @{ Quit = $false; Value = [int]$Default } }
+            return @{ Quit = $false; Value = $null }
+        }
+        if ($AllowQuit -and $raw -in @('q', 'Q')) { return @{ Quit = $true; Value = $null } }
+        $num = 0
+        if ([int]::TryParse($raw, [ref]$num) -and $num -gt 0) { return @{ Quit = $false; Value = $num } }
+        Write-Host '  Enter a positive whole number.' -ForegroundColor Yellow
+    }
+}
+
+function Show-ConfirmationSummary {
+    <#
+    .SYNOPSIS
+        Prints a key/value summary of every resolved value and gates on yes/no.
+        API keys must be passed as env-var placeholders only — never raw secrets.
+        Returns $true only on explicit confirmation; declining is a clean cancel.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Title,
+        [Parameter(Mandatory)] [System.Collections.Specialized.OrderedDictionary]$Rows
+    )
+    Write-Host ''
+    Write-Host $Title -ForegroundColor Cyan
+    foreach ($key in $Rows.Keys) {
+        Write-Host ("  {0,-24}: {1}" -f $key, $Rows[$key]) -ForegroundColor Gray
+    }
+    Write-Host ''
+    return (Read-YesNo -Prompt 'Proceed?' -Default $false)
 }
 
 # Models whose API does not expose controllable reasoning-effort levels. This is the
@@ -419,6 +589,80 @@ function Invoke-ProfileUse {
     Write-Host "Active account set to '$Name'." -ForegroundColor Green
     if ($a.label) { Write-Host "  $($a.label)" -ForegroundColor Gray }
     if ($a.keyEnv) { Write-Host "  API key env: $($a.keyEnv)" -ForegroundColor Gray }
+}
+
+function Invoke-InteractiveSelect {
+    <#
+    .SYNOPSIS
+        Opt-in (-i) wizard: resolves the target name when none was given.
+    .DESCRIPTION
+        Discovers candidates from the live config (never hardcoded), renders
+        numbered menus, and returns @{ Profile; Account; Cancelled }.
+        Cancel (q at any menu) returns Cancelled=$true with no side effects.
+        Account picker rules (plan H3): only for grouped profiles on
+        run/set-env, only when >1 account is registered, and skipped entirely
+        when the caller already passed an explicit --account.
+        Empty candidate sets fail with guidance (non-zero), never an empty menu.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$CommandName,
+        [Parameter(Mandatory)] [hashtable]$Config,
+        [string[]]$ArgumentList = @()
+    )
+
+    # 'use' targets accounts; the others target profiles.
+    if ($CommandName -eq 'use') {
+        $acctNames = @($Config.accounts.Keys | Sort-Object)
+        if ($acctNames.Count -eq 0) {
+            Write-Error "No accounts defined in $profilePath. Add an 'accounts' section first (see references/shared/copilot-cli-accounts.md)."
+            exit 1
+        }
+        $options = @(foreach ($n in $acctNames) {
+            $label = if ($Config.accounts[$n].label) { $Config.accounts[$n].label } else { '(no label)' }
+            $marker = if ($n -eq $Config.activeAccount) { '  [active]' } else { '' }
+            @{ Label = "$n | $label$marker"; Value = $n }
+        })
+        $picked = Read-MenuChoice -Prompt 'Select account' -Options $options -AllowQuit
+        if ($null -eq $picked) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
+        return @{ Profile = $null; Account = $picked; Cancelled = $false }
+    }
+
+    $names = @($Config.profiles.Keys | Sort-Object)
+    if ($names.Count -eq 0) {
+        Write-Error "No profiles defined in $profilePath. Run 'byok-profile.ps1 add' to create one."
+        exit 1
+    }
+    $options = @(foreach ($n in $names) {
+        $p = $Config.profiles[$n]
+        $type = if ($p.type) { $p.type } else { 'openai' }
+        $group = if ($p.accountGroup) { "  [accountGroup: $($p.accountGroup)]" } else { '' }
+        @{ Label = "$n  ($type | $($p.model))$group"; Value = $n }
+    })
+    $picked = Read-MenuChoice -Prompt 'Select profile' -Options $options -AllowQuit
+    if ($null -eq $picked) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
+
+    # Account picker: run/set-env + grouped profile + >1 account + no explicit --account.
+    $account = $null
+    $withAccount = $CommandName -in @('run', 'set-env')
+    if ($withAccount) {
+        $explicit = Remove-AccountArg -ArgList $ArgumentList
+        $isGrouped = [bool]$Config.profiles[$picked].accountGroup
+        $acctNames = if ($Config.accounts) { @($Config.accounts.Keys | Sort-Object) } else { @() }
+        if ($isGrouped -and -not $explicit.Account -and $acctNames.Count -gt 1) {
+            $activeLabel = if ($Config.activeAccount) { $Config.activeAccount } else { 'profile apiKey fallback' }
+            $acctOptions = @(foreach ($n in $acctNames) {
+                $label = if ($Config.accounts[$n].label) { $Config.accounts[$n].label } else { '(no label)' }
+                $marker = if ($n -eq $Config.activeAccount) { '  [active]' } else { '' }
+                @{ Label = "$n | $label$marker"; Value = $n }
+            })
+            $acctOptions += @{ Label = "(keep default: $activeLabel)"; Value = '' }
+            $acctPick = Read-MenuChoice -Prompt 'Select account' -Options $acctOptions -Default '' -AllowQuit
+            if ($null -eq $acctPick) { return @{ Profile = $null; Account = $null; Cancelled = $true } }
+            $account = if ("$acctPick" -eq '') { $null } else { "$acctPick" }
+        }
+    }
+
+    return @{ Profile = $picked; Account = $account; Cancelled = $false }
 }
 
 function Invoke-ProfileAdd {
@@ -917,6 +1161,80 @@ function Invoke-ProfileSetEnv {
     }
     $reasoningSupported = Test-ReasoningEffortSupported -Model $p.model -Profile $p
     Write-Host "  Reasoning Effort Supported = $reasoningSupported" -ForegroundColor Gray
+}
+
+# --- Opt-in wizard dispatch (cli-wizard-pattern) -----------------------------
+# Rule 1: never auto-detected. Without -Interactive, a missing name fails fast
+# exactly as before. With -Interactive, gather via pickers, then fall through to
+# the unchanged non-interactive functions (one execution path).
+# C1 collision guard: with an explicit name, -Interactive/-i/--interactive is
+# treated as pass-through intent on 'run' — copilot defines -i/--interactive
+# <prompt>, so the canonical token is re-forwarded (flag-first order restored).
+if ($Interactive -and -not [string]::IsNullOrWhiteSpace($Profile)) {
+    if ($Command -eq 'run') {
+        $fwd = @(); if ($Arguments) { $fwd = @($Arguments) }
+        $guardConfig = Get-ProfileConfig
+        if ($guardConfig.profiles.ContainsKey($Profile)) {
+            # Explicit profile + pass-through flag: forward the canonical token
+            # (copilot defines -i/--interactive <prompt>) in flag-first order.
+            $Arguments = @('--interactive') + $fwd
+            Write-Host "  (-Interactive with an explicit profile: forwarding '--interactive' to copilot)" -ForegroundColor DarkYellow
+            $Interactive = $false
+        }
+        else {
+            # The name is NOT a known profile: PowerShell bound the orphaned
+            # VALUE of --interactive (e.g. `run --interactive "do X"` with no
+            # profile). Restore flag+value to the pass-through args and let the
+            # wizard pick the profile.
+            $Arguments = @('--interactive', $Profile) + $fwd
+            Write-Host "  ('$Profile' restored as the --interactive value; opening the profile picker)" -ForegroundColor DarkYellow
+            $Profile = ''
+        }
+    }
+    else {
+        # show/remove/set-env/use: an explicit name wins; the flag is cleared.
+        $Interactive = $false
+    }
+}
+if ($Interactive) {
+    if ($Command -in @('show', 'remove', 'run', 'set-env', 'use')) {
+        $wizConfig = Get-ProfileConfig
+        $selection = Invoke-InteractiveSelect -CommandName $Command -Config $wizConfig -ArgumentList $Arguments
+        if ($selection.Cancelled) {
+            Write-Host 'Cancelled.' -ForegroundColor Yellow
+            return
+        }
+        if ($Command -eq 'use') {
+            $Profile = $selection.Account
+        }
+        else {
+            $Profile = $selection.Profile
+            if ($selection.Account) {
+                $Arguments = @($Arguments) + @('--account', $selection.Account)
+            }
+        }
+        if ($Command -eq 'remove') {
+            # Wizard-path confirmation (confirm before mutating). Direct
+            # `remove <name>` keeps its historical no-prompt behavior.
+            $rp = $wizConfig.profiles[$Profile]
+            $removeRows = [ordered]@{
+                'Profile to remove' = $Profile
+                'Provider type'     = if ($rp.type) { $rp.type } else { 'openai' }
+                'Model'             = "$($rp.model)"
+                'Base URL'          = "$($rp.baseUrl)"
+            }
+            if (-not (Show-ConfirmationSummary -Title "Remove profile '$Profile'?" -Rows $removeRows)) {
+                Write-Host 'Cancelled. Nothing was removed.' -ForegroundColor Yellow
+                return
+            }
+        }
+        $Interactive = $false
+        Write-Host ''
+    }
+    else {
+        # list / accounts / add ignore the flag (add already is interactive).
+        $Interactive = $false
+    }
 }
 
 switch ($Command) {
