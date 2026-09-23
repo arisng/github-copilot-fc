@@ -12,7 +12,7 @@ description: >-
     machina-simulator-maintenance), debugging machine-validator.py scripts, XState config authoring,
   SCXML documents, or general diagramming.
 metadata:
-  version: 0.3.0
+  version: 0.4.0
 ---
 
 # Machina Machine Authoring
