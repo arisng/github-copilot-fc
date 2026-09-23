@@ -669,14 +669,10 @@ function Invoke-ProfileAdd {
     $config = Get-ProfileConfig
 
     Write-Host "Create a new BYOK provider profile" -ForegroundColor Cyan
-    $name = Read-Host "Profile name (e.g., ollama, azure-prod, kimi)"
-    if ([string]::IsNullOrWhiteSpace($name)) {
-        Write-Error "Profile name cannot be empty."
-        exit 1
-    }
+    $name = Read-RequiredText -Prompt "Profile name (e.g., ollama, azure-prod, kimi)" -AllowQuit
+    if ($null -eq $name) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
     if ($config.profiles.ContainsKey($name)) {
-        $overwrite = Read-Host "Profile '$name' already exists. Overwrite? (y/N)"
-        if ($overwrite -notin @('y', 'Y')) {
+        if (-not (Read-YesNo -Prompt "Profile '$name' already exists. Overwrite?" -Default $false)) {
             Write-Host "Cancelled." -ForegroundColor Yellow
             return
         }
@@ -684,16 +680,17 @@ function Invoke-ProfileAdd {
 
     Write-Host ""
     Write-Host "Choose a preset (or select Custom to enter values manually):" -ForegroundColor Cyan
-    Write-Host "  1) OpenAI"
-    Write-Host "  2) Azure OpenAI"
-    Write-Host "  3) Anthropic"
-    Write-Host "  4) Ollama (local)"
-    Write-Host "  5) Kimi AI / Moonshot"
-    Write-Host "  6) OpenCode Go"
-    Write-Host "  7) Command Code"
-    Write-Host "  8) Custom"
-    $preset = Read-Host "Preset number [8]"
-    if ([string]::IsNullOrWhiteSpace($preset)) { $preset = '8' }
+    $preset = Read-MenuChoice -Prompt "Preset" -Default '8' -AllowQuit -Options @(
+        @{ Label = 'OpenAI'; Value = '1' }
+        @{ Label = 'Azure OpenAI'; Value = '2' }
+        @{ Label = 'Anthropic'; Value = '3' }
+        @{ Label = 'Ollama (local)'; Value = '4' }
+        @{ Label = 'Kimi AI / Moonshot'; Value = '5' }
+        @{ Label = 'OpenCode Go'; Value = '6' }
+        @{ Label = 'Command Code'; Value = '7' }
+        @{ Label = 'Custom'; Value = '8' }
+    )
+    if ($null -eq $preset) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
 
     $type = 'openai'
     $baseUrl = ''
@@ -712,8 +709,10 @@ function Invoke-ProfileAdd {
         }
         '2' {
             $type = 'azure'
-            $baseUrl = Read-Host "Azure base URL (e.g., https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT)"
-            $model = Read-Host "Azure deployment name"
+            $baseUrl = Read-RequiredText -Prompt "Azure base URL (e.g., https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT)" -AllowQuit
+            if ($null -eq $baseUrl) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+            $model = Read-RequiredText -Prompt "Azure deployment name" -AllowQuit
+            if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
             $defaultApiKeyPrompt = '${AZURE_OPENAI_API_KEY}'
         }
         '3' {
@@ -735,28 +734,24 @@ function Invoke-ProfileAdd {
             $defaultApiKeyPrompt = '${MOONSHOT_API_KEY}'
             $defaultMaxPromptTokens = 240000
 
-            Write-Host "Select Kimi AI region:" -ForegroundColor Cyan
-            Write-Host "  1) Global (api.moonshot.ai/v1) - recommended"
-            Write-Host "  2) China (api.moonshot.cn/v1)"
-            $region = Read-Host "Region [1]"
-            if ([string]::IsNullOrWhiteSpace($region) -or $region -eq '1') {
-                $baseUrl = 'https://api.moonshot.ai/v1'
-            }
-            else {
+            $region = Read-MenuChoice -Prompt "Region" -Default '1' -AllowQuit -Options @(
+                @{ Label = 'Global (api.moonshot.ai/v1) - recommended'; Value = '1' }
+                @{ Label = 'China (api.moonshot.cn/v1)'; Value = '2' }
+            )
+            if ($null -eq $region) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+            if ($region -eq '2') {
                 $baseUrl = 'https://api.moonshot.cn/v1'
             }
-
-            Write-Host "Select model:" -ForegroundColor Cyan
-            Write-Host "  1) Kimi K2.7 Code (coding-optimized, thinking always on)"
-            Write-Host "  2) Kimi K2.6 (latest flagship, multimodal)"
-            Write-Host "  3) Kimi K2.5 (multimodal, lower cost)"
-            $modelChoice = Read-Host "Model [2]"
-            $model = switch ($modelChoice) {
-                '1' { 'kimi-k2.7-code' }
-                '2' { 'kimi-k2.6' }
-                '3' { 'kimi-k2.5' }
-                default { 'kimi-k2.6' }
+            else {
+                $baseUrl = 'https://api.moonshot.ai/v1'
             }
+
+            $model = Read-MenuChoice -Prompt "Model" -Default 'kimi-k2.6' -AllowQuit -Options @(
+                @{ Label = 'Kimi K2.7 Code (coding-optimized, thinking always on)'; Value = 'kimi-k2.7-code' }
+                @{ Label = 'Kimi K2.6 (latest flagship, multimodal)'; Value = 'kimi-k2.6' }
+                @{ Label = 'Kimi K2.5 (multimodal, lower cost)'; Value = 'kimi-k2.5' }
+            )
+            if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
         }
         '6' {
             $type = 'openai'
@@ -764,54 +759,41 @@ function Invoke-ProfileAdd {
             $defaultApiKeyPrompt = '${OPENCODE_API_KEY_HOME}'
 
             Write-Host "Select OpenCode Go model category:" -ForegroundColor Cyan
-            Write-Host "  1) OpenAI-compatible (DeepSeek, GLM, Kimi, MiMo)"
-            Write-Host "  2) Anthropic-compatible (MiniMax, Qwen)"
-            $modelCategory = Read-Host "Category [1]"
-            if ([string]::IsNullOrWhiteSpace($modelCategory) -or $modelCategory -eq '1') {
+            $modelCategory = Read-MenuChoice -Prompt "Category" -Default '1' -AllowQuit -Options @(
+                @{ Label = 'OpenAI-compatible (DeepSeek, GLM, Kimi, MiMo)'; Value = '1' }
+                @{ Label = 'Anthropic-compatible (MiniMax, Qwen)'; Value = '2' }
+            )
+            if ($null -eq $modelCategory) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+            if ($modelCategory -eq '1') {
                 $type = 'openai'
-                Write-Host "Select model:" -ForegroundColor Cyan
-                Write-Host "  1) DeepSeek V4 Flash (cheapest, recommended)"
-                Write-Host "  2) DeepSeek V4 Pro"
-                Write-Host "  3) Kimi K2.7 Code"
-                Write-Host "  4) Kimi K2.6"
-                Write-Host "  5) GLM-5.2"
-                Write-Host "  6) GLM-5.1"
-                Write-Host "  7) GLM-5"
-                Write-Host "  8) MiMo-V2.5"
-                Write-Host "  9) MiMo-V2.5-Pro"
-                Write-Host "  10) Other (type model ID manually)"
-                $modelChoice = Read-Host "Model [1]"
-                $model = switch ($modelChoice) {
-                    '1' { 'deepseek-v4-flash' }
-                    '2' { 'deepseek-v4-pro' }
-                    '3' { 'kimi-k2.7-code' }
-                    '4' { 'kimi-k2.6' }
-                    '5' { 'glm-5.2' }
-                    '6' { 'glm-5.1' }
-                    '7' { 'glm-5' }
-                    '8' { 'mimo-v2.5' }
-                    '9' { 'mimo-v2.5-pro' }
-                    '10' { Read-Host "Enter model ID" }
-                    default { 'deepseek-v4-flash' }
+                $model = Read-MenuChoice -Prompt "Model" -Default 'deepseek-v4-flash' -AllowQuit -Options @(
+                    @{ Label = 'DeepSeek V4 Flash (cheapest, recommended)'; Value = 'deepseek-v4-flash' }
+                    @{ Label = 'DeepSeek V4 Pro'; Value = 'deepseek-v4-pro' }
+                    @{ Label = 'Kimi K2.7 Code'; Value = 'kimi-k2.7-code' }
+                    @{ Label = 'Kimi K2.6'; Value = 'kimi-k2.6' }
+                    @{ Label = 'GLM-5.2'; Value = 'glm-5.2' }
+                    @{ Label = 'GLM-5.1'; Value = 'glm-5.1' }
+                    @{ Label = 'GLM-5'; Value = 'glm-5' }
+                    @{ Label = 'MiMo-V2.5'; Value = 'mimo-v2.5' }
+                    @{ Label = 'MiMo-V2.5-Pro'; Value = 'mimo-v2.5-pro' }
+                    @{ Label = 'Other (type model ID manually)'; Value = '__other__' }
+                )
+                if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+                if ($model -eq '__other__') {
+                    $model = Read-RequiredText -Prompt "Enter model ID" -AllowQuit
+                    if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
                 }
             }
             else {
                 $type = 'anthropic'
-                Write-Host "Select model:" -ForegroundColor Cyan
-                Write-Host "  1) Qwen3.7 Plus (recommended)"
-                Write-Host "  2) Qwen3.7 Max"
-                Write-Host "  3) Qwen3.6 Plus"
-                Write-Host "  4) MiniMax M3"
-                Write-Host "  5) MiniMax M2.7"
-                $modelChoice = Read-Host "Model [1]"
-                $model = switch ($modelChoice) {
-                    '1' { 'qwen3.7-plus' }
-                    '2' { 'qwen3.7-max' }
-                    '3' { 'qwen3.6-plus' }
-                    '4' { 'minimax-m3' }
-                    '5' { 'minimax-m2.7' }
-                    default { 'qwen3.7-plus' }
-                }
+                $model = Read-MenuChoice -Prompt "Model" -Default 'qwen3.7-plus' -AllowQuit -Options @(
+                    @{ Label = 'Qwen3.7 Plus (recommended)'; Value = 'qwen3.7-plus' }
+                    @{ Label = 'Qwen3.7 Max'; Value = 'qwen3.7-max' }
+                    @{ Label = 'Qwen3.6 Plus'; Value = 'qwen3.6-plus' }
+                    @{ Label = 'MiniMax M3'; Value = 'minimax-m3' }
+                    @{ Label = 'MiniMax M2.7'; Value = 'minimax-m2.7' }
+                )
+                if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
             }
             $defaultMaxPromptTokens = 200000
         }
@@ -823,33 +805,24 @@ function Invoke-ProfileAdd {
             $defaultMaxOutputTokens = 32768
 
             Write-Host "Select Command Code model:" -ForegroundColor Cyan
-            Write-Host "  1) DeepSeek V4 Flash (cheapest paid, recommended)"
-            Write-Host "  2) DeepSeek V4.1 Flash"
-            Write-Host "  3) DeepSeek V4 Pro"
-            Write-Host "  4) GPT-5.6 Luna"
-            Write-Host "  5) MiMo V2.6 Flash (grounded: 872K prompt / 128K output)"
-            Write-Host "  6) MiMo V2.5"
-            Write-Host "  7) MiMo V2.5 Pro"
-            Write-Host "  8) Muse Spark 1.3 Contributor"
-            Write-Host "  9) Ling 3.0 Flash Sante (free)"
-            Write-Host " 10) Laguna S 2.1 (free)"
-            Write-Host " 11) LongCat 2.0 (free)"
-            Write-Host " 12) Other (type model ID manually)"
-            $modelChoice = Read-Host "Model [1]"
-            $model = switch ($modelChoice) {
-                '1'  { 'deepseek/deepseek-v4-flash' }
-                '2'  { 'deepseek/deepseek-v4.1-flash' }
-                '3'  { 'deepseek/deepseek-v4-pro' }
-                '4'  { 'gpt-5.6-luna' }
-                '5'  { 'xiaomi/mimo-v2.6-flash' }
-                '6'  { 'xiaomi/mimo-v2.5' }
-                '7'  { 'xiaomi/mimo-v2.5-pro' }
-                '8'  { 'meta/muse-spark-1.3-contributor' }
-                '9'  { 'inclusionai/ling-3.0-flash-sante:free' }
-                '10' { 'poolside/laguna-s-2.1-free' }
-                '11' { 'meituan/longcat-2.0:free' }
-                '12' { Read-Host "Enter model ID (provider/model-name format)" }
-                default { 'deepseek/deepseek-v4-flash' }
+            $model = Read-MenuChoice -Prompt "Model" -Default 'deepseek/deepseek-v4-flash' -AllowQuit -Options @(
+                @{ Label = 'DeepSeek V4 Flash (cheapest paid, recommended)'; Value = 'deepseek/deepseek-v4-flash' }
+                @{ Label = 'DeepSeek V4.1 Flash'; Value = 'deepseek/deepseek-v4.1-flash' }
+                @{ Label = 'DeepSeek V4 Pro'; Value = 'deepseek/deepseek-v4-pro' }
+                @{ Label = 'GPT-5.6 Luna'; Value = 'gpt-5.6-luna' }
+                @{ Label = 'MiMo V2.6 Flash (grounded: 872K prompt / 128K output)'; Value = 'xiaomi/mimo-v2.6-flash' }
+                @{ Label = 'MiMo V2.5'; Value = 'xiaomi/mimo-v2.5' }
+                @{ Label = 'MiMo V2.5 Pro'; Value = 'xiaomi/mimo-v2.5-pro' }
+                @{ Label = 'Muse Spark 1.3 Contributor'; Value = 'meta/muse-spark-1.3-contributor' }
+                @{ Label = 'Ling 3.0 Flash Sante (free)'; Value = 'inclusionai/ling-3.0-flash-sante:free' }
+                @{ Label = 'Laguna S 2.1 (free)'; Value = 'poolside/laguna-s-2.1-free' }
+                @{ Label = 'LongCat 2.0 (free)'; Value = 'meituan/longcat-2.0:free' }
+                @{ Label = 'Other (type model ID manually)'; Value = '__other__' }
+            )
+            if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+            if ($model -eq '__other__') {
+                $model = Read-RequiredText -Prompt "Enter model ID (provider/model-name format)" -AllowQuit
+                if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
             }
             # Grounded by Xiaomi MiMo docs (mimo.mi.com): 1M context, 128K max output.
             if ($model -eq 'xiaomi/mimo-v2.6-flash') {
@@ -858,25 +831,23 @@ function Invoke-ProfileAdd {
             }
         }
         default {
-            $type = Read-Host "Provider type (openai/azure/anthropic) [openai]"
-            if ([string]::IsNullOrWhiteSpace($type)) { $type = 'openai' }
+            $type = Read-MenuChoice -Prompt "Provider type" -Default 'openai' -AllowQuit -Options @(
+                @{ Label = 'openai (OpenAI-compatible default)'; Value = 'openai' }
+                @{ Label = 'azure (Azure OpenAI)'; Value = 'azure' }
+                @{ Label = 'anthropic'; Value = 'anthropic' }
+            )
+            if ($null -eq $type) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
         }
     }
 
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        $baseUrl = Read-Host "Base URL (e.g., http://localhost:11434 or https://api.openai.com/v1)"
-    }
-    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        Write-Error "Base URL is required."
-        exit 1
+        $baseUrl = Read-RequiredText -Prompt "Base URL (e.g., http://localhost:11434 or https://api.openai.com/v1)" -AllowQuit
+        if ($null -eq $baseUrl) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
     }
 
     if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = Read-Host "Model identifier (e.g., llama3.2, gpt-4o, claude-opus-4-5)"
-    }
-    if ([string]::IsNullOrWhiteSpace($model)) {
-        Write-Error "Model is required."
-        exit 1
+        $model = Read-RequiredText -Prompt "Model identifier (e.g., llama3.2, gpt-4o, claude-opus-4-5)" -AllowQuit
+        if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
     }
 
     if ($defaultApiKeyPrompt) {
@@ -887,20 +858,13 @@ function Invoke-ProfileAdd {
         $apiKey = Read-Host "API key (leave blank for none; use `${ENV_VAR}` syntax to reference an environment variable)"
     }
 
-    if ($defaultMaxPromptTokens) {
-        $maxPromptTokensInput = Read-Host "Max prompt tokens [$defaultMaxPromptTokens]"
-        if ([string]::IsNullOrWhiteSpace($maxPromptTokensInput)) { $maxPromptTokensInput = $defaultMaxPromptTokens }
-    }
-    else {
-        $maxPromptTokensInput = Read-Host "Max prompt tokens (optional, press Enter to skip)"
-    }
-    $maxPromptTokens = if ($maxPromptTokensInput) { [int]$maxPromptTokensInput } else { $null }
-
-    $maxOutputTokensInput = Read-Host "Max output tokens (optional, press Enter to skip)"
-    $maxOutputTokens = if ($maxOutputTokensInput) { [int]$maxOutputTokensInput } else { $null }
-
-    $offlineInput = Read-Host "Offline mode? (y/N)"
-    $offline = $offlineInput -in @('y', 'Y')
+    $maxPromptRes = Read-OptionalInt -Prompt "Max prompt tokens (blank to skip)" -Default $defaultMaxPromptTokens -AllowQuit
+    if ($maxPromptRes.Quit) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+    $maxOutputRes = Read-OptionalInt -Prompt "Max output tokens (blank to skip)" -Default $defaultMaxOutputTokens -AllowQuit
+    if ($maxOutputRes.Quit) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+    $maxPromptTokens = $maxPromptRes.Value
+    $maxOutputTokens = $maxOutputRes.Value
+    $offline = Read-YesNo -Prompt "Offline mode?" -Default $false
 
     # Determine whether the model supports Copilot CLI --reasoning-effort
     $supportsReasoningEffort = Test-ReasoningEffortSupported -Model $model -Profile $null
@@ -923,6 +887,27 @@ function Invoke-ProfileAdd {
     if ($preset -eq '6') {
         $profileEntry.accountGroup = 'opencode'
         Write-Host "  Note: accountGroup 'opencode' set. Select the account with 'use <account>' or 'run <profile> --account <account>'." -ForegroundColor DarkYellow
+    }
+
+    # Final confirmation gate (cli-wizard-pattern: confirm before mutating).
+    $apiKeyDisplay = if (-not $apiKey) { '(none)' }
+                     elseif ($apiKey -match '^\$\{.+\}$') { $apiKey }
+                     else { '(set - hidden)' }
+    $summaryRows = [ordered]@{
+        'Profile name'       = $name
+        'Provider type'      = $type
+        'Base URL'           = $baseUrl
+        'Model'              = $model
+        'API key'            = $apiKeyDisplay
+        'Max prompt tokens'  = if ($maxPromptTokens) { "$maxPromptTokens" } else { '(not set)' }
+        'Max output tokens'  = if ($maxOutputTokens) { "$maxOutputTokens" } else { '(not set)' }
+        'Offline'            = "$offline"
+        'Reasoning effort'   = if ($supportsReasoningEffort) { 'supported' } else { 'not supported (reasoningEffortSupported: false)' }
+        'Account group'      = if ($preset -eq '6') { 'opencode' } else { '(none)' }
+    }
+    if (-not (Show-ConfirmationSummary -Title "Create profile '$name'?" -Rows $summaryRows)) {
+        Write-Host "Cancelled. Nothing was saved." -ForegroundColor Yellow
+        return
     }
 
     $config.profiles[$name] = $profileEntry

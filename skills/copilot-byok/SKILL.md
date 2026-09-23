@@ -1,10 +1,10 @@
 ---
 name: copilot-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI; switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI (including the interactive -i profile/account picker wizard); switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.18.0
-  lastVerified: 2026-09-17
+  version: 0.19.0
+  lastVerified: 2026-09-23
 ---
 
 # Copilot BYOK Provider Configuration
@@ -71,7 +71,18 @@ Common commands:
 
 # Apply a profile to the current shell
 . .\scripts\byok-profile.ps1 set-env openai
+
+# Opt-in wizard (-i / -Interactive): numbered pickers instead of typing names.
+# Consulted ONLY when the name is omitted; never auto-triggered (a missing name
+# without -i still fails fast, so agents/CI can never hang on a prompt).
+.\scripts\byok-profile.ps1 run -i
+.\scripts\byok-profile.ps1 show -i
+.\scripts\byok-profile.ps1 remove -i
+. .\scripts\byok-profile.ps1 set-env -i
+.\scripts\byok-profile.ps1 use -i
 ```
+
+Wizard semantics: `q` at any prompt cancels cleanly (exit 0, no side effects); `remove -i` and `add` print a confirmation summary and require an explicit yes before anything is written. On `run` with an **explicit** profile name, `-i`/`--interactive` is treated as pass-through and the canonical `--interactive` token is forwarded to Copilot CLI (which defines `-i, --interactive <prompt>`); when the wizard picks the account, an explicit `--account` always wins. `use -i` with an empty `accounts` registry errors with guidance, while non-interactive `run` of a non-grouped profile falls back to its legacy `apiKey` field.
 
 Pass extra Copilot CLI arguments through `run` (do not pass `--model`; model is sourced from the profile):
 
