@@ -458,6 +458,23 @@ function Show-ConfirmationSummary {
     return (Read-YesNo -Prompt 'Proceed?' -Default $false)
 }
 
+function Read-YoloArgument {
+    <#
+    .SYNOPSIS
+        Wizard-run gate: asks whether to add Copilot CLI's --yolo flag
+        (auto-approve tool actions). Default No. A --yolo already present in
+        the pass-through args suppresses the question (never duplicated).
+        Only wizard-chosen runs call this; explicit `run <name>` never asks.
+    #>
+    param([string[]]$ArgumentList = @())
+    $list = @($ArgumentList)
+    if ($list | Where-Object { $_ -eq '--yolo' }) { return $list }
+    if (Read-YesNo -Prompt 'Enable --yolo mode (auto-approve tool actions)?' -Default $false) {
+        return $list + @('--yolo')
+    }
+    return $list
+}
+
 # Models whose API does not expose controllable reasoning-effort levels. This is the
 # single source of truth used by the wizard (add), run, set-env, and show. It mirrors
 # references/shared/reasoning-effort-lookup.md; keep both in sync.
@@ -1487,7 +1504,7 @@ if ($Interactive) {
                 return
             }
             switch ($action) {
-                'run'     { Invoke-ProfileRun -Name $Profile }
+                'run'     { $Arguments = Read-YoloArgument -ArgumentList $Arguments; Invoke-ProfileRun -Name $Profile }
                 'show'    { Invoke-ProfileShow -Name $Profile }
                 'set-env' { Invoke-ProfileSetEnv -Name $Profile -Arguments $Arguments }
                 'toggle'  { Invoke-ProfileToggleEnabled -Name $Profile -Config $wizConfig | Out-Null }
@@ -1509,6 +1526,11 @@ if ($Interactive) {
                 Write-Host 'Cancelled. Nothing was removed.' -ForegroundColor Yellow
                 return
             }
+        }
+        if ($Command -eq 'run') {
+            # Wizard-chosen run (run -i) asks about --yolo; explicit
+            # `run <name>` and non-interactive paths never do.
+            $Arguments = Read-YoloArgument -ArgumentList $Arguments
         }
         $Interactive = $false
         Write-Host ''

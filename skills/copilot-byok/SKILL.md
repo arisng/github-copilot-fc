@@ -3,7 +3,7 @@ name: copilot-byok
 description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI (including the account-first interactive -i wizard with scope filtering and enable/disable); switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
 metadata:
   author: arisng
-  version: 0.20.0
+  version: 0.21.0
   lastVerified: 2026-09-23
 ---
 
@@ -88,7 +88,7 @@ Common commands:
 .\scripts\byok-profile.ps1 -i
 ```
 
-Wizard semantics: `q` at any prompt cancels cleanly (exit 0, no side effects); `remove -i`, `add`, and Enable-Disable print a confirmation summary and require an explicit yes before anything is written. On `run` with an **explicit** profile name, `-i`/`--interactive` is treated as pass-through and the canonical `--interactive` token is forwarded to Copilot CLI (which defines `-i, --interactive <prompt>`); an explicit `--account` skips the account menu and supplies the scope instead. `use -i` with an empty `accounts` registry errors with guidance, while non-interactive `run` of a non-grouped profile falls back to its legacy `apiKey` field.
+Wizard semantics: `q` at any prompt cancels cleanly (exit 0, no side effects); `remove -i`, `add`, and Enable-Disable print a confirmation summary and require an explicit yes before anything is written. **Both wizard run paths — bare `-i` → Run action and `run -i` — then ask whether to enable `--yolo` mode** (Copilot CLI's auto-approve flag; default No, skipped when you already passed `--yolo`, and never asked by explicit `run <name>` so automation stays prompt-free). On `run` with an **explicit** profile name, `-i`/`--interactive` is treated as pass-through and the canonical `--interactive` token is forwarded to Copilot CLI (which defines `-i, --interactive <prompt>`); an explicit `--account` skips the account menu and supplies the scope instead. `use -i` with an empty `accounts` registry errors with guidance, while non-interactive `run` of a non-grouped profile falls back to its legacy `apiKey` field.
 
 Profile fields: `scope` (kebab-case, backfilled by a write-once migration from baseUrl/keyEnv — drives account-first filtering; profiles without one are reachable via the *skip scoping* escape) and `enabled` (absent = enabled; `enabled: false` profiles are kept in the JSON, hidden from `run`/`show`/`set-env` pickers, marked `[disabled]` in bare `-i`/`remove -i`, listed with a marker by `list`, and **refused by `run`/`set-env`** — re-enable via bare `-i` → Enable-Disable).
 
