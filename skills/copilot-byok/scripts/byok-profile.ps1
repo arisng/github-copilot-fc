@@ -467,7 +467,13 @@ function Read-YoloArgument {
         Only wizard-chosen runs call this; explicit `run <name>` never asks.
     #>
     param([string[]]$ArgumentList = @())
-    $list = @($ArgumentList)
+    # Wizard-only boundary: drop null/empty elements before building the
+    # pass-through list. A bare -i run leaves $Arguments = $null, and @($null)
+    # yields one null element — [string[]] binding / List[string] later convert
+    # nulls to '', so `copilot "" --yolo` would fail with "Invalid command
+    # format" instead of launching. Empty args are meaningless to copilot here;
+    # the non-interactive path never passes through this function.
+    $list = @($ArgumentList | Where-Object { -not [string]::IsNullOrEmpty($_) })
     if ($list | Where-Object { $_ -eq '--yolo' }) { return $list }
     if (Read-YesNo -Prompt 'Enable --yolo mode (auto-approve tool actions)?' -Default $false) {
         return $list + @('--yolo')
@@ -1487,7 +1493,10 @@ if ($Interactive) {
         else {
             $Profile = $selection.Profile
             if ($selection.Account) {
-                $Arguments = @($Arguments) + @('--account', $selection.Account)
+                # @($null) would yield one phantom null element that becomes ''
+                # downstream (same empty-first-argument bug Read-YoloArgument
+                # guards against); normalize before prepending --account.
+                $Arguments = @($Arguments | Where-Object { -not [string]::IsNullOrEmpty($_) }) + @('--account', $selection.Account)
             }
         }
 
