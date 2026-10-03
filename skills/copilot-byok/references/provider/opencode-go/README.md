@@ -21,9 +21,10 @@ Shared facts that apply to both harnesses (and every provider) live in [`../../s
   - `responses` — GPT-5.6 Luna
   - `messages` — MiniMax (M3/M2.7/M2.5), Qwen (3.8 Max/3.7 Max/3.7 Plus/3.6 Plus); Anthropic Messages API, authenticates with `x-api-key` (not `Authorization: Bearer`)
 - **CRITICAL: `COPILOT_MODEL` must use the bare model ID** (e.g., `deepseek-v4-flash`), **not** the `opencode-go/` prefix. The prefix is only used in OpenCode TUI config and in Copilot CLI profile names — never in `COPILOT_MODEL` or VS Code model `id`.
-- **Gateway-enforced token limits** are often lower than the model's theoretical context window (e.g. DeepSeek V4 Flash: 1M theoretical vs ~325K effective) — see [`shared/environment-variables.md`](../../shared/environment-variables.md) "Provider-enforced limits". Exception: **MiMo-V2.5** passes through the full 1,048,576-token gateway ceiling (empirical 2026-08-19).
+- **Gateway-enforced token limits** are often lower than the model's theoretical context window (e.g. DeepSeek V4 Flash: 1M theoretical vs ~325K effective) — see [`shared/environment-variables.md`](../../shared/environment-variables.md) "Provider-enforced limits". Exceptions verified empirically **2026-10-03**: **MiMo-V2.5** passes through the full 1,048,576-token gateway ceiling, and **MiMo-V2.6-Flash/Pro** accept a real 1,000,009-token prompt with a 131,072-token output cap (unlike DeepSeek V4 / GLM / LongCat, which clamp near 325K).
 - **Key env vars** (User scope): `OPENCODE_API_KEY_HOME` (personal), `OPENCODE_API_KEY_WORK` (work) — see [`../shared/api-key-storage.md`](../../shared/api-key-storage.md).
-- **Reasoning effort support varies per model family** — GLM, MiMo, Kimi K2.x, Qwen3.x, MiniMax do not support it; DeepSeek V4 Flash/Pro support `low|medium|high`; GPT-5.6 Luna supports the full range. See [`../shared/reasoning-effort-lookup.md`](../../shared/reasoning-effort-lookup.md).
+- **Reasoning effort support varies per model family** — GLM, MiMo, Kimi K2.x, Qwen3.x, MiniMax do not support it; DeepSeek V4 Flash/Pro support `low|medium|high`; GPT-5.6 Luna supports the full range. MiMo exposes only a binary `thinking.type` toggle, on by default. See [`../shared/reasoning-effort-lookup.md`](../../shared/reasoning-effort-lookup.md).
+- **Protocol is per-model, not per-vendor** — `mimo-v2.6-flash` works on `chat/completions` but returns `ModelProtocolUnsupported` on `/v1/messages`, so it must use `COPILOT_PROVIDER_TYPE=openai`.
 
 ## Usage limits (OpenCode Go)
 

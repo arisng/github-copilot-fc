@@ -180,6 +180,28 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
       "thinking": true
     },
     {
+      "id": "mimo-v2.6-flash",
+      "name": "MiMo-V2.6-Flash",
+      "url": "https://opencode-go.local/v1/chat/completions",
+      "toolCalling": true,
+      "vision": false,
+      "streaming": true,
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 131072,
+      "thinking": true
+    },
+    {
+      "id": "mimo-v2.6-pro",
+      "name": "MiMo-V2.6-Pro",
+      "url": "https://opencode-go.local/v1/chat/completions",
+      "toolCalling": true,
+      "vision": false,
+      "streaming": true,
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 131072,
+      "thinking": true
+    },
+    {
       "id": "hy3",
       "name": "Hy3",
       "url": "https://opencode-go.local/v1/chat/completions",
@@ -231,6 +253,8 @@ Generated structure (after UI setup adds the `apiKey` secret reference):
 ```
 
 > **MiMo-V2.5 token grounding (empirical 2026-08-19).** The OpenCode Go gateway enforces a **1,048,576-token hard ceiling** (prompt + output combined). MiMo-V2.5 passes through the full gateway limit — 1M prompt tokens succeeded, 1.05M returned 400. Unlike DeepSeek V4 (~325K effective), MiMo-V2.5 has no gateway compaction below its theoretical 1M window. The values above (980K input + 64K output = 1,044K) stay safely under the ceiling. `maxOutputTokens: 64000` is practical for coding tasks; the model accepts output limits up to 1M at the API level.
+
+> **MiMo-V2.6 token grounding (empirical 2026-10-03).** `mimo-v2.6-flash` and `mimo-v2.6-pro` are live in the OpenCode Go catalog as **bare IDs** (the `xiaomi/` prefix used by Command Code does not apply here). Both work on `chat/completions` with tool calling; `mimo-v2.6-flash` also streams. The Anthropic `/v1/messages` endpoint rejects them with `ModelProtocolUnsupported`, so these entries must stay in the **Chat Completions** provider, never the Anthropic one. The gateway enforces a hard output cap of **131,072** completion tokens (131,072 accepted; 131,073 → 400), and a real 1,000,009-token prompt was accepted — unlike DeepSeek V4 / GLM / LongCat, MiMo-V2.6 is not clamped to the ~325K effective prompt cap. The values above (872K input + 131,072 output) stay under the 1,048,576 combined ceiling. `thinking: true` reflects Deep Thinking being on by default; Xiaomi exposes only a binary `thinking.type` toggle, so there are no reasoning-effort levels to configure.
 
 > **Hy3 token grounding (2026-08-20).** Hy3 has a 256K context window with 64K max output tokens. The values above (184K input + 64K output = 248K) stay safely under the context window. Hy3 supports reasoning effort with `high` and `no_think` modes; the `no_think` mode maps to `none` in Copilot CLI.
 

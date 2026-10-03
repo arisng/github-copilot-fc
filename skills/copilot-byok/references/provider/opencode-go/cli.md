@@ -71,6 +71,8 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 | GLM-5.3-Flash (Zhipu AI, 1M context) | `glm-5.3-flash` | `openai` | `completions` | Not supported (thinking always-on, defaults to `max`) |
 | MiMo-V2.5 (Xiaomi, 1M context) | `mimo-v2.5` | `openai` | `completions` | Not supported |
 | MiMo-V2.5-Pro (Xiaomi, 1M context) | `mimo-v2.5-pro` | `openai` | `completions` | Not supported |
+| MiMo-V2.6-Flash (Xiaomi, 1M context, fast) | `mimo-v2.6-flash` | `openai` | `completions` | Not supported (binary `thinking` toggle, on by default) |
+| MiMo-V2.6-Pro (Xiaomi, 1M context) | `mimo-v2.6-pro` | `openai` | `completions` | Not supported (binary `thinking` toggle, on by default) |
 | Qwen3.7 Plus | `qwen3.7-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | Qwen3.7 Max | `qwen3.7-max` | `anthropic` | `messages` | Not supported (implicit thinking) |
 | Qwen3.6 Plus | `qwen3.6-plus` | `anthropic` | `messages` | Not supported (implicit thinking) |
@@ -89,6 +91,28 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 > | `maxPromptTokens` | 325,000 | Safe under gateway-enforced effective cap; matches DeepSeek V4 behavior |
 > | `maxOutputTokens` | 64,000 | Practical for coding tasks; well under combined ceiling |
 > | Combined budget | 389,000 | Stays under effective gateway limit |
+
+> **MiMo-V2.6 token grounding (empirical 2026-10-03, live gateway probes).** Both `mimo-v2.6-flash` and `mimo-v2.6-pro` are in the live catalog (`GET /zen/go/v1/models`) as **bare IDs** (no `xiaomi/` prefix — that form belongs to Command Code). Probed directly against `https://opencode.ai/zen/go/v1/chat/completions` with the `x-opencode-session` header:
+>
+> | Property | `mimo-v2.6-flash` | `mimo-v2.6-pro` | Evidence |
+> |---------|------------------|----------------|----------|
+> | Chat completion | ✅ | ✅ | 200, `model` echoed back |
+> | Streaming | ✅ | — | SSE `data:` frames emitted |
+> | Tool calling | ✅ | ✅ | `finish_reason: tool_calls` |
+> | Anthropic `/v1/messages` | ❌ `ModelProtocolUnsupported` | — | Must use `openai` + `completions` |
+> | Max output (gateway-enforced) | **131,072** | **131,072** | 131,072 accepted; 131,073 → 400 `max_tokens is too large … at most 131072` |
+> | Prompt ~1,000,009 tokens + `max_tokens: 131072` | ✅ accepted | ✅ accepted | Real requests, not theoretical |
+> | `reasoning_effort: high` | Accepted but **inert** | — | 200; no controllable levels exist |
+>
+> Unlike DeepSeek V4 / GLM / LongCat, **MiMo-V2.6 is not clamped to the ~325K effective prompt cap** — a real 1,000,009-token prompt plus `max_tokens: 131072` was accepted. Conservative overrides:
+>
+> | Parameter | Empirical value | Rationale |
+> |-----------|----------------|-----------|
+> | `maxPromptTokens` | 872,000 | 1,000,000 − 128,000; leaves headroom under the 1,048,576 combined ceiling |
+> | `maxOutputTokens` | 131,072 | Gateway-enforced cap (verified); matches the documented 128K max output |
+> | Combined budget | 1,003,072 | Stays under the gateway's 1,048,576 combined ceiling |
+>
+> **Reasoning:** Xiaomi's API exposes only a binary `thinking.type` toggle (`enabled` / `disabled`), with Deep Thinking **on by default**. The gateway silently accepts `reasoning_effort` instead of rejecting it, but it has no effect — so set `"reasoningEffortSupported": false` and omit `--reasoning-effort`. Confirmed: responses carry `completion_tokens_details.reasoning_tokens` by default.
 
 > **GLM-5.3-Flash token grounding (2026-08-26).** GLM-5.3-Flash is a 320B-A18B MoE model from Zhipu AI with 1M context, 131K max output, natively multimodal (text/image/video/PDF), MIT license. Released 2026-08-26. Same gateway-enforced ~325K effective prompt cap applies. Conservative limits:
 >
@@ -224,6 +248,38 @@ Profile entry (account-grouped — `apiKey` is optional since account resolution
   "opencodeSessionHeader": true
 }
 ```
+
+### MiMo-V2.6-Flash (OpenAI-compatible, 1M context, thinking on by default)
+
+The current MiMo generation on OpenCode Go. Use the **bare** model ID `mimo-v2.6-flash` and do **not** pass `--reasoning-effort`.
+
+```powershell
+$env:COPILOT_PROVIDER_BASE_URL = 'https://opencode.ai/zen/go/v1'
+$env:COPILOT_PROVIDER_TYPE = 'openai'
+$env:COPILOT_PROVIDER_API_KEY = $env:OPENCODE_API_KEY_HOME
+$env:COPILOT_MODEL = 'mimo-v2.6-flash'
+$env:COPILOT_PROVIDER_MAX_PROMPT_TOKENS = 872000
+$env:COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = 131072
+copilot
+```
+
+Profile entry (account-grouped — `apiKey` is optional since account resolution overrides it):
+
+```json
+"opencode-go-mimo-v26-flash": {
+  "type": "openai",
+  "baseUrl": "https://opencode-go.local/v1",
+  "offline": false,
+  "reasoningEffortSupported": false,
+  "maxPromptTokens": 872000,
+  "model": "mimo-v2.6-flash",
+  "accountGroup": "opencode",
+  "maxOutputTokens": 131072,
+  "opencodeSessionHeader": true
+}
+```
+
+MiMo-V2.6-Pro (`mimo-v2.6-pro`) is the sibling model in the same family with the same grounding (1M context, 131,072 gateway output cap, thinking on by default); swap the `model` value to use it.
 
 ### GLM-5.3-Flash (OpenAI-compatible, 1M context, multimodal)
 

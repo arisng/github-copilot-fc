@@ -491,7 +491,8 @@ function Get-NoReasoningEffortModels {
         'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
         # MiMo V2.6: Xiaomi API exposes only a binary thinking toggle (mimo.mi.com docs).
         # Bare form (OpenCode Go) + provider/model form (Command Code) — match is exact.
-        'mimo-v2.6-flash', 'xiaomi/mimo-v2.6-flash',
+        # Verified 2026-10-03: the gateway accepts reasoning_effort but ignores it.
+        'mimo-v2.6-flash', 'mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash', 'xiaomi/mimo-v2.6-pro',
         'qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-plus', 'qwen3.5-plus',
         'minimax-m3', 'minimax-m2.7', 'minimax-m2.5'
     )
@@ -1058,12 +1059,20 @@ function Invoke-ProfileAdd {
                     @{ Label = 'GLM-5'; Value = 'glm-5' }
                     @{ Label = 'MiMo-V2.5'; Value = 'mimo-v2.5' }
                     @{ Label = 'MiMo-V2.5-Pro'; Value = 'mimo-v2.5-pro' }
+                    @{ Label = 'MiMo-V2.6-Flash (1M ctx, 131K out — newest)'; Value = 'mimo-v2.6-flash' }
+                    @{ Label = 'MiMo-V2.6-Pro (1M ctx, 131K out)'; Value = 'mimo-v2.6-pro' }
                     @{ Label = 'Other (type model ID manually)'; Value = '__other__' }
                 )
                 if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
                 if ($model -eq '__other__') {
                     $model = Read-RequiredText -Prompt "Enter model ID" -AllowQuit
                     if ($null -eq $model) { Write-Host "Cancelled." -ForegroundColor Yellow; return }
+                }
+                # Grounded by live gateway probes 2026-10-03: MiMo-V2.6 accepts a real
+                # 1,000,009-token prompt and caps output at exactly 131,072 tokens.
+                if ($model -eq 'mimo-v2.6-flash' -or $model -eq 'mimo-v2.6-pro') {
+                    $defaultMaxPromptTokens = 872000
+                    $defaultMaxOutputTokens = 131072
                 }
             }
             else {

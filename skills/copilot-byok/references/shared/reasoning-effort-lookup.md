@@ -24,7 +24,7 @@ For these, never pass `--reasoning-effort`; thinking is implicit or always-on. F
 
 - **Kimi K2.x** (Moonshot AI) — thinking always-on / implicit
 - **GLM** (Zhipu AI) — no controllable levels (includes `glm-5.3-flash`)
-- **MiMo** (Xiaomi) — no controllable levels; the official API exposes only a binary `thinking.type` toggle (`enabled`/`disabled`), enabled by default for `mimo-v2.6-flash` ([Deep Thinking doc](https://mimo.mi.com/static/docs/quick-start/usage-guide/text-generation/deep-thinking.md))
+- **MiMo** (Xiaomi) — no controllable levels; the official API exposes only a binary `thinking.type` toggle (`enabled`/`disabled`), enabled by default for `mimo-v2.6-flash` and `mimo-v2.6-pro` ([Deep Thinking doc](https://mimo.mi.com/static/docs/quick-start/usage-guide/text-generation/deep-thinking.md)). Verified on the OpenCode Go gateway 2026-10-03: both bare IDs return **200** when `reasoning_effort: high` is sent — the parameter is accepted and silently **ignored** rather than rejected, so keep `"reasoningEffortSupported": false` and omit the flag. Responses include `completion_tokens_details.reasoning_tokens` by default.
 - **Qwen3.x** (Alibaba) — implicit thinking (`anthropic` type, `messages` wire per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints); includes `qwen3.8-flash`)
 - **MiniMax** (MiniMax) — implicit thinking (`anthropic` type, `messages` wire)
 - **LongCat-2.0** (Meituan) — no controllable levels (coding model, 1M context; thinking is implicit via `enable_thinking`)
