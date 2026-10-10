@@ -9,7 +9,7 @@ co-located `triage.json`, then defaults).
 |---|---|
 | `triage-queue.ps1` | Human queue / grooming view in the terminal |
 | `triage-signals.ps1` | Issues + labels → all signals as JSON (`-Json`, `-OutFile`); `-NoLabelCheck` skips the taxonomy gate (offline/tests only — the payload is stamped `label_check: "skipped"` and the report refuses it) |
-| `triage-report.ps1` | Signals JSON → self-contained static HTML (requires a v3 payload with `label_check: "passed"`) |
+| `triage-report.ps1` | Signals JSON → self-contained static HTML (requires a v3 payload with `label_check: "passed"`); the header's `generated` stamp is rendered in local time with its UTC offset (the payload keeps the absolute UTC instant, shown in the stamp's tooltip) |
 | `triage-bootstrap.ps1` | Create the missing taxonomy labels (`gh label create`, idempotent: existing labels are skipped, never updated); `-DryRun` previews, `-WriteExampleConfig` writes an ownable triage.json (with `-DryRun` it prints it instead of writing) |
 | `triage-helpers.ps1` | Pure parsing/derivation + taxonomy functions; dot-sourced by the above and by the tests |
 | `tests/test-triage.ps1` | Offline test suite for the gate, bootstrap, report, and helpers (`gh` stubbed) |

@@ -93,6 +93,35 @@ function ConvertTo-HtmlText {
         Replace("'", '&#39;')
 }
 
+function Get-GeneratedStamp {
+    <# The payload's generated_at is an absolute UTC instant. Render it in the local
+    timezone with an explicit offset — a bare UTC stamp reads wrong to anyone not on
+    UTC — and keep the UTC instant in the tooltip. Unparseable input is shown raw
+    rather than failing the whole report. #>
+    param($Stamp)
+    if ($null -eq $Stamp -or "$Stamp" -eq '') { return '' }
+    try {
+        if ($Stamp -is [datetime]) {
+            # ConvertFrom-Json hands the stamp back as a DateTime (Kind Utc for a …Z
+            # value); stringifying it culture-first would drop the zone and silently
+            # re-label the UTC wall clock as local time.
+            $kind = if ($Stamp.Kind -eq [DateTimeKind]::Local) { [DateTimeKind]::Local } else { [DateTimeKind]::Utc }
+            $instant = [datetimeoffset]::new([datetime]::SpecifyKind($Stamp, $kind))
+        }
+        else {
+            # Zone-less strings are UTC per the payload contract; an explicit offset or
+            # Z in the string always wins.
+            $instant = [datetimeoffset]::Parse("$Stamp", [cultureinfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal)
+        }
+        $local = $instant.ToLocalTime().ToString('yyyy-MM-ddTHH:mm:ssK', [cultureinfo]::InvariantCulture)
+        $utc = $instant.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ', [cultureinfo]::InvariantCulture)
+        return "<span title=""$utc (UTC)"">$(ConvertTo-HtmlText $local)</span>"
+    }
+    catch {
+        return ConvertTo-HtmlText "$Stamp"
+    }
+}
+
 function Get-IssueLink {
     param([int]$Number, [string]$Text)
     $label = if ($Text) { $Text } else { "#$Number" }
@@ -401,7 +430,7 @@ $html = @"
 
 <header>
   <h1>Triage Report</h1>
-  <div class="meta">$repoEsc · generated $(ConvertTo-HtmlText $signals.generated_at) · schema v$($signals.schema_version)</div>
+  <div class="meta">$repoEsc · generated $(Get-GeneratedStamp $signals.generated_at) · schema v$($signals.schema_version)</div>
 </header>
 
 <div class="chips">$chips</div>

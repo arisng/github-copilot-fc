@@ -243,6 +243,8 @@ $taxonomyOut = [pscustomobject]@{
 # built with -NoLabelCheck is identifiable instead of looking gate-verified.
 # v2: summary.priority_counts (was p0/p1/p2/p3), grooming.low_priority_accumulation
 # (was p3_accumulation), grooming.stale_priority (was stale_p1), plus the taxonomy block.
+# generated_at stays an absolute UTC instant (age math is UTC); triage-report.ps1
+# renders it in the viewer's local timezone.
 $signals = [pscustomobject]@{
     schema_version = 3
     generated_at   = $Now.ToString('yyyy-MM-ddTHH:mm:ssZ')

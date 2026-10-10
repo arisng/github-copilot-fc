@@ -263,6 +263,22 @@ try {
     Assert-True 'writes the report file' (Test-Path $goodHtml)
     Assert-Match 'emits the report body' 'Triage Report' (Get-Content $goodHtml -Raw)
 
+    Write-Host "`ntriage-report.ps1 stamps the header in local time" -ForegroundColor Yellow
+    Reset-GhStub
+    $tzCache = Join-Path $work 'tz.json'
+    $tzHtml = Join-Path $work 'tz.html'
+    $p = New-GatedSignals -Path $tzCache
+    $p.generated_at = '2026-10-10T15:41:41Z'
+    ($p | ConvertTo-Json -Depth 8) | Set-Content -Path $tzCache -Encoding utf8
+    $r = Invoke-Skill -Script $script:ReportPath -Parameters @{ SignalsFile = $tzCache; OutFile = $tzHtml }
+    Assert-True 'renders a cache with a known generated_at' (-not $r.Threw) $r.Message
+    $tzHtmlText = Get-Content $tzHtml -Raw
+    $expectedLocal = ([datetimeoffset]::Parse('2026-10-10T15:41:41Z')).ToLocalTime().ToString('yyyy-MM-ddTHH:mm:ssK')
+    Assert-Match 'shows the generated stamp in local time' ([regex]::Escape($expectedLocal)) $tzHtmlText
+    Assert-Match 'stamps the header with an explicit UTC offset' 'generated <span title="[^"]+">\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}</span>' $tzHtmlText
+    Assert-Match 'keeps the UTC instant in the tooltip' 'title="2026-10-10T15:41:41Z \(UTC\)"' $tzHtmlText
+    Assert-NotMatch 'does not print the bare UTC stamp as the visible time' 'generated <span[^>]*>2026-10-10T15:41:41Z' $tzHtmlText
+
     Write-Host "`ntriage-bootstrap.ps1" -ForegroundColor Yellow
     Reset-GhStub
     $global:GhLabels = @('needs-triage')

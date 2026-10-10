@@ -8,7 +8,7 @@ description: >
   to work on next. Triggers: triage, needs-triage, issue queue, backlog grooming,
   prioritize, reprioritize, dedup issues, label issues, what should I work on next.
 metadata:
-  version: 0.6.0
+  version: 0.7.0
 ---
 
 # Issue Triage
