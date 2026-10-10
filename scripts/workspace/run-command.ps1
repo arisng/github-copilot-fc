@@ -53,6 +53,7 @@ function Invoke-CopilotWorkspaceCommand {
         'tests:byok-features'  = 'pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1'
         'tests:subsession-audit' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1'
         'tests:subsession-audit-live' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1 -Live'
+        'tests:backlog-triage' = 'pwsh -NoProfile -File skills/backlog-triage/scripts/tests/test-triage.ps1'
         'issues:reindex'       = 'pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1'
         'workspace:list-skills' = 'Get-ChildItem -Path skills -Directory | Select-Object Name'
         'workspace:status'      = "Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"

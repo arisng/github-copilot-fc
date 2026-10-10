@@ -85,26 +85,19 @@ $raw = @(gh issue list --repo $Repo --state all --limit 1000 `
 if ($LASTEXITCODE -ne 0) { throw "gh issue list failed for $Repo (exit $LASTEXITCODE)" }
 
 # Taxonomy gate: the resolved labels must exist in the repo before any signal is
-# derived. Skipped only with -NoLabelCheck (offline/tests - output may be wrong).
-# $null = check skipped; @() = check ran and the repo has no labels.
-$existingLabels = $null
-if (-not $NoLabelCheck) {
-    try {
-        $existingLabels = @((gh label list --repo $Repo --limit 1000 --json name | ConvertFrom-Json) | ForEach-Object { $_.name })
-    }
-    catch {
-        throw "Could not list labels for $Repo - the taxonomy gate cannot run: $($_.Exception.Message). Check gh auth and network, then re-run."
-    }
+# derived. -NoLabelCheck skips the gate (offline/tests - output may be wrong) and
+# stamps label_check='skipped' into the payload so consumers (triage-report.ps1)
+# can refuse it.
+if ($NoLabelCheck) {
+    Write-Warning 'Taxonomy gate skipped via -NoLabelCheck; signals may be wrong or empty.'
+    $tax = Resolve-Taxonomy -Config $cfg
 }
 else {
-    Write-Warning 'Taxonomy gate skipped via -NoLabelCheck; signals may be wrong or empty.'
-}
-
-$taxArgs = @{ Config = $cfg }
-if ($null -ne $existingLabels) { $taxArgs['ExistingLabels'] = $existingLabels }
-$tax = Resolve-Taxonomy @taxArgs
-if (@($tax.missing_labels).Count -gt 0) {
-    throw (Format-TriageGateError -Repo $Repo -ConfigPath $cfgPath -MissingLabels @($tax.missing_labels) -Taxonomy $tax)
+    $existingLabels = @(Get-TriageRepoLabels -Repo $Repo)
+    $tax = Resolve-Taxonomy -Config $cfg -ExistingLabels $existingLabels
+    if (@($tax.missing_labels).Count -gt 0) {
+        throw (Format-TriageGateError -Repo $Repo -ConfigPath $cfgPath -MissingLabels @($tax.missing_labels) -Taxonomy $tax)
+    }
 }
 
 # Local lookup so dependency resolution costs nothing extra.
@@ -243,12 +236,15 @@ $taxonomyOut = [pscustomobject]@{
     stale_priority_codes  = @($tax.stale_priority_codes)
     stale_age_days        = $tax.stale_age_days
     missing_labels        = @($tax.missing_labels)
+    label_check           = if ($NoLabelCheck) { 'skipped' } else { 'passed' }
 }
 
-# Schema v2: summary.priority_counts (was p0/p1/p2/p3), grooming.low_priority_accumulation
+# Schema v3: schema v2 plus taxonomy.label_check ('passed' | 'skipped'), so a cache
+# built with -NoLabelCheck is identifiable instead of looking gate-verified.
+# v2: summary.priority_counts (was p0/p1/p2/p3), grooming.low_priority_accumulation
 # (was p3_accumulation), grooming.stale_priority (was stale_p1), plus the taxonomy block.
 $signals = [pscustomobject]@{
-    schema_version = 2
+    schema_version = 3
     generated_at   = $Now.ToString('yyyy-MM-ddTHH:mm:ssZ')
     repo           = $Repo
     summary = [pscustomobject]@{
@@ -298,9 +294,6 @@ else {
     Write-Host "  unlabeled ................ $($s.unlabeled)"
     $priLine = (@($tax.priority_levels | ForEach-Object { "$($_.code)=$($priorityCounts[$_.code])" }) -join '  ')
     Write-Host "  priority ................. $priLine"
-    if (@($tax.missing_labels).Count -gt 0) {
-        Write-Host "  missing labels ........... $($tax.missing_labels -join ', ')"
-    }
     if ($signals.grooming.blocked_chains.Count -gt 0) {
         Write-Host ""
         Write-Host "  top blocked chains:"

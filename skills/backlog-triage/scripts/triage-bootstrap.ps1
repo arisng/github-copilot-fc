@@ -54,15 +54,43 @@ if ($cfgPath) {
 $Repo = Resolve-TriageRepo -Repo $Repo -Config $cfg -RemoteUrl (Get-TriageOriginRemoteUrl)
 $tax = Resolve-Taxonomy -Config $cfg
 
-try {
-    $existingLabels = @((gh label list --repo $Repo --limit 1000 --json name | ConvertFrom-Json) | ForEach-Object { $_.name })
-}
-catch {
-    throw "Could not list labels for ${Repo}: $($_.Exception.Message). Check gh auth and network, then re-run."
-}
+# Never create labels from a guessed label set: Get-TriageRepoLabels throws when
+# `gh label list` fails, so "existing labels are skipped, never updated" holds.
+$existingLabels = @(Get-TriageRepoLabels -Repo $Repo)
 
 $required = @(Get-TriageRequiredLabels -Taxonomy $tax)
 $missing = @($required | Where-Object { $existingLabels -notcontains $_.name })
+
+if ($WriteExampleConfig) {
+    $example = [ordered]@{
+        repo                  = $Repo
+        needs_triage          = $tax.needs_triage
+        blocked               = $tax.blocked
+        owner_decision        = $tax.owner_decision
+        priority_prefix       = $tax.priority_prefix
+        priority_levels       = @($tax.priority_levels | ForEach-Object { [ordered]@{ code = $_.code; label = $_.label; meaning = $_.meaning } })
+        area_prefix           = $tax.area_prefix
+        type_prefix           = $tax.type_prefix
+        form_priority_heading = $tax.form_priority_heading
+        form_area_heading     = $tax.form_area_heading
+        roadmap_pattern       = $tax.roadmap_pattern
+        goal_pattern          = $tax.goal_pattern
+        due_pattern           = $tax.due_pattern
+        stale_priority_codes  = @($tax.stale_priority_codes)
+        stale_age_days        = $tax.stale_age_days
+    }
+    $payload = $example | ConvertTo-Json -Depth 5
+    if ($DryRun) {
+        Write-Host "[dry-run] would write $WriteExampleConfig`:"
+        Write-Host $payload
+    }
+    else {
+        $dir = Split-Path -Parent $WriteExampleConfig
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        $payload | Set-Content -Path $WriteExampleConfig -Encoding utf8
+        Write-Host "Example config written to $WriteExampleConfig - adapt the label names to your repo and keep it under version control."
+    }
+}
 
 if ($missing.Count -eq 0) {
     Write-Host "Taxonomy gate already passes for $Repo - all $($required.Count) required labels exist."
@@ -85,26 +113,3 @@ if (-not $DryRun) {
     Write-Host "Done. Re-run the queue or signals script - the taxonomy gate should now pass."
 }
 
-if ($WriteExampleConfig) {
-    $example = [ordered]@{
-        repo                  = $Repo
-        needs_triage          = $tax.needs_triage
-        blocked               = $tax.blocked
-        owner_decision        = $tax.owner_decision
-        priority_prefix       = $tax.priority_prefix
-        priority_levels       = @($tax.priority_levels | ForEach-Object { [ordered]@{ code = $_.code; label = $_.label; meaning = $_.meaning } })
-        area_prefix           = $tax.area_prefix
-        type_prefix           = $tax.type_prefix
-        form_priority_heading = $tax.form_priority_heading
-        form_area_heading     = $tax.form_area_heading
-        roadmap_pattern       = $tax.roadmap_pattern
-        goal_pattern          = $tax.goal_pattern
-        due_pattern           = $tax.due_pattern
-        stale_priority_codes  = @($tax.stale_priority_codes)
-        stale_age_days        = $tax.stale_age_days
-    }
-    $dir = Split-Path -Parent $WriteExampleConfig
-    if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
-    ($example | ConvertTo-Json -Depth 5) | Set-Content -Path $WriteExampleConfig -Encoding utf8
-    Write-Host "Example config written to $WriteExampleConfig - adapt the label names to your repo and keep it under version control."
-}

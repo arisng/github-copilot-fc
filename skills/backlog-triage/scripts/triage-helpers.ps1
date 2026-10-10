@@ -4,7 +4,7 @@
     Pure, I/O-free helpers for the triage skill.
 
 .DESCRIPTION
-    Dot-sourced by triage-signals.ps1 and by tests/triage-signals.Tests.ps1 so the
+    Dot-sourced by triage-signals.ps1 and by scripts/tests/test-triage.ps1 so the
     parsing and signal-derivation logic has exactly one definition. Nothing here
     touches the network or GitHub.
 
@@ -16,8 +16,9 @@ function Get-FormSection {
     <#
     Value of a rendered issue-form field: the lines under its "### Heading" marker.
 
-    Written without `break`/`continue` on purpose: Pester 6 aborts a whole run when a
-    loop-control statement escapes from a function called inside a test block
+    Written without `break`/`continue` on purpose: these helpers are dot-sourced by
+    test harnesses too, and a loop-control statement escaping from a function has
+    historically broken Pester runs
     (https://github.com/pester/Pester/issues/2669).
     #>
     param([string]$Body, [string]$Heading)
@@ -381,23 +382,45 @@ function Get-TriageRequiredLabels {
     return @($specs | Sort-Object -Property name -Unique)
 }
 
+function Get-TriageRepoLabels {
+    <#
+    The repo's real label names - or a hard failure.
+
+    A failed `gh label list` must never be read as "this repo has no labels": the
+    gate would then manufacture the mismatches it exists to catch, and
+    triage-bootstrap would create labels blind. @() means the call succeeded and
+    the repo genuinely has no labels; every failure throws.
+    #>
+    param([string]$Repo)
+    $raw = gh label list --repo $Repo --limit 1000 --json name 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not read the label set for ${Repo} (gh label list exit $LASTEXITCODE). The taxonomy gate cannot run blind - check gh auth and network, then re-run."
+    }
+    if (-not $raw) { return @() }
+    return @(($raw | ConvertFrom-Json) | ForEach-Object { $_.name })
+}
+
 function Format-TriageGateError {
     <#
     Loud gate error: what is missing, why triage cannot continue, and the two
-    next steps (create canonical labels via triage-bootstrap.ps1, or map the
+    next steps (create the missing labels via triage-bootstrap.ps1, or map the
     repo's own labels via triage.json). Pure string building - no GitHub calls.
+    Step A carries the same -Config this run resolved, so following it cannot
+    silently switch taxonomies.
     #>
     param([string]$Repo, [string]$ConfigPath, [string[]]$MissingLabels, $Taxonomy)
     $missing = @($MissingLabels) -join ', '
     $from = if ($ConfigPath) { " (from '$ConfigPath')" } else { ' (built-in defaults - no triage.json found)' }
+    $bootstrap = ".\scripts\triage-bootstrap.ps1 -Repo $Repo"
+    if ($ConfigPath) { $bootstrap += " -Config '$ConfigPath'" }
     $lines = @()
     $lines += "Triage taxonomy gate FAILED for ${Repo}: required labels missing: $missing."
     $lines += "Resolved$from. Triage cannot continue - the queue and signals would be wrong or empty."
     $lines += ''
-    $lines += 'Next step - pick one:'
-    $lines += "  A. Create the canonical labels:  .\scripts\triage-bootstrap.ps1 -Repo $Repo"
-    $lines += '  B. Map your own labels instead: add a triage.json (triage.json / .triage.json / .github/triage.json)'
-    $lines += '     in the target repo checkout mapping each concept to your label names, e.g.'
+    $lines += 'Next step - pick one (both run from the installed skill folder):'
+    $lines += "  A. Create the missing labels, same taxonomy as this run:  $bootstrap"
+    $lines += '  B. Map other labels instead: add a triage.json (triage.json / .triage.json / .github/triage.json)'
+    $lines += '     to the target repo checkout, or pass -Config <path> to scripts run from elsewhere, e.g.'
     $lines += '       { "needs_triage": "status/triage", "blocked": "kind/blocked",'
     $lines += '         "priority_levels": [{ "code": "P0", "label": "sev/critical" }] }'
     $lines += "     Then re-run the queue or signals script. See references/taxonomy.md ('Config file')."

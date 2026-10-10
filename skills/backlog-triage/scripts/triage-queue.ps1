@@ -59,23 +59,17 @@ if ($cfgPath) {
 # origin remote of the current checkout. No silent default repo: a wrong guess
 # would quietly query an unrelated repository.
 $Repo = Resolve-TriageRepo -Repo $Repo -Config $cfg -RemoteUrl (Get-TriageOriginRemoteUrl)
-$tax = Resolve-Taxonomy -Config $cfg
 
 # Taxonomy gate: the resolved labels must exist in the repo before any triage
 # output. A stale config (e.g. the defaults against a repo using status/triage)
 # would otherwise render an empty queue as if there were nothing to triage.
 # -NoLabelCheck skips the gate (offline/tests only - output may be wrong).
 if ($NoLabelCheck) {
-    $tax = Resolve-Taxonomy -Config $cfg
     Write-Warning 'Taxonomy gate skipped via -NoLabelCheck; the queue may be wrong or empty.'
+    $tax = Resolve-Taxonomy -Config $cfg
 }
 else {
-    try {
-        $existingLabels = @((gh label list --repo $Repo --limit 1000 --json name | ConvertFrom-Json) | ForEach-Object { $_.name })
-    }
-    catch {
-        throw "Could not list labels for $Repo - the taxonomy gate cannot run: $($_.Exception.Message). Check gh auth and network, then re-run."
-    }
+    $existingLabels = @(Get-TriageRepoLabels -Repo $Repo)
     $tax = Resolve-Taxonomy -Config $cfg -ExistingLabels $existingLabels
     if (@($tax.missing_labels).Count -gt 0) {
         throw (Format-TriageGateError -Repo $Repo -ConfigPath $cfgPath -MissingLabels @($tax.missing_labels) -Taxonomy $tax)

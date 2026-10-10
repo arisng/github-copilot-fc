@@ -8,19 +8,24 @@ co-located `triage.json`, then defaults).
 | Script | Purpose |
 |---|---|
 | `triage-queue.ps1` | Human queue / grooming view in the terminal |
-| `triage-signals.ps1` | Issues + labels → all signals as JSON (`-Json`, `-OutFile`); `-NoLabelCheck` skips the taxonomy gate (offline/tests only) |
-| `triage-report.ps1` | Signals JSON → self-contained static HTML |
-| `triage-bootstrap.ps1` | Create missing taxonomy labels (`gh label create`, idempotent); `-DryRun` previews, `-WriteExampleConfig` writes an ownable triage.json |
+| `triage-signals.ps1` | Issues + labels → all signals as JSON (`-Json`, `-OutFile`); `-NoLabelCheck` skips the taxonomy gate (offline/tests only — the payload is stamped `label_check: "skipped"` and the report refuses it) |
+| `triage-report.ps1` | Signals JSON → self-contained static HTML (requires a v3 payload with `label_check: "passed"`) |
+| `triage-bootstrap.ps1` | Create the missing taxonomy labels (`gh label create`, idempotent: existing labels are skipped, never updated); `-DryRun` previews, `-WriteExampleConfig` writes an ownable triage.json (with `-DryRun` it prints it instead of writing) |
 | `triage-helpers.ps1` | Pure parsing/derivation + taxonomy functions; dot-sourced by the above and by the tests |
+| `tests/test-triage.ps1` | Offline test suite for the gate, bootstrap, report, and helpers (`gh` stubbed) |
 
-Full parameter sets: `triage-queue.ps1` also takes `-All`;
+Full parameter sets: `triage-queue.ps1` also takes `-All`/`-NoLabelCheck`;
 `triage-signals.ps1` also takes `-Json`/`-OutFile`/`-Now`/`-NoLabelCheck`;
+`triage-bootstrap.ps1` also takes `-DryRun`/`-WriteExampleConfig`;
 `triage-report.ps1` also takes `-SignalsFile`/`-OutFile` (`-Config`/`-Repo`
 are only used when the signals file must be generated — otherwise the report
 renders from the payload's own `taxonomy` block and warns on a mismatch).
 
-Tests: `task test:ps1` (Pester). The helpers are covered without network
-access; the end-to-end cases are skipped when `SKIP_NETWORK_TESTS=1`.
+Tests: offline, dependency-free (the `gh` calls are stubbed, no network, no Pester):
+
+```powershell
+pwsh -NoProfile -File ./scripts/tests/test-triage.ps1
+```
 
 ## Full-lifecycle operations
 

@@ -31,6 +31,12 @@ Discovery order:
    a hand-maintained config travels with it.
 4. Built-in defaults — the skill works with zero config.
 
+Discovery is relative to the **current directory**, so a config kept in the
+target repo is found only when the scripts run from that checkout; from the
+installed skill folder (or anywhere else) pass `-Config <path>` instead. A gate
+failure names the config a run resolved (`Resolved (from '…')`), so it is easy
+to see which one won.
+
 ```json
 {
   "repo": "owner/name",
@@ -65,23 +71,31 @@ keep the default.
 - **Taxonomy gate (hard).** `triage-queue.ps1` and `triage-signals.ps1` fetch
   the repo's real label set (`gh label list`) and **throw** when a required
   label is missing — no queue, no signals, no report. The error names every
-  missing label and proposes both next steps: create the canonical labels via
-  `triage-bootstrap.ps1`, or map the repo's own labels via `triage.json`.
-  A `gh label list` failure also throws (the gate cannot run blind).
-  `-NoLabelCheck` skips the gate for offline/tests only.
+  missing label and proposes both next steps: create the missing labels via
+  `triage-bootstrap.ps1` (the printed command carries the same `-Config` the
+  failing run resolved), or map the repo's own labels via `triage.json`.
+  A `gh label list` failure also throws: the label set is never guessed, so a
+  failed call cannot be misread as "this repo has no labels" — which would both
+  misdiagnose auth/network problems and let `triage-bootstrap.ps1` create
+  labels blind.
+- `-NoLabelCheck` skips the gate for offline/tests only. The payload then
+  records `taxonomy.label_check = "skipped"`, and `triage-report.ps1` refuses
+  such a cache — a gate-skipped payload can never pass as a verified one.
 - Required labels = enabled single-label concepts (`needs_triage`, `blocked`,
   `owner_decision`) + every `priority_levels[]` label. Prefix families
   (`area:`, `type:`) are open-ended and never required; `null`/empty disables
-  a concept. Unknown labels on issues are ignored.
+  a concept. Unknown labels on issues are ignored. `triage-bootstrap.ps1`
+  creates exactly this set, so a completed bootstrap always satisfies the gate.
 - Non-fatal: `null`/empty patterns (extractor skipped), disabled concepts
   (checks skipped).
 - Aborts the run: missing explicit `-Config` file, unparseable config (no
-  silent fallback to defaults), `gh` failure on the issue list. Unknown config
-  keys are skipped with a warning.
+  silent fallback to defaults), `gh` failure on the label set or the issue
+  list. Unknown config keys are skipped with a warning.
 - `priority_levels` and `stale_priority_codes` are non-nullable (empty overlay
   keeps base values); `stale_age_days` must be a positive integer. Regex
   patterns are validated at resolution: invalid or capture-less patterns warn
   and fall back to the default.
-- Signals payload is versioned (`schema_version`, currently **2**). The report
-  throws on a non-v2 cache or a payload whose `taxonomy.missing_labels` is
-  non-empty — regenerate via `triage-signals.ps1` after fixing the gate.
+- Signals payload is versioned (`schema_version`, currently **3**). The report
+  throws on a cache that is not v3, on `taxonomy.label_check != "passed"`, and
+  on a payload whose `taxonomy.missing_labels` is non-empty — regenerate via
+  `triage-signals.ps1` after fixing the gate.

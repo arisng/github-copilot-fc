@@ -8,7 +8,7 @@ description: >
   to work on next. Triggers: triage, needs-triage, issue queue, backlog grooming,
   prioritize, reprioritize, dedup issues, label issues, what should I work on next.
 metadata:
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Issue Triage
@@ -22,7 +22,7 @@ see [taxonomy](references/taxonomy.md).
 
 ## Workflow
 
-0. Pass the taxonomy gate (step 0 below) — resolution must succeed before anything else.
+0. Pass the taxonomy gate (Step 0 below) — resolution must succeed before anything else.
 1. Resolve the repo (`-Repo` > config `repo` > origin remote > error) and taxonomy
    ([taxonomy](references/taxonomy.md)).
 2. Show the queue (terminal) — needs-triage issues with form-proposed priority/area.
@@ -31,33 +31,40 @@ see [taxonomy](references/taxonomy.md).
 5. Apply with `gh`, then handle closes/splits/re-anchors ([ops](references/operations.md)).
 
 Run from the installed skill folder (the folder containing this `SKILL.md`).
+Config discovery is relative to the current directory, so a `triage.json` kept in
+the target repo is found only when you run from that checkout — otherwise pass
+`-Config <path>`.
 
 ## Step 0 — taxonomy gate (mandatory)
 
 Every entry point resolves the taxonomy against the repo's **real** label set
 (`gh label list`) and **stops** when a required label is missing. No queue, no
 signals, no report — a stale config would otherwise render an empty queue as if
-there were nothing to triage.
+there were nothing to triage. A failed `gh label list` also stops the run: the
+label set is never guessed.
 
 On failure the scripts throw with both next steps:
 
-- **A. Create the canonical labels** (keep the skill's default names):
+- **A. Create the missing labels** (same taxonomy the failing run resolved; the
+  printed command carries its `-Config` when one was in play):
 
   ```powershell
-  .\scripts\triage-bootstrap.ps1 -Repo owner/name
+  .\scripts\triage-bootstrap.ps1 -Repo owner/name [-Config path/to/triage.json]
   ```
 
 - **B. Map your own labels** (keep your repo's names): add a `triage.json`
   (`triage.json` / `.triage.json` / `.github/triage.json` in the target repo
-  checkout) mapping each concept — see [taxonomy](references/taxonomy.md#config-file).
-  Or preview one via `-WriteExampleConfig`:
+  checkout — or pass `-Config <path>`) mapping each concept — see
+  [taxonomy](references/taxonomy.md#config-file). Or preview one via
+  `-WriteExampleConfig`:
 
   ```powershell
   .\scripts\triage-bootstrap.ps1 -Repo owner/name -WriteExampleConfig .github/triage.json
   ```
 
 Then re-run the queue or signals script. `-NoLabelCheck` skips the gate for
-offline/tests only — output may be wrong or empty.
+offline/tests only: output may be wrong or empty, the payload is stamped
+`taxonomy.label_check: "skipped"`, and `triage-report.ps1` refuses to render it.
 
 ## Queue
 

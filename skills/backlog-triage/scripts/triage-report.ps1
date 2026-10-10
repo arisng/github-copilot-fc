@@ -65,8 +65,11 @@ $tax = $signals.taxonomy
 if ($Config -and $tax.config_path -and $Config -ne $tax.config_path) {
     Write-Warning "Signals file was generated from '$($tax.config_path)' but -Config '$Config' was requested; re-run triage-signals.ps1 to refresh."
 }
-if ($signals.schema_version -ne 2) {
-    throw "Signals file uses schema v$($signals.schema_version); this report expects v2. Delete '$SignalsFile' and re-run triage-signals.ps1."
+if ($signals.schema_version -ne 3) {
+    throw "Signals file uses schema v$($signals.schema_version); this report expects v3. Delete '$SignalsFile' and re-run triage-signals.ps1."
+}
+if ("$($signals.taxonomy.label_check)" -ne 'passed') {
+    throw "Signals file was generated with the taxonomy gate skipped (label_check='$($signals.taxonomy.label_check)'). It may be wrong or empty. Fix the taxonomy (triage-bootstrap.ps1 or triage.json), then re-run triage-signals.ps1."
 }
 if (@($signals.taxonomy.missing_labels).Count -gt 0) {
     $missing = @($signals.taxonomy.missing_labels) -join ', '
@@ -288,12 +291,6 @@ $chips = (@($tax.priority_levels | ForEach-Object {
 
 $attention = @($s.overdue + $s.needs_triage + $s.stale_dependency_refs + $s.missing_blocked_label + $s.unlabeled)
 
-$missingLabels = @($tax.missing_labels)
-$missingBanner = if ($missingLabels.Count -gt 0) {
-    $items = ($missingLabels | ForEach-Object { "<code>$(ConvertTo-HtmlText $_)</code>" }) -join ' '
-    "<div class=""banner attention"">Taxonomy references labels not present in $(ConvertTo-HtmlText $Repo): $items — check the triage config.</div>"
-} else { '' }
-
 $repoEsc = ConvertTo-HtmlText $Repo
 $html = @"
 <!DOCTYPE html>
@@ -408,8 +405,6 @@ $html = @"
 </header>
 
 <div class="chips">$chips</div>
-
-$missingBanner
 
 $(if ($attention -gt 0) {
   "<div class=""banner attention"">$attention item(s) need attention — $($s.overdue) overdue · $($s.needs_triage) awaiting triage · $($s.stale_dependency_refs) stale dependency refs · $($s.missing_blocked_label) missing blocked label · $($s.unlabeled) unlabeled</div>"
