@@ -21,6 +21,9 @@
     Show the full open backlog grouped by priority instead of only the
     needs-triage queue.
 
+.PARAMETER NoLabelCheck
+    Skip the taxonomy gate (offline/tests only - the output may be wrong or empty).
+
 .EXAMPLE
     pwsh .github/skills/triage/scripts/triage-queue.ps1
     pwsh .github/skills/triage/scripts/triage-queue.ps1 -All
@@ -29,7 +32,8 @@
 param(
     [string]$Repo = "",
     [switch]$All,
-    [string]$Config
+    [string]$Config,
+    [switch]$NoLabelCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,7 +52,7 @@ $cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot (Get-Location).P
 $cfg = $null
 if ($cfgPath) {
     try { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
-    catch { Write-Warning "Could not parse triage config '$cfgPath': $($_.Exception.Message); using defaults." }
+    catch { throw "Could not parse triage config '$cfgPath': $($_.Exception.Message). Fix the JSON or point -Config at a valid file." }
 }
 
 # -Repo (when passed) is authoritative; otherwise the config's repo, then the
@@ -57,18 +61,25 @@ if ($cfgPath) {
 $Repo = Resolve-TriageRepo -Repo $Repo -Config $cfg -RemoteUrl (Get-TriageOriginRemoteUrl)
 $tax = Resolve-Taxonomy -Config $cfg
 
-# Validate the configured labels against the repo's real label set. Without this,
-# a stale config (e.g. the fin-ops defaults against a repo using status/triage)
-# renders an empty queue as if there were nothing to triage.
-try {
-    $existingLabels = @((gh label list --repo $Repo --limit 1000 --json name | ConvertFrom-Json) | ForEach-Object { $_.name })
+# Taxonomy gate: the resolved labels must exist in the repo before any triage
+# output. A stale config (e.g. the defaults against a repo using status/triage)
+# would otherwise render an empty queue as if there were nothing to triage.
+# -NoLabelCheck skips the gate (offline/tests only - output may be wrong).
+if ($NoLabelCheck) {
+    $tax = Resolve-Taxonomy -Config $cfg
+    Write-Warning 'Taxonomy gate skipped via -NoLabelCheck; the queue may be wrong or empty.'
+}
+else {
+    try {
+        $existingLabels = @((gh label list --repo $Repo --limit 1000 --json name | ConvertFrom-Json) | ForEach-Object { $_.name })
+    }
+    catch {
+        throw "Could not list labels for $Repo - the taxonomy gate cannot run: $($_.Exception.Message). Check gh auth and network, then re-run."
+    }
     $tax = Resolve-Taxonomy -Config $cfg -ExistingLabels $existingLabels
     if (@($tax.missing_labels).Count -gt 0) {
-        Write-Warning ("Triage config references labels not present in ${Repo}: " + ($tax.missing_labels -join ', ') + " - check -Config / triage.json; the queue may be wrong or empty.")
+        throw (Format-TriageGateError -Repo $Repo -ConfigPath $cfgPath -MissingLabels @($tax.missing_labels) -Taxonomy $tax)
     }
-}
-catch {
-    Write-Warning "Could not list labels for $Repo (skipping taxonomy validation): $($_.Exception.Message)"
 }
 
 $issues = (gh issue list --repo $Repo --state open --limit $PageLimit `

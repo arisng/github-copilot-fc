@@ -8,8 +8,9 @@ co-located `triage.json`, then defaults).
 | Script | Purpose |
 |---|---|
 | `triage-queue.ps1` | Human queue / grooming view in the terminal |
-| `triage-signals.ps1` | Issues + labels → all signals as JSON (`-Json`, `-OutFile`); `-NoLabelCheck` skips label validation |
+| `triage-signals.ps1` | Issues + labels → all signals as JSON (`-Json`, `-OutFile`); `-NoLabelCheck` skips the taxonomy gate (offline/tests only) |
 | `triage-report.ps1` | Signals JSON → self-contained static HTML |
+| `triage-bootstrap.ps1` | Create missing taxonomy labels (`gh label create`, idempotent); `-DryRun` previews, `-WriteExampleConfig` writes an ownable triage.json |
 | `triage-helpers.ps1` | Pure parsing/derivation + taxonomy functions; dot-sourced by the above and by the tests |
 
 Full parameter sets: `triage-queue.ps1` also takes `-All`;

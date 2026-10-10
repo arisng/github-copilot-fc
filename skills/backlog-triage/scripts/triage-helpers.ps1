@@ -333,6 +333,82 @@ function Resolve-Taxonomy {
     return $t
 }
 
+function Get-TriageLabelSpec {
+    <#
+    Display spec (color + description) for one required label: canonical defaults
+    for the built-in taxonomy, sensible fallbacks for custom mappings.
+    #>
+    param([string]$Concept, [string]$Name, $Level)
+    $colors = @{
+        needs_triage   = 'FBCA04'
+        blocked        = 'E99695'
+        owner_decision = '7057FF'
+        P0             = 'B60205'
+        P1             = 'D93F0B'
+        P2             = '0075CA'
+        P3             = '0E8A16'
+    }
+    if ($Concept -eq 'priority_levels' -and $Level) {
+        $code = "$($Level.code)"
+        $color = if ($colors.ContainsKey($code)) { $colors[$code] } else { '0075CA' }
+        $desc = if ($Level.meaning) { "$code - $($Level.meaning)" } else { "Triage priority $code" }
+        return [pscustomobject]@{ name = $Name; description = $desc; color = $color; concept = $Concept }
+    }
+    $descriptions = @{
+        needs_triage   = 'Untriaged marker - the triage queue is exactly these'
+        blocked        = 'Waiting on a dependency'
+        owner_decision = 'Needs owner confirmation before work proceeds'
+    }
+    $color = if ($colors.ContainsKey($Concept)) { $colors[$Concept] } else { '0075CA' }
+    $desc = if ($descriptions.ContainsKey($Concept)) { $descriptions[$Concept] } else { "Triage label $Name" }
+    return [pscustomobject]@{ name = $Name; description = $desc; color = $color; concept = $Concept }
+}
+
+function Get-TriageRequiredLabels {
+    <#
+    Required exact labels for a resolved taxonomy: the enabled single-label
+    concepts plus every priority level label. Prefix families (area:/type:) are
+    open-ended and never required. Disabled concepts ($null/empty) are skipped.
+    #>
+    param($Taxonomy)
+    $specs = @()
+    foreach ($k in 'needs_triage', 'blocked', 'owner_decision') {
+        if ($Taxonomy.$k) { $specs += Get-TriageLabelSpec -Concept $k -Name $Taxonomy.$k }
+    }
+    foreach ($lvl in @($Taxonomy.priority_levels)) {
+        if ($lvl -and $lvl.label) { $specs += Get-TriageLabelSpec -Concept 'priority_levels' -Name $lvl.label -Level $lvl }
+    }
+    return @($specs | Sort-Object -Property name -Unique)
+}
+
+function Format-TriageGateError {
+    <#
+    Loud gate error: what is missing, why triage cannot continue, and the two
+    next steps (create canonical labels via triage-bootstrap.ps1, or map the
+    repo's own labels via triage.json). Pure string building - no GitHub calls.
+    #>
+    param([string]$Repo, [string]$ConfigPath, [string[]]$MissingLabels, $Taxonomy)
+    $missing = @($MissingLabels) -join ', '
+    $from = if ($ConfigPath) { " (from '$ConfigPath')" } else { ' (built-in defaults - no triage.json found)' }
+    $lines = @()
+    $lines += "Triage taxonomy gate FAILED for ${Repo}: required labels missing: $missing."
+    $lines += "Resolved$from. Triage cannot continue - the queue and signals would be wrong or empty."
+    $lines += ''
+    $lines += 'Next step - pick one:'
+    $lines += "  A. Create the canonical labels:  .\scripts\triage-bootstrap.ps1 -Repo $Repo"
+    $lines += '  B. Map your own labels instead: add a triage.json (triage.json / .triage.json / .github/triage.json)'
+    $lines += '     in the target repo checkout mapping each concept to your label names, e.g.'
+    $lines += '       { "needs_triage": "status/triage", "blocked": "kind/blocked",'
+    $lines += '         "priority_levels": [{ "code": "P0", "label": "sev/critical" }] }'
+    $lines += "     Then re-run the queue or signals script. See references/taxonomy.md ('Config file')."
+    if ($Taxonomy -and $Taxonomy.source -eq 'defaults') {
+        $lines += ''
+        $lines += 'Note: no config was found, so the built-in defaults were used. Option B (your own'
+        $lines += 'triage.json) is the expected path for repos that do not use the default label names.'
+    }
+    return ($lines -join "`n")
+}
+
 function Get-TriageConfigCandidates {
     <# Ordered repo-local config candidates for a checkout root. #>
     param([string]$RepoRoot)

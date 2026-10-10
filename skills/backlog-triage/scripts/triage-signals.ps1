@@ -70,7 +70,7 @@ $cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot (Get-Location).P
 $cfg = $null
 if ($cfgPath) {
     try { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
-    catch { Write-Warning "Could not parse triage config '$cfgPath': $($_.Exception.Message); using defaults." }
+    catch { throw "Could not parse triage config '$cfgPath': $($_.Exception.Message). Fix the JSON or point -Config at a valid file." }
 }
 
 # -Repo (when passed) is authoritative; otherwise the config's repo, then the
@@ -84,8 +84,8 @@ $raw = @(gh issue list --repo $Repo --state all --limit 1000 `
             --json number,title,state,createdAt,labels,body | ConvertFrom-Json)
 if ($LASTEXITCODE -ne 0) { throw "gh issue list failed for $Repo (exit $LASTEXITCODE)" }
 
-# The label set lets us flag a config that references labels the repo does not have.
-# A second, cheap call; skipped with -NoLabelCheck. Failure here is non-fatal.
+# Taxonomy gate: the resolved labels must exist in the repo before any signal is
+# derived. Skipped only with -NoLabelCheck (offline/tests - output may be wrong).
 # $null = check skipped; @() = check ran and the repo has no labels.
 $existingLabels = $null
 if (-not $NoLabelCheck) {
@@ -93,15 +93,18 @@ if (-not $NoLabelCheck) {
         $existingLabels = @((gh label list --repo $Repo --limit 1000 --json name | ConvertFrom-Json) | ForEach-Object { $_.name })
     }
     catch {
-        Write-Warning "Could not list labels for $Repo (skipping taxonomy validation): $($_.Exception.Message)"
+        throw "Could not list labels for $Repo - the taxonomy gate cannot run: $($_.Exception.Message). Check gh auth and network, then re-run."
     }
+}
+else {
+    Write-Warning 'Taxonomy gate skipped via -NoLabelCheck; signals may be wrong or empty.'
 }
 
 $taxArgs = @{ Config = $cfg }
 if ($null -ne $existingLabels) { $taxArgs['ExistingLabels'] = $existingLabels }
 $tax = Resolve-Taxonomy @taxArgs
 if (@($tax.missing_labels).Count -gt 0) {
-    Write-Warning ("Taxonomy references labels not present in ${Repo}: " + ($tax.missing_labels -join ', '))
+    throw (Format-TriageGateError -Repo $Repo -ConfigPath $cfgPath -MissingLabels @($tax.missing_labels) -Taxonomy $tax)
 }
 
 # Local lookup so dependency resolution costs nothing extra.

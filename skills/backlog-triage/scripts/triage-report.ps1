@@ -66,7 +66,11 @@ if ($Config -and $tax.config_path -and $Config -ne $tax.config_path) {
     Write-Warning "Signals file was generated from '$($tax.config_path)' but -Config '$Config' was requested; re-run triage-signals.ps1 to refresh."
 }
 if ($signals.schema_version -ne 2) {
-    Write-Warning "Signals file uses schema v$($signals.schema_version); this report expects v2. Delete it and re-run triage-signals.ps1."
+    throw "Signals file uses schema v$($signals.schema_version); this report expects v2. Delete '$SignalsFile' and re-run triage-signals.ps1."
+}
+if (@($signals.taxonomy.missing_labels).Count -gt 0) {
+    $missing = @($signals.taxonomy.missing_labels) -join ', '
+    throw "Signals file was generated with missing taxonomy labels: $missing. Fix the taxonomy gate first (re-run triage-signals.ps1), then regenerate this report."
 }
 
 # Taxonomy-driven label helpers (shared with the other scripts and the tests).

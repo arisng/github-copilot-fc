@@ -62,19 +62,26 @@ keep the default.
 
 ## Validation and schema
 
-- `triage-signals.ps1` and `triage-queue.ps1` fetch the repo's real label set (a
-  second, cheap `gh` call; skip in signals with `-NoLabelCheck`) and record any
-  configured label the repo lacks under `taxonomy.missing_labels` — console
-  warning and HTML banner. Without this a stale config renders an empty queue
-  as if there were nothing to triage.
-- Non-fatal: unknown labels on issues, `null`/empty patterns (extractor
-  skipped), disabled concepts (checks skipped).
-- Aborts the run: missing explicit `-Config` file, `gh` failure on the issue
-  list. Unparseable config falls back to defaults with a warning; unknown keys
-  are skipped with a warning.
+- **Taxonomy gate (hard).** `triage-queue.ps1` and `triage-signals.ps1` fetch
+  the repo's real label set (`gh label list`) and **throw** when a required
+  label is missing — no queue, no signals, no report. The error names every
+  missing label and proposes both next steps: create the canonical labels via
+  `triage-bootstrap.ps1`, or map the repo's own labels via `triage.json`.
+  A `gh label list` failure also throws (the gate cannot run blind).
+  `-NoLabelCheck` skips the gate for offline/tests only.
+- Required labels = enabled single-label concepts (`needs_triage`, `blocked`,
+  `owner_decision`) + every `priority_levels[]` label. Prefix families
+  (`area:`, `type:`) are open-ended and never required; `null`/empty disables
+  a concept. Unknown labels on issues are ignored.
+- Non-fatal: `null`/empty patterns (extractor skipped), disabled concepts
+  (checks skipped).
+- Aborts the run: missing explicit `-Config` file, unparseable config (no
+  silent fallback to defaults), `gh` failure on the issue list. Unknown config
+  keys are skipped with a warning.
 - `priority_levels` and `stale_priority_codes` are non-nullable (empty overlay
   keeps base values); `stale_age_days` must be a positive integer. Regex
   patterns are validated at resolution: invalid or capture-less patterns warn
   and fall back to the default.
 - Signals payload is versioned (`schema_version`, currently **2**). The report
-  refuses a non-v2 cache with a warning telling you to regenerate.
+  throws on a non-v2 cache or a payload whose `taxonomy.missing_labels` is
+  non-empty — regenerate via `triage-signals.ps1` after fixing the gate.
