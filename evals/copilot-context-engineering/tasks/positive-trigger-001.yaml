@@ -1,0 +1,16 @@
+id: positive-trigger-001
+name: Codify lesson trigger
+description: "Prompt to codify a lesson into agent files triggers the skill."
+tags:
+  - positive-trigger
+  - trigger
+inputs:
+  prompt: "We learned in today's debugging session that URL resolution must go through the shared resolver. Codify this lesson into our .github agent files."
+expected:
+  should_trigger: true
+graders:
+  - type: text
+    name: mentions-owner
+    config:
+      contains:
+        - "owner"

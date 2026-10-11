@@ -1,0 +1,38 @@
+name: copilot-context-engineering-eval
+description: >
+  Behavioral evaluation for the copilot-context-engineering skill — single-owner
+  placement and inherit-by-reference refinement of .github customization files.
+  Tests trigger accuracy, owner selection, and anti-duplication behavior.
+skill: copilot-context-engineering
+version: "0.3.0"
+config:
+  trials_per_task: 2
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+  skill_directories:
+    - ../../skills/copilot-context-engineering
+metrics:
+  - name: task_completion
+    weight: 0.4
+    threshold: 0.8
+    description: Overall completion quality target.
+  - name: trigger_accuracy
+    weight: 0.3
+    # Observed 2026-10-11: detector marks ~55% even when responses demonstrably
+    # quote the skill (decision table, thin pointers) — it appears to require an
+    # explicit skill-read event, which auto-injected skills skip. All negative
+    # triggers pass. Behavior tasks are the real quality gate; this metric
+    # catches total trigger loss (0%) and false-positive regressions.
+    threshold: 0.5
+    description: Skill triggers on codify/owner/drift prompts and ignores unrelated work.
+  - name: behavior_quality
+    weight: 0.3
+    threshold: 0.7
+    description: Output picks exactly one owner and uses thin pointers, never duplicated prose.
+# Note: no token-budget grader here. The copilot-sdk executor reports whole-session
+# token usage (26k-135k per task), which makes a 4k-style budget grader fail every
+# task regardless of skill quality.
+tasks:
+  - "tasks/*.yaml"

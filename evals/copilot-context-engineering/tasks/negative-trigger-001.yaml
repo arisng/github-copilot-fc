@@ -1,0 +1,17 @@
+id: negative-trigger-001
+name: Compile error should not trigger
+description: "Fixing a compile error is unrelated to context engineering."
+tags:
+  - negative-trigger
+  - trigger
+inputs:
+  prompt: "fix this compile error in src/app.ts"
+expected:
+  should_trigger: false
+graders:
+  - type: text
+    name: no-owner-table-output
+    config:
+      not_contains:
+        - "Owner-Assignment"
+        - "Inherit by Reference"

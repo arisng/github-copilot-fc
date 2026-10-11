@@ -1,0 +1,31 @@
+id: behavioral-001
+name: Duplicated prose resolved with one owner and pointers
+description: >
+  When the same rule prose exists in an instructions file and an agent file,
+  the skill picks one owner and replaces the copy with a thin pointer —
+  it never keeps or creates duplicated prose.
+tags:
+  - behavioral
+  - dedup
+inputs:
+  prompt: >
+    Our operations instructions file and our orchestrator agent both contain
+    the same paragraph: "Restart the orchestrator rather than individual
+    project resources mid-run; resources can hang waiting." Resolve this drift.
+  context:
+    scenario: >
+      .github/instructions/operations.instructions.md and
+      .github/agents/orchestrator.agent.md each hold the identical lesson
+      paragraph. The host repo follows the .github standard.
+expected:
+  should_trigger: true
+  output_contains:
+    - "owner"
+graders:
+  - type: text
+    name: single-owner-with-pointer
+    config:
+      contains:
+        - "owner"
+      not_contains:
+        - "paste the same paragraph into"

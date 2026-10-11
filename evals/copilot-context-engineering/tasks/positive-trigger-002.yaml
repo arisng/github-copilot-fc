@@ -1,0 +1,16 @@
+id: positive-trigger-002
+name: Owner decision trigger
+description: "Asking which file should own a rule triggers the skill."
+tags:
+  - positive-trigger
+  - trigger
+inputs:
+  prompt: "Which file in .github should own this cross-cutting auth rule so we avoid drift?"
+expected:
+  should_trigger: true
+graders:
+  - type: text
+    name: mentions-owner
+    config:
+      contains:
+        - "owner"

@@ -1,0 +1,37 @@
+skill: copilot-context-engineering
+should_trigger_prompts:
+  - prompt: "codify this lesson into our agent files"
+    reason: Direct codify-lessons trigger phrase from the description
+    confidence: high
+  - prompt: "add a rule to our .github instructions"
+    reason: Adding a rule to agent/skill/instruction files
+    confidence: high
+  - prompt: "which file should own this rule?"
+    reason: Owner-assignment decision — core use case
+    confidence: high
+  - prompt: "we have the same guidance duplicated in an agent and a skill"
+    reason: Drift/duplication smell — the skill's fix target
+    confidence: high
+  - prompt: "make this cross-cutting rule a single source of truth"
+    reason: Paraphrased single-source intent
+    confidence: medium
+  - prompt: "refine our agent customization after the merge"
+    reason: Post-merge refinement phrasing from the description
+    confidence: medium
+
+should_not_trigger_prompts:
+  - prompt: "fix this compile error"
+    reason: Debugging task, not codification
+    confidence: high
+  - prompt: "create a new custom agent for code review from scratch"
+    reason: Creating new customization files is an explicit non-trigger
+    confidence: high
+  - prompt: "publish my skills to my personal folder"
+    reason: Publishing workflow — different skill owns it
+    confidence: high
+  - prompt: "write unit tests for auth module"
+    reason: Testing task, unrelated
+    confidence: high
+  - prompt: "deploy to production"
+    reason: Deployment task, unrelated
+    confidence: high
