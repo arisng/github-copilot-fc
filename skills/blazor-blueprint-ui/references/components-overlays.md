@@ -23,7 +23,9 @@ Root layout requirements:
 - `<BbToastProvider />` is required for `ToastService` / toast notifications.
 - `<BbDialogProvider />` is required for `DialogService`.
 
-Use `AsChild` whenever you want a styled trigger such as `BbButton` to own the rendered element.
+Use `AsChild` whenever you want a styled trigger such as `BbButton` to own the rendered element. In v4, `BbTooltipTrigger`, `BbDrawerTrigger` and `BbDrawerClose` default `AsChild` to `false` — set it explicitly to `true` when the child consumes the trigger context. Drawer triggers render a real `<button>`, so a `BbButton` child needs `AsChild="true"` to avoid invalid nested buttons. See [patterns.md § AsChild pattern and defaults](patterns.md).
+
+Native dialogs: `BbDialog RenderingStrategy="OverlayRenderingStrategy.Native"` renders the browser's own `<dialog>` in the top layer (no portal handshake, works across render-mode boundaries). Only `BbDialog` takes the parameter; `BbAlertDialog`, `BbCommandDialog` and similar follow the app-wide `OverlayRenderingOptions.DefaultStrategy`. Browsers without `showModal()` fall back to the portal path, so keep `BbPortalHost` in the layout.
 
 ## Choose the right overlay
 
@@ -58,17 +60,19 @@ Use `DialogService` when the action is global, reusable, or triggered from comma
 @code {
     private async Task DeleteAsync()
     {
-        var confirmed = await DialogService.Confirm(
+        var result = await DialogService.ConfirmAsync(
             "Delete item",
             "This action cannot be undone.");
 
-        if (!confirmed)
+        if (!result.Confirmed)
             return;
 
         ToastService.Success("Item deleted.", "Success");
     }
 }
 ```
+
+(`DialogService.Confirm(...)` is `[Obsolete]` in v4 — use `ConfirmAsync(...)` and check `result.Confirmed`.)
 
 ## Search and action surfaces
 
@@ -77,6 +81,8 @@ Use `DialogService` when the action is global, reusable, or triggered from comma
 - keyboard navigation
 - shortcut hints
 - optional dialog wrapper with built-in shortcut handling
+
+In v4 `BbCommand.CloseOnSelect` was removed — use `BbCommandDialog.CloseOnSelect` (the dialog closes, not the list).
 
 `BbCombobox` should be chosen only when the user is selecting a value, not invoking arbitrary commands. It supports external async filtering via `SearchQuery` / `SearchQueryChanged`.
 

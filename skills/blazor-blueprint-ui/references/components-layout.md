@@ -75,7 +75,7 @@ Keep layout responsibilities here; do not route tables, alerts, timelines, or em
                     <BbSidebarMenu>
                         <BbSidebarMenuItem>
                             <BbSidebarMenuButton Href="/dashboard" Tooltip="Dashboard">
-                                <LucideIcon Name="home" />
+                                <LucideIcon Name="house" />
                                 <span>Dashboard</span>
                             </BbSidebarMenuButton>
                         </BbSidebarMenuItem>

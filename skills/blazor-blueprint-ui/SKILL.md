@@ -1,11 +1,11 @@
 ---
 name: blazor-blueprint-ui
-description: Build and customize .NET 8+ Blazor UIs with BlazorBlueprint. Use when choosing between BlazorBlueprint.Components and BlazorBlueprint.Primitives, wiring setup and providers, using ToastService/DialogService/localization, selecting icon packs, applying shadcn-ui-style theming, or copying and adapting BlazorBlueprint blueprints.
+description: Build and customize .NET 10+ Blazor UIs with BlazorBlueprint. Use when choosing between BlazorBlueprint.Components and BlazorBlueprint.Primitives, wiring setup and providers, using ToastService/DialogService/localization, selecting icon packs, applying shadcn-ui-style theming, or copying and adapting BlazorBlueprint blueprints.
 metadata: 
-    version: 0.3.0
+    version: 0.4.0
     author: arisng
-    lastVerified: 2026-07-08
-    libraryVersion: 3.13.0
+    lastVerified: 2026-10-12
+    libraryVersion: 4.1
 ---
 
 # BlazorBlueprint UI
@@ -82,6 +82,7 @@ Read [references/components-forms.md](references/components-forms.md) for:
 - date/time, date+time, and OTP flows
 - uploads, editors, and advanced inputs
 - form sections, wizards, dynamic forms, and `BbFormField*` wrappers
+- v4.1 additions: `BbListBox`, `BbPickList`, `BbSignature`
 
 ### Layout & Navigation Components (15+)
 Read [references/components-layout.md](references/components-layout.md) for:
@@ -102,6 +103,7 @@ Read [references/components-display-data.md](references/components-display-data.
 - alerts, badges, avatars, shortcuts, loading states, and empty states
 - items, timelines, typography, carousel, click-to-copy, and chat components
 - `BbDataTable`, `BbDataGrid`, and `BbDataView` routing
+- v4.1 additions: `BbPivotDataGrid`, `BbGantt`, `BbBarcode`, `BbQrCode`
 - dashboard/data-screen and event calendar guidance
 
 ### Chart Components (12 types)
@@ -109,6 +111,7 @@ Read [references/components-charts.md](references/components-charts.md) for:
 - the current Apache ECharts-based chart stack
 - `BbChart` composite charts and `ChartConfig`
 - dedicated bar, line, area, pie, radial bar, gauge, radar, scatter, and candlestick charts
+- v4.1 addition: `BbMapChart` (with `BbMap`) for geo visualization
 - `BbChartContainer` and chart theming
 
 > Counts are approximate and grow with each library release. The authoritative component list is at https://blazorblueprintui.com/llms/llms-full.txt.
@@ -148,7 +151,7 @@ Read [references/components-charts.md](references/components-charts.md) for:
 </BbDialog>
 ```
 
-> **Note**: `AsChild` defaults to `true` (v3+). Set `AsChild="false"` when you need the trigger's built-in `<button>` wrapper instead of merging into a child element — useful when migrating v2 code that relied on auto-generated wrappers.
+> **Note**: `AsChild` defaults to `true` for most triggers (dialog, sheet, popover, dropdown menu, collapsible, alert dialog, hover card). In v4, `BbTooltipTrigger`, `BbDrawerTrigger` and `BbDrawerClose` default to `false` — set `AsChild="true"` when the child consumes the trigger context (e.g. a `BbButton`). Drawer triggers render a real `<button>`, so a `BbButton` child without `AsChild="true"` produces invalid nested buttons. See [patterns.md § AsChild defaults](references/patterns.md).
 
 ### Portal and provider pattern
 
@@ -160,13 +163,15 @@ These are hard-won constraints — check them before generating any BB component
 
 1. **CaptureUnmatchedValues is supported, not universal** — Most BB components now accept arbitrary HTML attributes (`@onclick`, `style`, `class`, `data-*`, etc.) and pass them through to the root element. However, not every component declares `[Parameter(CaptureUnmatchedValues = true)]` — check the upstream docs or source for your specific component. For components that lack it, use a wrapper element. See [patterns.md § Unmatched attribute capture](references/patterns.md).
 
-2. **Tailwind subset only** — BB ships only the utilities its own components use; writing other Tailwind classes silently has no effect. Add missing utilities as custom CSS. See [setup.md § Tailwind subset limitation](references/setup.md).
+2. **`bb:`-prefixed utilities** — In v4 every utility in `blazorblueprint.css` is prefixed `bb:` and lives in its own cascade layer. Your `Class` values stay unprefixed (`Class="p-6"` overrides the library's `bb:p-4` through the class merge). Page-level Tailwind classes only render when the app has its own Tailwind build; without one, add a Tailwind build (standalone CLI needs no Node) or use `bb:` classes as a stopgap. The only consumer-facing prefixed utilities are the safelisted `bb:shimmer` and `bb:scroll-fade-x`. See [setup.md § bb: utility prefix](references/setup.md).
 
 3. **Lucide icon names change** — Several names have been renamed upstream (e.g. `check-circle` → `circle-check`, `home` → `house`). A broken icon renders ⚠️. Verify names at `https://blazorblueprintui.com/llms/icons/lucide.txt`. See [icons.md § Renamed icons](references/icons.md).
 
 4. **Auth pages are SSR-only** — Login/signup blueprints use `[ExcludeFromInteractiveRouting]`. Use HTML form POST + `[SupplyParameterFromForm]`; do not add `@rendermode InteractiveServer`. See [blueprints.md § Auth pages and SSR](references/blueprints.md).
 
-5. **`BbProvider` must be the outermost wrapper** — Bootstrap order in `App.razor` matters: `<BbProvider>` wraps everything. See [setup.md § App.razor bootstrap order](references/setup.md).
+5. **.NET 10 minimum** — Version 4 targets `net10.0` only; .NET 8/9 apps cannot consume it. Keep Components and Primitives on matching v4 releases. See [migration guide](https://blazorblueprintui.com/llms/migration-v3-to-v4.txt) for the full v3→v4 checklist.
+
+6. **Portal hosts moved out of `.Services`** — `BbPortalHost` and friends now live in `BlazorBlueprint.Primitives`, not `BlazorBlueprint.Primitives.Services`. An unresolved `<BbPortalHost />` is not a build error: it emits literal `<bbportalhost>` HTML and every overlay silently fails. See [setup.md § Configure layout providers](references/setup.md).
 
 ## Workflow
 

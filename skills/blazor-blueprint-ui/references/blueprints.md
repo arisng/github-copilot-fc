@@ -8,6 +8,8 @@ Blueprints are copy-paste Razor compositions built from BlazorBlueprint componen
 
 They are not installable packages; copy the code into the app and adapt it.
 
+**Tailwind build required (v4)**: blueprint markup uses standard Tailwind utility classes in the page itself (`class="flex gap-4"` on plain HTML elements, and `Class` values on components). Since `blazorblueprint.css` only contains `bb:`-prefixed utilities, the consuming application needs its own Tailwind build for those classes to render. Without one, page-level layout, spacing and typography have no effect.
+
 ## Catalog at a glance
 
 The upstream docs currently list 60 blueprints across 10 categories:

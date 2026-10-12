@@ -28,12 +28,13 @@ Current BlazorBlueprint charts are built on **Apache ECharts**, not ApexCharts. 
 | Circular progress or comparative arcs | `BbRadialBarChart` | Great for completion metrics and ring summaries. |
 | Single KPI gauge | `BbGaugeChart` | Meter/speedometer style. |
 | Radial comparison | `BbRadarChart` | Best for comparing several dimensions on one shape. |
+| Geo visualization | `BbMapChart` | v4.1: map chart with the `BbMap` supporting component. Load `components/map-chart.txt` when needed. |
 | Specialized analytics | `BbHeatmapChart`, `BbFunnelChart`, `BbCandlestickChart` | Load the specific upstream doc only when needed. `BbCandlestickChart` is the newest addition — use for financial OHLC data. |
 | Consistent card-like wrapper | `BbChartContainer` | Preferred visual shell for dashboards. |
 
 ## Current chart model
 
-The v3 chart mental model is:
+The v4 chart mental model is:
 
 1. `Data` is typically an `IEnumerable<T>` of records or objects.
 2. Series extract values with `DataKey` (and `NameKey` where relevant).
@@ -103,6 +104,7 @@ Important differences from the old guidance:
 - `BbBarChart` supports grouped, stacked, horizontal, labeled, and per-item colored bars (`FillKey`).
 - `BbScatterChart` becomes a bubble chart when you add `SymbolSizeKey`.
 - Use `BbChart` instead of forcing mixed bar/line/area behavior into a single-type chart.
+- In v4 the `Stacked` / `StackGroup` parameters live on `StackableSeriesBase` only — they exist on `BbBar`, `BbLine`, `BbArea`, `BbScatter` and `BbRadialBar`, and were removed from `BbPie`, `BbFunnel`, `BbGauge`, `BbRadar`, `BbHeatmap` and `BbCandlestick`.
 
 ### Pie and radial charts
 - `BbPie` with `InnerRadius > 0` is the donut path.

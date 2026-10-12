@@ -22,10 +22,12 @@ Concise routing for the current BlazorBlueprint form layer. Use this to choose t
 | Typed parsing / formatting | `BbInputField<TValue>`, `BbNumericInput`, `BbCurrencyInput`, `BbMaskedInput` | Use when string-only binding is not enough. |
 | Single choice | `BbSelect`, `BbNativeSelect`, `BbRadioGroup`, `BbCombobox` | `BbCombobox` is best when search matters. |
 | Multiple choice | `BbMultiSelect`, `BbCheckboxGroup`, `BbTagInput`, `BbToggleGroup` | Pick based on whether the values come from a fixed set or free-form entry. |
+| List box / pick list | `BbListBox<TValue>`, `BbPickList<TValue>` | v4.1: dual-list transfer and single list-box selection. |
+| Signature capture | `BbSignature` | v4.1: canvas signature pad backed by the `BbSignaturePad` primitive. |
 | Boolean / toggled state | `BbCheckbox`, `BbSwitch`, `BbToggle` | `BbSwitch` reads best for settings. |
-| Date or time | `BbCalendar`, `BbDatePicker`, `BbDateRangePicker`, `BbTimePicker` | `BbDateRangePicker` is the dashboard/reporting choice. |
+| Date or time | `BbCalendar`, `BbDatePicker`, `BbDateRangePicker`, `BbTimePicker` | `BbDateRangePicker` is the dashboard/reporting choice. `BbCalendar` is single-select only (the `Mode` parameter was removed in v4). |
 | OTP / short structured entry | `BbInputOTP` | Best for verification flows. |
-| Uploads or rich editing | `BbFileUpload`, `BbRichTextEditor`, `BbMarkdownEditor`, `BbColorPicker`, `BbRating` | Use only when plain inputs are too limited. |
+| Uploads or rich editing | `BbFileUpload`, `BbRichTextEditor`, `BbMarkdownEditor`, `BbColorPicker`, `BbRating` | Use only when plain inputs are too limited. `BbRichTextEditor` bundles Quill 2.0.3 — no CDN tags needed (v4.1). |
 | Reusable form layout | `BbField`, `BbFormSection`, `BbFormField*` helpers | Best for consistent labels, descriptions, and validation output. |
 | Wizard or generated form | `BbFormWizard`, `BbDynamicForm` | Use for multi-step or schema-driven UI. |
 | Compound action buttons | `BbButton`, `BbButtonGroup`, `BbSplitButton` | Action surfaces, not data-entry controls. |

@@ -31,10 +31,13 @@ Use this file for status display, loading/empty states, presentation helpers, an
 | Chronological flow | `BbTimeline` | Use for activity feeds, deployments, workflows, and roadmaps. |
 | Basic pageable data table | `BbDataTable<TData>` | Sorting, filtering, pagination, selection, and templates with low ceremony. |
 | Enterprise grid | `BbDataGrid<TData>` | Grouping, hierarchy, virtualization, pinning, resize/reorder, server providers. |
+| Pivot table | `BbPivotDataGrid<TItem>` | v4.1: pivot analysis with `BbPivotField<TItem>` / `BbPivotValue<TItem>`. |
 | List/grid catalog | `BbDataView<TItem>` | Toolbar search, sort, pagination, and list/grid template switching. |
+| Gantt timeline | `BbGantt<TItem>` | v4.1: schedule/timeline view with `BbGanttColumn<TItem>`. |
 | Rich text content presentation | `BbTypography*` components | Keep docs, marketing, and long-form pages visually consistent. |
 | Click-to-copy | `BbCopyText` | Shows a tooltip on copy; ideal for API keys, IDs, and code snippets. |
 | Event calendar | `BbEventCalendar<TEvent>` | Month/Week/Agenda views, two-way bindable `View`/`CurrentDate`. Pairs with `BbDialog` for event detail modals. |
+| Barcode / QR code | `BbBarcode`, `BbQrCode` | v4.1: scannable code rendering. |
 | Chat / AI conversation | `BbMessage`, `BbBubble`, `BbAttachment`, `BbMarker` | AI conversation UI: message blocks, chat bubbles, file attachments, and marker indicators. |
 | Theme switcher | `BbThemeSwitcher`, `BbDarkModeToggle` | Pre-built UI for dark/light and base color switching. `ColorLayout` supports `Split` or `Combined` sections. |
 | Slide or media presentation | `BbCarousel` | Display concern, not layout shell. |
@@ -57,11 +60,14 @@ Pair display components intentionally:
 | --- | --- | --- |
 | `BbDataTable<TData>` | CRUD tables and common admin pages | Declarative columns, global search, pagination, row selection, simple preprocessing hooks |
 | `BbDataGrid<TData>` | Enterprise or analyst workflows | Multi-column sort, per-column filters, grouping, hierarchy, virtualization, state persistence, pinning, row context menu |
+| `BbPivotDataGrid<TItem>` | Pivot/OLAP-style analysis | v4.1: field and value pivoting over an item source |
+| `BbGantt<TItem>` | Schedules, project timelines | v4.1: Gantt rendering with column configuration |
 | `BbDataView<TItem>` | Catalogs, card grids, searchable list views | List/grid templates, toolbar search, sorting, pagination, infinite scroll |
 
 Guidance:
 - Start with `BbDataTable` unless you already know you need grid-grade features.
 - Use `BbDataGrid` when you need server-side providers, hierarchy, grouping, or heavy operator-driven filtering.
+- Use `BbPivotDataGrid` for pivot analysis and `BbGantt` for timeline surfaces.
 - Use `BbDataView` when the visual shape is not tabular.
 
 ## Reference examples

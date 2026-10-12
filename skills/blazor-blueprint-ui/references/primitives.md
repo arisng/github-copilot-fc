@@ -24,14 +24,17 @@ dotnet add package BlazorBlueprint.Primitives
 builder.Services.AddBlazorBlueprintPrimitives();
 ```
 
-If the primitive is an overlay or floating surface, you still need `BbPortalHost` in the layout.
+Standalone primitives load `_content/BlazorBlueprint.Primitives/css/primitives.css` instead of `blazorblueprint.css`; it is small and carries no design decisions.
+
+If the primitive is an overlay or floating surface, you still need `BbPortalHost` in the layout. In v4 the portal host components live in `BlazorBlueprint.Primitives` (not `.Services`).
 
 ## Primitive groups to expect
 
-The upstream index currently lists 28 primitive docs. Common groups include:
+The upstream index currently lists 38 primitive docs. Common groups include:
 - Overlay/floating: dialog, sheet, popover, tooltip, hover-card, dropdown-menu, context-menu
 - Selection/input state: checkbox, radio-group, select, slider, switch, tabs, toggle
 - Layout/data helpers: accordion, scroll-area, separator, table, tree-view, data-grid, sortable, filtering
+- v4.1 additions: barcode, gantt, pivot, qr-code, signature-pad, swipe-area
 
 ## Practical rule of thumb
 

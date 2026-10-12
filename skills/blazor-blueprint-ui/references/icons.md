@@ -4,10 +4,10 @@ Source: https://blazorblueprintui.com/llms/icons.txt
 
 ## Pick the icon package intentionally
 
-- `BlazorBlueprint.Icons.Lucide` - 1,753 stroke icons; best default for most app UI.
-- `BlazorBlueprint.Icons.Heroicons` - 1,288 icons across Outline, Solid, Mini, and Micro variants.
+- `BlazorBlueprint.Icons.Lucide` - 1,753 stroke icons; best default for most app UI. Arrives transitively with `BlazorBlueprint.Components`.
+- `BlazorBlueprint.Icons.Heroicons` - 1,288 icons across Outline, Solid, Mini, and Micro variants (324 base names).
 - `BlazorBlueprint.Icons.Feather` - 286 lightweight stroke icons.
-- `BlazorBlueprint.Icons.FontAwesome` - 2,066 icons across Solid, Regular, and Brands variants.
+- `BlazorBlueprint.Icons.FontAwesome` - 2,066 icons (1,407 Solid, 164 Regular, 495 Brands).
 
 Install only the package(s) you need:
 
@@ -18,7 +18,7 @@ dotnet add package BlazorBlueprint.Icons.Feather
 dotnet add package BlazorBlueprint.Icons.FontAwesome
 ```
 
-No service registration is required.
+No service registration is required; the packages have no DI dependencies.
 
 ## Import the right namespace
 

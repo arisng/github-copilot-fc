@@ -11,6 +11,9 @@ Load this file after the relevant component reference when you need conventions,
 - [Naming and composition conventions](#naming-and-composition-conventions)
 - [Controlled vs uncontrolled state](#controlled-vs-uncontrolled-state)
 - [EditForm and validation pattern](#editform-and-validation-pattern)
+- [AsChild pattern and defaults](#aschild-pattern-and-defaults)
+- [Class parameter and the bb: prefix](#class-parameter-and-the-bb-prefix)
+- [Overlay behavior: Escape and initial focus](#overlay-behavior-escape-and-initial-focus)
 - [Root layout providers](#root-layout-providers)
 - [Dashboard and app shell pattern](#dashboard-and-app-shell-pattern)
 - [Loading empty and error states](#loading-empty-and-error-states)
@@ -18,7 +21,7 @@ Load this file after the relevant component reference when you need conventions,
 
 ## Unmatched attribute capture
 
-As of v3.13.0, **most** BB components declare `[Parameter(CaptureUnmatchedValues = true)]` and pass arbitrary HTML attributes through to the root element:
+As of v4, **most** BB components declare `[Parameter(CaptureUnmatchedValues = true)]` and pass arbitrary HTML attributes through to the root element:
 
 ```razor
 ✅ This now works on most components:
@@ -102,8 +105,52 @@ Prefer `EditForm` + `BbField` + `ValidationMessage` for hand-authored forms:
 
 Good default rules:
 - Use `ValueExpression` when the control participates in form validation.
+- Do **not** set `ValueExpression` explicitly next to `@bind-Value` — the shorthand already generates it and Razor rejects a parameter supplied twice. Set it yourself only when binding with separate `Value` / `ValueChanged` attributes.
+- Text inputs (`BbInput`, `BbTextarea`, `BbInputGroup*`) implement `Value`/`ValueChanged` directly and do **not** inherit from `InputBase<T>`.
 - Prefer `BbInputField<TValue>` only when typed parsing or formatting is needed.
 - Use `BbFormWizard` or `BbDynamicForm` only when the flow actually benefits from the abstraction.
+
+## AsChild pattern and defaults
+
+Trigger/close components either render their own element or hand their behavior to a child through `AsChild`. When `AsChild="true"` the trigger cascades a `TriggerContext` (callbacks, ARIA attributes, element reference) that context-consuming children such as `BbButton` use; plain markup, text and icons do not.
+
+v4 defaults in the styled Components layer:
+
+| Component | AsChild default | Element when `AsChild="false"` |
+| --- | --- | --- |
+| `BbDialogTrigger` / `BbDialogClose` / `BbSheetTrigger` / `BbSheetClose` | `true` | `<button>` |
+| `BbPopoverTrigger` / `BbAlertDialogTrigger` / `BbAlertDialogAction` / `BbAlertDialogCancel` | `true` | `<button>` |
+| `BbDropdownMenuTrigger` / `BbCollapsibleTrigger` | `true` | `<button>` |
+| `BbHoverCardTrigger` | `true` | `<div>` with hover/focus handlers |
+| `BbDrawerTrigger` / `BbDrawerClose` | `false` | `<button type="button">` |
+| `BbTooltipTrigger` | `false` | `<span>` (display: contents) > `<span>` |
+
+Every Primitives-layer trigger defaults `AsChild` to `false`.
+
+Hard rules for v4 code:
+- `BbTooltipTrigger` wrapping a `BbButton` (or another context consumer) needs `AsChild="true"`. A bare icon or text needs nothing.
+- `BbDrawerTrigger` / `BbDrawerClose` wrapping a `BbButton` need `AsChild="true"` — otherwise a `<button>` nests inside a `<button>` (invalid HTML). A plain `<button>` child cannot read the trigger context, so it opens nothing; use `BbButton` instead. Plain content (text, icon, `<span>`) needs nothing and is keyboard-reachable.
+- Triggers defaulting to `true` take a `BbButton` child as-is. For plain content set `AsChild="false"` so the trigger renders its own element.
+- With `AsChild="true"`, triggers log a Development-only warning when no child read the context.
+
+## Class parameter and the bb: prefix
+
+All styled components accept `Class`, merged with the component's defaults through `ClassNames.cn` (clsx + tailwind-merge equivalent):
+
+```razor
+<BbPopoverContent Class="p-6">
+@* renders class="... p-6 ...": the library's bb:p-4 is removed *@
+```
+
+- Write `Class` values **unprefixed**; the merge strips the `bb:` prefix before resolving conflicts.
+- `group` / `peer` markers are emitted in both forms, so your `group-*` / `peer-*` variants apply to library markup.
+- Safelisted prefixed utilities for consumers: `bb:shimmer`, `bb:scroll-fade-x`.
+- Never target library internals by utility class in CSS/JS/tests (`.flex-col`, `.hidden`) — v4 emits them as `.bb\:flex-col` etc. Prefer `data-slot`, `data-state` and other data attributes.
+
+## Overlay behavior: Escape and initial focus
+
+- Escape dismisses only the topmost overlay, one layer per press. Overlays whose content holds focus (`BbSelect`, `BbDropdownMenu`, `BbContextMenu`, `BbMenubar`) handle Escape themselves and stop propagation.
+- `BbDialogContent`, `BbSheetContent` and `BbDrawerContent` accept `InitialFocus` (`FocusTrapInitialFocus.FirstFocusable` / `.Container` / `.None`) and `InitialFocusElement`. Resolution order: `InitialFocusElement`, then `[data-autofocus]`, then the `InitialFocus` mode, then the first tabbable descendant.
 
 ## Root layout providers
 
