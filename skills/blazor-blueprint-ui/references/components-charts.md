@@ -29,7 +29,7 @@ Current BlazorBlueprint charts are built on **Apache ECharts**, not ApexCharts. 
 | Single KPI gauge | `BbGaugeChart` | Meter/speedometer style. |
 | Radial comparison | `BbRadarChart` | Best for comparing several dimensions on one shape. |
 | Geo visualization | `BbMapChart` | v4.1: map chart with the `BbMap` supporting component. Load `components/map-chart.txt` when needed. |
-| Specialized analytics | `BbHeatmapChart`, `BbFunnelChart`, `BbCandlestickChart` | Load the specific upstream doc only when needed. `BbCandlestickChart` is the newest addition — use for financial OHLC data. |
+| Specialized analytics | `BbHeatmapChart`, `BbFunnelChart`, `BbCandlestickChart`, `BbRoseChart`, `BbSankeyChart` | Load the specific upstream doc only when needed. `BbCandlestickChart` is for financial OHLC data; `BbRoseChart` for radial part-to-whole; `BbSankeyChart` for flow diagrams. |
 | Consistent card-like wrapper | `BbChartContainer` | Preferred visual shell for dashboards. |
 
 ## Current chart model
@@ -113,7 +113,7 @@ Important differences from the old guidance:
 
 ### Gauge and specialized charts
 - `BbGaugeChart` is for a small number of headline KPIs.
-- `BbHeatmapChart`, `BbFunnelChart`, and `BbCandlestickChart` are available, but only load their dedicated upstream docs when the scenario truly needs them.
+- `BbHeatmapChart`, `BbFunnelChart`, `BbCandlestickChart`, `BbRoseChart` and `BbSankeyChart` are available, but only load their dedicated upstream docs when the scenario truly needs them.
 
 ## Theme and styling
 

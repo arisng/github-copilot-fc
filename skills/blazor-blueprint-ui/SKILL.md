@@ -106,11 +106,11 @@ Read [references/components-display-data.md](references/components-display-data.
 - v4.1 additions: `BbPivotDataGrid`, `BbGantt`, `BbBarcode`, `BbQrCode`
 - dashboard/data-screen and event calendar guidance
 
-### Chart Components (12 types)
+### Chart Components (14 types)
 Read [references/components-charts.md](references/components-charts.md) for:
 - the current Apache ECharts-based chart stack
 - `BbChart` composite charts and `ChartConfig`
-- dedicated bar, line, area, pie, radial bar, gauge, radar, scatter, and candlestick charts
+- dedicated bar, line, area, pie, radial bar, gauge, radar, scatter, candlestick, rose, and sankey charts
 - v4.1 addition: `BbMapChart` (with `BbMap`) for geo visualization
 - `BbChartContainer` and chart theming
 
