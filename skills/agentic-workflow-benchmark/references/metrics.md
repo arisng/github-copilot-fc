@@ -47,15 +47,59 @@ uncertain, plus `total`.
 
 ## Episode attribution rules
 
-1. An episode = `[target skill.invoked timestamp → next skill.invoked of any skill | end of events]`.
-2. Default episode = the **most recent** invocation; pass `--episode N` for earlier ones
+1. **Mechanical window**: an episode starts at the target `skill.invoked` timestamp.
+2. **Chain/subagent-aware end** (v0.2+): the episode ends at the first subsequent
+   `skill.invoked` that is *external and unchained*:
+   - **Skill-chain merge**: a following invoke is absorbed (not a boundary) when the
+     target's `SKILL.md` declares a `machina:` block and the follower is
+     `machina-driving` (declarative contract), or when the follower is invoked within
+     120 s of the previous chain event and some chain member's SKILL.md names it
+     (fallback heuristic). Chain texts come from the invoke event's `content` field
+     plus the on-disk SKILL.md (for frontmatter) when readable.
+   - **Subagent-internal loads**: a `skill.invoked` inside a
+     `subagent.started → subagent.completed` window is the subagent's own skill
+     load; it does not end the orchestrator's episode.
+   - **Hard stops**: the benchmark's own activation (`SELF_SKILLS`) and any
+     re-invocation of the target skill always terminate the episode, regardless of
+     chain or subagent state.
+   - Absorbed loads appear in `episode.boundaries[]` (`{skill, timestamp, subagent,
+     tokens, tool_steps}`) with their own sub-window totals — a merged load is
+     reported, never silently hidden.
+   - Older sessions without `subagent.*` events degrade to pure chain logic.
+3. Default episode = the **most recent** invocation; pass `--episode N` for earlier ones
    when a skill ran multiple times in one session.
-3. **Self-exclusion**: the benchmark skill runs in the same session. Because the episode
-   ends at the next `skill.invoked` (typically this skill's own invocation), the
-   benchmark's own LLM calls and tools are automatically excluded. Do not benchmark
-   across a boundary that includes the benchmark's own events.
-4. `invokedAtTurn` is undefined in older sessions — never use turn indices; timestamp
+4. **Self-exclusion**: the benchmark skill runs in the same session. Because the episode
+   ends at the benchmark's own activation (hard stop), the benchmark's own LLM calls and
+   tools are always excluded — including when a skill chain would otherwise absorb it.
+5. `invokedAtTurn` is undefined in older sessions — never use turn indices; timestamp
    windows are the only reliable boundary mechanism (see `event-schema.md`).
+
+## Session-aggregate mode (`--mode session`)
+
+Measures **everything before the benchmark's own activation** — the whole-workflow
+number that survives ambiguous attribution. Use it when the target is an orchestrator
+skill, or whenever the per-episode table looks suspiciously small relative to the
+session's total activity.
+
+- Window: `[first event → most recent benchmark activation]` (offline re-runs against
+  an events file where the benchmark never ran fall back to end-of-events).
+- The four-goal scorecard reports the aggregate; the per-episode mechanical table is a
+  secondary `episode_breakdown[]` (skill, window, tokens, tool steps).
+- Baselines are **mode-separated**: session mode reads/writes `baseline.session.json`
+  and `latest.session.json`; episode mode keeps `baseline.json` / `latest.json`.
+  The two modes answer different questions and must never cross-compare.
+
+## Degenerate-episode guard
+
+An episode is **degenerate** when it has ≤ 2 tool steps, or a window < 2 min while the
+session holds > 50 tool steps outside it — i.e. it measures a skill *load*, not a
+workflow. Degenerate episodes:
+
+- carry a prominent Caveats entry at the top of the report,
+- **refuse to write `baseline.json`** (first-run implicit baseline included) unless
+  `-SetBaseline`/`--set-baseline` is passed explicitly,
+- report `degenerate.is_degenerate`, `degenerate.reasons`, and
+  `other_skill_invokes` (other skills invoked in the session) in `latest.json`.
 
 ## Baseline & durable artifacts
 
@@ -64,9 +108,9 @@ user-level: `benchmarks/<target>/` at repo root):
 
 | File | Role |
 |------|------|
-| `YYYYMMDD-HHMMSS-episodeN-report.md` | Human-readable structured report (historical record) |
-| `latest.json` | Machine-readable metrics of the most recent run |
-| `baseline.json` | Chosen baseline; first run sets it implicitly, `-SetBaseline` overwrites |
+| `YYYYMMDD-HHMMSS-episodeN-report.md` | Human-readable structured report (historical record); session mode writes `…-session-report.md` |
+| `latest.json` / `latest.session.json` | Machine-readable metrics of the most recent run (per mode) |
+| `baseline.json` / `baseline.session.json` | Chosen baseline (per mode); first run sets it implicitly unless degenerate, `-SetBaseline` overwrites |
 
 Every report shows deltas vs `baseline.json` (goal direction applied: a negative token
 delta is *improved*, a positive deterministic-ratio delta is *improved*).

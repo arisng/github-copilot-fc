@@ -13,11 +13,23 @@ suffix), `parentId`, and `data`. Only `data`-level fields listed here matter.
 | Type | Key data fields | Use |
 |------|-----------------|-----|
 | `session.start` | `copilotVersion` (may be absent in older sessions) | Record CLI version in the report |
-| `skill.invoked` | `name`, `path`, `trigger` (may be absent), `invokedAtTurn` (**undefined in older sessions**) | Episode boundaries: start = target skill invocation; end = next `skill.invoked` of any skill, else last event |
+| `skill.invoked` | `name`, `path`, `trigger` (may be absent), `content` (full SKILL.md body when present), `invokedAtTurn` (**undefined in older sessions**) | Episode boundaries: start = target skill invocation; end = first external unchained `skill.invoked` (see `metrics.md` attribution rules). `content` + on-disk `path` power skill-chain detection |
+| `subagent.started` | `agentId` (top level), `data.toolCallId`, `data.agentName`, `data.agentType` | Subagent window start; a `skill.invoked` inside the window is subagent-internal (non-terminating boundary) |
+| `subagent.completed` | `agentId` (top level), `data.toolCallId`, `data.totalTokens`, `data.durationMs` | Subagent window end; pair with `subagent.started` by `agentId` (fall back to `data.toolCallId`) |
 | `session.usage_record` | `usage.model`, `usage.inputTokens`, `usage.outputTokens`, `usage.cacheReadTokens`, `usage.cacheWriteTokens`, `usage.reasoningTokens`, `usage.cost` (0 for BYOK), `usage.duration` (ms), `usage.initiator` (`user` / `sub-agent`), `usage.agentId` (sub-agent only), `usage.apiCallId` | Token and LLM-time metrics; sub-agent breakout |
 | `tool.execution_start` | `toolCallId`, `toolName`, `arguments` (object), `turnId`, `model` | Step classification + timing start |
 | `tool.execution_complete` | `toolCallId`, `success`, `error`, `toolTelemetry` (**no `toolName`, no duration field**) | Timing end: duration = timestamp delta from matching start |
 | `assistant.message` | `messageId`, `model`, `toolRequests[]` (`toolCallId`, `name`, `arguments`, `intentionSummary`) | Optional enrichment; step counting uses `tool.execution_start` instead |
+
+## Decoy event types (filter traps)
+
+- `skill.invoked_ref` — a **substring trap**: its `data.name`, `data.path`, and
+  `data.trigger` are empty strings. Always filter on event `type == "skill.invoked"`
+  exactly; a grep for `skill.invoked` returns these as false positives.
+- `skill.context_delivered_ref`, `subagent.configured`, `subagent.selected`,
+  `subagent.deselected` — related lifecycle noise; ignored by the engine.
+- `subagent.*` pairing: `agentId` is the reliable key; some older sessions may only
+  carry `data.toolCallId`.
 
 ## Other event types (ignored by the engine)
 

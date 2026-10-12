@@ -1,9 +1,19 @@
 # Agentic Workflow Benchmark — {{SKILL_NAME}}
 
 - Session: `{{SESSION_DIR}}`
+- Mode: {{MODE}}
 - Episode: {{EPISODE_INDEX}} of {{EPISODE_COUNT}} — {{EPISODE_START}} → {{EPISODE_END}}
 - Generated: {{GENERATED_AT}}
 - CLI version: {{CLI_VERSION}} · Models: {{MODELS}}
+
+> An **episode** is one execution run of the skill — a time-window *slice* of the
+> session's `events.jsonl` transcript, from the skill's invocation to the next
+> external skill invocation (or session end). One session can contain many
+> episodes; `--mode session` measures the whole transcript instead.
+
+## Caveats
+
+{{CAVEATS}}
 
 ## Goal scorecard
 
@@ -27,6 +37,18 @@ Classification per `references/classification.md` (semantic / deterministic / qu
 ## Efficiency ratios
 
 {{RATIOS_TABLE}}
+
+## Boundaries & merged skill loads
+
+Skill loads that were merged into this episode instead of terminating it (skill-chain matches and subagent-internal loads), each with its own sub-window totals.
+
+{{BOUNDARIES}}
+
+## Per-episode breakdown
+
+Mechanical per-skill windows for this session (secondary detail; primary attribution is the episode/session scorecard above).
+
+{{EPISODE_BREAKDOWN}}
 
 ## Notes
 

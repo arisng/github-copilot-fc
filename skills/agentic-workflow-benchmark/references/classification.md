@@ -25,18 +25,33 @@ high — the report surfaces sample uncertain tool names to prompt exactly this.
    `addComment`, `replyToComment`, `resolveComments`, `deleteComments`, `viewUnreviewedComments`
 3. **semantic**: `edit`, `create`, `skill` (skill load is a reasoning step), `task`
    (nested subagent — its own usage is broken out separately), `open_canvas`,
-   `runplaywrightcode` (model-authored code executed at runtime — semantic by authorship)
+   `runplaywrightcode` (model-authored code executed at runtime — semantic by authorship);
+   plus **inline model-authored shell code** — `python -c`, `py -c`, `node -e`,
+   and `pwsh/powershell -Command` *without* a `.ps1` reference — scored by the same
+   authorship rule (inline code must not be penalised twice: neither credited as
+   authorship nor as tooling)
 4. **query_read**: `grep`, `glob`, `view`, `read`, `web_fetch`, `lsp`, `list_sessions`,
    `get_current_session`, `get_session_context`, `session_store_sql`, `read_powershell`,
    `list_powershell`, `stop_powershell`; plus tool-name prefixes `github-mcp-server-`,
-   `mcp-docker-brave_`, `mcp-docker-get_`, `mcp-docker-code-mode`
+   `mcp-docker-brave_`, `mcp-docker-get_`, `mcp-docker-code-mode`; plus **read-only
+   git** shell commands (`git status|diff|log|show|branch|ls-files|remote|config|blame|`
+   `shortlog|ls-remote|reflog|rev-parse|describe|tag|fetch`) — deterministic execution,
+   but each is a model decision point like grep; scoring them deterministic would let
+   git-spam inflate the ratio. Edge case: `git remote add/set-url` and `git stash list`
+   match the read-only shape; they are rare and the misclassification is benign.
 5. **deterministic (shell provenance rule)**: for shell tools (`powershell`, `bash`,
    `shell`, `terminal`), the command must match a provenance pattern showing it executes
    pre-authored code:
    - contains `*.ps1` or invokes `pwsh`
-   - `npm run|test|npx`, `dotnet build|test|run|publish|pack`, `pytest`,
-     `python … .py`, `py -3 … .py`, `git commit|push|merge|rebase`,
-     `copilot plugin|plugins`, `npx skills`
+   - `npm run|test|npx`, `dotnet build|test|run|publish|pack|tool`, `dotnet-coverage`,
+     `pytest`, `python … .py`, `py -3 … .py`, `copilot plugin|plugins`, `npx skills`
+   - `task <target>` — Taskfile target invocation (e.g. `task ax:build:cold`)
+   - `gh <subcommand>` — GitHub CLI is pre-authored tooling
+   - **mutating git**: `git commit|push|merge|rebase|add|restore|stash|worktree|`
+     `cherry-pick|reset|revert|mv|rm|checkout|switch`
+   - Classification order for shell: inline-code (semantic) → provenance
+     (deterministic) → read-only git (query_read) → uncertain, so a mixed command
+     like `git commit && git status` scores on its deterministic part.
 6. **uncertain**: everything else — notably **ad-hoc inline shell**
    (e.g. `Get-ChildItem …`). This is intentional: the user's goal is to maximize steps
    executed *via scripts or codebase-related implementation*, so exploratory one-off

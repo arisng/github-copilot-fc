@@ -29,6 +29,9 @@ param(
 
     [int]$Episode = -1,
 
+    [ValidateSet('episode', 'session')]
+    [string]$Mode = 'episode',
+
     [switch]$SetBaseline
 )
 
@@ -90,7 +93,8 @@ $pyArgs += @(
     '--events', $EventsPath,
     '--skill', $SkillName,
     '--out-dir', $OutDir,
-    '--episode', "$Episode"
+    '--episode', "$Episode",
+    '--mode', $Mode
 )
 if ($SessionDir) { $pyArgs += @('--session-dir', $SessionDir) }
 if ($SetBaseline) { $pyArgs += '--set-baseline' }
