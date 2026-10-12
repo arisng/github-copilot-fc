@@ -2,7 +2,7 @@
 name: agentic-workflow-benchmark
 description: Benchmark the efficiency of an agent skill's execution episode in a Copilot session against four goals - minimize LLM token usage, minimize execution time, minimize semantic (model-judgment) steps, and maximize deterministic (script/code-executed) steps - by parsing the session's local events.jsonl telemetry, then persist a structured report with baseline deltas as a durable artifact for historical analysis and self-improvement. Use AFTER a skill has finished executing in a session, to establish efficiency baselines, compare reruns against a baseline, or diagnose token/time/step hotspots in an agentic shipping workflow. Do NOT use for judging skill output quality (use skill-eval), for general session inspection, or when the session has no events.jsonl telemetry.
 metadata:
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # Agentic Workflow Benchmark
@@ -84,6 +84,13 @@ only as needed.
 ## Edge cases
 
 - **Multiple invocations**: default is the most recent episode; use `-Episode N`.
+- **Meta/driver skills belong to their owner**: when a driver skill (e.g.
+  `machina-driving`) is chain-merged into a declaring orchestrator's episode, its
+  cost is already owned by that orchestrator's scorecard (shown as a boundary row).
+  Do NOT establish a standalone baseline for a shared driver — it would double-count
+  and mix callers (several orchestrators can declare the same driver). Benchmark a
+  driver directly only when the session drove the workflow with no orchestrator
+  involved (e.g. a direct human-conductor run).
 - **Sub-agent (`task`) work**: included in totals and broken out in `sub_agent_tokens`.
 - **Benchmark self-contamination**: excluded automatically — the episode ends at the
   benchmark's own activation (hard stop, even across skill chains).

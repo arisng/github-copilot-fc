@@ -65,6 +65,12 @@ uncertain, plus `total`.
    - Absorbed loads appear in `episode.boundaries[]` (`{skill, timestamp, subagent,
      tokens, tool_steps}`) with their own sub-window totals — a merged load is
      reported, never silently hidden.
+   - **Ownership rule**: a chain-merged meta/driver skill's cost belongs to the
+     *owner orchestrator's* scorecard, not to a benchmark of the driver itself.
+     Drivers are shared across orchestrators, so a standalone driver baseline would
+     aggregate unrelated callers and double-count work already owned by each
+     orchestrator's episode. Benchmark a driver directly only when it ran with no
+     declaring orchestrator in the session.
    - Older sessions without `subagent.*` events degrade to pure chain logic.
 3. Default episode = the **most recent** invocation; pass `--episode N` for earlier ones
    when a skill ran multiple times in one session.
