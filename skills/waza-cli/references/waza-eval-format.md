@@ -78,10 +78,17 @@ Ready-made LLM-judge rubrics ship in the repo under `examples/rubrics/`: intent_
 
 ## Token budget override
 
-waza's default SKILL.md token budget is 500 (hard limit reported by `waza check`). Configure per-repo in `.waza.yaml`:
+waza's default SKILL.md token budget is 500 (hard limit reported by `waza check`). Configure per-repo in `.waza.yaml` using `tokens.limits.defaults` (glob → limit map; most specific pattern wins) and optional `tokens.limits.overrides` (exact-path suffix match). Note: a bare `tokens.limits.max` key is **not** valid in waza ≥0.38 and is silently ignored:
 
 ```yaml
 tokens:
+  warningThreshold: 2500   # soft warning threshold (optional)
+  fallbackLimit: 1000      # limit for files matching no pattern (optional)
   limits:
-    max: 1500
+    defaults:
+      "SKILL.md": 4000
+      "references/**/*.md": 1000
+      "*.md": 2000
+    overrides:
+      "README.md": 3000
 ```

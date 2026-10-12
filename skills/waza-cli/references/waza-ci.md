@@ -25,6 +25,12 @@ jobs:
         env:
           # Copilot auth for the copilot-sdk executor
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # Isolate eval sessions + embedded CLI extraction from the runner's main .copilot
+          COPILOT_HOME: ${{ runner.temp }}/.copilot-waza
+          # Optional: pin a specific Copilot CLI instead of waza's bundled one.
+          # On self-hosted runners with a preinstalled CLI, resolve it with the
+          # skill's Resolve-CopilotCliPath.ps1 (see copilot-cli-resolution.md).
+          # COPILOT_CLI_PATH: ${{ runner.temp }}/copilot.exe
       - run: waza gate --baseline baseline.json --current results.json --max-regression-pct 5 --format github-actions
       - uses: actions/upload-artifact@v4
         if: always()

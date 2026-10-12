@@ -1,7 +1,15 @@
 # Waza evaluation config for github-copilot-fc workspace.
+# Schema (waza 0.38.7): tokens.limits.defaults = glob → limit map.
+# Mirrors built-in defaults with SKILL.md raised to 4000 — standup skill
+# SKILL.md is ~3500 tokens (Machina-driven, needs state mapping table +
+# data interpretation rules inline); machina-authoring is ~3700.
 tokens:
   limits:
-    # Standup skill SKILL.md is ~3500 tokens (Machina-driven, needs state
-    # mapping table + data interpretation rules inline). Override the
-    # default 500-token budget to accommodate.
-    max: 4000
+    defaults:
+      "SKILL.md": 4000
+      "references/**/*.md": 1000
+      "docs/**/*.md": 1500
+      "*.md": 2000
+    overrides:
+      "README.md": 3000
+      "CONTRIBUTING.md": 2500
