@@ -8,7 +8,7 @@
     latest.json, baseline.json) in the target skill's benchmarks folder.
 
     Report location (per skill type):
-      - repo-level skill  -> <repo>/skills/<skill>/benchmarks/
+      - repo-level skill  -> <repo>/skills/<skill>/benchmarks/ or <repo>/.github/skills/<skill>/benchmarks/
       - user-level skill  -> <repo>/benchmarks/<skill>/
 
 .EXAMPLE
@@ -67,8 +67,12 @@ if (-not (Test-Path $EventsPath)) {
 # Resolve report location scoped to the target skill
 if (-not $OutDir) {
     $repoSkillDir = Join-Path $RepoRoot "skills\$SkillName"
+    $ghSkillDir = Join-Path $RepoRoot ".github\skills\$SkillName"
     if (Test-Path $repoSkillDir) {
         $OutDir = Join-Path $repoSkillDir 'benchmarks'
+    }
+    elseif (Test-Path $ghSkillDir) {
+        $OutDir = Join-Path $ghSkillDir 'benchmarks'
     }
     else {
         $OutDir = Join-Path $RepoRoot "benchmarks\$SkillName"

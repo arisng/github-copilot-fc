@@ -2,7 +2,7 @@
 
 - Session: `{{SESSION_DIR}}`
 - Mode: {{MODE}}
-- Episode: {{EPISODE_INDEX}} of {{EPISODE_COUNT}} — {{EPISODE_START}} → {{EPISODE_END}}
+- {{WINDOW_LINE}}
 - Generated: {{GENERATED_AT}}
 - CLI version: {{CLI_VERSION}} · Models: {{MODELS}}
 

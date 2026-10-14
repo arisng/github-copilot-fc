@@ -109,8 +109,8 @@ workflow. Degenerate episodes:
 
 ## Baseline & durable artifacts
 
-Per-report directory (repo-level target skill: `skills/<target>/benchmarks/`;
-user-level: `benchmarks/<target>/` at repo root):
+Per-report directory (repo-level target skill: `skills/<target>/benchmarks/` or
+`.github/skills/<target>/benchmarks/`; user-level: `benchmarks/<target>/` at repo root):
 
 | File | Role |
 |------|------|

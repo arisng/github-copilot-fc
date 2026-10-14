@@ -2,7 +2,7 @@
 name: agentic-workflow-benchmark
 description: Benchmark the efficiency of an agent skill's execution episode in a Copilot session against four goals - minimize LLM token usage, minimize execution time, minimize semantic (model-judgment) steps, and maximize deterministic (script/code-executed) steps - by parsing the session's local events.jsonl telemetry, then persist a structured report with baseline deltas as a durable artifact for historical analysis and self-improvement. Use AFTER a skill has finished executing in a session, to establish efficiency baselines, compare reruns against a baseline, or diagnose token/time/step hotspots in an agentic shipping workflow. Do NOT use for judging skill output quality (use skill-eval), for general session inspection, or when the session has no events.jsonl telemetry.
 metadata:
-  version: 0.2.1
+  version: 0.2.2
 ---
 
 # Agentic Workflow Benchmark
@@ -20,7 +20,7 @@ only as needed.
 ## Workflow
 
 1. **Identify target skill and session.** Determine the skill name that executed
-   (repo-level in `skills/<name>/` or user-level/published). Locate the session dir:
+   (repo-level in `skills/<name>/` or `.github/skills/<name>/`, or user-level/published). Locate the session dir:
    the current session (`$env:COPILOT_HOME` or `~/.copilot` + `session-state/<uuid>`),
    or scan `session-state/*/workspace.yaml` for `repository`/`git_root` matching the
    current repo (most recently modified first). Do NOT use the `sessions` SQLite
@@ -42,7 +42,7 @@ only as needed.
    ```
 
    The orchestrator resolves the report location (target skill's `benchmarks/` folder
-   when repo-level, `benchmarks/<skill>/` at repo root when user-level; override with
+   when repo-level — `skills/<skill>/` or `.github/skills/<skill>/` —, `benchmarks/<skill>/` at repo root when user-level; override with
    `-OutDir`), runs `scripts/compute_metrics.py`, and writes:
    - `YYYYMMDD-HHMMSS-episodeN-report.md` — structured report
    - `latest.json` — machine-readable metrics

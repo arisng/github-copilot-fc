@@ -696,12 +696,13 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
             notes.append("Other skills invoked in this session: "
                          + ", ".join(f"`{s}`" for s in others)
                          + " — if the target skill is an orchestrator, verify the "
-                           "episode boundaries below represent the whole workflow.")
+                         "boundaries table above represents the whole workflow.")
     if baseline_refused_reason:
         notes.append(f"**Baseline NOT written**: {baseline_refused_reason}.")
     else:
         notes.append(f"Baseline file: `{baseline_path}`" if baseline_path
-                     else "No baseline yet — this run becomes the baseline with `-SetBaseline`.")
+                     else "No baseline yet — this run becomes the baseline "
+                          "(pass `-SetBaseline` to overwrite an existing one later).")
     notes.append("Cost is informational only (BYOK sessions report 0).")
     baseline_schema = baseline.get("schema_version") if baseline else None
     if baseline_schema is not None and baseline_schema < SCHEMA_VERSION:
@@ -733,7 +734,11 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
                          f"| {b.get('tool_steps', 'n/a')} |")
         boundaries_text = "\n".join(lines)
     else:
-        boundaries_text = "_No merged skill loads — episode ended at the next external skill invocation._"
+        if metrics.get("mode") == "session":
+            boundaries_text = "_n/a (session mode) — attribution is shown in the " \
+                              "per-episode breakdown below._"
+        else:
+            boundaries_text = "_No merged skill loads — episode ended at the next external skill invocation._"
 
     # Episode breakdown (session mode secondary table)
     breakdown = metrics.get("episode_breakdown") or []
@@ -748,7 +753,15 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
     else:
         breakdown_text = "_n/a (episode mode)._"
 
+    if metrics.get("mode") == "session":
+        window_line = (f"Session window (whole transcript): {metrics['episode']['start']}"
+                       f" → {metrics['episode']['end'] or 'n/a'}")
+    else:
+        window_line = (f"Episode: {metrics['episode_index'] + 1} of {metrics['episode_count']}"
+                       f" — {metrics['episode']['start']} → {metrics['episode']['end'] or 'n/a'}")
+
     replacements = {
+        "{{WINDOW_LINE}}": window_line,
         "{{SKILL_NAME}}": metrics["skill"],
         "{{SESSION_DIR}}": metrics["session_dir"] or "n/a",
         "{{EPISODE_INDEX}}": str(metrics["episode_index"] + 1),

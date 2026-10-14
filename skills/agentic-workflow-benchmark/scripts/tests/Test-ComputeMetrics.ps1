@@ -155,6 +155,50 @@ try {
     Assert-Equal (Test-Path (Join-Path $sessDir 'baseline.session.json')) $true 'baseline.session.json written'
     Assert-Equal (Test-Path (Join-Path $sessDir 'baseline.json')) $false 'episode baseline untouched in session mode'
     Assert-Equal $sess.mode 'session' 'session mode field'
+
+    # --- Wrapper classification fixture ---
+    # Repo helper invocations must classify deterministic (provenance), while the
+    # ad-hoc shapes they replace stay uncertain — guarding both the wrapper-only
+    # rule and the anti-gaming intent of the taxonomy.
+    $classifySrc = @'
+import importlib.util, sys
+
+spec = importlib.util.spec_from_file_location("cm", sys.argv[1])
+cm = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cm)
+
+cases = [
+    # repo helper invocations -> deterministic (pre-authored .ps1 / task / gh)
+    ("./scripts/git/Get-WorktreeContent.ps1 -Action Search -Pattern 'SessionInlineFileViewer' -Path src", "deterministic"),
+    ("pwsh scripts/testing/Invoke-BrowserQaProbe.ps1 -Url https://localhost:62021/sessions -Steps @('wait:4000','shot:a.png')", "deterministic"),
+    ("./scripts/workflow/Get-SessionRunState.ps1 -Action RunState -RunId 4cbfda30812d", "deterministic"),
+    ("./scripts/dev/Inspect-PackageAsset.ps1 -Package blazorblueprint.components -Action Match -Pattern '\\.fixed\\{'", "deterministic"),
+    ("Set-Location 'C:\\wt'; task ax:build:fast", "deterministic"),
+    ("gh issue comment 953 --repo owner/repo --body-file body.md", "deterministic"),
+    # the ad-hoc shapes these replace -> still uncertain (direct calls stay honest)
+    ("playwright-cli goto \"https://localhost:62021/sessions\"", "uncertain"),
+    ("playwright-cli click \"[data-testid=session-file-fullscreen-open]\"", "uncertain"),
+    ("$wt = 'C:\\wt'; Get-ChildItem $wt -Recurse", "uncertain"),
+    ("$dir = 'C:\\sess\\files\\x\\evidence\\qa\\media'; New-Item -ItemType Directory -Path $dir -Force", "uncertain"),
+    ("curl.exe -s \"https://example.com/asset.css\"", "uncertain"),
+    # structured read-only git query -> decision point, not deterministic
+    ("git status --short", "query_read"),
+    # known taxonomy gap (out of scope): a -C path between `git` and the
+    # subcommand defeats the read-only-git pattern, so this lands uncertain today
+    ("git -C C:\\repo status --short", "uncertain"),
+]
+
+failures = 0
+for command, expected in cases:
+    got = cm.classify_step("powershell", {"command": command})
+    ok = got == expected
+    if not ok:
+        failures += 1
+    print(("ok       " if ok else "MISMATCH ") + f"expected={expected:14} got={got:14} :: {command[:90]}")
+sys.exit(1 if failures else 0)
+'@
+    $classifySrc | & $python[0] @($pyPrefix + @('-', $compute))
+    Assert-Equal $LASTEXITCODE 0 'wrapper classification fixture'
 }
 finally {
     if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
