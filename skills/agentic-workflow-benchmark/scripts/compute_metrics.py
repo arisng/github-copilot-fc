@@ -33,7 +33,7 @@ QUERY_READ = {
     "grep", "glob", "view", "read", "web_fetch", "lsp",
     "list_sessions", "get_current_session", "session_store_sql",
     "read_powershell", "list_powershell", "stop_powershell",
-    "list_powershell", "get_session_context",
+    "get_session_context",
 }
 QUERY_READ_PREFIXES = (
     "github-mcp-server-", "mcp-docker-brave_", "mcp-docker-get_",
@@ -693,10 +693,12 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
     if metrics.get("other_skill_invokes"):
         others = [s for s in metrics["other_skill_invokes"] if s != metrics["skill"]]
         if others:
+            section = ("the per-episode breakdown above" if metrics.get("mode") == "session"
+                       else "the boundaries table above")
             notes.append("Other skills invoked in this session: "
                          + ", ".join(f"`{s}`" for s in others)
-                         + " — if the target skill is an orchestrator, verify the "
-                         "boundaries table above represents the whole workflow.")
+                         + " — if the target skill is an orchestrator, verify "
+                         + section + " represents the whole workflow.")
     if baseline_refused_reason:
         notes.append(f"**Baseline NOT written**: {baseline_refused_reason}.")
     else:
@@ -754,8 +756,8 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
         breakdown_text = "_n/a (episode mode)._"
 
     if metrics.get("mode") == "session":
-        window_line = (f"Session window (whole transcript): {metrics['episode']['start']}"
-                       f" → {metrics['episode']['end'] or 'n/a'}")
+        window_line = (f"Session window (first event → this benchmark's activation): "
+                       f"{metrics['episode']['start']} → {metrics['episode']['end'] or 'n/a'}")
     else:
         window_line = (f"Episode: {metrics['episode_index'] + 1} of {metrics['episode_count']}"
                        f" — {metrics['episode']['start']} → {metrics['episode']['end'] or 'n/a'}")
@@ -764,6 +766,8 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
         "{{WINDOW_LINE}}": window_line,
         "{{SKILL_NAME}}": metrics["skill"],
         "{{SESSION_DIR}}": metrics["session_dir"] or "n/a",
+        # Legacy episode-line keys: kept for pre-0.2.2 custom templates only;
+        # the shipped template uses {{WINDOW_LINE}} instead.
         "{{EPISODE_INDEX}}": str(metrics["episode_index"] + 1),
         "{{EPISODE_COUNT}}": str(metrics["episode_count"]),
         "{{EPISODE_START}}": metrics["episode"]["start"],

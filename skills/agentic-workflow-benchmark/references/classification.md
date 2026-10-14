@@ -46,7 +46,9 @@ high — the report surfaces sample uncertain tool names to prompt exactly this.
    - `npm run|test|npx`, `dotnet build|test|run|publish|pack|tool`, `dotnet-coverage`,
      `pytest`, `python … .py`, `py -3 … .py`, `copilot plugin|plugins`, `npx skills`
    - `task <target>` — Taskfile target invocation (e.g. `task ax:build:cold`)
-   - `gh <subcommand>` — GitHub CLI is pre-authored tooling
+   - `gh <subcommand>` — GitHub CLI is pre-authored tooling; the recognized
+     subcommands are `api|pr|issue|run|repo|release|workflow|auth|browse|check|`
+     `gist|search|status` (anything else falls through to `uncertain`)
    - **mutating git**: `git commit|push|merge|rebase|add|restore|stash|worktree|`
      `cherry-pick|reset|revert|mv|rm|checkout|switch`
    - Classification order for shell: inline-code (semantic) → provenance

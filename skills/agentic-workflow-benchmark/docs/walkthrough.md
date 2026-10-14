@@ -3,13 +3,13 @@
 ## Summary
 
 This document explains, in plain words, what changed in the `agentic-workflow-benchmark` skill
-(version 0.1.0 → 0.2.3), why it had to change, what the files and numbers in a benchmarks folder
+(version 0.1.0 → 0.2.4), why it had to change, what the files and numbers in a benchmarks folder
 mean, and what is still left to do. It is self-contained and written for a reader who was not there
 when the work happened: every term is defined where it first appears and collected again in the
 glossary at [docs/CONTEXT.md](./CONTEXT.md); the numbers come entirely from one real measurement (a
 session from 13 October 2026), with the original broken run cited only as the one-line before/after;
 tables sit inline next to the text that explains them; and the document ends with a dated checklist
-of open actions. No picture accompanies it (none was requested).
+of open actions.
 
 ## Terms
 
@@ -24,19 +24,19 @@ _Avoid_: recording, transcript window, run
 **Baseline**: The saved first measurement of a skill's run that later runs compare against to say better or worse.
 _Avoid_: target, goal, score to beat
 
-**Deterministic step**: A step that ran a pre-written script or command — no fresh thinking involved.
+**Deterministic step**: A tool step that ran pre-authored code — a repo script, build, test, or other command nobody wrote on the spot.
 _Avoid_: automated score, good step
 
-**Semantic step**: A step where the AI had to think, judge, or write something new.
+**Semantic step**: A tool step where the model authored or judged content — writing, editing, or deciding rather than executing something pre-written.
 _Avoid_: AI step, manual step
 
-**Boundary row**: A line in the report showing work a helper skill did, counted under the main skill.
+**Boundary row**: A line in an episode report showing a helper skill's load that was merged into the owning skill's measurement, with that helper's own token and step totals.
 _Avoid_: merged load, sub-window attribution
 
 **Token**: A small unit of text the AI reads or writes; usage and cost are counted in them — roughly three-quarters of an English word.
 _Avoid_: word, character
 
-**Tool step**: One completed action the AI took with a tool — a command run, a file edited, a file read.
+**Tool step**: One completed tool call inside an episode — a command run, a file edited, or a file read.
 _Avoid_: operation, click
 
 ## Why
@@ -53,14 +53,9 @@ measure a shrug instead of the job. The tool cut its measurement every time a ne
 so for the big orchestrator skill it recorded only the moment the file was opened — **279,316
 tokens and 1 tool step** — when the session had actually consumed **90,457,904 tokens**. It then
 quietly saved that shrug as the baseline. Worse, commands that session's own build system uses
-(`task ax:build:cold` and friends, 40 of them) were not recognized as scripted work, making the run
-look about 45% less automated than it was. Everything in this document exists to explain those
+(`task ax:build:cold` and friends, roughly 40 of them) were not recognized as scripted work, making the run
+look about 40% less automated than it was. Everything in this document exists to explain those
 fixes, the folder they live in, and the numbers a reader will now see.
-
-## Locked decisions
-
-None. Every change described here was easy to reverse — a file can move, a wording rule can change —
-so none passes the bar for a permanent decision record.
 
 ## How this document reads
 
@@ -71,8 +66,9 @@ The conventions this document follows, stated once:
   self-contained and every term is defined before it is used.
 - **Numbers:** full tables and ratios are kept, not summarized away.
 - **Plain-English rule:** each term is defined the first time it appears *in this document*, then
-  used freely. "First time" is scoped per document, not per repository — the glossary file is the
-  single source the definitions are copied from, so wording stays identical everywhere.
+  used freely. "First time" is scoped per document, not per repository — for this project's own
+  terms the glossary file (`docs/CONTEXT.md`) is the single source and its wording is copied here
+  verbatim; general concepts (such as "token") are defined only in this document.
 - **Ending:** a dated "open actions" checklist closes the document (see below).
 - **Worked example:** the full tables come only from the 13 October 2026 session, where the fixed
   tool was used correctly; the original broken run appears only as the one-line before/after in
@@ -100,7 +96,11 @@ Established from the files themselves:
   After the fix it holds: the owner skill's reports and baselines (episode and session kept in
   separate files so they are never compared against each other), two `.bak` files preserving the
   superseded measurements, and — since the ownership rule — no separate folder for the driver
-  skill. The driver's contribution exists only as a boundary row inside the owner's report.
+  skill. The driver's contribution exists only as a boundary row inside the owner's report. Two
+  maintainer-authored files also live there: `20261013-wrapper-projection.md` (a labelled what-if
+  calculation that deliberately never becomes a score) and `baseline.session.scope.json` (scope
+  notes recording which issue and change-class a session baseline came from — an annotation that
+  merely *starts* with "baseline.", not a baseline).
 - **The re-measurement runs on 13 October 2026 behaved correctly.** The tool flagged the episode
   run as useless (1.5 minutes long while 937 tool steps happened elsewhere in the session), printed
   a warning at the top of the report, and refused to save it as a baseline — exactly the
@@ -119,39 +119,29 @@ Established from the files themselves:
 
 ## Open actions (as of 2026-10-14)
 
-1. **Commit the walkthrough and scope correction** — this document, its glossary, and the
-   description change that stops the skill being described as delivery-only. Suggested message:
-   `docs(skill): standalone walkthrough + scope skill to any agentic workflow (v0.2.3)`.
-2. **Decide on the `git -C …` gap** — fixing it would flip one line of the test that currently
+1. **Decide on the `git -C …` gap** — fixing it would flip one line of the test that currently
    expects "uncertain"; change both together when it should be closed.
-3. **Close out issue arisng/dprocess-dotnet-starter-kit#946** — its acceptance criterion 3 asks for
+2. **Close out issue arisng/dprocess-dotnet-starter-kit#946** — its acceptance criterion 3 asks for
    a re-measurement of an equivalent workflow run; the 13 October runs are the candidate evidence.
-4. **Commit or clean up the benchmark reports in the dprocess repo** — they currently sit in that
+3. **Commit or clean up the benchmark reports in the dprocess repo** — they currently sit in that
    repo's working tree, uncommitted.
-5. **Re-anchor the episode baseline** on a healthy run when one exists — the current episode
-   baseline still comes from the original (broken-tool era) session, because the 13 October episode
-   run was correctly refused as useless.
+4. **Optional — align the two baselines' provenance**: both are healthy (the episode baseline is
+   written by the fixed engine and reproduces exactly on re-run), but they come from different
+   sessions — episode from 12 October, session from 13 October. Re-anchor the episode baseline on
+   a newer run only if you want both to share one session; nothing is broken today.
 
 ## Risks
 
 - **The checklist above goes stale** — that is why it carries its date; treat a list older than the
   last real change as suspect.
 - **Two baselines, two different sessions.** The episode baseline (whole-skill view) is from the
-  original session; the session baseline (whole-transcript view) is from 13 October. They are kept
+  original session; the session baseline (session-aggregate view) is from 13 October. They are kept
   in separate files precisely so nothing compares them, but a human skimming the folder could —
-  read the `session_dir` line inside a baseline file before drawing conclusions.
+  read the `session_dir` line inside a baseline file before drawing conclusions, and note that
+  `baseline.session.scope.json` is an annotation, not a third baseline.
 - **`latest.json` is currently the refused, useless run** (12 steps) — do not mistake it for a
   representative measurement; the baselines are the meaningful files right now.
 - **This document travels with every skill publish** — if it ever grows content that should not
   ship with the skill, move it out of the skill folder.
 - **The glossary lives inside the skill** (`docs/CONTEXT.md`), not at the repository root where
   some readers look first — a deliberate choice to keep it beside the document it serves.
-
-## Deferred
-
-Nothing — no question was set aside; every branch reached an answer.
-
-## Open threads
-
-None — every discussion reached a decision. The glossary lives beside this document at
-`docs/CONTEXT.md`; rename it there if a better name comes along.

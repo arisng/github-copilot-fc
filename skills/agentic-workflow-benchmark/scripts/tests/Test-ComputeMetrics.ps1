@@ -156,6 +156,25 @@ try {
     Assert-Equal (Test-Path (Join-Path $sessDir 'baseline.json')) $false 'episode baseline untouched in session mode'
     Assert-Equal $sess.mode 'session' 'session mode field'
 
+    # --- Render assertions (v0.2.4): precise window line, no placeholder leaks,
+    #     mode-gated boundary note ---
+    $sessReportText = Get-Content (Get-ChildItem $sessDir -Filter '*-session-report.md' | Select-Object -First 1) -Raw
+    if ($sessReportText -notmatch 'Session window \(first event') { $failures += 'session report missing precise window line' }
+    if ($sessReportText -match '\{\{') { $failures += 'session report contains unreplaced placeholder' }
+    if ($sessReportText -notmatch 'n/a \(session mode\)') { $failures += 'session report boundaries section not n/a' }
+    if ($sessReportText -match 'boundaries table above') { $failures += 'session report note points at the episode-only boundaries table' }
+    $orchReportText = Get-Content (Get-ChildItem $orchDir -Filter '*-report.md' | Select-Object -First 1) -Raw
+    if ($orchReportText -notmatch 'boundaries table above') { $failures += 'episode report note should point at the boundaries table' }
+    if ($orchReportText -match '\{\{') { $failures += 'episode report contains unreplaced placeholder' }
+
+    # --- Wrapper location probe: repo-level skills under .github/skills/ receive artifacts ---
+    $probeRoot = Join-Path $outDir 'probe-repo'
+    New-Item -ItemType Directory -Path (Join-Path $probeRoot '.github\skills\demo-skill') -Force | Out-Null
+    & pwsh -NoProfile -File (Join-Path $scriptDir 'Invoke-AgenticBenchmark.ps1') `
+        -SkillName 'demo-skill' -EventsPath $fixture -RepoRoot $probeRoot | Out-Null
+    Assert-Equal $LASTEXITCODE 0 'wrapper probe exit code'
+    Assert-Equal (Test-Path (Join-Path $probeRoot '.github\skills\demo-skill\benchmarks\latest.json')) $true 'wrapper probed .github/skills OutDir'
+
     # --- Wrapper classification fixture ---
     # Repo helper invocations must classify deterministic (provenance), while the
     # ad-hoc shapes they replace stay uncertain — guarding both the wrapper-only

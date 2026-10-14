@@ -9,7 +9,8 @@
 > An **episode** is one execution run of the skill — a time-window *slice* of the
 > session's `events.jsonl` transcript, from the skill's invocation to the next
 > external skill invocation (or session end). One session can contain many
-> episodes; `--mode session` measures the whole transcript instead.
+> episodes; `--mode session` measures everything in the session before this
+> benchmark's own activation instead.
 
 ## Caveats
 

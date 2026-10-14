@@ -2,7 +2,7 @@
 name: agentic-workflow-benchmark
 description: Benchmark the efficiency of an agent skill's execution episode in a Copilot session against four goals - minimize LLM token usage, minimize execution time, minimize semantic (model-judgment) steps, and maximize deterministic (script/code-executed) steps - by parsing the session's local events.jsonl telemetry, then persist a structured report with baseline deltas as a durable artifact for historical analysis and self-improvement. Use AFTER a skill has finished executing in a session, to establish efficiency baselines, compare reruns against a baseline, or diagnose token/time/step hotspots in any agentic workflow executed by an AI agent - software delivery, research, operations, content production, or any other skill-driven run. Do NOT use for judging skill output quality (use skill-eval), for general session inspection, or when the session has no events.jsonl telemetry.
 metadata:
-  version: 0.2.3
+  version: 0.2.4
 ---
 
 # Agentic Workflow Benchmark
@@ -14,8 +14,8 @@ only as needed.
 > **Terminology**: an **episode** is one execution run of the target skill — a
 > time-window *slice* of the session's `events.jsonl` transcript, from the skill's
 > invocation to the next external skill invocation (or session end). One session
-> can contain many episodes. `--mode session` measures the whole transcript
-> instead (everything before this benchmark's own activation).
+> can contain many episodes. `--mode session` measures everything in the session
+> before this benchmark's own activation instead.
 
 ## Workflow
 
