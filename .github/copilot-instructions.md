@@ -40,8 +40,16 @@ Use this file for in-repo authoring of Copilot artifacts (not external publishin
 - OpenSpec Specs: `openspec/specs/ralph-v2-orchestration/<domain>/spec.md`
 - Skills: `skills/<name>/SKILL.md` with optional `scripts/`, `references/`, `assets/`
 - Skill evals: `evals/<name>/eval.yaml` with `tasks/` and `trigger_tests.yaml` (→ see `instructions/waza-eval.instructions.md`)
+- Skill telemetry: `telemetry/<name>/` (real-session efficiency audit artifacts; legacy name `benchmarks/`)
 - Use forward slashes in markdown links, even on Windows paths.
 - Kebab-case for directory and file names.
+
+## Skill evaluation and telemetry
+
+- **waza is the default skill-evaluation tool** — drive it through the `skills/waza-cli` skill. Start with the zero-cost, offline commands (`waza check`, `waza tokens check`, `waza coverage`); escalate to `waza quality`, `waza run`, or `waza gate` only when real model execution is needed (BYOK profile gate applies).
+- **CI gating is intentionally deferred (2026-10-16).** Do not wire `waza gate`/`waza run` into workflows yet; extend eval coverage on demand under `evals/<name>/` (see `instructions/waza-eval.instructions.md`).
+- **Real-session efficiency telemetry is a separate concern** — the `skills/copilot-session-telemetry` skill (formerly `agentic-workflow-benchmark`) audits what a finished run actually burned (tokens/time/scripted-vs-ad-hoc steps) and writes a dated report. It is not an evaluation tool; its findings hand off to waza for eval refinement and regression gating.
+- **Vocabulary:** "benchmark" = waza's authored evals; "telemetry" = the telemetry skill's artifacts (`telemetry/` folders).
 
 ## Critical workflows
 

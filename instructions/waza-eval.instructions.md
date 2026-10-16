@@ -54,25 +54,31 @@ tasks:
   - tasks/*.yaml
 ```
 
-## Task YAML schema (waza v0.38.7)
+## Task YAML schema (verified against waza v0.38.10)
 
 Required fields: `id`, `name`, `description`, `tags`, `inputs.prompt`, `expected.should_trigger`.
 
 Grader types (valid): `code`, `prompt`, `text`, `file`, `json_schema`, `program`, `behavior`, `action_sequence`, `skill_invocation`, `trigger`, `diff`, `tool_constraint`.
 
-Each grader requires `name` and `config`. Do not use `keyword` or `regex` types — they are not in the v0.38.7 schema.
+Each grader requires `name` and `config`. Do not use `keyword` or `regex` types — they are not in the schema (verified at v0.38.10; `schemas/task.schema.json` in the waza repo is authoritative).
 
 ## Token budget
 
-Default SKILL.md limit is 500 tokens. Override per-repo in `.waza.yaml`:
+Default SKILL.md limit is 500 tokens. Override per-repo in `.waza.yaml` with `limits.defaults` (glob map) or `limits.overrides` (exact path suffix):
 
 ```yaml
 tokens:
   limits:
-    max: 4000
+    defaults:
+      "SKILL.md": 4000
+    overrides:
+      "README.md": 3000
 ```
+
+Never use `tokens.limits.max` — it is not a schema key and hard-fails every command with `field max not found in type projectconfig.TokenLimitsConfig`.
 
 ## References
 
-- [waza eval format](../.archived/waza-eval-format.md) — full grader catalog and task schema
-- [waza commands](../.archived/waza-commands.md) — CLI flags and subcommands
+- [waza eval format](../skills/waza-cli/references/waza-eval-format.md) — eval.yaml shape, 12 grader types, token budgets
+- [waza commands](../skills/waza-cli/references/waza-commands.md) — CLI flags and subcommands
+- [waza CI patterns](../skills/waza-cli/references/waza-ci.md) — gating patterns (workspace CI wiring deferred)
