@@ -8,6 +8,11 @@ metadata:
 
 # AI Skill Eval
 
+> **DEPRECATED (2026-10-16)** — superseded by the [`waza-cli`](../waza-cli/SKILL.md) skill
+> (microsoft/waza): readiness checks, eval scaffolding, quality scoring, and regression gating
+> all run through waza now. This skill is kept for historical reference only — do not adopt it
+> for new work.
+
 Optimize an existing skill by separating two problems:
 
 1. **Activation**: the skill fires on the right prompts.
