@@ -4,7 +4,7 @@ How `scripts/Resolve-CopilotCliPath.ps1` decides which Copilot CLI binary waza r
 
 ## Default: waza's bundled CLI (recommended)
 
-With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** — v1.0.85 for waza 0.38.7. This version is pinned at waza build time via `COPILOT_CLI_VERSION` (see `internal/embedded/generate/generate.go` in the waza repo). It is the exact CLI waza was built and tested against, giving reproducible results across machines and CI runs.
+With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** — v1.0.85 on waza 0.38.7. The exact pin is baked at waza build time via `COPILOT_CLI_VERSION` (see `internal/embedded/generate/generate.go` in the waza repo) and moves with each release — verify the pin for your installed waza version rather than assuming. It is the exact CLI waza was built and tested against, giving reproducible results across machines and CI runs.
 
 **Do not set `COPILOT_CLI_PATH` by default.** The resolver is an opt-in override for when you need a specific machine CLI.
 
@@ -17,7 +17,7 @@ With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** — v1.0.85 for w
 | Protocol incompatibility | The SDK negotiates a protocol version at connection time; an incompatible CLI fails mid-eval |
 | Silent misbehavior | A compatible-but-different CLI may produce subtly different eval results with no error |
 
-The bundled CLI is the only version **known** to work with waza 0.38.7.
+The bundled CLI is the only version **known** to work with each waza release.
 
 ## Source-verified waza contract
 

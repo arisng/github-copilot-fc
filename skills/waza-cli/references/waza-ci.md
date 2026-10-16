@@ -1,6 +1,8 @@
 # Waza CI Integration
 
-Patterns for gating skill regressions in CI, based on waza v0.38.7 and its `examples/ci/` templates. Authoritative source: https://github.com/microsoft/waza/blob/main/examples/ci/README.md.
+Patterns for gating skill regressions in CI, based on waza v0.38.10 and its `examples/ci/` templates. Authoritative source: https://github.com/microsoft/waza/blob/main/examples/ci/README.md.
+
+> **Workspace status (2026-10-16): CI wiring is intentionally deferred.** Do not add these workflows to the workspace yet — keep this reference for when CI gating is enabled.
 
 ## Recommended flow
 

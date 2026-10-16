@@ -1,32 +1,37 @@
 ---
 name: waza-cli
-description: Drive the waza CLI (microsoft/waza) to evaluate agent skills with real LLM execution, model comparison, and CI regression gating. Use when checking a skill for submission readiness, running behavioral eval suites with LLM graders, comparing models A/B, gating skill regressions in CI, or measuring skill quality with an LLM judge. Do not use for fast static structure audits with zero LLM cost (use skill-eval).
+description: Drive the waza CLI (microsoft/waza) — the default skill-evaluation tool for this workspace — to check skill readiness for free (waza check, waza tokens), run behavioral eval suites with LLM graders, compare models A/B, measure quality with an LLM judge, and gate regressions in CI. Use when checking a skill before submission, running evals, comparing models, or auditing eval coverage. Do NOT use for post-hoc real-session efficiency telemetry (what a skill actually burned when it ran) — that is the copilot-session-telemetry skill (formerly agentic-workflow-benchmark), whose findings hand off here for eval refinement.
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Waza CLI Evaluation
 
-Run [waza](https://github.com/microsoft/waza) commands against a skill dir. Install: `go install github.com/microsoft/waza@latest`.
+Run [waza](https://github.com/microsoft/waza) commands against a skill dir. Install via [release binary](https://github.com/microsoft/waza) (`install.ps1` / `install.sh`) or `go install github.com/microsoft/waza@latest`; update in place with `waza update`. Verified against **waza v0.38.10** (Oct 2026) — commands documented only on waza's `main` docs but not yet released (`preflight`, `new eval --scenario`) are marked ⚠️ *upcoming*; confirm with `waza <cmd> --help` before use.
 
-USE FOR: check my skill, run my evals, compare models, gate CI regressions, score skill quality. DO NOT USE FOR: first-draft authoring (use skill-creator); offline static audits (use skill-eval).
+USE FOR: check my skill, run my evals, compare models, gate CI regressions, score skill quality, find eval coverage gaps. DO NOT USE FOR: first-draft authoring (use skill-creator); **real-session efficiency telemetry** (use the `copilot-session-telemetry` skill).
 
 ## Choose the command
 
 | Goal | Command |
 |------|---------|
 | Readiness, compliance, token budget | `waza check <skill-dir>` |
+| Token audit / optimization | `waza tokens check`, `waza tokens suggest` |
 | LLM-judge quality (5 dimensions) | `waza quality <skill-dir>` |
 | Behavioral eval, real execution | `waza run <eval.yaml>` |
 | Model A/B comparison | `waza run --baseline` |
+| Eval coverage grid (which skills have evals) | `waza coverage` |
+| Coverage vs SKILL.md requirements | `waza spec verify` |
+| Adversarial / fault-injection packs | `waza adversarial` |
 | CI regression gate | `waza gate` |
 | Determinism check | `waza snapshot` + `waza replay` |
+| Offline eval preflight (no agent) | ⚠️ *upcoming* — `waza preflight <eval.yaml>` |
 
 ## Runtime environment (CLI, COPILOT_HOME, BYOK)
 
 ### Default: waza's bundled Copilot CLI
 
-With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** (v1.0.85 for waza 0.38.7 — pinned at build time, see [copilot-cli-resolution.md](references/copilot-cli-resolution.md)). This is the recommended default for eval: it is the exact CLI version waza was built and tested against, giving reproducible results across machines and CI runs.
+With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** (e.g. v1.0.85 on waza 0.38.7 — the exact pin travels with each release, see [copilot-cli-resolution.md](references/copilot-cli-resolution.md)). This is the recommended default for eval: it is the exact CLI version waza was built and tested against, giving reproducible results across machines and CI runs.
 
 **Do not set `COPILOT_CLI_PATH` by default.** The resolver script is an **opt-in override** for when you need a specific machine CLI (e.g., testing a feature only in a newer release). Machine-default is risky: it varies by box (1.0.92 on WinGet, 1.0.80 on npm-first) and may be newer than waza tested, with no version-compatibility check.
 
@@ -46,7 +51,7 @@ This redirects both eval session data and the embedded CLI extraction. Your main
 
 waza performs a **background version check** after every command and prints an update notice if a new version is available (e.g., "A newer version of waza is available: v0.38.7 → v0.38.10"). The check runs in a goroutine but `Result()` blocks up to **100ms** synchronously, and the GitHub API call is cached for **24h**. This is low-overhead but not zero — no additional LLM tokens, but a small network call and sync wait on each invocation. **Do not add a separate update-check mechanism** to the skill; rely on the built-in notice.
 
-For skill updates: this workspace publishes skills via `scripts/publish/publish-skills.ps1`. The update path is to re-run the publish script from the workspace source. No runtime check is needed.
+For skill updates: re-run the workspace publish flow from the source (`scripts/publish/`, or the skills CLI). No runtime check is needed.
 
 ### BYOK mode (no Copilot subscription)
 
@@ -102,7 +107,10 @@ Note: the isolated `COPILOT_HOME` won't have your existing CLI auth. With BYOK t
 
 ```bash
 waza check skills/<name>           # offline, no LLM cost
+waza tokens check                  # token budgets across the workspace
 waza tokens suggest skills/<name>
+waza coverage                      # which skills have evals
+waza spec verify skills/<name>     # eval coverage vs SKILL.md requirements
 
 waza run skills/<name>/eval.yaml   # needs BYOK provider vars + isolated COPILOT_HOME (see above)
 waza run --baseline skills/<name>/eval.yaml
@@ -110,11 +118,13 @@ waza run --baseline skills/<name>/eval.yaml
 waza gate --baseline baseline.json --current results.json
 ```
 
-If `waza check` flags the 500-token budget on a large skill, set `tokens.limits.defaults` (a glob → limit map) in `.waza.yaml` — see [eval format reference](references/waza-eval-format.md#token-budget-override).
+If `waza check` flags the 500-token budget on a large skill, set `tokens.limits.defaults` (a glob → limit map) in `.waza.yaml` — see [eval format reference](references/waza-eval-format.md#token-budget-override). Never use `tokens.limits.max`: it is not a schema key and makes `waza check` fail with `field max not found in type projectconfig.TokenLimitsConfig`.
 
 ## Decision rule
 
-Run `skill-eval` first for zero-cost structural checks. Escalate to `waza` for real model execution, model comparison, or CI regression gating. Complementary, not replacements.
+Run the zero-cost commands first — `waza check`, `waza tokens check`, and `waza coverage` are offline (no LLM cost). Escalate to `waza quality`, `waza run`, or `waza gate` only when real model execution is needed (the BYOK profile gate above applies).
+
+Related skills: **real-session efficiency telemetry** (tokens/time/steps a finished run actually burned, plus waza-ready evidence for eval refinement) → the `copilot-session-telemetry` skill (formerly `agentic-workflow-benchmark`). `skill-eval` is deprecated — do not use it.
 
 Read references when needed:
 - [Eval format and graders](references/waza-eval-format.md) — authoring eval.yaml, task YAML, trigger tests
