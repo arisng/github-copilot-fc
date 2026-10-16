@@ -1,8 +1,8 @@
 # Metrics Definitions
 
 Four goals, each mapped to a primary metric with a fixed trend direction.
-All values are computed per episode (see attribution rules below) and compared
-against `baseline.json` (and the previous run) in the report scorecard.
+All values are computed per episode (see attribution rules below) and rendered into
+the dated report's scorecard (values only — no baseline tracking).
 
 ## Goal → metric mapping
 
@@ -21,7 +21,7 @@ against `baseline.json` (and the previous run) in the report scorecard.
 - Sub-agent usage (`initiator=sub-agent` or `agentId` present) is **included in totals**
   and broken out in `sub_agent_tokens` — sub-agent work is real cost.
 - **Cost is informational only**: BYOK sessions report `cost=0`, so cost-based
-  benchmarking is meaningless for them.
+  comparison is meaningless for them.
 
 ### Time
 - `wall_clock_ms` — episode end − start (raw span).
@@ -59,41 +59,41 @@ uncertain, plus `total`.
    - **Subagent-internal loads**: a `skill.invoked` inside a
      `subagent.started → subagent.completed` window is the subagent's own skill
      load; it does not end the orchestrator's episode.
-   - **Hard stops**: the benchmark's own activation (`SELF_SKILLS`) and any
+   - **Hard stops**: this audit's own activation (`SELF_SKILLS`) and any
      re-invocation of the target skill always terminate the episode, regardless of
      chain or subagent state.
    - Absorbed loads appear in `episode.boundaries[]` (`{skill, timestamp, subagent,
      tokens, tool_steps}`) with their own sub-window totals — a merged load is
      reported, never silently hidden.
    - **Ownership rule**: a chain-merged meta/driver skill's cost belongs to the
-     *owner orchestrator's* scorecard, not to a benchmark of the driver itself.
-     Drivers are shared across orchestrators, so a standalone driver baseline would
+     *owner orchestrator's* scorecard, not to an audit of the driver itself.
+     Drivers are shared across orchestrators, so a standalone driver audit would
      aggregate unrelated callers and double-count work already owned by each
-     orchestrator's episode. Benchmark a driver directly only when it ran with no
+     orchestrator's episode. Audit a driver directly only when it ran with no
      declaring orchestrator in the session.
    - Older sessions without `subagent.*` events degrade to pure chain logic.
 3. Default episode = the **most recent** invocation; pass `--episode N` for earlier ones
    when a skill ran multiple times in one session.
-4. **Self-exclusion**: the benchmark skill runs in the same session. Because the episode
-   ends at the benchmark's own activation (hard stop), the benchmark's own LLM calls and
+4. **Self-exclusion**: this audit skill runs in the same session. Because the episode
+   ends at the audit's own activation (hard stop), the audit's own LLM calls and
    tools are always excluded — including when a skill chain would otherwise absorb it.
 5. `invokedAtTurn` is undefined in older sessions — never use turn indices; timestamp
    windows are the only reliable boundary mechanism (see `event-schema.md`).
 
 ## Session-aggregate mode (`--mode session`)
 
-Measures **everything before the benchmark's own activation** — the whole-workflow
+Measures **everything before this audit's own activation** — the whole-workflow
 number that survives ambiguous attribution. Use it when the target is an orchestrator
 skill, or whenever the per-episode table looks suspiciously small relative to the
 session's total activity.
 
-- Window: `[first event → most recent benchmark activation]` (offline re-runs against
-  an events file where the benchmark never ran fall back to end-of-events).
+- Window: `[first event → most recent audit activation]` (offline re-runs against
+  an events file where the audit never ran fall back to end-of-events).
 - The four-goal scorecard reports the aggregate; the per-episode mechanical table is a
   secondary `episode_breakdown[]` (skill, window, tokens, tool steps).
-- Baselines are **mode-separated**: session mode reads/writes `baseline.session.json`
-  and `latest.session.json`; episode mode keeps `baseline.json` / `latest.json`.
-  The two modes answer different questions and must never cross-compare.
+- Modes are **report-separated**: session mode writes `…-session-report.md`; episode
+  mode writes `…-episodeN-report.md`. The two modes answer different questions and must
+  never cross-compare.
 
 ## Degenerate-episode guard
 
@@ -102,22 +102,24 @@ session holds > 50 tool steps outside it — i.e. it measures a skill *load*, no
 workflow. Degenerate episodes:
 
 - carry a prominent Caveats entry at the top of the report,
-- **refuse to write `baseline.json`** (first-run implicit baseline included) unless
-  `-SetBaseline`/`--set-baseline` is passed explicitly,
-- report `degenerate.is_degenerate`, `degenerate.reasons`, and
-  `other_skill_invokes` (other skills invoked in the session) in `latest.json`.
+- set `degenerate.is_degenerate`, `degenerate.reasons`, and
+  `other_skill_invokes` (other skills invoked in the session) in the metrics payload
+  (stdout JSON).
 
-## Baseline & durable artifacts
+## Durable artifacts
 
-Per-report directory (repo-level target skill: `skills/<target>/benchmarks/` or
-`.github/skills/<target>/benchmarks/`; user-level: `benchmarks/<target>/` at repo root):
+Artifact directory — "telemetry" (repo-level target skill: `skills/<target>/telemetry/` or
+`.github/skills/<target>/telemetry/`; user-level: `telemetry/<target>/` at repo root). An
+existing legacy `benchmarks/` folder is reused (with a warning) until renamed.
+
+**The dated report is the only persisted artifact:**
 
 | File | Role |
 |------|------|
-| `YYYYMMDD-HHMMSS-episodeN-report.md` | Human-readable structured report (historical record); session mode writes `…-session-report.md` |
-| `latest.json` / `latest.session.json` | Machine-readable metrics of the most recent run (per mode) |
-| `baseline.json` / `baseline.session.json` | Chosen baseline (per mode); first run sets it implicitly unless degenerate, `-SetBaseline` overwrites |
+| `YYYYMMDD-HHMMSS-episodeN-report.md` | Human-readable report carrying the full metric tables (historical record); session mode writes `…-session-report.md` |
 
-Every report shows deltas vs `baseline.json` (goal direction applied: a negative token
-delta is *improved*, a positive deterministic-ratio delta is *improved*).
-Historical analysis = diff the dated reports / latest.json snapshots over time.
+`baseline.json` / `latest.json` are **no longer written** (retired 2026-10-16): each report
+carries the complete numbers, so cross-run comparison is a report-to-report diff, and
+regression gating belongs to waza evals (see the `waza-cli` skill). The engine also echoes
+the full metrics object as JSON on stdout for scripted consumption — nothing extra is
+persisted.

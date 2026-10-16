@@ -6,8 +6,8 @@ _Avoid_: full session, the whole chat, recording
 **Session**: The complete transcript of one chat with the AI — every message, click, and command, saved as a list of events.
 _Avoid_: recording, transcript window, run
 
-**Baseline**: The saved first measurement of a skill's run that later runs compare against to say better or worse.
-_Avoid_: target, goal, score to beat
+**Telemetry**: The durable artifact one audit writes — the dated report — stored in the target skill's `telemetry/` folder (legacy name: `benchmarks/`; *benchmark* is reserved for waza's authored evals).
+_Avoid_: benchmark report, baseline file
 
 **Deterministic step**: A tool step that ran pre-authored code — a repo script, build, test, or other command nobody wrote on the spot.
 _Avoid_: automated score, good step

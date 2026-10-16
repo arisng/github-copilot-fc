@@ -1,18 +1,19 @@
 <#
 .SYNOPSIS
-    Benchmark an agentic skill-execution episode from a Copilot session's events.jsonl.
+    Audit an agentic skill-execution episode from a Copilot session's events.jsonl.
 
 .DESCRIPTION
     Orchestrator for compute_metrics.py: resolves the session events file, runs the
-    pre-flight + metric computation, and places durable artifacts (dated report,
-    latest.json, baseline.json) in the target skill's benchmarks folder.
+    pre-flight + metric computation, and writes the durable telemetry artifact — the
+    dated report — into the target skill's telemetry folder.
 
-    Report location (per skill type):
-      - repo-level skill  -> <repo>/skills/<skill>/benchmarks/ or <repo>/.github/skills/<skill>/benchmarks/
-      - user-level skill  -> <repo>/benchmarks/<skill>/
+    Artifact location (per skill type; an existing legacy 'benchmarks' folder is
+    reused when no 'telemetry' folder exists yet):
+      - repo-level skill  -> <repo>/skills/<skill>/telemetry/ or <repo>/.github/skills/<skill>/telemetry/
+      - user-level skill  -> <repo>/telemetry/<skill>/
 
 .EXAMPLE
-    pwsh -NoProfile -File Invoke-AgenticBenchmark.ps1 -SessionDir $env:USERPROFILE\.copilot\session-state\<uuid> -SkillName my-skill
+    pwsh -NoProfile -File Invoke-SessionTelemetry.ps1 -SessionDir $env:USERPROFILE\.copilot\session-state\<uuid> -SkillName my-skill
 #>
 [CmdletBinding()]
 param(
@@ -30,9 +31,7 @@ param(
     [int]$Episode = -1,
 
     [ValidateSet('episode', 'session')]
-    [string]$Mode = 'episode',
-
-    [switch]$SetBaseline
+    [string]$Mode = 'episode'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,23 +58,34 @@ if (-not $EventsPath) {
 # Pre-flight telemetry check: fail loudly, never silently degrade
 if (-not (Test-Path $EventsPath)) {
     Write-Error ("Pre-flight failed: events file not found at '$EventsPath'. " +
-        "This session has no local telemetry; cannot benchmark. " +
+        "This session has no local telemetry; cannot audit. " +
         "Pass -EventsPath explicitly or pick a session with events.jsonl.")
     exit 2
 }
 
-# Resolve report location scoped to the target skill
+# Resolve artifact location scoped to the target skill.
+# 'telemetry' is the current folder name; an existing legacy 'benchmarks'
+# folder is reused (with a warning) so stored baselines keep their history.
+function Resolve-ArtifactFolderName([string]$BaseDir) {
+    if (Test-Path (Join-Path $BaseDir 'telemetry')) { return 'telemetry' }
+    if (Test-Path (Join-Path $BaseDir 'benchmarks')) {
+        Write-Warning "Using legacy 'benchmarks' folder under $BaseDir - rename it to 'telemetry' when convenient."
+        return 'benchmarks'
+    }
+    return 'telemetry'
+}
+
 if (-not $OutDir) {
     $repoSkillDir = Join-Path $RepoRoot "skills\$SkillName"
     $ghSkillDir = Join-Path $RepoRoot ".github\skills\$SkillName"
     if (Test-Path $repoSkillDir) {
-        $OutDir = Join-Path $repoSkillDir 'benchmarks'
+        $OutDir = Join-Path $repoSkillDir (Resolve-ArtifactFolderName $repoSkillDir)
     }
     elseif (Test-Path $ghSkillDir) {
-        $OutDir = Join-Path $ghSkillDir 'benchmarks'
+        $OutDir = Join-Path $ghSkillDir (Resolve-ArtifactFolderName $ghSkillDir)
     }
     else {
-        $OutDir = Join-Path $RepoRoot "benchmarks\$SkillName"
+        $OutDir = Join-Path $RepoRoot (Join-Path (Resolve-ArtifactFolderName $RepoRoot) $SkillName)
     }
 }
 
@@ -101,7 +111,6 @@ $pyArgs += @(
     '--mode', $Mode
 )
 if ($SessionDir) { $pyArgs += @('--session-dir', $SessionDir) }
-if ($SetBaseline) { $pyArgs += '--set-baseline' }
 
 Write-Verbose "Running: $python $($pyArgs -join ' ')"
 & $python @pyArgs

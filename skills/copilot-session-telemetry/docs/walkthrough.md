@@ -1,9 +1,20 @@
 # Plain-English walkthrough of the benchmark skill upgrade
 
+> **Re-scope note (2026-10-16):** the skill is now named **`copilot-session-telemetry`**
+> (renamed from `agentic-workflow-benchmark`, via an interim `real-session-efficiency-audit`);
+> its output is *telemetry*, and the word
+> *benchmark* is reserved for waza's authored evals (the `waza-cli` skill) — which is also where
+> this audit's findings hand off for refinement. The entry point is now
+> `scripts/Invoke-SessionTelemetry.ps1`. Artifacts default to `telemetry/` folders (a legacy
+> `benchmarks/` folder is still reused with a warning), and `baseline.json` / `latest.json` are
+> no longer written — the dated report is the only persisted artifact. Everything below is
+> unchanged history of the v0.1.0 → v0.2.4 upgrade.
+
 ## Summary
 
-This document explains, in plain words, what changed in the `agentic-workflow-benchmark` skill
-(version 0.1.0 → 0.2.4), why it had to change, what the files and numbers in a benchmarks folder
+This document explains, in plain words, what changed in the skill now named
+`copilot-session-telemetry` (formerly `agentic-workflow-benchmark`; the 0.1.0 → 0.2.4 upgrade),
+why it had to change, what the files and numbers in a benchmarks folder
 mean, and what is still left to do. It is self-contained and written for a reader who was not there
 when the work happened: every term is defined where it first appears and collected again in the
 glossary at [docs/CONTEXT.md](./CONTEXT.md); the numbers come entirely from one real measurement (a
@@ -75,7 +86,7 @@ The conventions this document follows, stated once:
   Why.
 - **Table placement:** every table sits inline, right after the text that explains it, so a reader
   meets a number in the same glance as its definition.
-- **Location:** this file lives at `skills/agentic-workflow-benchmark/docs/walkthrough.md` — inside
+- **Location:** this file lives at `skills/copilot-session-telemetry/docs/walkthrough.md` — inside
   the skill, so it travels along whenever the skill is published.
 
 ## Verified facts

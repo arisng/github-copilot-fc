@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Compute agentic-workflow benchmark metrics from a Copilot session events.jsonl.
+"""Compute real-session efficiency audit metrics from a Copilot session events.jsonl.
 
-Pure-function core: parse episode window -> classify steps -> metrics + baseline
-delta -> render report markdown + latest.json.
+Pure-function core: parse episode window -> classify steps -> metrics -> render
+report markdown. The dated report is the only artifact written; the full metrics
+object is also printed to stdout as JSON for scripted consumption.
 
 Usage:
     python compute_metrics.py --events <events.jsonl> --skill <name> --out-dir <dir>
-        [--session-dir <dir>] [--episode N] [--set-baseline] [--template <path>]
+        [--session-dir <dir>] [--episode N] [--template <path>]
 """
 
 import argparse
@@ -17,7 +18,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SCHEMA_VERSION = 2
-SELF_SKILLS = {"agentic-workflow-benchmark"}
+SELF_SKILLS = {"copilot-session-telemetry",     # current name
+               "real-session-efficiency-audit", # interim name (2026-10-16)
+               "agentic-workflow-benchmark"}    # legacy name (offline re-runs of old sessions)
 
 # --- Step classification taxonomy (see references/classification.md) ---
 
@@ -234,7 +237,7 @@ def chain_merges(target_texts, target_machina, next_name, next_ts, prev_ts):
     """Should next skill's invoke extend the target's episode (skill-chain)?"""
     lower = next_name.lower()
     if lower in SELF_SKILLS:
-        return False  # hard stop: benchmark self-activation always terminates
+        return False  # hard stop: audit self-activation always terminates
     # Declarative: target's SKILL.md declares machina: and next is the driver
     if target_machina and lower == "machina-driving":
         return True
@@ -267,7 +270,7 @@ def resolve_episode_end(events, target_invokes, start, subagent_windows):
             continue
         name = str((ev.get("data") or {}).get("name", "")).lower()
         if name in SELF_SKILLS or name == target_name:
-            return ts, boundaries  # hard stop: benchmark or a re-invocation of the target
+            return ts, boundaries  # hard stop: audit or a re-invocation of the target
         subagent_internal = inside_subagent_window(ts, subagent_windows)
         merged = subagent_internal or chain_merges(
             chain_texts, chain_machina, name, ts, prev_ts)
@@ -511,7 +514,7 @@ def _compute_window_metrics(in_window, all_events, skill_name, session_dir,
 
 def compute_session_metrics(events, skill_name: str, session_dir: str,
                             bad_lines: int = 0):
-    """Session-aggregate mode: every event before the benchmark's own activation.
+    """Session-aggregate mode: every event before this audit's own activation.
 
     Headline scorecard = whole-workflow cost; per-episode table is the
     secondary breakdown. Self-exclusion preserved via SELF_SKILLS hard stop.
@@ -520,8 +523,8 @@ def compute_session_metrics(events, skill_name: str, session_dir: str,
         return None, {"reason": "no events found"}
     first_ts = parse_ts(min(ev["timestamp"] for ev in events if ev.get("timestamp")))
 
-    # End = benchmark's own most recent activation; offline re-runs fall back
-    # to end of events (the benchmark ran in an earlier session pass).
+    # End = this audit's own most recent activation; offline re-runs fall back
+    # to end of events (the audit ran in an earlier session pass).
     end = None
     for ev in real_invokes(events):
         if str((ev.get("data") or {}).get("name", "")).lower() in SELF_SKILLS:
@@ -576,14 +579,13 @@ def compute_session_metrics(events, skill_name: str, session_dir: str,
     return metrics, None
 
 
-# --- Baseline deltas ---
+# --- Headline metrics (values only; baseline tracking removed 2026-10-16) ---
 
-# goal direction: True => lower is better
 HEADLINE_METRICS = [
-    ("tokens.total", "Minimize LLM token usage", True),
-    ("time.active_ms", "Minimize execution time", True),
-    ("steps.semantic", "Minimize semantic steps", True),
-    ("ratios.deterministic_ratio", "Maximize deterministic steps", False),
+    ("tokens.total", "Minimize LLM token usage"),
+    ("time.active_ms", "Minimize execution time"),
+    ("steps.semantic", "Minimize semantic steps"),
+    ("ratios.deterministic_ratio", "Maximize deterministic steps"),
 ]
 
 
@@ -596,23 +598,9 @@ def dig(metrics: dict, dotted: str):
     return node
 
 
-def delta_rows(current: dict, baseline: dict | None):
-    rows = []
-    for key, goal, lower_is_better in HEADLINE_METRICS:
-        value = dig(current, key)
-        base = dig(baseline, key) if baseline else None
-        delta = None
-        trend = "n/a"
-        if isinstance(value, (int, float)) and isinstance(base, (int, float)) and base != 0:
-            delta = round(value - base, 4)
-            if delta == 0:
-                trend = "= unchanged"
-            else:
-                improved = (delta < 0) if lower_is_better else (delta > 0)
-                trend = "improved" if improved else "regressed"
-        rows.append({"metric": key, "goal": goal, "value": value,
-                     "baseline": base, "delta": delta, "trend": trend})
-    return rows
+def headline_rows(current: dict):
+    return [{"metric": key, "goal": goal, "value": dig(current, key)}
+            for key, goal in HEADLINE_METRICS]
 
 
 # --- Report rendering ---
@@ -633,21 +621,15 @@ def kv_table(pairs):
     return "\n".join(lines)
 
 
-def render_report(metrics: dict, rows, baseline_path: Path | None,
-                  template_text: str, baseline: dict | None = None,
-                  baseline_refused_reason: str | None = None) -> str:
+def render_report(metrics: dict, rows, template_text: str) -> str:
     steps = metrics["steps"]
     tokens = metrics["tokens"]
     time_info = metrics["time"]
     ratios = metrics["ratios"]
-    scorecard = ["| # | Goal | Metric | Value | Baseline | Δ | Trend |",
-                 "|---|------|--------|-------|----------|---|-------|"]
+    scorecard = ["| # | Goal | Metric | Value |",
+                 "|---|------|--------|-------|"]
     for i, row in enumerate(rows, 1):
-        value, base, delta = row["value"], row["baseline"], row["delta"]
-        scorecard.append(
-            f"| {i} | {row['goal']} | `{row['metric']}` | {value} "
-            f"| {base if base is not None else '—'} "
-            f"| {delta if delta is not None else '—'} | {row['trend']} |")
+        scorecard.append(f"| {i} | {row['goal']} | `{row['metric']}` | {row['value']} |")
 
     tokens_table = kv_table([
         ("input tokens", f"{tokens['input']:,}"),
@@ -699,17 +681,9 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
                          + ", ".join(f"`{s}`" for s in others)
                          + " — if the target skill is an orchestrator, verify "
                          + section + " represents the whole workflow.")
-    if baseline_refused_reason:
-        notes.append(f"**Baseline NOT written**: {baseline_refused_reason}.")
-    else:
-        notes.append(f"Baseline file: `{baseline_path}`" if baseline_path
-                     else "No baseline yet — this run becomes the baseline "
-                          "(pass `-SetBaseline` to overwrite an existing one later).")
     notes.append("Cost is informational only (BYOK sessions report 0).")
-    baseline_schema = baseline.get("schema_version") if baseline else None
-    if baseline_schema is not None and baseline_schema < SCHEMA_VERSION:
-        notes.append(f"Baseline was written by schema v{baseline_schema}; "
-                     "re-baseline recommended after this upgrade.")
+    notes.append("Cross-run comparison: diff this report against earlier dated reports "
+                 "in the same folder.")
 
     # Caveats (prominent, top of report) — degenerate episodes etc.
     caveats = []
@@ -718,8 +692,7 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
         caveats.append(
             "**DEGENERATE EPISODE** — " + "; ".join(degenerate["reasons"])
             + ". This scorecard measures a skill load, not the workflow. "
-              "`baseline.json` was NOT written (pass `-SetBaseline`/`--set-baseline` "
-              "to force). Use `--mode session` for a whole-workflow number, or "
+              "Use `--mode session` for a whole-workflow number, or "
               "check episode boundaries for skill-chain/subagent attribution gaps.")
     if not caveats:
         caveats.append("_None._")
@@ -756,7 +729,7 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
         breakdown_text = "_n/a (episode mode)._"
 
     if metrics.get("mode") == "session":
-        window_line = (f"Session window (first event → this benchmark's activation): "
+        window_line = (f"Session window (first event → this audit's activation): "
                        f"{metrics['episode']['start']} → {metrics['episode']['end'] or 'n/a'}")
     else:
         window_line = (f"Episode: {metrics['episode_index'] + 1} of {metrics['episode_count']}"
@@ -793,7 +766,7 @@ def render_report(metrics: dict, rows, baseline_path: Path | None,
     return report
 
 
-CANNOT_BENCHMARK_TEMPLATE = """# Agentic Workflow Benchmark — CANNOT BENCHMARK
+CANNOT_AUDIT_TEMPLATE = """# Real-Session Efficiency Audit — CANNOT AUDIT
 
 - Skill: `{{SKILL_NAME}}`
 - Session dir: `{{SESSION_DIR}}`
@@ -815,9 +788,8 @@ def main(argv=None) -> int:
                         help="episode index; default -1 = most recent invocation")
     parser.add_argument("--mode", choices=("episode", "session"), default="episode",
                         help="episode = one skill-execution run; session = "
-                             "aggregate of everything before the benchmark's own "
+                             "aggregate of everything before this audit's own "
                              "activation (whole-workflow number)")
-    parser.add_argument("--set-baseline", action="store_true")
     parser.add_argument("--template", type=Path, default=None)
     args = parser.parse_args(argv)
 
@@ -826,20 +798,20 @@ def main(argv=None) -> int:
 
     if not args.events.exists():
         reason = f"events file not found: {args.events}"
-        report_path = args.out_dir / f"{stamp}-cannot-benchmark.md"
-        text = (CANNOT_BENCHMARK_TEMPLATE
+        report_path = args.out_dir / f"{stamp}-cannot-audit.md"
+        text = (CANNOT_AUDIT_TEMPLATE
                 .replace("{{SKILL_NAME}}", args.skill)
                 .replace("{{SESSION_DIR}}", str(args.session_dir or "n/a"))
                 .replace("{{REASON}}", reason)
                 .replace("{{GENERATED_AT}}", datetime.now(timezone.utc).isoformat(timespec="seconds")))
         report_path.write_text(text, encoding="utf-8")
-        print(f"CANNOT BENCHMARK: {reason}", file=sys.stderr)
+        print(f"CANNOT AUDIT: {reason}", file=sys.stderr)
         return 3
 
     template_path = args.template or (Path(__file__).resolve().parent.parent
                                       / "assets" / "report-template.md")
     template_text = template_path.read_text(encoding="utf-8") if template_path.exists() else \
-        "# Benchmark — {{SKILL_NAME}}\n\n{{SCORECARD_HEADER}}\n{{SCORECARD_ROWS}}\n"
+        "# Real-Session Efficiency Audit — {{SKILL_NAME}}\n\n{{SCORECARD_HEADER}}\n{{SCORECARD_ROWS}}\n"
 
     events, bad_lines = load_events(args.events)
     metrics, error = compute_metrics(events, args.skill, args.episode,
@@ -847,65 +819,30 @@ def main(argv=None) -> int:
                                      mode=args.mode)
     if metrics is None:
         reason = error["reason"]
-        report_path = args.out_dir / f"{stamp}-cannot-benchmark.md"
-        text = (CANNOT_BENCHMARK_TEMPLATE
+        report_path = args.out_dir / f"{stamp}-cannot-audit.md"
+        text = (CANNOT_AUDIT_TEMPLATE
                 .replace("{{SKILL_NAME}}", args.skill)
                 .replace("{{SESSION_DIR}}", str(args.session_dir or "n/a"))
                 .replace("{{REASON}}", reason)
                 .replace("{{GENERATED_AT}}", datetime.now(timezone.utc).isoformat(timespec="seconds")))
         report_path.write_text(text, encoding="utf-8")
-        print(f"CANNOT BENCHMARK: {reason}", file=sys.stderr)
+        print(f"CANNOT AUDIT: {reason}", file=sys.stderr)
         return 3
 
-    # Baselines are mode-separated: episode and session scorecards answer
-    # different questions and must never cross-compare.
-    baseline_name = "baseline.session.json" if args.mode == "session" else "baseline.json"
-    latest_name = "latest.session.json" if args.mode == "session" else "latest.json"
-    baseline_path = args.out_dir / baseline_name
-    latest_path = args.out_dir / latest_name
-    baseline = json.loads(baseline_path.read_text(encoding="utf-8")) if baseline_path.exists() else None
-    previous = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else None
+    rows = headline_rows(metrics)
 
-    rows = delta_rows(metrics, baseline)
-
-    # Baseline write policy: explicit --set-baseline always wins; otherwise a
-    # degenerate episode must NOT silently anchor the baseline (t1).
-    degenerate = (metrics.get("degenerate") or {}).get("is_degenerate", False)
-    baseline_refused_reason = None
-    if degenerate and not args.set_baseline:
-        baseline_refused_reason = (
-            "degenerate episode — refusing to anchor baseline; "
-            "pass --set-baseline to force")
-    baseline_written = False
-    if args.set_baseline or (baseline is None and baseline_refused_reason is None):
-        baseline_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-        baseline_written = True
-
-    report = render_report(metrics, rows, baseline_path if baseline else None,
-                           template_text, baseline,
-                           baseline_refused_reason=baseline_refused_reason)
+    report = render_report(metrics, rows, template_text)
 
     if metrics.get("mode") == "session":
         report_path = args.out_dir / f"{stamp}-session-report.md"
     else:
         report_path = args.out_dir / f"{stamp}-episode{metrics['episode_index'] + 1}-report.md"
     report_path.write_text(report, encoding="utf-8")
-    latest_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
-    summary = {
-        "report": str(report_path),
-        "mode": metrics.get("mode", "episode"),
-        "tokens_total": metrics["tokens"]["total"],
-        "active_ms": metrics["time"]["active_ms"],
-        "semantic_steps": metrics["steps"]["semantic"],
-        "deterministic_steps": metrics["steps"]["deterministic"],
-        "deterministic_ratio": metrics["ratios"]["deterministic_ratio"],
-        "vs_baseline": rows,
-        "previous_run_exists": previous is not None,
-        "baseline_written": baseline_written,
-        "baseline_refused_reason": baseline_refused_reason,
-    }
-    print(json.dumps(summary, indent=2))
+    # Full metrics to stdout for scripted consumption; nothing else is persisted.
+    payload = dict(metrics)
+    payload["report"] = str(report_path)
+    print(json.dumps(payload, indent=2))
     return 0
 
 

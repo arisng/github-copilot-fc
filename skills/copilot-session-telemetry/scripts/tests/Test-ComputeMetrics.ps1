@@ -29,13 +29,13 @@ try {
               else { @('python') }
     $pyPrefix = @($python | Select-Object -Skip 1)
 
-    & $python[0] @($pyPrefix + @(
+    $latestJson = (& $python[0] @($pyPrefix + @(
         $compute, '--events', $fixture, '--skill', 'demo-skill',
-        '--out-dir', $outDir, '--session-dir', 'fixture-session', '--set-baseline'
-    )) | Out-Null
+        '--out-dir', $outDir, '--session-dir', 'fixture-session'
+    )) 2>$null) -join "`n"
     Assert-Equal $LASTEXITCODE 0 'engine exit code'
 
-    $latest = Get-Content (Join-Path $outDir 'latest.json') -Raw | ConvertFrom-Json
+    $latest = $latestJson | ConvertFrom-Json
 
     # Tokens: 6000 in + 600 out + 350 cache_read + 60 cache_write = 7010
     Assert-Equal $latest.tokens.total 7010 'tokens.total'
@@ -66,32 +66,36 @@ try {
         $failures += "ratios.deterministic_ratio : expected ~0.1667, got $($latest.ratios.deterministic_ratio)"
     }
 
-    # Durable artifacts exist
-    Assert-Equal (Test-Path (Join-Path $outDir 'baseline.json')) $true 'baseline.json exists'
+    # The dated report is the only durable artifact (baseline/latest JSON retired 2026-10-16)
+    Assert-Equal (Test-Path (Join-Path $outDir 'baseline.json')) $false 'no baseline.json written'
+    Assert-Equal (Test-Path (Join-Path $outDir 'latest.json')) $false 'no latest.json written'
     $reports = Get-ChildItem $outDir -Filter '*-report.md'
     Assert-Equal $reports.Count 1 'dated report written'
 
-    # Second run against baseline: trend rows must exist and be non-empty
+    # Second run: scorecard carries values only, no baseline columns/notes
     & $python[0] @($pyPrefix + @(
         $compute, '--events', $fixture, '--skill', 'demo-skill', '--out-dir', $outDir
     )) | Out-Null
     Assert-Equal $LASTEXITCODE 0 'second run exit code'
+    Assert-Equal (Test-Path (Join-Path $outDir 'baseline.json')) $false 'still no baseline.json after rerun'
     $report2 = Get-Content (Get-ChildItem $outDir -Filter '*-report.md' | Sort-Object Name | Select-Object -Last 1) -Raw
     if ($report2 -notmatch 'Minimize LLM token usage') { $failures += 'report missing goal scorecard' }
-    if ($report2 -notmatch 'unchanged') { $failures += 'baseline delta trend missing for identical rerun' }
+    if ($report2 -notmatch '\| # \| Goal \| Metric \| Value \|') { $failures += 'scorecard header shape unexpected' }
+    if ($report2 -match 'Baseline file:') { $failures += 'report still references a baseline file' }
+    if ($report2 -match '\| Baseline \|') { $failures += 'scorecard still has a Baseline column' }
 
     # --- Skill-chain + subagent attribution (orch-skill scenario) ---
     $orchDir = Join-Path $outDir 'orch'
-    & $python[0] @($pyPrefix + @(
+    $orchJson = (& $python[0] @($pyPrefix + @(
         $compute, '--events', $fixture, '--skill', 'orch-skill', '--out-dir', $orchDir,
-        '--session-dir', 'fixture-session', '--set-baseline'
-    )) | Out-Null
+        '--session-dir', 'fixture-session'
+    )) 2>$null) -join "`n"
     Assert-Equal $LASTEXITCODE 0 'orch-skill run exit code'
-    $orch = Get-Content (Join-Path $orchDir 'latest.json') -Raw | ConvertFrom-Json
+    $orch = $orchJson | ConvertFrom-Json
 
     # Episode spans past machina-driving (declarative chain), dotnet-inspect
     # (subagent-internal) and helper-skill (120s+naming heuristic); ends at
-    # the benchmark's own activation: 12:10:00 -> 12:11:10 = 70000 ms
+    # the audit's own activation: 12:10:00 -> 12:11:10 = 70000 ms
     Assert-Equal $orch.episode.wall_clock_ms 70000 'orch episode wall_clock_ms'
     # 6 steps: task (det), git status (query_read), python -c (semantic),
     # grep (query_read), dotnet build (det), view (query_read)
@@ -115,32 +119,26 @@ try {
 
     # --- Degenerate-episode guard (degen-skill: 1 tool step) ---
     $degenDir = Join-Path $outDir 'degen'
-    & $python[0] @($pyPrefix + @(
+    $degenJson = (& $python[0] @($pyPrefix + @(
         $compute, '--events', $fixture, '--skill', 'degen-skill', '--out-dir', $degenDir,
         '--session-dir', 'fixture-session'
-    )) | Out-Null
+    )) 2>$null) -join "`n"
     Assert-Equal $LASTEXITCODE 0 'degen run exit code'
-    $degenLatest = Get-Content (Join-Path $degenDir 'latest.json') -Raw | ConvertFrom-Json
+    $degenLatest = $degenJson | ConvertFrom-Json
     Assert-Equal $degenLatest.degenerate.is_degenerate $true 'degen flagged'
-    Assert-Equal (Test-Path (Join-Path $degenDir 'baseline.json')) $false 'degen baseline refused'
+    Assert-Equal (Test-Path (Join-Path $degenDir 'baseline.json')) $false 'no baseline.json for degen'
     $degenReport = Get-Content (Get-ChildItem $degenDir -Filter '*-report.md' | Select-Object -First 1) -Raw
     if ($degenReport -notmatch 'DEGENERATE EPISODE') { $failures += 'degenerate caveat missing from report' }
-    # Explicit --set-baseline forces the write
-    & $python[0] @($pyPrefix + @(
-        $compute, '--events', $fixture, '--skill', 'degen-skill', '--out-dir', $degenDir,
-        '--session-dir', 'fixture-session', '--set-baseline'
-    )) | Out-Null
-    Assert-Equal (Test-Path (Join-Path $degenDir 'baseline.json')) $true 'degen baseline written when forced'
 
     # --- Session-aggregate mode ---
     $sessDir = Join-Path $outDir 'session'
-    & $python[0] @($pyPrefix + @(
+    $sessJson = (& $python[0] @($pyPrefix + @(
         $compute, '--events', $fixture, '--skill', 'demo-skill', '--out-dir', $sessDir,
-        '--session-dir', 'fixture-session', '--mode', 'session', '--set-baseline'
-    )) | Out-Null
+        '--session-dir', 'fixture-session', '--mode', 'session'
+    )) 2>$null) -join "`n"
     Assert-Equal $LASTEXITCODE 0 'session mode exit code'
-    $sess = Get-Content (Join-Path $sessDir 'latest.session.json') -Raw | ConvertFrom-Json
-    # Whole-session window (12:00:00 -> 12:30:00 benchmark activation):
+    $sess = $sessJson | ConvertFrom-Json
+    # Whole-session window (12:00:00 -> 12:30:00 audit activation):
     # tokens 7010 + 10998 + 1160 + 550 + 770 = 20488
     Assert-Equal $sess.tokens.total 20488 'session tokens.total'
     Assert-Equal $sess.steps.total 13 'session steps.total'
@@ -151,9 +149,9 @@ try {
     }
     # 6 mechanical breakdown rows (demo, orch, machina-driving, dotnet-inspect, helper, degen)
     Assert-Equal $sess.episode_breakdown.Count 6 'session breakdown rows'
-    # Mode-separated baselines: session run must not touch episode baseline files
-    Assert-Equal (Test-Path (Join-Path $sessDir 'baseline.session.json')) $true 'baseline.session.json written'
-    Assert-Equal (Test-Path (Join-Path $sessDir 'baseline.json')) $false 'episode baseline untouched in session mode'
+    # No JSON artifacts in either mode; the session report is the durable record
+    Assert-Equal (Test-Path (Join-Path $sessDir 'baseline.json')) $false 'no baseline.json in session mode'
+    Assert-Equal (Test-Path (Join-Path $sessDir 'latest.session.json')) $false 'no latest.session.json written'
     Assert-Equal $sess.mode 'session' 'session mode field'
 
     # --- Render assertions (v0.2.4): precise window line, no placeholder leaks,
@@ -170,10 +168,19 @@ try {
     # --- Wrapper location probe: repo-level skills under .github/skills/ receive artifacts ---
     $probeRoot = Join-Path $outDir 'probe-repo'
     New-Item -ItemType Directory -Path (Join-Path $probeRoot '.github\skills\demo-skill') -Force | Out-Null
-    & pwsh -NoProfile -File (Join-Path $scriptDir 'Invoke-AgenticBenchmark.ps1') `
+    & pwsh -NoProfile -File (Join-Path $scriptDir 'Invoke-SessionTelemetry.ps1') `
         -SkillName 'demo-skill' -EventsPath $fixture -RepoRoot $probeRoot | Out-Null
     Assert-Equal $LASTEXITCODE 0 'wrapper probe exit code'
-    Assert-Equal (Test-Path (Join-Path $probeRoot '.github\skills\demo-skill\benchmarks\latest.json')) $true 'wrapper probed .github/skills OutDir'
+    Assert-Equal (@(Get-ChildItem (Join-Path $probeRoot '.github\skills\demo-skill\telemetry') -Filter '*-report.md' -ErrorAction SilentlyContinue).Count -ge 1) $true 'wrapper probed .github/skills telemetry OutDir'
+    Assert-Equal (Test-Path (Join-Path $probeRoot '.github\skills\demo-skill\telemetry\latest.json')) $false 'probe wrote no latest.json'
+
+    # --- Wrapper legacy fallback: an existing benchmarks/ folder is reused with a warning ---
+    $legacyRoot = Join-Path $outDir 'probe-repo-legacy'
+    New-Item -ItemType Directory -Path (Join-Path $legacyRoot '.github\skills\demo-skill\benchmarks') -Force | Out-Null
+    & pwsh -NoProfile -File (Join-Path $scriptDir 'Invoke-SessionTelemetry.ps1') `
+        -SkillName 'demo-skill' -EventsPath $fixture -RepoRoot $legacyRoot 3>$null | Out-Null
+    Assert-Equal $LASTEXITCODE 0 'legacy probe exit code'
+    Assert-Equal (@(Get-ChildItem (Join-Path $legacyRoot '.github\skills\demo-skill\benchmarks') -Filter '*-report.md' -ErrorAction SilentlyContinue).Count -ge 1) $true 'wrapper reused legacy benchmarks OutDir'
 
     # --- Wrapper classification fixture ---
     # Repo helper invocations must classify deterministic (provenance), while the
