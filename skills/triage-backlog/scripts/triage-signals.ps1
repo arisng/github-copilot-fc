@@ -35,8 +35,10 @@
     Reference time for age/overdue math. Defaults to UtcNow; exposed for tests.
 
 .EXAMPLE
-    pwsh .github/skills/triage/scripts/triage-signals.ps1
-    pwsh .github/skills/triage/scripts/triage-signals.ps1 -Json -OutFile cache/triage-signals.json
+    pwsh .\scripts\triage-signals.ps1
+    # Persist the payload where triage-report.ps1 looks for it by default. Run from
+    # the target checkout: the canonical dir is <repo>/.github/triage-backlog/.
+    pwsh .\scripts\triage-signals.ps1 -Json -OutFile .github/triage-backlog/triage-signals.json
 #>
 [CmdletBinding()]
 param(
@@ -62,11 +64,26 @@ $ErrorActionPreference = "Stop"
 # ─── taxonomy (per-repo label model) ─────────────────────────────────────────
 
 # Config discovery: an explicit -Config wins; otherwise repo-local config in the
-# checkout root (triage.json, .triage.json, .github/triage.json); otherwise a
+# repo root (triage.json, .triage.json, .github/triage.json); otherwise a
 # triage.json co-located with the skill (portable - copy the skill folder and the
 # config travels with it). A missing auto-discovered config is fine (defaults
-# apply); a missing explicit -Config is not.
-$cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot (Get-Location).Path -SkillRoot (Split-Path -Parent $PSScriptRoot)
+# apply); a missing explicit -Config is not. Anchored at the repo root rather
+# than the cwd, so a run from a subdirectory resolves the same config the report
+# does.
+$cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot (Get-TriageRepoRoot) -SkillRoot (Split-Path -Parent $PSScriptRoot)
+
+# The payload may be written into the canonical artifact dir (the documented
+# default). Make sure that dir exists and is self-ignoring, so the file cannot be
+# committed even though only triage-report.ps1 is shown enforcing it.
+if ($OutFile) {
+    $resolvedOut = if ([System.IO.Path]::IsPathRooted($OutFile)) { $OutFile } else { Join-Path (Get-Location).Path $OutFile }
+    $sigCanonical = Get-TriageCanonicalOutputDir -RepoRoot (Get-TriageRepoRoot)
+    $sigParent = Split-Path -Parent $resolvedOut
+    if ([string]::IsNullOrWhiteSpace($sigParent)) { $sigParent = (Get-Location).Path }
+    if ([System.IO.Path]::GetFullPath($sigParent) -eq [System.IO.Path]::GetFullPath($sigCanonical)) {
+        $null = Initialize-TriageArtifactDir -Path $sigCanonical
+    }
+}
 $cfg = $null
 if ($cfgPath) {
     try { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
@@ -304,5 +321,5 @@ else {
             ForEach-Object { Write-Host "    #$($_.blocker) unblocks $($_.unblocks.Count) -> $($_.unblocks -join ', ')" }
     }
     Write-Host ""
-    Write-Host "Full payload: add -Json (optionally -OutFile cache/triage-signals.json)"
+    Write-Host "Full payload: add -Json (optionally -OutFile .github/triage-backlog/triage-signals.json)"
 }

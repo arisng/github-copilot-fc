@@ -2,7 +2,7 @@
 
 Work from the signals payload, not from fresh `gh` calls.
 
-1. **Read** — the queue entry in `cache/triage-signals.json` (title, labels,
+1. **Read** — the queue entry in the signals payload (`.github/triage-backlog/triage-signals.json`, or wherever `-OutFile` placed it; title, labels,
    body excerpt, refs).
 2. **Dedup** — use the payload's `dedup_candidates`; confirm with
    `gh issue list --repo <owner/name> --search "<keywords>" --state all` only

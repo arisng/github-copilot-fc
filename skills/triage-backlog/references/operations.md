@@ -1,15 +1,16 @@
 # Scripts
 
-Run from the installed skill folder (the folder containing this `SKILL.md`).
-All accept `-Repo <owner/name>` and `-Config <path>`; both fall back through
-the discovery order in [taxonomy](taxonomy.md) (repo-local config, then
-co-located `triage.json`, then defaults).
+# Run from the target checkout (SKILL.md's convention) - the scripts anchor config
+# discovery and the artifact location at the repo root. All accept `-Repo
+# <owner/name>` and `-Config <path>`; both fall back through the discovery order
+# in [taxonomy](taxonomy.md) (repo-local config, then co-located `triage.json`,
+# then defaults).
 
 | Script | Purpose |
 |---|---|
 | `triage-queue.ps1` | Human queue / grooming view in the terminal |
 | `triage-signals.ps1` | Issues + labels → all signals as JSON (`-Json`, `-OutFile`); `-NoLabelCheck` skips the taxonomy gate (offline/tests only — the payload is stamped `label_check: "skipped"` and the report refuses it) |
-| `triage-report.ps1` | Signals JSON → self-contained static HTML (requires a v3 payload with `label_check: "passed"`); the header's `generated` stamp is rendered in local time with its UTC offset (the payload keeps the absolute UTC instant, shown in the stamp's tooltip) |
+| `triage-report.ps1` | Signals JSON → self-contained static HTML (requires a v3 payload with `label_check: "passed"`); writes to the canonical `<repo>/.github/triage-backlog/` and makes that folder self-ignoring; reconciles artifacts left by earlier versions (`-NoReconcile` skips); the header's `generated` stamp is rendered in local time with its UTC offset (the payload keeps the absolute UTC instant, shown in the stamp's tooltip) |
 | `triage-bootstrap.ps1` | Create the missing taxonomy labels (`gh label create`, idempotent: existing labels are skipped, never updated); `-DryRun` previews, `-WriteExampleConfig` writes an ownable triage.json (with `-DryRun` it prints it instead of writing) |
 | `triage-helpers.ps1` | Pure parsing/derivation + taxonomy functions; dot-sourced by the above and by the tests |
 | `tests/test-triage.ps1` | Offline test suite for the gate, bootstrap, report, and helpers (`gh` stubbed) |
@@ -17,9 +18,10 @@ co-located `triage.json`, then defaults).
 Full parameter sets: `triage-queue.ps1` also takes `-All`/`-NoLabelCheck`;
 `triage-signals.ps1` also takes `-Json`/`-OutFile`/`-Now`/`-NoLabelCheck`;
 `triage-bootstrap.ps1` also takes `-DryRun`/`-WriteExampleConfig`;
-`triage-report.ps1` also takes `-SignalsFile`/`-OutFile` (`-Config`/`-Repo`
-are only used when the signals file must be generated — otherwise the report
-renders from the payload's own `taxonomy` block and warns on a mismatch).
+`triage-report.ps1` also takes `-SignalsFile`/`-OutFile`/`-NoReconcile`
+(`-Config`/`-Repo` are only used when the signals file must be generated —
+otherwise the report renders from the payload's own `taxonomy` block and warns
+on a mismatch).
 
 Tests: offline, dependency-free (the `gh` calls are stubbed, no network, no Pester):
 

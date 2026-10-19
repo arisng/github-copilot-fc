@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Offline tests for the backlog-triage scripts (taxonomy gate, bootstrap, report).
+    Offline tests for the triage-backlog scripts (taxonomy gate, bootstrap, report).
 
 .DESCRIPTION
     Nothing here touches the network or GitHub. `gh` is replaced by an in-scope
@@ -23,6 +23,10 @@ $script:SignalsPath   = Join-Path $script:ScriptsDir 'triage-signals.ps1'
 $script:BootstrapPath = Join-Path $script:ScriptsDir 'triage-bootstrap.ps1'
 $script:ReportPath    = Join-Path $script:ScriptsDir 'triage-report.ps1'
 $script:HelpersPath   = Join-Path $script:ScriptsDir 'triage-helpers.ps1'
+
+# Dot-sourced up front (not only before the helper unit tests) so the pure helper
+# functions are available to every section, including the ones that call them.
+. $script:HelpersPath
 
 $script:AllRequired = @('needs-triage', 'blocked', 'owner-decision', 'priority:P0', 'priority:P1', 'priority:P2', 'priority:P3')
 
@@ -157,7 +161,7 @@ Reset-GhStub
 
 try {
 
-    Write-Host "`n=== backlog-triage tests ===" -ForegroundColor Cyan
+    Write-Host "`n=== triage-backlog tests ===" -ForegroundColor Cyan
 
     Write-Host "`nTaxonomy gate: triage-queue.ps1" -ForegroundColor Yellow
     Reset-GhStub
@@ -279,6 +283,231 @@ try {
     Assert-Match 'keeps the UTC instant in the tooltip' 'title="2026-10-10T15:41:41Z \(UTC\)"' $tzHtmlText
     Assert-NotMatch 'does not print the bare UTC stamp as the visible time' 'generated <span[^>]*>2026-10-10T15:41:41Z' $tzHtmlText
 
+    Write-Host "`ntriage-report.ps1 canonical output location" -ForegroundColor Yellow
+    Reset-GhStub
+    # Explicit -OutFile/-SignalsFile always win (covered above); here the defaults
+    # must resolve without them: <repo-root>/.github/triage-backlog/ - ONE location,
+    # self-ignoring, in every repo.
+    $workRoot = $work
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $top = (& git -C $work rev-parse --show-toplevel 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0 -and $top) { $workRoot = $top }
+    }
+    $r = Invoke-Skill -Script $script:ReportPath -Parameters @{ SignalsFile = $goodCache }
+    $canonicalDir = Join-Path $workRoot '.github\triage-backlog'
+    $defaultHtml = Join-Path $canonicalDir 'triage-report.html'
+    Assert-True 'defaults resolve without explicit paths' ((-not $r.Threw) -and (Test-Path $defaultHtml)) "$($r.Message)$($r.Output)"
+    $ignoreFile = Join-Path $canonicalDir '.gitignore'
+    Assert-True 'writes a nested .gitignore into the artifact dir' (Test-Path $ignoreFile) $r.Output
+    Assert-Match 'the nested .gitignore ignores everything' '(?m)^\*$' (Get-Content $ignoreFile -Raw)
+
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $gitRepo = Join-Path $work 'git-repo'
+        New-Item -ItemType Directory -Force -Path $gitRepo | Out-Null
+        git -C $gitRepo init -q
+        Push-Location $gitRepo
+        try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{ SignalsFile = $goodCache } }
+        finally { Pop-Location }
+        $expectedGit = Join-Path $gitRepo '.github\triage-backlog\triage-report.html'
+        Assert-True 'writes to <repo-root>/.github/triage-backlog inside a checkout' ((-not $r.Threw) -and (Test-Path $expectedGit)) "$($r.Message)$($r.Output)"
+        $null = (& git -C $gitRepo check-ignore -q -- $expectedGit 2>$null)
+        Assert-True 'the artifact is git-ignored' ($LASTEXITCODE -eq 0) $r.Output
+        Assert-Equal 'git status stays clean (nothing committable)' '' ((& git -C $gitRepo status --porcelain | Out-String).Trim())
+    } else {
+        Write-Host "  SKIP: git not installed; checkout-root default untested" -ForegroundColor Yellow
+    }
+
+    # `output_dir` is deprecated: no longer honored, only reconciled from.
+    $global:GhLabels = $script:AllRequired
+    $cfgRepo = Join-Path $work 'cfg-repo'
+    New-Item -ItemType Directory -Force -Path $cfgRepo | Out-Null
+    if (Get-Command git -ErrorAction SilentlyContinue) { git -C $cfgRepo init -q }
+    $legacyDir = Join-Path $cfgRepo 'legacy-board'
+    New-Item -ItemType Directory -Force -Path $legacyDir | Out-Null
+    Set-Content -Path (Join-Path $legacyDir 'triage-report.html') -Value '<html>legacy</html>'
+    @{ repo = 'acme/widgets'; output_dir = 'legacy-board' } | ConvertTo-Json |
+        Set-Content -Path (Join-Path $cfgRepo '.triage.json') -Encoding utf8
+    Push-Location $cfgRepo
+    try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{} }
+    finally { Pop-Location }
+    $cfgExpected = Join-Path $cfgRepo '.github\triage-backlog\triage-report.html'
+    Assert-True 'output_dir no longer redirects the output' ((-not $r.Threw) -and (Test-Path $cfgExpected)) "$($r.Message)$($r.Output)"
+    Assert-Match 'warns that output_dir is deprecated' "output_dir' is deprecated" $r.Output
+    Assert-True 'reconciles the deprecated output_dir' (-not (Test-Path (Join-Path $legacyDir 'triage-report.html'))) $r.Output
+    Assert-Match 'prunes the emptied deprecated dir' 'Removed empty deprecated dir' $r.Output
+    Assert-True 'the emptied deprecated dir is gone' (-not (Test-Path $legacyDir)) $r.Output
+
+    Write-Host "`ntriage-report.ps1 reconciles deprecated artifact locations" -ForegroundColor Yellow
+    Reset-GhStub
+    $global:GhLabels = $script:AllRequired
+    $migRepo = Join-Path $work 'mig-repo'
+    New-Item -ItemType Directory -Force -Path $migRepo | Out-Null
+    $hasGit = [bool](Get-Command git -ErrorAction SilentlyContinue)
+    if ($hasGit) { git -C $migRepo init -q }
+    # A repo-local config so the report can resolve the target repo without an
+    # origin remote (the migration run generates the signals itself).
+    @{ repo = 'acme/widgets' } | ConvertTo-Json | Set-Content -Path (Join-Path $migRepo '.triage.json') -Encoding utf8
+    $migGitDir = if ($hasGit) { (& git -C $migRepo rev-parse --path-format=absolute --git-dir 2>$null | Out-String).Trim() } else { $null }
+    $legacyDirs = @()
+    if ($migGitDir) { $legacyDirs += (Join-Path $migGitDir 'triage-backlog') }  # previous default
+    $legacyDirs += (Join-Path $migRepo '.github\backlog-triage')               # pre-rename opt-in
+    $legacyDirs += (Join-Path $migRepo 'cache')                                # legacy non-git fallback
+    foreach ($d in $legacyDirs) {
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        Set-Content -Path (Join-Path $d 'triage-report.html') -Value '<html>legacy</html>'
+    }
+    Push-Location $migRepo
+    try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{} }
+    finally { Pop-Location }
+    $migCanonical = Join-Path $migRepo '.github\triage-backlog'
+    Assert-True 'renders into the canonical dir' ((-not $r.Threw) -and (Test-Path (Join-Path $migCanonical 'triage-report.html'))) "$($r.Message)$($r.Output)"
+    Assert-Match 'reports what it reconciled' 'Reconciled:' $r.Output
+    # The canonical copy is authoritative, so only the FIRST (most recent) source is
+    # moved; the redundant copies are reported as skipped and left in place rather
+    # than overwriting the artifact that just landed.
+    $movedFrom = @($legacyDirs | Where-Object { -not (Test-Path (Join-Path $_ 'triage-report.html')) })
+    Assert-Equal 'moves exactly one artifact (the most recent source wins)' 1 $movedFrom.Count
+    Assert-Equal 'the most recent source is the one moved' $legacyDirs[0] $movedFrom[0]
+    Assert-Match 'reports the redundant copies as skipped' 'Skipped:' $r.Output
+    foreach ($d in @($legacyDirs | Where-Object { $_ -ne $movedFrom[0] })) {
+        Assert-True "leaves the redundant copy in $([System.IO.Path]::GetFileName($d))" (Test-Path (Join-Path $d 'triage-report.html')) $r.Output
+    }
+    Assert-NotMatch 'prunes nothing here (no emptied dir outside the git dir)' 'Removed empty deprecated dir' $r.Output
+    Assert-True 'leaves the emptied dir under the git dir in place' ((-not $migGitDir) -or (Test-Path (Join-Path $migGitDir 'triage-backlog'))) $r.Output
+
+    Push-Location $migRepo
+    try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{ SignalsFile = $goodCache } }
+    finally { Pop-Location }
+    Assert-NotMatch 'is idempotent: nothing left to reconcile' 'Reconciled:' $r.Output
+
+    $nrRepo = Join-Path $work 'noreconcile-repo'
+    New-Item -ItemType Directory -Force -Path $nrRepo | Out-Null
+    $nrOld = Join-Path $nrRepo '.github\backlog-triage'
+    New-Item -ItemType Directory -Force -Path $nrOld | Out-Null
+    Set-Content -Path (Join-Path $nrOld 'triage-report.html') -Value '<html>legacy</html>'
+    Push-Location $nrRepo
+    try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{ NoReconcile = $true } }
+    finally { Pop-Location }
+    Assert-True '-NoReconcile leaves the deprecated artifact in place' (Test-Path (Join-Path $nrOld 'triage-report.html')) $r.Output
+    Assert-NotMatch '-NoReconcile reports nothing' 'Reconciled:' $r.Output
+
+    Write-Host "`ntriage-report.ps1 hard rules for repo mutation" -ForegroundColor Yellow
+
+    # The canonical copy is authoritative: a stale deprecated payload never wins.
+    $global:GhLabels = $script:AllRequired
+    $owRepo = Join-Path $work 'overwrite-repo'
+    New-Item -ItemType Directory -Force -Path $owRepo | Out-Null
+    $owCanonical = Join-Path $owRepo '.github\triage-backlog'
+    New-Item -ItemType Directory -Force -Path $owCanonical | Out-Null
+    Copy-Item -LiteralPath $goodCache -Destination (Join-Path $owCanonical 'triage-signals.json') -Force
+    $owOld = Join-Path $owRepo '.github\backlog-triage'
+    New-Item -ItemType Directory -Force -Path $owOld | Out-Null
+    @{ schema_version = 99; repo = 'acme/widgets'; taxonomy = @{ label_check = 'passed'; missing_labels = @() } } |
+        ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $owOld 'triage-signals.json') -Encoding utf8
+    Push-Location $owRepo
+    try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{} }
+    finally { Pop-Location }
+    Assert-Equal 'the stale deprecated payload is skipped, not moved' ((Get-Content $goodCache -Raw).Trim()) ((Get-Content (Join-Path $owCanonical 'triage-signals.json') -Raw).Trim())
+    Assert-Match 'reports the skip' 'Skipped:' $r.Output
+    Assert-True 'leaves the stale deprecated copy in place' (Test-Path (Join-Path $owOld 'triage-signals.json')) $r.Output
+
+    # A hand-written file that merely shares an artifact filename is never moved.
+    $trRepo = Join-Path $work 'tracked-repo'
+    New-Item -ItemType Directory -Force -Path $trRepo | Out-Null
+    git -C $trRepo init -q
+    $trDoc = Join-Path $trRepo 'docs'
+    New-Item -ItemType Directory -Force -Path $trDoc | Out-Null
+    Set-Content -Path (Join-Path $trDoc 'triage-report.html') -Value '<html>hand-written doc</html>'
+    git -C $trRepo add -- 'docs/triage-report.html' 2>$null
+    git -C $trRepo -c user.name=t -c user.email=t@t commit -q -m init 2>$null
+    $trDst = Join-Path $trRepo '.github\triage-backlog'
+    # NOTE: do not wrap the call in @() - member enumeration on a 1-element array
+    # returns $null for an empty-array property, and @($null).Count is 1.
+    $trRecon = Invoke-TriageArtifactReconcile -CanonicalDir $trDst -DeprecatedDirs @($trDoc) -RepoRoot $trRepo
+    Assert-Equal 'refuses to move a tracked file' 0 @($trRecon.moved).Count
+    Assert-Equal 'reports exactly one skip' 1 @($trRecon.skipped).Count
+    Assert-Match 'says why' 'tracked by git' (($trRecon.skipped | ForEach-Object { $_.reason }) -join ' ')
+    Assert-True 'the hand-written file survives' (Test-Path (Join-Path $trDoc 'triage-report.html'))
+    Assert-True 'it is still committed' ($null -ne (git -C $trRepo ls-files -- 'docs/triage-report.html'))
+    Assert-True 'creates no destination dir' (-not (Test-Path $trDst))
+
+    # git owns the tree under the git dir; an empty dir there is never removed.
+    $gdRepo = Join-Path $work 'gitdir-prune-repo'
+    New-Item -ItemType Directory -Force -Path $gdRepo | Out-Null
+    git -C $gdRepo init -q
+    $gdDir = (& git -C $gdRepo rev-parse --path-format=absolute --git-dir 2>$null | Out-String).Trim()
+    $gdOld = Join-Path $gdDir 'triage-backlog'
+    New-Item -ItemType Directory -Force -Path $gdOld | Out-Null
+    Set-Content -Path (Join-Path $gdOld 'triage-report.html') -Value '<html/>'
+    $gdDst = Join-Path $gdRepo '.github\triage-backlog'
+    $gdRecon = Invoke-TriageArtifactReconcile -CanonicalDir $gdDst -DeprecatedDirs @($gdOld) -RepoRoot $gdRepo
+    Assert-Equal 'moves the artifact out of the git dir' 1 @($gdRecon.moved).Count
+    Assert-True 'leaves the empty dir under the git dir in place' (Test-Path $gdOld)
+
+    # A failed move warns and continues; migration never aborts a run.
+    $mfRepo = Join-Path $work 'movefail-repo'
+    New-Item -ItemType Directory -Force -Path $mfRepo | Out-Null
+    $mfBlock = Join-Path $mfRepo 'blocker'
+    Set-Content -Path $mfBlock -Value 'a file where a directory is expected'
+    $mfSrc = Join-Path $mfRepo 'cache'
+    New-Item -ItemType Directory -Force -Path $mfSrc | Out-Null
+    Set-Content -Path (Join-Path $mfSrc 'triage-report.html') -Value '<html/>'
+    $mfDst = Join-Path $mfRepo 'blocker\triage-backlog'
+    $mfRecon = Invoke-TriageArtifactReconcile -CanonicalDir $mfDst -DeprecatedDirs @($mfSrc) -RepoRoot $mfRepo
+    Assert-Equal 'reports the failed move as a skip' 1 @($mfRecon.skipped).Count
+    Assert-Match 'names the failure' 'move failed' (($mfRecon.skipped | ForEach-Object { $_.reason }) -join ' ')
+
+    # A hand-written nested .gitignore is appended to, never clobbered.
+    $apDir = Join-Path $work 'append-probe'
+    New-Item -ItemType Directory -Force -Path $apDir | Out-Null
+    Set-Content -Path (Join-Path $apDir '.gitignore') -Value "# mine`n!keep.txt"
+    $null = Initialize-TriageArtifactDir -Path $apDir
+    $apText = Get-Content (Join-Path $apDir '.gitignore') -Raw
+    Assert-Match 'keeps the user rules' '!keep.txt' $apText
+    Assert-Match 'appends the enforcement' '(?m)^\*$' $apText
+    $null = Initialize-TriageArtifactDir -Path $apDir
+    Assert-Equal 'is idempotent once it ignores everything' $apText (Get-Content (Join-Path $apDir '.gitignore') -Raw)
+
+    # A file sitting where the artifact dir should be fails clearly.
+    $lfRepo = Join-Path $work 'leaf-repo'
+    New-Item -ItemType Directory -Force -Path (Join-Path $lfRepo '.github') | Out-Null
+    $lfBlock = Join-Path $lfRepo '.github\triage-backlog'
+    Set-Content -Path $lfBlock -Value 'i am a file'
+    $threw = $false; $lfMsg = ''
+    try { $null = Initialize-TriageArtifactDir -Path $lfBlock } catch { $threw = $true; $lfMsg = "$_" }
+    Assert-True 'a file at the artifact path throws clearly' $threw
+    Assert-Match 'says what is wrong' 'file already exists' $lfMsg
+
+    Write-Host "`ntriage-signals.ps1 makes the canonical dir self-ignoring" -ForegroundColor Yellow
+    $sigRepo = Join-Path $work 'signals-ignore-repo'
+    New-Item -ItemType Directory -Force -Path $sigRepo | Out-Null
+    git -C $sigRepo init -q
+    $global:GhLabels = $script:AllRequired
+    Push-Location $sigRepo
+    try { $null = Invoke-Skill -Script $script:SignalsPath -Parameters @{ Repo = 'acme/widgets'; Json = $true; OutFile = '.github\triage-backlog\triage-signals.json' } }
+    finally { Pop-Location }
+    $sigIgnore = Join-Path $sigRepo '.github\triage-backlog\.gitignore'
+    Assert-True 'writes the payload where the docs say to' (Test-Path (Join-Path $sigRepo '.github\triage-backlog\triage-signals.json'))
+    Assert-True 'makes the canonical dir self-ignoring' (Test-Path $sigIgnore)
+    Assert-Match 'the nested .gitignore ignores everything' '(?m)^\*$' (Get-Content $sigIgnore -Raw)
+    $null = (& git -C $sigRepo check-ignore -q -- (Join-Path $sigRepo '.github\triage-backlog\triage-signals.json') 2>$null)
+    Assert-True 'git confirms the payload is ignored' ($LASTEXITCODE -eq 0)
+
+    # A missing -Config must not break a run that passed explicit paths.
+    $lzRepo = Join-Path $work 'lazy-config-repo'
+    New-Item -ItemType Directory -Force -Path $lzRepo | Out-Null
+    Push-Location $lzRepo
+    try { $r = Invoke-Skill -Script $script:ReportPath -Parameters @{ SignalsFile = $goodCache; OutFile = (Join-Path $lzRepo 'out.html'); Config = (Join-Path $work 'does-not-exist.json') } }
+    finally { Pop-Location }
+    Assert-True 'a missing -Config does not break an explicit-path run' ((-not $r.Threw) -and (Test-Path (Join-Path $lzRepo 'out.html'))) "$($r.Message)$($r.Output)"
+
+    # The output_dir deprecation is surfaced by the queue/signals entry points too.
+    $depCfg = Join-Path $work 'dep.json'
+    @{ repo = 'acme/widgets'; output_dir = 'docs' } | ConvertTo-Json | Set-Content -Path $depCfg -Encoding utf8
+    $depTax = @(Resolve-Taxonomy -Config (Get-Content $depCfg -Raw | ConvertFrom-Json) 3>&1)
+    $depWarn = @($depTax | Where-Object { $_ -is [System.Management.Automation.WarningRecord] } | ForEach-Object { $_.Message })
+    Assert-Match 'Resolve-Taxonomy surfaces the output_dir deprecation' "output_dir' is deprecated" ($depWarn -join ' ')
+
     Write-Host "`ntriage-bootstrap.ps1" -ForegroundColor Yellow
     Reset-GhStub
     $global:GhLabels = @('needs-triage')
@@ -349,6 +578,50 @@ try {
     $disabled = Resolve-Taxonomy -Config (@{ owner_decision = $null; blocked = ''; area_prefix = 'area:' } | ConvertTo-Json | ConvertFrom-Json)
     $disabledRequired = @(Get-TriageRequiredLabels -Taxonomy $disabled | ForEach-Object { $_.name })
     Assert-Equal 'disabled concepts drop out of the required set' 'needs-triage,priority:P0,priority:P1,priority:P2,priority:P3' ($disabledRequired -join ',')
+
+    # `repo` and `output_dir` are caller-consumed keys: silently skipped by the
+    # taxonomy merge; anything else unrecognized must still warn (typo safety).
+    $cap = @(Merge-Taxonomy -Base (Get-DefaultTaxonomy) -Overlay ([pscustomobject]@{ repo = 'acme/widgets'; output_dir = '.github/triage-backlog' }) 3>&1)
+    $mergeWarnings = @($cap | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+    Assert-Equal 'repo/output_dir cause no unknown-key warning' 0 $mergeWarnings.Count
+    $cap = @(Merge-Taxonomy -Base (Get-DefaultTaxonomy) -Overlay ([pscustomobject]@{ typo_key = 'x' }) 3>&1)
+    $mergeWarnings = @($cap | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+    Assert-Match 'a genuinely unknown key still warns' 'typo_key' (($mergeWarnings | ForEach-Object { $_.Message }) -join ' ')
+
+    Write-Host "`nartifact location helpers" -ForegroundColor Yellow
+    Assert-Equal 'canonical dir is <repo-root>/.github/triage-backlog' (Join-Path $work '.github\triage-backlog') (Get-TriageCanonicalOutputDir -RepoRoot $work)
+
+    $dep = @(Get-TriageDeprecatedOutputDirs -RepoRoot $work -GitDir (Join-Path $work '.git') -ConfigOutputDir 'legacy-board')
+    Assert-Equal 'lists every deprecated location' 5 $dep.Count
+    Assert-True 'includes the previous git-dir default' ($dep -contains (Join-Path $work '.git\triage-backlog')) ($dep -join '; ')
+    Assert-True 'includes the pre-rename git-dir default' ($dep -contains (Join-Path $work '.git\backlog-triage')) ($dep -join '; ')
+    Assert-True 'includes the pre-rename .github opt-in' ($dep -contains (Join-Path $work '.github\backlog-triage')) ($dep -join '; ')
+    Assert-True 'includes the legacy ./cache fallback' ($dep -contains (Join-Path $work 'cache')) ($dep -join '; ')
+    Assert-True 'includes the deprecated config output_dir' ($dep -contains (Join-Path $work 'legacy-board')) ($dep -join '; ')
+    $dedup = @(Get-TriageDeprecatedOutputDirs -RepoRoot $work -GitDir $null -ConfigOutputDir '.github/backlog-triage')
+    Assert-Equal 'dedupes a config output_dir that repeats a known location' 2 $dedup.Count
+
+    $initDir = Join-Path $work 'init-probe'
+    $null = Initialize-TriageArtifactDir -Path $initDir
+    $initIgnore = Join-Path $initDir '.gitignore'
+    Assert-True 'creates the dir and its .gitignore' (Test-Path $initIgnore)
+    Assert-Match 'the created .gitignore ignores everything' '(?m)^\*$' (Get-Content $initIgnore -Raw)
+    Set-Content -Path $initIgnore -Value "# custom`n*`n!keep.txt"
+    $custom = Get-Content $initIgnore -Raw
+    $null = Initialize-TriageArtifactDir -Path $initDir
+    Assert-Equal 'respects a custom .gitignore that already ignores' $custom (Get-Content $initIgnore -Raw)
+    Set-Content -Path $initIgnore -Value 'not-ignoring'
+    $null = Initialize-TriageArtifactDir -Path $initDir
+    Assert-Match 're-enforces a .gitignore that stopped ignoring' '(?m)^\*$' (Get-Content $initIgnore -Raw)
+
+    $whatIfSrc = Join-Path $work 'whatif-src'
+    New-Item -ItemType Directory -Force -Path $whatIfSrc | Out-Null
+    Set-Content -Path (Join-Path $whatIfSrc 'triage-report.html') -Value '<html/>'
+    $whatIfDst = Join-Path $work 'whatif-dst'
+    $dry = Invoke-TriageArtifactReconcile -CanonicalDir $whatIfDst -DeprecatedDirs @($whatIfSrc) -WhatIf
+    Assert-Equal '-WhatIf reports the move' 1 @($dry.moved).Count
+    Assert-True '-WhatIf moves nothing' (Test-Path (Join-Path $whatIfSrc 'triage-report.html'))
+    Assert-True '-WhatIf creates no destination' (-not (Test-Path $whatIfDst))
 
     Reset-GhStub
     $global:GhLabels = @('a', 'b')

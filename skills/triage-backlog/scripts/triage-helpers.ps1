@@ -245,6 +245,8 @@ function Merge-Taxonomy {
     Overlay a config object (from JSON) onto a base taxonomy.
 
     Unknown keys are skipped with a warning (a typo must not abort the run).
+    `repo` and `output_dir` are consumed by the callers (repo resolution, the
+    report's default output location), not by the taxonomy - skipped silently.
     `priority_levels` and `stale_priority_codes` are non-nullable: an empty overlay
     keeps the base values. `stale_age_days` must be a positive integer; anything else
     keeps the base value.
@@ -254,7 +256,7 @@ function Merge-Taxonomy {
     $t = $Base.PSObject.Copy()
     $known = @($Base.PSObject.Properties.Name)
     foreach ($prop in $Overlay.PSObject.Properties) {
-        if ($prop.Name -eq 'repo') { continue }
+        if ($prop.Name -in @('repo', 'output_dir')) { continue }
         if ($known -notcontains $prop.Name) {
             Write-Warning "Ignoring unknown triage config key '$($prop.Name)'."
             continue
@@ -306,6 +308,12 @@ function Resolve-Taxonomy {
     $source = 'defaults'
     $t = $base.PSObject.Copy()
     if ($Config) {
+        # `output_dir` is deprecated: artifacts always go to the canonical dir. Warn
+        # here so every entry point (queue, signals, report) surfaces it once.
+        $od = "$($Config.output_dir)"
+        if (-not [string]::IsNullOrWhiteSpace($od)) {
+            Write-Warning "triage config 'output_dir' is deprecated and ignored: artifacts always go to <repo>/.github/triage-backlog/."
+        }
         $t = Merge-Taxonomy -Base $base -Overlay $Config
         $source = 'config'
     }
@@ -575,4 +583,250 @@ function Get-LowPriorityIssues {
     return @($OpenIssues | Where-Object {
         (@($_.labels | ForEach-Object { $_.name }) -contains $lowestLabel)
     } | ForEach-Object { [int]$_.number })
+}
+
+# ─── artifact location: one canonical dir, ephemeral by construction ─────────
+#
+# The HTML board embeds issue titles and labels, so it is an EPHEMERAL artifact:
+# it must never be committed. Earlier versions scattered it across the git dir,
+# ./cache/, and a configurable output_dir. This version pins it to ONE location
+# inside the repo's .github/ folder, makes that folder self-ignoring, and
+# reconciles whatever an earlier version left behind.
+
+function Get-TriageArtifactNames {
+    <# The skill's own artifact filenames - the only files reconcile will move. #>
+    return @('triage-signals.json', 'triage-report.html')
+}
+
+function Get-TriageRepoRoot {
+    <#
+    Checkout root of $StartDir (git rev-parse --show-toplevel), or $StartDir
+    itself outside a git checkout. Anchors the canonical artifact location.
+    #>
+    param([string]$StartDir)
+    $dir = if ($StartDir) { $StartDir } else { (Get-Location).Path }
+    $prevEap = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $root = (& git -C $dir rev-parse --show-toplevel 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0 -and $root) { return $root }
+    }
+    catch { }
+    finally { $ErrorActionPreference = $prevEap }
+    return $dir
+}
+
+function Get-TriageGitDir {
+    <# Absolute git dir of $StartDir, or $null outside a git checkout. #>
+    param([string]$StartDir)
+    $dir = if ($StartDir) { $StartDir } else { (Get-Location).Path }
+    $prevEap = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $gitDir = (& git -C $dir rev-parse --path-format=absolute --git-dir 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0 -and $gitDir) { return $gitDir }
+    }
+    catch { }
+    finally { $ErrorActionPreference = $prevEap }
+    return $null
+}
+
+function Get-TriageCanonicalOutputDir {
+    <# <repo-root>/.github/triage-backlog - the single canonical artifact location. #>
+    param([string]$RepoRoot)
+    if ([string]::IsNullOrWhiteSpace($RepoRoot)) { $RepoRoot = (Get-Location).Path }
+    return (Join-Path $RepoRoot (Join-Path '.github' 'triage-backlog'))
+}
+
+function Get-TriageDeprecatedOutputDirs {
+    <#
+    Locations an earlier version of this skill wrote artifacts to. Reconciled into
+    the canonical dir on activation so an existing repo neither keeps a stale board
+    nor silently loses the one it had.
+    #>
+    param([string]$RepoRoot, [string]$GitDir, [string]$ConfigOutputDir)
+    $candidates = @()
+    if ($GitDir) {
+        $candidates += (Join-Path $GitDir 'triage-backlog')  # previous default
+        $candidates += (Join-Path $GitDir 'backlog-triage')  # pre-rename default
+    }
+    if ($RepoRoot) {
+        $candidates += (Join-Path $RepoRoot (Join-Path '.github' 'backlog-triage'))  # pre-rename opt-in
+        $candidates += (Join-Path $RepoRoot 'cache')  # legacy non-git fallback
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ConfigOutputDir)) {
+        $od = "$ConfigOutputDir"
+        if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+            $od = [System.IO.Path]::GetFullPath($od)
+        }
+        elseif (-not [System.IO.Path]::IsPathRooted($od)) { $od = Join-Path $RepoRoot $od }
+        $candidates += $od
+    }
+    # Normalize + dedupe. PowerShell's -contains is case-insensitive, which is what
+    # we want on Windows and harmless elsewhere.
+    $out = @()
+    foreach ($c in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($c)) { continue }
+        $full = [System.IO.Path]::GetFullPath($c)
+        if ($out -notcontains $full) { $out += $full }
+    }
+    return $out
+}
+
+function Initialize-TriageArtifactDir {
+    <#
+    Create the canonical artifact dir and make it self-ignoring.
+
+    Enforcement is a nested `.gitignore` containing `*`: the board embeds issue
+    titles/labels, so it must never be committable. A nested file is self-contained
+    (no edit to the repo's tracked root .gitignore, which would otherwise surface as
+    a diff the maintainer has to commit) and idempotent. `*` also ignores the
+    .gitignore itself, so the folder stays invisible to `git status` while remaining
+    browsable on disk.
+
+    A pre-existing `.gitignore` is never clobbered: if it does not already ignore
+    everything, `*` is appended (the last matching pattern wins in a .gitignore)
+    and the change is announced.
+
+    Returns the .gitignore path.
+    #>
+    param([string]$Path)
+    if (Test-Path $Path -PathType Leaf) {
+        throw "Cannot use '$Path' as the triage artifact dir: a file already exists at that path."
+    }
+    if (-not (Test-Path $Path -PathType Container)) { New-Item -ItemType Directory -Force -Path $Path | Out-Null }
+    $ignore = Join-Path $Path '.gitignore'
+    if (-not (Test-Path $ignore)) {
+        $content = @(
+            '# Ephemeral triage artifacts - generated by the triage-backlog skill.'
+            '# Never commit: the report embeds issue titles and labels.'
+            '*'
+        ) -join "`n"
+        [System.IO.File]::WriteAllText($ignore, $content + "`n", (New-Object System.Text.UTF8Encoding($false)))
+        return $ignore
+    }
+    $existing = [System.IO.File]::ReadAllText($ignore)
+    if (@($existing -split "`r?`n") -notcontains '*') {
+        [System.IO.File]::AppendAllText($ignore, "*`n", (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "Note: appended '*' to '$ignore' so the artifact dir stays git-ignored."
+    }
+    return $ignore
+}
+
+function Test-TriageArtifactIgnored {
+    <#
+    $true/$false when git can answer whether $Path is ignored; $null when git is
+    unavailable or $Path is outside a work tree (nothing to enforce).
+    #>
+    param([string]$Path, [string]$RepoRoot)
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $null }
+    $dir = if ($RepoRoot) { $RepoRoot } else { (Get-Location).Path }
+    $code = $null
+    $prevEap = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $null = (& git -C $dir check-ignore -q -- $Path 2>$null)
+        $code = $LASTEXITCODE
+    }
+    catch { return $null }
+    finally { $ErrorActionPreference = $prevEap }
+    if ($code -eq 0) { return $true }
+    if ($code -eq 1) { return $false }
+    return $null
+}
+
+function Test-TriageTrackedFile {
+    <#
+    $true when git tracks $Path; $false when it does not; $null when git cannot
+    answer (absent, or the path is outside a work tree).
+
+    Used as a data-loss guard: reconcile moves files by NAME, so a hand-written
+    file that happens to share an artifact filename (e.g. a committed
+    docs/triage-report.html reached via a config output_dir) would otherwise be
+    deleted from the working tree. Only an untracked file is ever moved.
+    #>
+    param([string]$Path, [string]$RepoRoot)
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $null }
+    $dir = if ($RepoRoot) { $RepoRoot } else { (Get-Location).Path }
+    $code = $null
+    $prevEap = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $null = (& git -C $dir ls-files --error-unmatch -- $Path 2>$null)
+        $code = $LASTEXITCODE
+    }
+    catch { return $null }
+    finally { $ErrorActionPreference = $prevEap }
+    if ($code -eq 0) { return $true }
+    if ($code -eq 1) { return $false }
+    return $null
+}
+
+function Invoke-TriageArtifactReconcile {
+    <#
+    Move artifacts left by an earlier version of this skill into the canonical dir.
+
+    Hard rules, because this runs unattended and mutates the working tree:
+
+    - NEVER overwrite. The canonical copy is authoritative; a deprecated copy is
+      by definition older. If the destination exists the move is skipped.
+    - NEVER move a git-tracked file (see Test-TriageTrackedFile) - only the
+      skill's own untracked artifacts migrate.
+    - NEVER delete anything. A deprecated dir is removed only when it is left
+      completely empty, and never under the git dir (git owns that tree).
+    - Best effort. A failed move warns and continues; migration is not a
+      precondition for rendering.
+
+    Returns { moved = @({from,to}), skipped = @({from,reason}), pruned = @(dir) }.
+    #>
+    param([string]$CanonicalDir, [string[]]$DeprecatedDirs, [string]$RepoRoot, [switch]$WhatIf)
+    $moved = @()
+    $skipped = @()
+    $pruned = @()
+    $canonicalFull = [System.IO.Path]::GetFullPath($CanonicalDir)
+    $gitDirFull = $null
+    $resolvedGitDir = Get-TriageGitDir -StartDir $RepoRoot
+    if ($resolvedGitDir) { $gitDirFull = [System.IO.Path]::GetFullPath($resolvedGitDir) }
+
+    foreach ($dir in @($DeprecatedDirs)) {
+        if ([string]::IsNullOrWhiteSpace($dir) -or -not (Test-Path -LiteralPath $dir)) { continue }
+        if ([System.IO.Path]::GetFullPath($dir) -eq $canonicalFull) { continue }
+        foreach ($name in (Get-TriageArtifactNames)) {
+            $src = Join-Path $dir $name
+            if (-not (Test-Path -LiteralPath $src)) { continue }
+            $dst = Join-Path $CanonicalDir $name
+            if (Test-Path -LiteralPath $dst) {
+                $skipped += [pscustomobject]@{ from = $src; reason = 'the canonical copy already exists' }
+                continue
+            }
+            if ((Test-TriageTrackedFile -Path $src -RepoRoot $RepoRoot) -eq $true) {
+                $skipped += [pscustomobject]@{ from = $src; reason = 'tracked by git - refusing to move it' }
+                Write-Warning "Not moving '$src': git tracks it. It looks like a hand-written file that shares the skill's artifact filename."
+                continue
+            }
+            if (-not $WhatIf) {
+                try {
+                    if (-not (Test-Path -LiteralPath $CanonicalDir)) { New-Item -ItemType Directory -Force -Path $CanonicalDir | Out-Null }
+                    Move-Item -LiteralPath $src -Destination $dst -Force
+                }
+                catch {
+                    $skipped += [pscustomobject]@{ from = $src; reason = "move failed: $_" }
+                    Write-Warning "Could not move '$src' to '$dst': $_"
+                    continue
+                }
+            }
+            $moved += [pscustomobject]@{ from = $src; to = $dst }
+        }
+        # git owns the tree under the git dir; never prune there.
+        $dirFull = [System.IO.Path]::GetFullPath($dir)
+        if ($gitDirFull -and $gitDirFull -and $dirFull.StartsWith($gitDirFull, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+        if (-not $WhatIf) {
+            $left = @(Get-ChildItem -LiteralPath $dir -Force -ErrorAction SilentlyContinue)
+            if ($left.Count -eq 0) {
+                try { Remove-Item -LiteralPath $dir -Force -ErrorAction SilentlyContinue; $pruned += $dir }
+                catch { Write-Warning "Could not remove the empty deprecated dir '$dir': $_" }
+            }
+        }
+    }
+    return [pscustomobject]@{ moved = $moved; skipped = $skipped; pruned = $pruned }
 }

@@ -20,23 +20,121 @@
     generated; otherwise the report renders from the payload's own repo/taxonomy.
 
 .PARAMETER SignalsFile
-    Path to the signals JSON. Defaults to cache/triage-signals.json; generated if missing.
+    Path to the signals JSON. Defaults to the canonical artifact dir,
+    <repo-root>/.github/triage-backlog/triage-signals.json; generated if missing.
 
 .PARAMETER OutFile
-    Path for the rendered HTML. Defaults to cache/triage-report.html.
+    Path for the rendered HTML. Defaults alongside the signals file as
+    triage-report.html.
+
+.PARAMETER Config
+    Path to a triage.json config. Optional: when omitted the skill discovers a
+    repo-local config (triage.json / .triage.json / .github/triage.json) or falls
+    back to the built-in defaults. An explicitly supplied path that does not
+    exist is an error.
+
+.PARAMETER NoReconcile
+    Skip migrating artifacts left by an earlier version of this skill.
 
 .EXAMPLE
-    pwsh .github/skills/triage/scripts/triage-report.ps1
+    # Run from the target checkout - writes <repo>/.github/triage-backlog/triage-report.html
+    Set-Location C:\repos\my-project
+    pwsh C:\skills\triage-backlog\scripts\triage-report.ps1
 #>
 [CmdletBinding()]
 param(
     [string]$Repo = "",
-    [string]$SignalsFile = "cache/triage-signals.json",
-    [string]$OutFile = "cache/triage-report.html",
-    [string]$Config
+    [string]$SignalsFile = "",
+    [string]$OutFile = "",
+    [string]$Config,
+    [switch]$NoReconcile
 )
 
 $ErrorActionPreference = "Stop"
+
+# Taxonomy/config helpers (shared with the other scripts and the tests).
+. (Join-Path $PSScriptRoot 'triage-helpers.ps1')
+
+# ─── canonical artifact location ─────────────────────────────────────────────
+# The board is an EPHEMERAL artifact: it embeds issue titles and labels, so it
+# must never be committed. It lives in exactly ONE place - <repo-root>/.github/
+# triage-backlog/ - which this script makes self-ignoring (nested .gitignore).
+# A missing -SignalsFile / -OutFile still defaults to the canonical dir.
+# `output_dir` in the triage config is deprecated: it is no longer honored, only
+# reconciled from.
+#
+# Two concerns are kept apart:
+#   - the SELF-IGNORING guarantee applies whenever anything is written into the
+#     canonical dir, including a signals file this script generates on demand;
+#   - MIGRATION is a repo-side effect, so it runs only for the defaulted run (a
+#     bare triage-report.ps1, per SKILL.md). A caller that passed explicit paths
+#     has opted out and must not have the repo mutated.
+# Bare repositories are skipped: there is no working tree to hold the board.
+
+$repoRoot = Get-TriageRepoRoot
+$gitDir = Get-TriageGitDir
+$canonicalDir = Get-TriageCanonicalOutputDir -RepoRoot $repoRoot
+$explicitSignals = -not [string]::IsNullOrWhiteSpace($SignalsFile)
+$explicitOut = -not [string]::IsNullOrWhiteSpace($OutFile)
+
+$isBare = $false
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $bareProbe = (& git -C $repoRoot rev-parse --is-bare-repository 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0 -and $bareProbe -eq 'true') { $isBare = $true }
+}
+
+if (-not $SignalsFile) { $SignalsFile = Join-Path $canonicalDir 'triage-signals.json' }
+if (-not $OutFile) { $OutFile = Join-Path $canonicalDir 'triage-report.html' }
+
+$sigParent = Split-Path -Parent $SignalsFile
+$outParent = Split-Path -Parent $OutFile
+if ([string]::IsNullOrWhiteSpace($sigParent)) { $sigParent = (Get-Location).Path }
+if ([string]::IsNullOrWhiteSpace($outParent)) { $outParent = (Get-Location).Path }
+$canonicalFull = [System.IO.Path]::GetFullPath($canonicalDir)
+$writesCanonical = ([System.IO.Path]::GetFullPath($sigParent) -eq $canonicalFull) -or
+                   ([System.IO.Path]::GetFullPath($outParent) -eq $canonicalFull)
+
+if (-not $isBare) {
+    if ($writesCanonical) {
+        $null = Initialize-TriageArtifactDir -Path $canonicalDir
+        # Verify against an artifact FILE, not the dir: a nested .gitignore governs
+        # the directory's contents, so `check-ignore <dir>` reports "not ignored"
+        # even when every file inside it is (and `git status` stays clean).
+        $probeFile = Join-Path $canonicalDir 'triage-report.html'
+        if ((Test-TriageArtifactIgnored -Path $probeFile -RepoRoot $repoRoot) -eq $false) {
+            if ((Test-TriageTrackedFile -Path $probeFile -RepoRoot $repoRoot) -eq $true) {
+                Write-Warning "'$probeFile' is already tracked by git, so gitignore cannot protect it. Untrack it with: git rm --cached '$probeFile'"
+            }
+            else {
+                Write-Warning "The artifact dir '$canonicalDir' is NOT git-ignored; the report could be committed. Add '.github/triage-backlog/' to .gitignore."
+            }
+        }
+    }
+
+    # The config is only needed for migration, so it is only validated/read here -
+    # a missing -Config must not break a run that only needs -SignalsFile.
+    if (-not $explicitSignals -and -not $explicitOut -and -not $NoReconcile) {
+        if ($Config -and -not (Test-Path $Config)) { throw "Triage config not found: $Config" }
+        $cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot $repoRoot -SkillRoot (Split-Path -Parent $PSScriptRoot)
+        $cfgOutputDir = $null
+        if ($cfgPath -and (Test-Path $cfgPath)) {
+            try {
+                $cfgObj = Get-Content $cfgPath -Raw | ConvertFrom-Json
+                if ($cfgObj.output_dir -and -not [string]::IsNullOrWhiteSpace("$($cfgObj.output_dir)")) { $cfgOutputDir = "$($cfgObj.output_dir)" }
+            }
+            catch { Write-Warning "Could not read '$cfgPath'; ignoring its output_dir. $_" }
+        }
+        if ($cfgOutputDir) {
+            Write-Warning "triage config 'output_dir' is deprecated and no longer honored: artifacts always go to '$canonicalDir'. Reconciling from '$cfgOutputDir'."
+        }
+
+        $deprecated = Get-TriageDeprecatedOutputDirs -RepoRoot $repoRoot -GitDir $gitDir -ConfigOutputDir $cfgOutputDir
+        $recon = Invoke-TriageArtifactReconcile -CanonicalDir $canonicalDir -DeprecatedDirs $deprecated -RepoRoot $repoRoot
+        foreach ($m in @($recon.moved))   { Write-Host "Reconciled: $($m.from) -> $($m.to)" }
+        foreach ($s in @($recon.skipped)) { Write-Host "Skipped: $($s.from) ($($s.reason))" }
+        foreach ($d in @($recon.pruned))  { Write-Host "Removed empty deprecated dir: $d" }
+    }
+}
 
 $signalsScript = Join-Path $PSScriptRoot 'triage-signals.ps1'
 
@@ -75,9 +173,6 @@ if (@($signals.taxonomy.missing_labels).Count -gt 0) {
     $missing = @($signals.taxonomy.missing_labels) -join ', '
     throw "Signals file was generated with missing taxonomy labels: $missing. Fix the taxonomy gate first (re-run triage-signals.ps1), then regenerate this report."
 }
-
-# Taxonomy-driven label helpers (shared with the other scripts and the tests).
-. (Join-Path $PSScriptRoot 'triage-helpers.ps1')
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 

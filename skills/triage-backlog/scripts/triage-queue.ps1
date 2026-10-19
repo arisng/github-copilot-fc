@@ -44,11 +44,12 @@ $PageLimit = 1000
 # Shared pure helpers + the taxonomy model (single source of truth, also used by tests).
 . (Join-Path $PSScriptRoot 'triage-helpers.ps1')
 
-# Config discovery: explicit -Config wins; otherwise repo-local config in the
-# checkout root (triage.json, .triage.json, .github/triage.json); otherwise a
-# triage.json co-located with the skill. A missing auto-discovered config is fine
-# (defaults apply); a missing explicit -Config is not.
-$cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot (Get-Location).Path -SkillRoot (Split-Path -Parent $PSScriptRoot)
+# Config discovery: explicit -Config wins; otherwise repo-local config in the repo
+# root (triage.json, .triage.json, .github/triage.json); otherwise a triage.json
+# co-located with the skill. A missing auto-discovered config is fine (defaults
+# apply); a missing explicit -Config is not. Anchored at the repo root rather
+# than the cwd, matching triage-report.ps1.
+$cfgPath = Resolve-TriageConfigPath -Explicit $Config -RepoRoot (Get-TriageRepoRoot) -SkillRoot (Split-Path -Parent $PSScriptRoot)
 $cfg = $null
 if ($cfgPath) {
     try { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }

@@ -66,6 +66,15 @@ Specify only what differs from the defaults. To disable a concept a repo does
 not use, set it to `null` or `""` (e.g. `"owner_decision": null`). Absent keys
 keep the default.
 
+Two optional keys are consumed by the callers rather than the taxonomy (both
+skipped silently by the merge):
+
+- `repo` — default `owner/name` when `-Repo` is omitted.
+- `output_dir` — **deprecated**. Artifacts always go to
+  `<repo>/.github/triage-backlog/` (see
+  [SKILL.md](../SKILL.md#output-location)). A value here is no longer honored:
+  it is used only as a source to reconcile from, and the run warns.
+
 ## Validation and schema
 
 - **Taxonomy gate (hard).** `triage-queue.ps1` and `triage-signals.ps1` fetch
