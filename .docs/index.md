@@ -142,6 +142,7 @@ This index links Diátaxis-organized documentation for the workspace.
 #### Vscode
 
 - [Custom Toolsets Reference for GitHub Copilot VS Code](reference/copilot/vscode/copilot-vscode-custom-toolset.md)
+- [Copilot Agent Host and Agents Window Tool Surface Reference](reference/copilot/vscode/copilot-vscode-agent-host-tools.md)
 - [GitHub Copilot VS Code Prompt Files (.prompt.md) Reference](reference/copilot/vscode/copilot-vscode-prompt-files.md)
 - [Fleet In VS Code As A Generic Orchestrator Reference](reference/copilot/vscode/fleet-vscode-generic-orchestrator.md)
 
