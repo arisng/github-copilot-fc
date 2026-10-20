@@ -334,7 +334,7 @@ Granular permission control via `--allow-tool` / `--deny-tool`[^1]:
 Available tool control list (`--available-tools` / `--excluded-tools`)[^2]:
 - **Shell**: `bash`, `powershell`, `list_bash`, `list_powershell`, `read_bash`, `read_powershell`, `stop_bash`, `stop_powershell`, `write_bash`, `write_powershell`
 - **File**: `apply_patch`, `create`, `edit`, `view`
-- **Agent**: `list_agents`, `read_agent`, `task`
+- **Agent**: `list_agents`, `read_agent`, `task`, `write_agent`
 - **Other**: `ask_user`, `glob`, `grep` (or `rg`), `skill`, `web_fetch`
 
 ---

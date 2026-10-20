@@ -83,7 +83,7 @@ Built-in tools use different names across runtimes.
 | `edit/editFiles`        | `edit`                                      | File editing; CLI also documents `apply_patch` as a concrete file-write tool    |
 | (file creation)         | `create`                                    | File creation                                                                   |
 | `search`                | `grep` / `rg`, `glob`                       | Codebase search                                                                 |
-| `agent`                 | `task`, `read_agent`, `list_agents`         | Subagent delegation plus background-agent inspection                            |
+| `agent`                 | `task`, `read_agent`, `list_agents`, `write_agent` | Subagent delegation plus background-agent inspection and follow-up messaging    |
 | `web`                   | `web_fetch`                                 | Built-in URL fetching; richer web search still commonly comes from MCP servers  |
 | `todo`                  | `update_todo`                               | Structured task checklist                                                       |
 | `vscode/memory`         | **No equivalent**                           | CLI has implicit memory (automatic, not programmatic)                           |
@@ -111,6 +111,21 @@ The CLI provides multiple tool restriction mechanisms that replace `.toolsets.js
 | `--no-custom-instructions`               | Session-wide (CLI flag)         | Disables all custom instruction loading |
 
 Deny rules take precedence over allow rules (safe defaults).
+
+---
+
+## Built-in MCP Servers
+
+The CLI ships built-in MCP servers that need no extra setup (current command reference):
+
+| Server             | Description                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `github-mcp-server` | GitHub API integration: issues, pull requests, labels, commits, code search, GitHub Actions |
+| `playwright`       | Browser automation: navigate, click, type, screenshot, form handling                       |
+| `fetch`            | HTTP requests via the `fetch` tool                                                         |
+| `time`             | Time utilities: `get_current_time`, `convert_time`                                        |
+
+Disable them with `--disable-builtin-mcps` (all) or `--disable-mcp-server SERVER-NAME` (one). MCP tool names are sanitized to `serverName-toolName` and capped at 64 characters. Availability varies by CLI version — verify with `copilot mcp list`.
 
 ---
 

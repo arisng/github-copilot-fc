@@ -74,6 +74,7 @@ The command reference also exposes agent/task delegation tools in the CLI tool i
 - `task`
 - `read_agent`
 - `list_agents`
+- `write_agent`
 
 The public docs do **not** currently publish a full parameter-by-parameter `task()` schema. That lower-level detail is preserved below as version-scoped historical analysis.
 
