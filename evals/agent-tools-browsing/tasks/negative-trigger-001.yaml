@@ -1,0 +1,17 @@
+id: negative-trigger-001
+name: Unrelated coding task should not trigger
+description: "Writing code has nothing to do with browsing tool names."
+tags:
+  - negative-trigger
+  - trigger
+inputs:
+  prompt: "add a retry loop to the http client in src/client.ts"
+expected:
+  should_trigger: false
+graders:
+  - type: text
+    name: no-tools-block
+    config:
+      not_contains:
+        - "tools: ["
+        - "runtime vocabulary"

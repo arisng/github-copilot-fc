@@ -1,0 +1,36 @@
+id: behavioral-004
+name: Near-miss name is rejected, not silently kept
+description: >
+  "create" is a documented CLI built-in that no shipped agent uses and that was
+  reported as ignored. The skill must not hand it back as the file-creation tool.
+tags:
+  - behavioral
+  - near-miss
+inputs:
+  prompt: >
+    I want my Copilot CLI agent to create new files. Can I put "create" in the
+    tools list, or is there a better name?
+  context:
+    scenario: The agent is a Copilot CLI agent and needs file creation.
+expected:
+  should_trigger: true
+  output_contains:
+    - "edit"
+graders:
+  - type: text
+    name: prefers-edit-alias
+    config:
+      contains:
+        - "edit"
+  - type: text
+    name: create-caveated
+    config:
+      contains:
+        - "create"
+  - type: text
+    name: does-not-recommend-create
+    config:
+      not_contains:
+        - "tools: [view, create]"
+        - 'tools: ["view", "create"]'
+        - "use create instead"

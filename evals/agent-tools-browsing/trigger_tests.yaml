@@ -1,0 +1,37 @@
+skill: agent-tools-browsing
+should_trigger_prompts:
+  - prompt: "restrict my custom agent to read-only tools"
+    reason: Direct tools allowlist scoping request
+    confidence: high
+  - prompt: "which tool names are valid in a Copilot CLI agent frontmatter?"
+    reason: Browsing the runtime vocabulary
+    confidence: high
+  - prompt: "my agent's tools list seems to be ignored"
+    reason: Debugging an allowlist that silently drops names
+    confidence: high
+  - prompt: "help me tighten the tools field of my reviewer agent"
+    reason: Tightening an existing allowlist
+    confidence: high
+  - prompt: "what can I put in tools: for a VS Code custom agent?"
+    reason: Runtime-specific tool naming
+    confidence: high
+  - prompt: "should I use create or edit to let my agent write files?"
+    reason: Alias vs concrete built-in distinction
+    confidence: medium
+
+should_not_trigger_prompts:
+  - prompt: "write a function that parses yaml"
+    reason: Ordinary coding task
+    confidence: high
+  - prompt: "create a new custom agent for code review"
+    reason: Authoring an agent file belongs to the agent-customization skill
+    confidence: high
+  - prompt: "install the brave-search MCP server"
+    reason: MCP server installation, not tool naming
+    confidence: high
+  - prompt: "why isn't my agent being auto-selected?"
+    reason: Agent discovery and infer/disable-model-invocation, not the tools list
+    confidence: high
+  - prompt: "publish my skills to my personal folder"
+    reason: Publishing workflow, different skill
+    confidence: high

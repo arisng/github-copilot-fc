@@ -1,0 +1,19 @@
+id: negative-trigger-002
+name: Authoring the agent file is a different skill
+description: >
+  Creating a custom agent file belongs to the agent-customization skill, not to
+  the tools-browsing skill.
+tags:
+  - negative-trigger
+  - trigger
+inputs:
+  prompt: "create a new custom agent for code review with a persona and instructions"
+expected:
+  should_trigger: false
+graders:
+  - type: text
+    name: no-tool-allowlist
+    config:
+      not_contains:
+        - "tools: ["
+        - "browse_tools.py"

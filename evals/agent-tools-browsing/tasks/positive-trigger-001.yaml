@@ -1,0 +1,16 @@
+id: positive-trigger-001
+name: Tighten an existing agent tools list
+description: A direct request to narrow an agent's tool access.
+tags:
+  - positive-trigger
+  - trigger
+inputs:
+  prompt: "my custom agent can do everything, help me restrict its tools to just reading files"
+expected:
+  should_trigger: true
+graders:
+  - type: text
+    name: produces-tools-list
+    config:
+      contains:
+        - "tools"

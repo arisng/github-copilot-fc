@@ -1,0 +1,42 @@
+id: behavioral-003
+name: VS Code agent gets namespaced tool ids
+description: >
+  A VS Code custom agent uses the category/tool vocabulary and the conceptual
+  aliases, not the CLI's concrete built-ins. Both the namespaced id and the
+  conceptual alias are correct VS Code names.
+tags:
+  - behavioral
+  - runtime-vocabulary
+inputs:
+  prompt: >
+    What tools should my VS Code custom agent have if it needs to read files,
+    search the workspace, edit code, and run terminal commands? Give me the
+    exact one-line tools value to put in the frontmatter.
+  context:
+    scenario: The agent is a VS Code custom agent, not a Copilot CLI agent.
+expected:
+  should_trigger: true
+  output_contains:
+    - "tools"
+graders:
+  - type: text
+    name: vscode-tools-line
+    config:
+      contains: []
+      not_contains: []
+      contains_cs: []
+      not_contains_cs: []
+      regex_match:
+        - "(?i)tools:\\s*\\[[^\\]]*\\bread\\b[^\\]]*\\]"
+        - "(?i)tools:\\s*\\[[^\\]]*\\bsearch\\b[^\\]]*\\]"
+        - "(?i)tools:\\s*\\[[^\\]]*\\bedit\\b[^\\]]*\\]"
+        - "(?i)tools:\\s*\\[[^\\]]*\\bexecute\\b[^\\]]*\\]"
+  - type: text
+    name: no-cli-only-names
+    config:
+      contains: []
+      not_contains: []
+      contains_cs: []
+      not_contains_cs: []
+      regex_not_match:
+        - "(?i)tools:\\s*\\[[^\\]]*\\b(read_bash|write_bash|stop_bash|list_bash|apply_patch)\\b[^\\]]*\\]"

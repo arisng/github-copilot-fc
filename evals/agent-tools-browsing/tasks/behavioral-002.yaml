@@ -1,0 +1,38 @@
+id: behavioral-002
+name: Wildcard in the list makes the agent unrestricted
+description: >
+  A candidate list that contains "*" grants every tool. The skill must call that
+  out instead of treating the list as scoped.
+tags:
+  - behavioral
+  - wildcard-trap
+inputs:
+  prompt: >
+    Here's the tools line I wrote for my Copilot CLI agent:
+    tools: [view, search, "*"]
+    Is that scoped to reading and searching?
+  context:
+    scenario: The agent file is a Copilot CLI agent with a list that includes a wildcard.
+expected:
+  should_trigger: true
+  output_contains:
+    - "*"
+graders:
+  - type: text
+    name: wildcard-explained
+    config:
+      contains: []
+      not_contains: []
+      contains_cs: []
+      not_contains_cs: []
+      regex_match:
+        - "(?i)(every|all|entire|any)\\s+tool"
+  - type: text
+    name: wildcard-not-endorsed
+    config:
+      contains: []
+      not_contains: []
+      contains_cs: []
+      not_contains_cs: []
+      regex_not_match:
+        - "(?i)(yes,? that is scoped|correctly scoped|is scoped to reading)"

@@ -1,0 +1,33 @@
+name: agent-tools-browsing-eval
+description: >
+  Behavioral evaluation for the agent-tools-browsing skill. Tests that the skill
+  picks the runtime-specific vocabulary for a custom agent's `tools:` frontmatter,
+  rejects near-miss names, and catches the wildcard trap.
+skill: agent-tools-browsing
+version: "1.0"
+config:
+  trials_per_task: 2
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+  skill_directories:
+    - ../../skills/agent-tools-browsing
+metrics:
+  - name: task_completion
+    weight: 0.4
+    threshold: 0.8
+    description: The response produces a tools list valid for the stated runtime.
+  - name: trigger_accuracy
+    weight: 0.3
+    threshold: 0.5
+    description: Skill triggers on tools allowlist prompts and ignores unrelated work.
+  - name: behavior_quality
+    weight: 0.3
+    threshold: 0.7
+    description: Output is minimal, runtime-correct, and flags near misses and the wildcard.
+# Note: no token-budget grader here. The copilot-sdk executor reports whole-session
+# token usage, which makes a budget-style grader fail every task regardless of
+# skill quality.
+tasks:
+  - "tasks/*.yaml"

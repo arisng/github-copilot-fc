@@ -1,0 +1,52 @@
+id: behavioral-001
+name: CLI read-only agent gets CLI names
+description: >
+  A read-only Copilot CLI agent must get CLI vocabulary, not VS Code tool ids
+  and not the cloud agent's conceptual aliases. The emitted tools line must
+  grant no write capability.
+tags:
+  - behavioral
+  - runtime-vocabulary
+inputs:
+  prompt: >
+    I'm writing a Copilot CLI custom agent that only inspects the codebase and
+    answers questions. It must not modify anything. Give me the exact one-line
+    tools value to put in the .agent.md frontmatter.
+  context:
+    scenario: >
+      The agent file is a Copilot CLI agent at .github/agents/locator.agent.md.
+      The user wants read and search only, and wants the one-line tools value.
+expected:
+  should_trigger: true
+  output_contains:
+    - "tools"
+graders:
+  - type: text
+    name: cli-read-only-tools-line
+    config:
+      contains: []
+      not_contains: []
+      contains_cs: []
+      not_contains_cs: []
+      regex_match:
+        - "(?i)tools:\\s*\\[[^\\]]*\\bview\\b[^\\]]*\\]"
+        - "(?i)tools:\\s*\\[[^\\]]*\\b(search|grep|glob)\\b[^\\]]*\\]"
+  - type: text
+    name: no-write-capability-in-list
+    config:
+      contains: []
+      not_contains: []
+      contains_cs: []
+      not_contains_cs: []
+      regex_not_match:
+        - "(?i)tools:\\s*\\[[^\\]]*\\b(edit|create|apply_patch|bash|powershell)\\b[^\\]]*\\]"
+  - type: text
+    name: no-vscode-tool-ids
+    config:
+      contains: []
+      not_contains:
+        - "read/readFile"
+        - "edit/createFile"
+        - "execute/runInTerminal"
+      contains_cs: []
+      not_contains_cs: []
