@@ -10,3 +10,5 @@ todos.db
 .agent-handoffs/
 **/evals/samples/
 *.log
+tools/inventory-drift-report.json
+tools/inventory-drift-report.md
