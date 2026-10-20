@@ -50,7 +50,7 @@ Record these; they become `cli_version` and `last_verified` in the inventory met
 
 Compare the grounding signals against the current `tools/inventory.yaml`:
 
-- **Concrete CLI built-ins** (the `cli:` lists on `runtime-only` families and core built-ins): any tool names observed in the CLI command reference's tool availability values that are missing from the inventory → high-confidence **additions** to review.
+- **Concrete CLI built-ins** (the `cli:` lists on `cli-surface` families and core built-ins): any tool names observed in the CLI command reference's tool availability values that are missing from the inventory → high-confidence **additions** to review.
 - **Agent `tools:` aliases** (the `official_alias` conceptual surface vs. the CLI-frontmatter set `bash`/`view`/`edit`/`search`): flag if the docs changed which aliases are valid.
 - **Built-in MCP servers** (`github-mcp-server`, `playwright/*`): whether they are still listed as built-ins.
 - **`default` / `notes`**: only update when the grounding source actually changed behavior.
@@ -100,9 +100,9 @@ These rules keep the YAML parseable and lossless (enforced by the validator):
 
 **Colons in notes break YAML.** A `tools:` or `foo: bar` sequence inside an unquoted `notes:` value is a YAML mapping error. Avoid `: ` sequences in unquoted strings, or quote the value.
 
-**The inventory counts 24 entries across 6 categories.** Verify after conversion/refresh that no "Runtime-only families" entries (`workspace-terminal-family`, `vscode-memory`, `filesystem-readonly-family`, `github-gist-family`) were dropped.
+**The inventory counts 31 entries across 7 categories.** Verify after conversion/refresh that the category taxonomy is intact: `core-built-in`, `limited-applicability`, `builtin-mcp`, `custom-mcp`, `cli-surface`, `vscode-surface`, `agent-host`. In particular, no `cli-surface` family (`cli-shell-session-family`, `cli-file-write-family`, `cli-agent-management-family`, `cli-search-and-fetch-family`, `cli-orchestration-and-state-family`) or `vscode-surface` family (`vscode-terminal-family`, `vscode-memory`, `vscode-user-interaction`, `vscode-editor-control-family`) was dropped. Do not reintroduce a catch-all bucket such as the old `runtime-only` category; a runtime's concrete tool inventory belongs in that runtime's `*-surface` category, and an MCP tool set belongs in `custom-mcp`.
 
-**`create` is a valid concrete CLI built-in but NOT a valid agent `tools:` alias.** Both facts must survive in the inventory (see `copilot-cli-file-write-family` entry vs. `.docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md`).
+**`create` is a valid concrete CLI built-in but NOT a valid agent `tools:` alias.** Both facts must survive in the inventory (see `cli-file-write-family` entry vs. `.docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md`).
 
 ## References
 

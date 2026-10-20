@@ -141,9 +141,10 @@ $signals = [ordered]@{
         "stop_bash", "stop_powershell", "list_bash", "list_powershell",
         "view", "create", "edit", "apply_patch",
         "grep", "rg", "glob", "web_fetch",
-        "task", "read_agent", "list_agents",
+        "task", "read_agent", "list_agents", "write_agent",
         "skill", "ask_user", "report_intent", "show_file", "fetch_copilot_cli_documentation",
-        "update_todo", "store_memory", "task_complete", "exit_plan_mode", "sql", "lsp"
+        "update_todo", "store_memory", "read_memories", "vote_memory", "task_complete",
+        "exit_plan_mode", "sql", "lsp"
     )
     # MCP namespace tokens to detect in the grounding text
     known_mcp_namespaces = @(

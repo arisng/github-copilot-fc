@@ -11,6 +11,7 @@ Checks:
     github_copilot, default, sources), ids unique and kebab-case
   - default is in the closed enum
   - list fields contain only strings; the "runtime-dependent" sentinel is allowed
+  - "agent_host" is optional; when present it is validated as a list
   - official_alias, when present, is a non-empty list of strings
   - sources: non-empty list, each entry non-empty; file-like sources exist
     (tools/vscode/toolsets/*.jsonc and .docs/... paths) unless --strict is off
@@ -53,7 +54,7 @@ REQUIRED_TOOL_KEYS = {
     "sources",
 }
 
-LIST_KEYS = ("cli", "vscode", "github_copilot")
+LIST_KEYS = ("cli", "vscode", "github_copilot", "agent_host")
 KUBE_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 # Sentinel values accepted inside list fields (not real tool names).

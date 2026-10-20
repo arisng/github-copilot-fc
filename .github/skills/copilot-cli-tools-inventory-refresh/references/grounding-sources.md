@@ -41,6 +41,6 @@ These workspace reference pages are cross-checked during a refresh:
 ## 4. Known Deliberate Nuances (do not "fix" these away)
 
 - **Alias vs concrete built-in split**: `official_alias` in the YAML is the *conceptual* cross-runtime alias (e.g. `execute`, `read`, `agent`), which differs from the CLI-frontmatter alias set (`bash`, `view`, `edit`, `search`) documented in `cli-agent-valid-tool-aliases.md`. Preserve both.
-- **`create`**: valid as a concrete CLI built-in (`copilot-cli-file-write-family`), NOT valid as an agent `tools:` alias.
+- **`create`**: valid as a concrete CLI built-in (`cli-file-write-family`), NOT valid as an agent `tools:` alias.
 - **`runtime-dependent` / `(closest)` / `runtime-specific`** encodings: see the "Value Encoding Rules" in `SKILL.md`.
 - **Curation over adoption**: the inventory lists *important* tools, not the entire live tool surface. The drift report proposes additions; the author decides.
