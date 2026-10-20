@@ -1,0 +1,288 @@
+# Per-runtime vocabulary of names accepted in a custom agent's `tools:` frontmatter.
+#
+# The same `tools:` field means a different thing in every runtime. This file is
+# the machine-readable answer; `references/naming-rules.md` explains the rules.
+#
+# evidence tiers (how much to trust a name):
+#   shipped     The runtime's own built-in agent definitions use it. Strongest.
+#   documented  Vendor-documented alias or namespace for this runtime.
+#   reported    Reported by direct testing, but not confirmed by a shipped agent.
+#   rejected    Tested and confirmed to have no effect.
+#
+# kind:
+#   alias      A conceptual capability name that expands to several tools.
+#   built-in   One concrete tool.
+#   namespace  A server or provider namespace that expands to many tools.
+
+version: "1.0"
+last_verified: "2026-10-20"
+cli_version: "1.0.98"
+
+runtimes:
+
+  cli:
+    label: GitHub Copilot CLI
+    agent_file: "*.agent.md"
+    agent_locations:
+      - "~/.copilot/agents/"
+      - ".github/agents/"
+      - ".claude/agents/"
+    case_sensitive: true
+    summary: >
+      The Copilot CLI and the VS Code Agent Host ship byte-identical built-in
+      agent definitions, so both accept the same names. Concrete built-in names
+      work alongside the documented aliases; the shipped agents prefer the
+      concrete ones.
+    names:
+      bash: { kind: alias, purpose: Run shell commands, evidence: documented }
+      powershell: { kind: built-in, purpose: Run commands in PowerShell, evidence: shipped }
+      view: { kind: alias, purpose: Read files and directories, evidence: documented }
+      edit: { kind: alias, purpose: Create or modify files, evidence: documented }
+      search: { kind: alias, purpose: Search files and file text, evidence: documented }
+      task: { kind: alias, purpose: Delegate to a subagent, evidence: documented }
+      grep: { kind: built-in, purpose: Search text in files, evidence: shipped }
+      rg: { kind: built-in, purpose: Search text in files, evidence: documented }
+      glob: { kind: built-in, purpose: Find files by pattern, evidence: shipped }
+      lsp: { kind: built-in, purpose: Query configured language servers, evidence: shipped }
+      read_bash: { kind: built-in, purpose: Read output of a bash session, evidence: shipped }
+      read_powershell: { kind: built-in, purpose: Read output of a PowerShell session, evidence: shipped }
+      write_bash: { kind: built-in, purpose: Send input to a bash session, evidence: documented }
+      write_powershell: { kind: built-in, purpose: Send input to a PowerShell session, evidence: documented }
+      stop_bash: { kind: built-in, purpose: Terminate a bash session, evidence: documented }
+      stop_powershell: { kind: built-in, purpose: Terminate a PowerShell session, evidence: documented }
+      list_bash: { kind: built-in, purpose: List active bash sessions, evidence: documented }
+      list_powershell: { kind: built-in, purpose: List active PowerShell sessions, evidence: documented }
+      context_board: { kind: built-in, purpose: Memory consolidation, add and prune operations, evidence: shipped }
+      create: { kind: built-in, purpose: Create new files, evidence: reported, caution: "Reported as silently ignored in agent frontmatter in March 2026. Prefer edit, which covers file creation." }
+      apply_patch: { kind: built-in, purpose: Apply a patch, evidence: reported, caution: "Documented built-in, but not used by any shipped agent. Model-dependent." }
+      web_fetch: { kind: built-in, purpose: Fetch and parse a web page, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      skill: { kind: built-in, purpose: Invoke a custom skill, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      ask_user: { kind: built-in, purpose: Ask the user a question, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      update_todo: { kind: built-in, purpose: Maintain a structured task list, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      store_memory: { kind: built-in, purpose: Save a fact to agent memory, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      read_memories: { kind: built-in, purpose: Read facts stored in agent memory, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      vote_memory: { kind: built-in, purpose: Vote on a stored memory, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      list_agents: { kind: built-in, purpose: List available agents, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      read_agent: { kind: built-in, purpose: Check background agent status, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+      write_agent: { kind: built-in, purpose: Send a message to a running agent, evidence: reported, caution: "Documented built-in, but not used by any shipped agent." }
+    mcp:
+      form: "serverName/toolName"
+      example: "github-mcp-server/get_commit"
+      note: >
+        The CLI's own explore agent lists GitHub MCP server tools as
+        github-mcp-server/get_commit, github-mcp-server/list_issues, and so on.
+        A whole server is addressed with serverName/*.
+
+  agent-host:
+    label: VS Code Agent Host (Agents window, Copilot SDK harness)
+    agent_file: "*.agent.md"
+    case_sensitive: true
+    summary: >
+      The Agents window runs the Copilot harness inside the Agent Host, which
+      executes the Copilot SDK runtime. The SDK ships the same built-in agent
+      definitions as the CLI, so the vocabulary is the CLI one. Client-contributed
+      tools, such as browser and extension tools, are added by the connected
+      client and are not nameable from a tools allowlist.
+    names:
+      bash: { kind: alias, purpose: Run shell commands, evidence: documented }
+      powershell: { kind: built-in, purpose: Run commands in PowerShell, evidence: shipped }
+      view: { kind: alias, purpose: Read files and directories, evidence: documented }
+      edit: { kind: alias, purpose: Create or modify files, evidence: documented }
+      search: { kind: alias, purpose: Search files and file text, evidence: documented }
+      task: { kind: alias, purpose: Delegate to a subagent, evidence: documented }
+      grep: { kind: built-in, purpose: Search text in files, evidence: shipped }
+      glob: { kind: built-in, purpose: Find files by pattern, evidence: shipped }
+      lsp: { kind: built-in, purpose: Query configured language servers, evidence: shipped }
+      read_bash: { kind: built-in, purpose: Read output of a bash session, evidence: shipped }
+      read_powershell: { kind: built-in, purpose: Read output of a PowerShell session, evidence: shipped }
+      stop_bash: { kind: built-in, purpose: Terminate a bash session, evidence: shipped }
+      stop_powershell: { kind: built-in, purpose: Terminate a PowerShell session, evidence: shipped }
+      write_bash: { kind: built-in, purpose: Send input to a bash session, evidence: documented }
+      write_powershell: { kind: built-in, purpose: Send input to a PowerShell session, evidence: documented }
+      list_bash: { kind: built-in, purpose: List active bash sessions, evidence: documented }
+      list_powershell: { kind: built-in, purpose: List active PowerShell sessions, evidence: documented }
+      context_board: { kind: built-in, purpose: Memory consolidation, add and prune operations, evidence: shipped }
+    mcp:
+      form: "serverName/toolName"
+      example: "github-mcp-server/get_commit"
+      note: >
+        The SDK's tools.list method enumerates the built-in tools, and the
+        runtime's tool filter also accepts the builtin: prefix, for example
+        builtin:bash and builtin:*.
+
+  vscode:
+    label: VS Code extension host (editor window)
+    agent_file: "*.agent.md"
+    case_sensitive: false
+    summary: >
+      VS Code accepts conceptual aliases, namespaced tool ids such as
+      read/readFile, and extension-contributed tools. Names are case
+      insensitive. The Agent Host and the extension host are different
+      runtimes, so the same agent file can be valid in one and ignored in
+      the other.
+    names:
+      execute: { kind: alias, purpose: Run commands, tasks, and notebook cells, evidence: documented }
+      shell: { kind: alias, purpose: Run a shell command, evidence: documented }
+      Bash: { kind: alias, purpose: Run a shell command, evidence: documented }
+      powershell: { kind: alias, purpose: Run a shell command, evidence: documented }
+      read: { kind: alias, purpose: Read file contents, evidence: documented }
+      Read: { kind: alias, purpose: Read file contents, evidence: documented }
+      NotebookRead: { kind: alias, purpose: Read a notebook, evidence: documented }
+      edit: { kind: alias, purpose: Modify workspace files and notebooks, evidence: documented }
+      Edit: { kind: alias, purpose: Modify workspace files, evidence: documented }
+      MultiEdit: { kind: alias, purpose: Apply multiple edits, evidence: documented }
+      Write: { kind: alias, purpose: Write a file, evidence: documented }
+      NotebookEdit: { kind: alias, purpose: Edit a notebook, evidence: documented }
+      search: { kind: alias, purpose: Search for files or text, evidence: documented }
+      Grep: { kind: alias, purpose: Search for files or text, evidence: documented }
+      Glob: { kind: alias, purpose: Search for files or text, evidence: documented }
+      agent: { kind: alias, purpose: Invoke another custom agent, evidence: documented }
+      custom-agent: { kind: alias, purpose: Invoke another custom agent, evidence: documented }
+      Task: { kind: alias, purpose: Invoke another custom agent, evidence: documented }
+      web: { kind: alias, purpose: Fetch content from URLs, evidence: documented }
+      WebSearch: { kind: alias, purpose: Fetch content from URLs and search the web, evidence: documented }
+      WebFetch: { kind: alias, purpose: Fetch content from URLs and search the web, evidence: documented }
+      todo: { kind: alias, purpose: Create and manage structured task lists, evidence: documented }
+      TodoWrite: { kind: alias, purpose: Create and manage structured task lists, evidence: documented }
+      "read/readFile": { kind: built-in, purpose: Read a file, evidence: documented }
+      "read/problems": { kind: built-in, purpose: Get diagnostics from the Problems panel, evidence: documented }
+      "read/terminalLastCommand": { kind: built-in, purpose: Get the last terminal command and its output, evidence: documented }
+      "read/terminalSelection": { kind: built-in, purpose: Get the current terminal selection, evidence: documented }
+      "read/viewImage": { kind: built-in, purpose: View an image, evidence: shipped }
+      "read/getNotebookSummary": { kind: built-in, purpose: List notebook cells, evidence: shipped }
+      "read/readNotebookCellOutput": { kind: built-in, purpose: Read notebook cell output, evidence: shipped }
+      "read/readProjectStructure": { kind: built-in, purpose: Read the project structure, evidence: shipped }
+      "edit/createDirectory": { kind: built-in, purpose: Create a directory, evidence: documented }
+      "edit/createFile": { kind: built-in, purpose: Create a file, evidence: documented }
+      "edit/editFiles": { kind: built-in, purpose: Apply edits to files, evidence: documented }
+      "edit/rename": { kind: built-in, purpose: Rename a file, evidence: shipped }
+      "edit/editNotebook": { kind: built-in, purpose: Edit a notebook, evidence: shipped }
+      "edit/applyPatch": { kind: built-in, purpose: Apply a patch, evidence: shipped }
+      "search/codebase": { kind: built-in, purpose: Workspace code search, evidence: documented }
+      "search/changes": { kind: built-in, purpose: List source control changes, evidence: documented }
+      "search/fileSearch": { kind: built-in, purpose: Find files by glob pattern, evidence: documented }
+      "search/listDirectory": { kind: built-in, purpose: List directory contents, evidence: documented }
+      "search/textSearch": { kind: built-in, purpose: Find text in files, evidence: documented }
+      "search/usages": { kind: built-in, purpose: Find references and definitions, evidence: documented }
+      "search/findTestFiles": { kind: built-in, purpose: Find test files, evidence: shipped }
+      "execute/runInTerminal": { kind: built-in, purpose: Run a shell command in the integrated terminal, evidence: documented }
+      "execute/getTerminalOutput": { kind: built-in, purpose: Get output from a running terminal command, evidence: documented }
+      "execute/sendToTerminal": { kind: built-in, purpose: Send input to a terminal, evidence: shipped }
+      "execute/awaitTerminal": { kind: built-in, purpose: Wait for a terminal command, evidence: shipped }
+      "execute/killTerminal": { kind: built-in, purpose: Terminate a terminal, evidence: shipped }
+      "execute/createAndRunTask": { kind: built-in, purpose: Create and run a workspace task, evidence: documented }
+      "execute/testFailure": { kind: built-in, purpose: Get unit test failure information, evidence: documented }
+      "execute/runNotebookCell": { kind: built-in, purpose: Run a notebook cell, evidence: shipped }
+      "agent/runSubagent": { kind: built-in, purpose: Run a task in an isolated subagent, evidence: documented }
+      "web/fetch": { kind: built-in, purpose: Fetch a web page, evidence: documented }
+      "vscode/askQuestions": { kind: built-in, purpose: Ask clarifying questions with interactive controls, evidence: documented }
+      "vscode/extensions": { kind: built-in, purpose: Search for extensions, evidence: documented }
+      "vscode/getProjectSetupInfo": { kind: built-in, purpose: Get project scaffolding instructions, evidence: documented }
+      "vscode/installExtension": { kind: built-in, purpose: Install an extension, evidence: documented }
+      "vscode/runCommand": { kind: built-in, purpose: Run a VS Code command, evidence: shipped }
+      "vscode/VSCodeAPI": { kind: built-in, purpose: Get editor and extension API information, evidence: documented }
+      todos: { kind: built-in, purpose: Track task progress, evidence: documented }
+      newWorkspace: { kind: built-in, purpose: Create a workspace, evidence: shipped }
+      memory: { kind: built-in, purpose: VS Code memory helpers, evidence: shipped }
+      resolveMemoryFileUri: { kind: built-in, purpose: Resolve a memory file URI, evidence: shipped }
+      toolSearch: { kind: built-in, purpose: Search the tool catalog when a request exceeds the tool limit, evidence: shipped }
+      switchAgent: { kind: built-in, purpose: Switch the active agent, evidence: shipped }
+      skill: { kind: built-in, purpose: Invoke a custom skill, evidence: shipped }
+      githubRepo: { kind: built-in, purpose: Search a GitHub repository semantically, evidence: documented }
+      githubTextSearch: { kind: built-in, purpose: Search a GitHub repository or org for text, evidence: documented }
+    tool_sets:
+      read: [read/readFile, read/problems, read/terminalLastCommand, read/terminalSelection, read/viewImage, read/getNotebookSummary, read/readNotebookCellOutput, skill]
+      search: [search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages]
+      edit: [edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename]
+      execute: [execute/runInTerminal, execute/getTerminalOutput, execute/createAndRunTask, execute/testFailure, execute/runNotebookCell]
+      web: [web/fetch, githubRepo, githubTextSearch]
+      agent: [agent/runSubagent]
+      vscode: [vscode/installExtension, vscode/extensions, vscode/getProjectSetupInfo, vscode/runCommand, vscode/VSCodeAPI, vscode/askQuestions, toolSearch, switchAgent, newWorkspace, memory, resolveMemoryFileUri]
+      browser: [browser]
+    mcp:
+      form: "serverName/toolName"
+      example: "github-mcp-server/get_file_contents"
+      note: >
+        A whole server is addressed with serverName/*. An extension can proxy its
+        tools with the extension name, for example
+        azure.some-extension/some-tool. A single request may carry at most 128
+        tools, so prefer tool sets and virtual tools over long lists.
+
+  github-copilot:
+    label: GitHub.com Copilot coding agent
+    agent_file: "*.agent.md (repository agent profile)"
+    case_sensitive: false
+    summary: >
+      The cloud agent uses the conceptual aliases. Unrecognized names are
+      ignored. todo is not supported in the cloud agent.
+    names:
+      execute: { kind: alias, purpose: Run a command in the appropriate shell, evidence: documented }
+      shell: { kind: alias, purpose: Run a command in the appropriate shell, evidence: documented }
+      Bash: { kind: alias, purpose: Run a command in the appropriate shell, evidence: documented }
+      powershell: { kind: alias, purpose: Run a command in the appropriate shell, evidence: documented }
+      read: { kind: alias, purpose: Read file contents, evidence: documented }
+      Read: { kind: alias, purpose: Read file contents, evidence: documented }
+      NotebookRead: { kind: alias, purpose: Read a notebook, evidence: documented }
+      edit: { kind: alias, purpose: Allow the LLM to edit, evidence: documented }
+      Edit: { kind: alias, purpose: Allow the LLM to edit, evidence: documented }
+      MultiEdit: { kind: alias, purpose: Apply multiple edits, evidence: documented }
+      Write: { kind: alias, purpose: Write a file, evidence: documented }
+      NotebookEdit: { kind: alias, purpose: Edit a notebook, evidence: documented }
+      search: { kind: alias, purpose: Search for files or text in files, evidence: documented }
+      Grep: { kind: alias, purpose: Search for files or text in files, evidence: documented }
+      Glob: { kind: alias, purpose: Search for files or text in files, evidence: documented }
+      agent: { kind: alias, purpose: Invoke another custom agent, evidence: documented }
+      custom-agent: { kind: alias, purpose: Invoke another custom agent, evidence: documented }
+      Task: { kind: alias, purpose: Invoke another custom agent, evidence: documented }
+      web: { kind: alias, purpose: Fetch content from URLs and search the web, evidence: documented }
+      WebSearch: { kind: alias, purpose: Fetch content from URLs and search the web, evidence: documented }
+      WebFetch: { kind: alias, purpose: Fetch content from URLs and search the web, evidence: documented }
+      todo: { kind: alias, purpose: Manage structured task lists, evidence: rejected, caution: "Not supported in the cloud agent." }
+      TodoWrite: { kind: alias, purpose: Manage structured task lists, evidence: rejected, caution: "Not supported in the cloud agent." }
+    mcp:
+      form: "serverName/toolName"
+      example: "github/get_file_contents"
+      note: >
+        github and playwright are out-of-the-box namespaces for the cloud agent.
+        github/* includes every read-only tool of the GitHub MCP server, and
+        the token is scoped to the source repository.
+
+# Capability profiles. Each profile lists the minimum names that satisfy the
+# intent in that runtime. Use them as a starting point, not a final answer.
+profiles:
+  read-only:
+    description: Inspect code and answer questions. No writes, no shell.
+    cli: [view, search]
+    agent-host: [view, search]
+    vscode: [read, search]
+    github-copilot: [read, search]
+  read-only-with-shell:
+    description: Inspect code and run commands, for example to run tests.
+    cli: [view, search, bash]
+    agent-host: [view, search, bash]
+    vscode: [read, search, execute]
+    github-copilot: [read, search, execute]
+  implementer:
+    description: Change files and verify the result.
+    cli: [view, search, edit, bash]
+    agent-host: [view, search, edit, bash]
+    vscode: [read, search, edit, execute]
+    github-copilot: [read, search, edit, execute]
+  reviewer:
+    description: Review a diff without changing anything.
+    cli: [view, search, bash]
+    agent-host: [view, search, bash]
+    vscode: [read, search]
+    github-copilot: [read, search]
+  orchestrator:
+    description: Plan and delegate, with a subagent tool.
+    cli: [view, search, edit, bash, task]
+    agent-host: [view, search, edit, bash, task]
+    vscode: [read, search, edit, execute, agent]
+    github-copilot: [read, search, edit, execute, agent]
+  research:
+    description: Investigate the web and external repositories.
+    cli: [view, search, web_fetch]
+    agent-host: [view, search, web_fetch]
+    vscode: [read, search, web]
+    github-copilot: [read, search, web]
