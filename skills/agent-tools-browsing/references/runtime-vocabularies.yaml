@@ -82,7 +82,11 @@ runtimes:
       executes the Copilot SDK runtime. The SDK ships the same built-in agent
       definitions as the CLI, so the vocabulary is the CLI one. Client-contributed
       tools, such as browser and extension tools, are added by the connected
-      client and are not nameable from a tools allowlist.
+      client and are not nameable from a tools allowlist. The Agent Host also
+      registers a host-provided session-management group, such as
+      create_session and move_session, which is likewise not nameable from a
+      tools allowlist; see the naming rules for how it relates to the nested
+      sessions in the Agents window.
     names:
       bash: { kind: alias, purpose: Run shell commands, evidence: documented }
       powershell: { kind: built-in, purpose: Run commands in PowerShell, evidence: shipped }

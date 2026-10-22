@@ -70,6 +70,16 @@ The VS Code **Agent Host** runs the Copilot SDK harness and speaks the CLI vocab
 
 Client-contributed tools — browser tools and tools from installed extensions — are added by the connected client and routed back to it. They are not nameable from a `tools:` allowlist, and they stop working when the client disconnects.
 
+## 7b. Agent Host session-management tools are host-provided
+
+The Agent Host registers a session-management tool group that acts on sessions rather than files: `create_session`, `move_session`, `send_message`, `list_sessions`, `get_current_session`, `get_session_context`, `delete_session`, `rename_chat`, `set_workspace`, `isolate_session`, and the artifact/reference tools.
+
+These are **not** in the vocabulary below because they are not nameable from a `tools:` allowlist. The host enables them per session, and the SDK runtime's `builtin:` filter applies only to the harness built-ins. Naming one in an agent's `tools:` list has no effect.
+
+`move_session` is the nested-session tool. Its `relationship` is `nested` or `independent`; a nested relationship with an `into` argument moves a session or one of its nested sessions into a target session, which is the programmatic equivalent of the plus button on a session card in the Agents window. It is gated by the `chat.agentHost.moveChats.enabled` setting, which defaults to false, and by the provider's `multipleChats` capability. It is also top-level-chat-only, so it cannot be called from inside a nested session. Nesting depth is capped at one level, because a nested session is a peer chat of its parent rather than a container that can own nested sessions of its own.
+
+To **create** a nested session rather than move one, use `create_session`. Its `currentSession` relationship creates a new peer chat in the invoking session, which is what a nested session is. Its `independent` relationship creates a new top-level session. `create_session` cannot target an arbitrary other session, so nesting a new session under a different existing session takes two steps: `create_session` with `independent`, then `move_session` with a `nested` relationship. The full procedure is in the [usage catalog](usage/agent-host-nested-session.md).
+
 ## 8. The cloud agent has its own gaps
 
 - `todo` is not supported in the cloud agent. Naming it has no effect.

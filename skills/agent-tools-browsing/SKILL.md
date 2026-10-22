@@ -1,13 +1,20 @@
 ---
 name: agent-tools-browsing
-description: '**UTILITY SKILL** — Browse the tool names a runtime accepts in a custom agent''s `tools:` frontmatter and produce a validated, minimal allowlist. USE FOR: choosing or tightening an agent''s tools list; finding valid tool names for the Copilot CLI, VS Code Agent Host, VS Code extension host, or GitHub.com cloud agent; telling a conceptual alias apart from a concrete built-in; debugging an agent whose tools list is ignored, too broad, or too narrow; naming MCP server tools in an allowlist; designing read-only, implementer, reviewer, or orchestrator tool profiles. DO NOT USE FOR: authoring the agent file itself, frontmatter keys other than `tools:`, installing MCP servers, or VS Code UI customization. INVOKES: file system tools, the bundled browse_tools.py script. FOR SINGLE OPERATIONS: to validate one candidate list, run scripts/browse_tools.py check directly instead of loading the full skill.'
+description: '**UTILITY SKILL** — Browse the tool names a runtime accepts in a custom agent''s `tools:` frontmatter and produce a validated, minimal allowlist; and how to invoke a runtime''s tools to get a task done. USE FOR: choosing or tightening an agent''s tools list; finding valid tool names for the Copilot CLI, VS Code Agent Host, extension host, or GitHub.com cloud agent; telling a conceptual alias apart from a concrete built-in; debugging an agent whose tools list is ignored, too broad, or too narrow; naming MCP server tools in an allowlist; designing read-only, implementer, reviewer, or orchestrator tool profiles; running a task that needs runtime tools, such as creating a nested session in the Agents window. DO NOT USE FOR: authoring the agent file itself, frontmatter keys other than `tools:`, installing MCP servers, or VS Code UI customization. INVOKES: file system tools, browse_tools.py. FOR SINGLE OPERATIONS: to validate one candidate list, run scripts/browse_tools.py check instead of loading this skill.'
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Agent Tools Browsing
 
-Produce a `tools:` allowlist that is valid for one specific runtime, minimal for the intent, and free of names that are silently dropped.
+Two questions, one skill:
+
+| Question | Axis | Workflow |
+|---|---|---|
+| Which tool names may go in an agent's `tools:` allowlist? | **allowlist** | [below](#workflow-pick-a-tools-allowlist) |
+| Which tools do I call, and in what order, to get a task done? | **usage** | [below](#workflow-run-a-task-with-runtime-tools) |
+
+Pick the axis first. They have different failure modes: a bad allowlist fails silently, while a bad procedure fails loudly but late.
 
 ## Why this needs a skill
 
@@ -17,7 +24,7 @@ The `tools:` field is runtime-local. The same list can be correct in one runtime
 - **Unknown names are silently ignored**, so a typo widens the agent instead of narrowing it, with no error to notice.
 - **`*` anywhere in the list grants every tool.** `["view", "*"]` is an unrestricted agent.
 
-## Workflow
+## Workflow: pick a `tools:` allowlist
 
 ### 1. Establish the runtime and the intent
 
@@ -62,6 +69,34 @@ Exits 1 when it finds a problem. It flags unknown names, the `*` wildcard, advis
 
 Report the runtime, the final list, and anything the validator flagged. If a name was rejected, say which one and what replaced it.
 
+## Workflow: run a task with runtime tools
+
+Use this axis when the goal is to **do** something with a runtime's tools, not to allowlist them.
+
+### 1. Find the scenario
+
+```bash
+python3 scripts/browse_tools.py scenarios --runtime agent-host
+```
+
+Each scenario is one procedure with its own gates and failure modes. Read the reference file for the one that matches the goal.
+
+### 2. Follow the procedure
+
+```bash
+python3 scripts/browse_tools.py scenario agent-host-nested-session
+```
+
+The scenario file gives the steps, the gates to clear first, how to verify the result, and the pitfalls. Follow it in order — the steps are ordered by dependency, not by importance.
+
+### 3. Verify
+
+Each scenario ends with a verification step. Run it. A tool call that returns without error has not necessarily done what you asked.
+
+### Host-provided tools
+
+Some runtime tools are **host-provided**: the host registers them per session, and they are not nameable in an agent's `tools:` frontmatter. No agent file grants them. The scenario file says which kind a tool is. See [naming-rules.md](references/naming-rules.md) §7b.
+
 ## Examples
 
 **Read-only Copilot CLI agent**
@@ -96,6 +131,12 @@ tools: [view, search, edit, bash, task]
 
 ```yaml
 tools: [view, search, github-mcp-server/get_commit]
+```
+
+**Creating a nested session in the Agents window** — a usage task, not an allowlist. See [references/usage/agent-host-nested-session.md](references/usage/agent-host-nested-session.md):
+
+```json
+{ "name": "create_session", "arguments": { "relationship": "currentSession", "title": "review-the-auth-flow", "prompt": "..." } }
 ```
 
 ## Troubleshooting
@@ -134,10 +175,12 @@ Full reasoning in [naming-rules.md](references/naming-rules.md). The short form:
 
 | File | Purpose |
 |---|---|
-| [scripts/browse_tools.py](scripts/browse_tools.py) | `list`, `profile`, `check`, and `mcp` modes |
+| [scripts/browse_tools.py](scripts/browse_tools.py) | `list`, `profile`, `check`, `mcp`, `scenarios`, and `scenario` modes |
 | [references/runtime-vocabularies.yaml](references/runtime-vocabularies.yaml) | Machine-readable per-runtime vocabulary, evidence tiers, and profiles |
 | [references/naming-rules.md](references/naming-rules.md) | The rules, the traps, and the reasoning behind them |
 | [references/allowlist-profiles.md](references/allowlist-profiles.md) | Capability profiles and how to tighten an existing list |
+| [references/usage/README.md](references/usage/README.md) | Usage-scenario catalog: how to invoke runtime tools to accomplish a task |
+| [references/usage/catalog.yaml](references/usage/catalog.yaml) | Machine-readable scenario index |
 
 ## Guardrails
 
@@ -146,3 +189,6 @@ Full reasoning in [naming-rules.md](references/naming-rules.md). The short form:
 - Do not write the agent file unless asked. This skill produces the `tools:` value; `copilot-cli-agent-customization` owns the file.
 - Do not install or configure MCP servers. Only name the tools the server already exposes.
 - Prefer the narrowest list that satisfies the intent. A capability reachable through two names still needs both removed from a read-only agent.
+- Do not invent a procedure. If no scenario covers the goal, say so and follow the runtime's own documentation instead of improvising a tool sequence.
+- When a scenario's status is `reported` rather than `verified`, tell the reader which parts are unverified.
+

@@ -9,12 +9,20 @@ bundled runtime vocabulary and answers four questions:
     check    Is this candidate list valid, and what is wrong with it?
     mcp      How do I name one tool, or a whole server, from an MCP server?
 
+It also answers a second axis of questions — how to *use* a runtime's tools to
+accomplish a task, rather than which names to allowlist:
+
+    scenarios  Which usage scenarios exist for a runtime?
+    scenario   Show one scenario's procedure.
+
 Usage:
     python3 browse_tools.py list --runtime cli
     python3 browse_tools.py list --runtime vscode --kind alias
     python3 browse_tools.py profile --runtime cli --profile read-only --format yaml
     python3 browse_tools.py check --runtime cli --names "view,search,create"
     python3 browse_tools.py mcp --runtime cli --server github-mcp-server
+    python3 browse_tools.py scenarios --runtime agent-host
+    python3 browse_tools.py scenario agent-host-nested-session
 
 Exit codes: 0 success, 1 validation failure, 2 usage error.
 """
@@ -33,6 +41,7 @@ except ImportError:  # pragma: no cover
     sys.exit(2)
 
 VOCAB_PATH = Path(__file__).resolve().parent.parent / "references" / "runtime-vocabularies.yaml"
+CATALOG_PATH = Path(__file__).resolve().parent.parent / "references" / "usage" / "catalog.yaml"
 
 WILDCARD = "*"
 EVIDENCE_ORDER = {"shipped": 0, "documented": 1, "reported": 2, "rejected": 3}
@@ -58,6 +67,19 @@ def get_runtime(vocab: dict, name: str) -> dict:
         print(f"unknown runtime '{name}'. Known runtimes: {known}", file=sys.stderr)
         sys.exit(2)
     return runtimes[name]
+
+
+def load_catalog(path: Path | None = None) -> dict:
+    p = path or CATALOG_PATH
+    if not p.exists():
+        print(f"usage catalog not found: {p}", file=sys.stderr)
+        sys.exit(2)
+    with p.open(encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    if not data or "scenarios" not in data:
+        print(f"malformed usage catalog: {p}", file=sys.stderr)
+        sys.exit(2)
+    return data
 
 
 def split_names(raw: str) -> list[str]:
@@ -247,6 +269,67 @@ def cmd_runtimes(args, vocab) -> int:
     return 0
 
 
+def cmd_scenarios(args, vocab) -> int:
+    catalog = load_catalog(args.catalog)
+    rows = catalog.get("scenarios") or []
+    shared = catalog.get("shared") or []
+    if args.runtime:
+        rows = [r for r in rows if r.get("runtime") == args.runtime]
+        shared = [r for r in shared if r.get("runtime") == args.runtime]
+    if args.format == "json":
+        print(json.dumps({"scenarios": rows, "shared": shared}, indent=2))
+        return 0
+    if not rows:
+        scope = f" for runtime '{args.runtime}'" if args.runtime else ""
+        print(f"no usage scenarios{scope}")
+    else:
+        width = max((len(r.get("id", "")) for r in rows), default=4)
+        for r in rows:
+            tools = ", ".join(r.get("tools") or [])
+            print(f"  {r.get('id', '').ljust(width)}  [{r.get('status', '?'):<8}] {r.get('title', '')}")
+            print(f"  {'':<{width}}  runtime: {r.get('runtime', '?')}  tools: {tools}")
+            print(f"  {'':<{width}}  {r.get('goal', '')}")
+    if shared:
+        print("\n  shared references:")
+        for r in shared:
+            print(f"  {r.get('id', ''):<{width}}  {r.get('title', '')}")
+    return 0
+
+
+def cmd_scenario(args, vocab) -> int:
+    catalog = load_catalog(args.catalog)
+    rows = catalog.get("scenarios") or []
+    shared = catalog.get("shared") or []
+    match = next((r for r in rows if r.get("id") == args.id), None)
+    is_shared = False
+    if match is None:
+        match = next((r for r in shared if r.get("id") == args.id), None)
+        is_shared = match is not None
+    if match is None:
+        known = ", ".join(sorted(r.get("id", "") for r in rows + shared)) or "(none)"
+        print(f"unknown scenario '{args.id}'. Known: {known}", file=sys.stderr)
+        sys.exit(2)
+    if args.format == "json":
+        print(json.dumps(match, indent=2))
+        return 0
+    ref = CATALOG_PATH.parent / (match.get("file") or "")
+    label = "shared   " if is_shared else "scenario "
+    print(f"{label}: {match.get('id')}")
+    print(f"title    : {match.get('title')}")
+    print(f"runtime  : {match.get('runtime')}")
+    if match.get("tools"):
+        print(f"tools    : {', '.join(match.get('tools') or [])}")
+    if match.get("status"):
+        print(f"status   : {match.get('status', '?')}")
+    if match.get("goal"):
+        print(f"goal     : {match.get('goal', '')}")
+    print(f"reference: {ref}")
+    if args.format == "text" and ref.exists() and args.print_body:
+        print()
+        print(ref.read_text(encoding="utf-8").strip())
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--vocab", type=Path, help="override the runtime vocabulary path")
@@ -279,6 +362,19 @@ def main() -> int:
     p.add_argument("--server")
     p.add_argument("--tool")
     p.set_defaults(fn=cmd_mcp)
+
+    p = sub.add_parser("scenarios", help="list the usage scenarios for a runtime")
+    p.add_argument("--runtime")
+    p.add_argument("--catalog", type=Path, help="override the usage catalog path")
+    p.add_argument("--format", choices=["text", "json"], default="text")
+    p.set_defaults(fn=cmd_scenarios)
+
+    p = sub.add_parser("scenario", help="show one usage scenario")
+    p.add_argument("id")
+    p.add_argument("--catalog", type=Path, help="override the usage catalog path")
+    p.add_argument("--print-body", action="store_true", help="print the reference file too")
+    p.add_argument("--format", choices=["text", "json"], default="text")
+    p.set_defaults(fn=cmd_scenario)
 
     args = ap.parse_args()
     vocab = load_vocab(args.vocab)

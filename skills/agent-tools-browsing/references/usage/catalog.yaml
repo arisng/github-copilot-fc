@@ -1,0 +1,52 @@
+# Catalog of runtime tool-usage scenarios.
+#
+# Each entry teaches how to use a runtime's tools to accomplish one concrete
+# task. This is the second axis of the skill:
+#
+#   allowlists  Which names go in an agent's `tools:` frontmatter.
+#   usage       How to invoke runtime tools to get something done.
+#
+# This file is the machine-readable index. It holds only what an index needs
+# so it cannot drift from the reference files. The full entry contract, the
+# authoring rules, and the status semantics live in README.md.
+#
+# Entry contract:
+#   id       kebab-case, stable, never reused
+#   title    one line, imperative
+#   runtime  runtime key from runtime-vocabularies.yaml
+#   tools    tool names the scenario invokes
+#   goal     one sentence: what the reader gets
+#   file     reference file, relative to this directory
+#   status   verified | reported | draft
+#
+# The `shared:` section holds reference files that are not scenarios — they
+# carry the tool surface and gates that several scenarios of one runtime
+# would otherwise repeat.
+
+schema_version: "1.0"
+last_verified: "2026-10-22"
+
+scenarios:
+  - id: agent-host-nested-session
+    title: Create a nested session in the Agent Host
+    runtime: agent-host
+    tools:
+      - create_session
+      - move_session
+      - list_sessions
+      - get_current_session
+    goal: Start a new session nested under an existing session in the VS Code Agents window.
+    file: agent-host-nested-session.md
+    status: verified
+
+# Shared reference files. Not scenarios — they hold the tool surface and the
+# gates that several scenarios of the same runtime would otherwise repeat.
+shared:
+  - id: agent-host-session-tools
+    title: Agent Host session-management tools
+    runtime: agent-host
+    scope: >
+      The session-management tool group: which tool does what, the
+      create-versus-move distinction, the move_session gates, and the
+      peer-chat nesting model.
+    file: agent-host-session-tools.md
