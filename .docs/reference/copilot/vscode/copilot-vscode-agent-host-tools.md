@@ -53,6 +53,58 @@ The Copilot harness in the Agent Host runs the **Copilot SDK runtime**, so it us
 
 The SDK runtime exposes a `tools.list` JSON-RPC method to enumerate the built-in tools for a model, and accepts tool filter entries of the form `builtin:bash` and `builtin:*`.
 
+## Session-management tools
+
+The Agent Host registers a second tool group that acts on sessions rather than files. These are host-side server tools: they are enabled by the host and the provider, not by an agent's `tools:` frontmatter, so they are not nameable in an agent allowlist.
+
+| Tool | Purpose |
+|---|---|
+| `create_session` | Create delegated work. `relationship` is `currentSession` (a delegated chat inside the invoking session) or `independent` (a standalone session with its own workspace and worktree). |
+| `move_session` | Nest or un-nest sessions. `relationship` is `nested` or `independent`. |
+| `send_message` | Send, replace, or cancel a message in another session. |
+| `list_sessions` | List sessions with compact metadata and their nested chats. |
+| `get_current_session` | Get metadata for the invoking session. |
+| `get_session_context` | Read the recent conversation of a session. |
+| `delete_session` | Delete a session. |
+| `rename_chat` | Rename one chat in a session. |
+| `set_workspace` | Change the current chat's workspace and worktree isolation. |
+| `isolate_session` | Move the current chat into its own Git worktree. |
+| `add_artifact_or_reference`, `list_artifacts_and_references`, `remove_artifact_or_reference` | Manage the artifact and reference list surfaced next to a chat. |
+
+`create_chat` is a legacy alias in the same group. It additionally accepts an explicit `session` argument, where `create_session` only targets the invoking session or an independent one.
+
+### Nested sessions
+
+The Agent Host model is one session per card, with nested sessions represented as **peer chats** of the parent session. The Agents window exposes this as a plus button on a session card, and the nesting depth is limited to one level because a nested session is a peer chat rather than a container that can itself own nested sessions.
+
+**Creating a nested session.** `create_session` is the create path, and it has two relationships:
+
+| `relationship` | Effect |
+|---|---|
+| `currentSession` | Creates a **new peer chat in the invoking session**. This is the programmatic equivalent of the plus button on the *current* session's card. |
+| `independent` | Creates a brand-new **top-level** session with its own workspace and worktree. |
+
+Verified: calling `create_session` with `relationship: "currentSession"` creates a chat whose URI carries a new chat id, adds it to the parent session's peer-chat list, and gives it its own title and provider data. The new chat is a sibling of the session's main chat, which is exactly how the Agents window renders a nested session.
+
+`create_session` cannot target an *arbitrary* other session — its `currentSession` relationship is bound to the invoking session. To create a nested session under a **different** existing session, use the two-step flow:
+
+1. `create_session` with `relationship: "independent"` to create the new session.
+2. `move_session` with `relationship: "nested"` and `into: <target session>` to nest it under the target.
+
+`move_session` is the re-parenting tool:
+
+- `relationship: "nested"` with `into` moves an existing session, or one of its nested sessions, into a target session. `after` anchors the move relative to another nested session or the main session of `into`.
+- `relationship: "independent"` promotes a nested session back to a top-level session, and must omit `into` and `after`.
+
+Two gates apply to `move_session`:
+
+1. The `chat.agentHost.moveChats.enabled` setting, which defaults to **false**. When it is off, the tool is not registered and calls fail with a message pointing at the setting.
+2. The provider must advertise the `multipleChats` capability. The Copilot, Claude, and Codex harnesses do; a provider without it does not support chat moves.
+
+The tool is also **top-level-chat-only**, so it cannot be called from inside a nested session. Every move is confirmed by the user before it applies.
+
+The Copilot CLI has no equivalent surface — the CLI 1.0.98 binary contains none of these tool names. The closest CLI capability is spawning a separate `copilot` process.
+
 ## Built-in agents
 
 The SDK ships agent definitions that use the CLI tool names in their `tools:` frontmatter.
