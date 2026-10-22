@@ -1,0 +1,45 @@
+id: behavioral-006
+name: Cross-session nesting uses create then move
+description: >
+  create_session cannot target an arbitrary other session. The skill must
+  state that nesting under a different session takes two calls, and must
+  flag that move_session is gated by a setting that defaults to off.
+tags:
+  - behavioral
+  - usage
+  - agent-host
+inputs:
+  prompt: >
+    I need to create a brand new session and have it appear nested under a
+    different session in the Agents window, not the one I am in right now.
+    How do I do that?
+  context:
+    scenario: The target parent is another session in the same workspace.
+expected:
+  should_trigger: true
+  output_contains:
+    - "create_session"
+    - "move_session"
+graders:
+  - type: text
+    name: shows-both-steps
+    config:
+      contains:
+        - "create_session"
+        - "move_session"
+  - type: text
+    name: names-nested-relationship
+    config:
+      regex_match:
+        - "(?i)nested"
+  - type: text
+    name: mentions-the-setting-gate
+    config:
+      regex_match:
+        - "(?i)chat\\.agentHost\\.moveChats\\.enabled"
+  - type: text
+    name: does-not-claim-single-call
+    config:
+      regex_not_match:
+        - "(?i)create_session[^.]{0,80}direct(?:ly)?\\s+nest"
+        - "(?i)(one|single)\\s+call[^.]{0,40}nest"

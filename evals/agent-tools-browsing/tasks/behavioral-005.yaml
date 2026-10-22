@@ -1,0 +1,39 @@
+id: behavioral-005
+name: Nested session creation uses create_session, not move_session
+description: >
+  Creating a nested session in the Agents window and moving an existing
+  session into one are different operations. The skill must reach for
+  create_session with relationship currentSession for the create path, and
+  must not present move_session as the way to create one.
+tags:
+  - behavioral
+  - usage
+  - agent-host
+inputs:
+  prompt: >
+    In the VS Code Agents window, I want to start a new nested session under
+    the session I am currently in. Which tool do I call, and what does it
+    take?
+  context:
+    scenario: The parent is the session currently running.
+expected:
+  should_trigger: true
+  output_contains:
+    - "create_session"
+graders:
+  - type: text
+    name: uses-create-session
+    config:
+      contains:
+        - "create_session"
+  - type: text
+    name: names-current-session-relationship
+    config:
+      regex_match:
+        - "(?i)currentSession"
+  - type: text
+    name: does-not-lead-with-move-session
+    config:
+      regex_not_match:
+        - "(?i)(call|use|invoke)\\s+`?move_session`?\\s+(to|for)\\s+(create|nest)"
+        - "(?i)move_session\\s+creates"

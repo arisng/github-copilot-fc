@@ -18,6 +18,12 @@ should_trigger_prompts:
   - prompt: "should I use create or edit to let my agent write files?"
     reason: Alias vs concrete built-in distinction
     confidence: medium
+  - prompt: "how do I create a nested session in the Agents window?"
+    reason: Usage scenario for a runtime tool, not an allowlist question
+    confidence: high
+  - prompt: "which tool creates a new session under the one I'm in?"
+    reason: Usage scenario lookup in the Agent Host
+    confidence: high
 
 should_not_trigger_prompts:
   - prompt: "write a function that parses yaml"
@@ -35,3 +41,6 @@ should_not_trigger_prompts:
   - prompt: "publish my skills to my personal folder"
     reason: Publishing workflow, different skill
     confidence: high
+  - prompt: "delete my old session and start over"
+    reason: Session cleanup, not a tool-usage scenario this catalog covers
+    confidence: medium
