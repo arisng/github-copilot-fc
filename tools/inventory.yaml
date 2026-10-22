@@ -302,6 +302,19 @@ tools:
       - "https://code.visualstudio.com/docs/agents/concepts/agent-host.md"
       - "https://code.visualstudio.com/docs/agents/run/tools.md"
 
+  - id: agent-host-session-management-family
+    category: agent-host
+    description: Session-management tools exposed by the VS Code Agent Host to manage, inspect, and nest sessions.
+    cli: []
+    vscode: []
+    github_copilot: []
+    agent_host: ["create_session", "move_session", "send_message", "list_sessions", "get_current_session", "get_session_context", "delete_session", "rename_chat", "set_workspace", "isolate_session", "add_artifact_or_reference", "list_artifacts_and_references", "remove_artifact_or_reference"]
+    default: "runtime-dependent"
+    notes: official_alias is runtime-specific. The Agent Host registers a session-management tool group alongside the harness tools. These are server-side tools that act on sessions rather than files, so they are not nameable from a tools frontmatter allowlist; they are enabled by the host, not by an agent author. create_session is the create path and takes a relationship of currentSession or independent. currentSession creates a new peer chat in the invoking session, which is the programmatic equivalent of the plus button on a session card in the Agents window and is how a nested session is created. independent creates a brand-new top-level session with its own workspace and worktree. create_session cannot target an arbitrary other session, so creating a nested session under a different existing session takes two steps, create_session with independent followed by move_session with a nested relationship. move_session is the re-parenting tool and its relationship is nested or independent; a nested relationship with an into argument moves an existing session or one of its nested sessions into a target session, and independent promotes a nested session back to top-level. move_session is gated by the chat.agentHost.moveChats.enabled setting, which defaults to false, and it additionally requires the provider to advertise the multipleChats capability, so it is absent unless both the setting and the provider allow it. It is also top-level-chat-only, so it cannot be called from inside a nested session. Nesting depth is limited to one level by the chat-per-session model, where a nested session is a peer chat of its parent session rather than a session that can itself own nested sessions. create_chat is a legacy alias for the same group that additionally accepts an explicit session argument. The Copilot CLI 1.0.98 binary contains none of these tool names, so the CLI has no equivalent surface; the closest CLI capability is spawning a separate copilot CLI process.
+    sources:
+      - "https://code.visualstudio.com/docs/agents/concepts/agent-host.md"
+      - "https://code.visualstudio.com/docs/agents/run/agents-window.md"
+
   - id: agent-host-builtin-agents
     category: agent-host
     description: Built-in agents shipped by the Copilot SDK runtime in the VS Code Agent Host.
