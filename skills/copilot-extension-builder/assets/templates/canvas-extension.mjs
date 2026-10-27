@@ -10,14 +10,15 @@ import { createCanvas, joinSession, CanvasError } from "@github/copilot-sdk/exte
 const instances = new Map();
 
 function getInstance(instanceId) {
-    let inst = instances.get(instanceId);
+    // Only persist state for real instances; requests without ?instance= get a transient entry
+    let inst = instanceId ? instances.get(instanceId) : null;
     if (!inst) {
         inst = {
             state: { /* {{INITIAL_STATE}} */ },
             sseClients: new Set(),
             cleanup: [],
         };
-        instances.set(instanceId, inst);
+        if (instanceId) instances.set(instanceId, inst);
     }
     return inst;
 }
@@ -73,6 +74,8 @@ evtSource.addEventListener("update", (e) => {
 </body></html>`);
 });
 
+// The OS frees this port only when the extension process exits.
+// Add an origin check on mutating /api routes if the canvas exposes non-trivial actions.
 server.listen(0, "127.0.0.1"); // Random port
 const port = server.address().port;
 
@@ -111,12 +114,13 @@ const canvas = createCanvas({
         return {
             url: `http://127.0.0.1:${port}?instance=${ctx.instanceId}`,
             title: "{{CANVAS_NAME}}",
-            status: "Ready",
+            status: "ready",
         };
     },
     onClose: async (ctx) => {
         const entry = instances.get(ctx.instanceId);
         if (entry) {
+            entry.sseClients.forEach((res) => res.end()); // close dangling SSE streams
             entry.cleanup.forEach((fn) => fn());
             instances.delete(ctx.instanceId);
         }

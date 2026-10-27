@@ -42,7 +42,7 @@ const canvas = createCanvas({
     open: async (ctx) => ({
         url: `http://127.0.0.1:${port}?instance=${ctx.instanceId}`,
         title: "{{CANVAS_NAME}}",
-        status: "Ready",
+        status: "ready",
     }),
 });
 
@@ -51,7 +51,7 @@ const session = await joinSession({
         {
             name: "{{TOOL_NAME}}",
             description: "{{TOOL_DESCRIPTION}}",
-            skipPermission: true,
+            skipPermission: false,  // true skips per-call prompts (one-time grant) — read-only tools only
             parameters: {
                 type: "object",
                 properties: {

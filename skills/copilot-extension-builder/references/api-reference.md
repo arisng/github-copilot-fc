@@ -1,4 +1,6 @@
-# Copilot CLI Extension API Reference
+# Copilot Extension API Reference
+
+Source of truth: the `./extension` subpath export of the [`@github/copilot-sdk`](https://www.npmjs.com/package/@github/copilot-sdk) npm package (export verified present in v1.x). The canvas tool names and addressing model also match the VS Code Copilot harness's live canvas tools.
 
 ## joinSession() — Single Entry Point
 
@@ -64,8 +66,8 @@ async function handler(args, invocation) {
 |---|---|---|
 | `defer` | `"never"` | Tool always visible in agent's tool list |
 | `defer` | `"auto"` | Tool may be lazy-loaded via tool search (default) |
-| `skipPermission` | `true` | No approval prompt on each invocation |
-| `skipPermission` | `false` | Agent asks user for approval (default) |
+| `skipPermission` | `true` | Skips per-call prompts after a one-time per-extension grant; read-only, low-risk tools only |
+| `skipPermission` | `false` | Agent asks user's approval on each invocation (default) |
 | `overridesBuiltInTool` | `true` | Replaces a built-in tool with same `name` |
 
 ## CommandDefinition Interface
@@ -253,11 +255,11 @@ The runtime auto-derives `extensionId` as `${source}:${name}` (e.g., `project:my
 
 ## Constraints
 
-| Rule | Reason |
-|---|---|
-| Only `.mjs` supported | TypeScript (`.ts`) not accepted |
-| `console.log()` breaks JSON-RPC | Use `session.log()` instead |
-| Tool names must be globally unique | Duplicate names cause load failure |
+- Entry file: `extension.mjs` (recommended) or `extension.js` / `extension.cjs`; TypeScript (`.ts`) is not accepted.
+- `console.log()` breaks the JSON-RPC channel — use `session.log()` instead.
+- Tool names must be globally unique across all extensions; duplicates cause load failure.
+
+Operational troubleshooting (symptom → resolution) lives in SKILL.md Phase 4.
 | Canvas action names can't start with `canvas.` | Reserved for lifecycle verbs |
 | `open()` must be idempotent | Same instanceId may re-open after reconnect |
 | Bind HTTP servers to `127.0.0.1` only | Host only embeds loopback URLs |

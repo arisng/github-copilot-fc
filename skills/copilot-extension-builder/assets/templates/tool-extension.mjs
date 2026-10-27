@@ -9,7 +9,7 @@ const session = await joinSession({
         {
             name: "{{TOOL_NAME}}",
             description: "{{TOOL_DESCRIPTION}}",
-            skipPermission: true,       // No approval prompt needed
+            skipPermission: false,  // true skips per-call prompts (one-time grant) — read-only tools only
             defer: "never",              // Always visible to agent
             parameters: {
                 type: "object",

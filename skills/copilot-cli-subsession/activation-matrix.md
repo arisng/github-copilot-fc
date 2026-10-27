@@ -16,7 +16,7 @@ Use this file to tune the `description` field only. Model classifier is harness-
 | pos-10 | task copilot cli for security audit | yes | yes | pass | Triggers: "task copilot cli" |
 | neg-01 | configure my BYOK provider profile | no | no | pass | Routes to: copilot-byok — BYOK config, not spawning |
 | neg-02 | create a custom copilot agent file | no | no | pass | Routes to: copilot-cli-agent-customization — agent authoring |
-| neg-03 | build a copilot CLI extension | no | no | pass | Routes to: copilot-cli-extension-builder |
+| neg-03 | build a copilot CLI extension | no | no | pass | Routes to: copilot-extension-builder |
 | neg-04 | run dotnet test in a copilot session | no | no | pass | Routes to: default agent — generic task, not sub-session orchestration |
 | neg-05 | publish my copilot skills to ~/.copilot | no | no | pass | Routes to: publishing workflow (publish-skills) |
 | neg-06 | set up MCP servers for copilot | no | no | pass | Routes to: MCP configuration |

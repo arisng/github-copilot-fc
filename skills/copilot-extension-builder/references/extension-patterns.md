@@ -1,12 +1,12 @@
-# Copilot CLI Extension Patterns
+# Copilot Extension Patterns
 
-Real-world patterns from `github/awesome-copilot` extensions.
+Real-world patterns from the awesome-copilot canvas gallery (Copilot app / VS Code). Browse live samples at https://awesome-copilot.github.com/extensions/.
 
 ## Pattern Overview
 
-| Pattern | Extension | Description |
+| Pattern | Where seen | Description |
 |---|---|---|
-| **Canvas + HTTP/SSE** | All 19 extensions | Serve HTML UI on loopback HTTP with SSE for real-time updates |
+| **Canvas + HTTP/SSE** | Most canvas extensions | Serve HTML UI on loopback HTTP with SSE for real-time updates |
 | **Session Bridging** | `work-hub` | Canvas instructs agent via `sessionRef.send()` |
 | **Bidirectional Agent** | `diagram-viewer` | User clicks → server prompts agent → agent uses canvas actions |
 | **Session Hooks** | `repo-actions-hub` | Track workingDirectory across session lifecycle |
@@ -14,7 +14,7 @@ Real-world patterns from `github/awesome-copilot` extensions.
 | **Basic Tool** | `session_tool_time` (official tutorial) | Simple tool tracking session metrics |
 | **Basic Command** | `tokencount` (official tutorial) | Simple slash command with `/start` sub-command |
 
-## Pattern 1: Canvas + HTTP/SSE (All Extensions)
+## Pattern 1: Canvas + HTTP/SSE (Standard Canvas Architecture)
 
 Every canvas extension follows this architecture:
 
@@ -68,7 +68,10 @@ async ({ instanceId, input }) => {
 };
 
 // Store sessionRef after joinSession:
-sessionRef = await joinSession({ canvases: [canvas] });
+sessionRef = await joinSession({
+    canvases: [canvas],
+    requestCanvasRenderer: true,   // registers the agent-facing canvas tools
+});
 ```
 
 **Use case:** Complex multi-step operations the canvas can't do alone (e.g., "jump to session", "cleanup sessions", "assign issue").
@@ -128,6 +131,7 @@ Subscribe to session events to update canvas state without agent polling.
 ```javascript
 const session = await joinSession({
     canvases: [createCanvas({ /* ... */ })],
+    requestCanvasRenderer: true,
 });
 
 session.on("assistant.usage", (event) => {
