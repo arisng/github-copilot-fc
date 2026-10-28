@@ -1,5 +1,7 @@
 # Copilot SDK Examples
 
+Agent Plugins 1.0 support is generally available in the GitHub Copilot SDK (GA 2026-08-12, alongside VS Code, Copilot CLI, and the Copilot app). Use the SDK when a plugin needs programmatic control — sessions, hooks, custom tools — rather than just declarative components.
+
 ## Installation
 
 | Language | Install Command |
@@ -120,6 +122,8 @@ const session = await client.createSession({
 ```
 
 ### Loading Plugins
+
+Load a local plugin directory into the runtime:
 
 ```typescript
 const client = new CopilotClient({

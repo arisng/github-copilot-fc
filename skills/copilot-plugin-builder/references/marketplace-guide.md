@@ -2,7 +2,7 @@
 
 ## What Are Marketplaces?
 
-Marketplaces are registries of plugins for Copilot CLI. A marketplace is a GitHub repository (or local directory) with a `marketplace.json` file at `.github/plugin/marketplace.json`. Users register marketplaces with the CLI, then browse and install plugins from them.
+Marketplaces are registries of plugins. A marketplace is a GitHub repository (or local directory) with a `marketplace.json` file at `.github/plugin/marketplace.json`. Users register marketplaces with Copilot CLI, then browse and install plugins from them; VS Code and the Copilot app consume marketplaces through their own settings (see "Marketplaces beyond the CLI" below).
 
 > [!NOTE]
 > The `marketplace.json` format is a **GitHub Copilot CLI-specific convention**. It is *not* part of the open [Agent Plugins 1.0 spec](https://agent-plugins.org) — that spec defines `plugin.json` and `mcp.json` but not marketplaces. The marketplace schema is documented exclusively in the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#marketplacejson).
@@ -315,6 +315,21 @@ Only plugin versions change — no catalog structural change, so `metadata.versi
 |-------------|------------|
 | `copilot-plugins` | [github/copilot-plugins](https://github.com/github/copilot-plugins) |
 | `awesome-copilot` | [github/awesome-copilot](https://github.com/github/awesome-copilot) |
+
+Both are registered by default in VS Code, Copilot CLI, and the Copilot app.
+
+## Marketplaces Beyond the CLI
+
+**VS Code / Agents Window:**
+
+- `chat.plugins.marketplaces` (Experimental) registers marketplace Git repositories. Sources: shorthand `owner/repo`, HTTPS `.git` URL, SCP-style remote, or `file:` URI; append `#<ref>` or a full 40-character commit SHA to pin a revision for reproducible installs.
+- Workspace recommendations: `.github/copilot/settings.json` (or `.claude/settings.json`) with `extraKnownMarketplaces` and `enabledPlugins`.
+- Updates: **Extensions: Check for Extension Updates**, or automatic every 24 hours when `extensions.autoUpdate` is enabled. npm/PyPI-sourced plugins never auto-update — they expose an **Update** button instead.
+- VS Code auto-discovers plugins installed by Copilot CLI from `~/.copilot/installed-plugins/`.
+
+**Enterprise (VS Code, CLI, Copilot app, cloud agent):** `managed-settings.json` supports `enabledPlugins` (auto-install or block), `extraKnownMarketplaces`, and `strictKnownMarketplaces` (restrict to managed marketplaces). Settings combine additively with team-level overrides; existing plugin settings apply to Agent Plugins 1.0 unchanged.
+
+**Copilot app:** install plugins from the default `awesome-copilot` marketplace.
 
 ## CLI Commands
 
