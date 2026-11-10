@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     This is an OPT-IN OVERRIDE tool. waza's default behavior (COPILOT_CLI_PATH unset)
-    is to spawn its bundled CLI (v1.0.85 for waza 0.38.7), which is the recommended
+    is to spawn its bundled CLI (v1.0.105 for waza 0.40.x), which is the recommended
     default for eval reproducibility. Use this script only when you need to force a
     specific machine CLI.
 

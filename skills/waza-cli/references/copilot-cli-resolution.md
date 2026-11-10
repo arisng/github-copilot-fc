@@ -4,7 +4,7 @@ How `scripts/Resolve-CopilotCliPath.ps1` decides which Copilot CLI binary waza r
 
 ## Default: waza's bundled CLI (recommended)
 
-With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** — v1.0.85 on waza 0.38.7. The exact pin is baked at waza build time via `COPILOT_CLI_VERSION` (see `internal/embedded/generate/generate.go` in the waza repo) and moves with each release — verify the pin for your installed waza version rather than assuming. It is the exact CLI waza was built and tested against, giving reproducible results across machines and CI runs.
+With `COPILOT_CLI_PATH` unset, waza spawns its **bundled CLI** — v1.0.105 on waza 0.40.x (SDK `github.com/github/copilot-sdk/go` v1.0.28); v0.39.1 shipped CLI 1.0.85 / SDK 1.0.21. The exact pin is baked at waza build time via `COPILOT_CLI_VERSION` (see `internal/embedded/generate/generate.go` in the waza repo — it falls back to auto-detecting from `go.mod`) and moves with each release — verify the pin for your installed waza version rather than assuming. It is the exact CLI waza was built and tested against, giving reproducible results across machines and CI runs.
 
 **Do not set `COPILOT_CLI_PATH` by default.** The resolver is an opt-in override for when you need a specific machine CLI.
 
@@ -21,7 +21,7 @@ The bundled CLI is the only version **known** to work with each waza release.
 
 ## Source-verified waza contract
 
-From `microsoft/waza` `internal/execution/sdkclient.go`:
+From `microsoft/waza` `internal/execution/sdkclient.go` (re-verified at tag `v0.40.1` — behavior unchanged):
 
 | `COPILOT_CLI_PATH` state | waza behavior |
 |---|---|
@@ -131,15 +131,15 @@ Key BYOK env vars (see [copilot-byok environment-variables](../../copilot-byok/r
 - `COPILOT_PROVIDER_WIRE_API` — `completions` (default) or `responses`
 - `COPILOT_OFFLINE` — set `true` to prevent GitHub server contact
 
-## Verified install channels (2026-09-22)
+## Verified install channels (2026-11-10)
 
 | Channel | Command / ID | Artifact | Status |
 |---|---|---|---|
-| winget MSIX (requested fallback) | `GitHub.Copilot.CLI` | MSIX | **Not published** — `winget show` returns "No package found" (winget + msstore sources). The script still tries it first so it takes over automatically if/when GitHub publishes it. |
-| winget official | `winget install GitHub.Copilot` | zip → portable exe | Available (v1.0.87). Documented in `github/copilot-cli` README and `install.sh`. Declares a package dependency on PowerShell ≥ 7.0. |
-| Microsoft Store | `XPDC8MMRVCF73P` ("GitHub Copilot CLI") | **MSI**, not MSIX | Available (v1.0.87). Install via `winget install XPDC8MMRVCF73P --source msstore`. |
-| npm | `npm install -g @github/copilot` | node + platform package | Available; documented in README and GitHub Docs. |
-| GitHub releases | `github/copilot-cli` release assets | zip / msi / tar.gz / tgz | Available; **no `.msix` asset exists** in v1.0.83 or v1.0.87. |
+| winget MSIX (requested fallback) | `GitHub.Copilot.CLI` | MSIX | **Not published** — `winget show` returns "No package found" (winget source). The script still tries it first so it takes over automatically if/when GitHub publishes it. |
+| winget official | `winget install GitHub.Copilot` | zip → portable exe | Available (v1.0.108). Documented in `github/copilot-cli` README and `install.sh`. Declares a package dependency on PowerShell ≥ 7.0. |
+| Microsoft Store | `XPDC8MMRVCF73P` ("GitHub Copilot CLI") | **MSI**, not MSIX | Available (v1.0.108). Install via `winget install XPDC8MMRVCF73P --source msstore`. |
+| npm | `npm install -g @github/copilot` | node + platform package | Available (v1.0.108); documented in README and GitHub Docs. |
+| GitHub releases | `github/copilot-cli` release assets | zip / msi / tar.gz / tgz | Available; **no `.msix` asset exists**. |
 
 Note on a machine-local MSIX: an installed package named `GitHub.Copilot.CLI` (SignatureKind=Developer) is a **sideloaded** package — no public install channel for that package identity was found in winget, winget-pkgs, GitHub releases, GitHub Docs, or the copilot-cli repo. It is not produced by any of the channels above.
 

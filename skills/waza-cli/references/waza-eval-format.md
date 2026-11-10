@@ -1,11 +1,11 @@
 # Waza Eval Format
 
-Reference for `eval.yaml`, `trigger_tests.yaml`, and task YAML as of waza v0.38.10 (Oct 2026). Authoritative schemas: `schemas/eval.schema.json` and `schemas/task.schema.json` in the waza repo; workspace convention: `instructions/waza-eval.instructions.md` (single source of truth for task authoring).
+Reference for `eval.yaml`, `trigger_tests.yaml`, and task YAML as of waza v0.40.1 (Nov 2026). Authoritative schemas: `schemas/eval.schema.json` and `schemas/task.schema.json` in the waza repo; workspace convention: `instructions/waza-eval.instructions.md` (single source of truth for task authoring).
 
 ## eval.yaml
 
 ```yaml
-name: my-skill-eval            # schemaVersion is optional (defaults to current: 1.4)
+name: my-skill-eval            # schemaVersion is optional (legacy/current default: 1.4; scenario evals require exact "2.0")
 description: Behavioral evaluation for my skill.
 skill: my-skill
 version: "1.0"
@@ -36,7 +36,9 @@ graders:                    # optional global graders apply to all tasks
     config: {}
 ```
 
-Other supported top-level blocks (same schema): `hooks`, `inputs`, `range`, plus `mcp_mocks` (requires schemaVersion ≥1.1) and `command_mocks` (≥1.3, executor `copilot-sdk`).
+Other supported top-level blocks (same schema): `hooks`, `inputs`, `range`, plus `mcp_mocks` (requires schemaVersion ≥1.1) and `command_mocks` (≥1.3, executor `copilot-sdk`). A `scenario: <nonblank string>` header (v0.39.0+) requires exact `schemaVersion: "2.0"`; omit the key for a legacy eval. **Task-level `mcp_mocks`** (v0.40.0) replace eval-level mocks by name — keys older versions ignored now take effect, and `before_run` hooks run before task loading, so review existing task files when upgrading.
+
+Results schema (separate artifact): v0.39.1 writers emit **1.7**, v0.40.x emits **1.8**, main emits **1.9**; missing versions in legacy inputs default to **1.4**. `waza migrate <file>` reports/converts.
 
 ## trigger_tests.yaml
 
@@ -70,19 +72,21 @@ expected:
   should_trigger: true
 ```
 
-## Grader types (12)
+## Grader types (13)
 
-Verified against `schemas/task.schema.json` at waza v0.38.10 — YAML `type:` identifiers are snake_case:
+Verified against `schemas/task.schema.json` at waza v0.40.1 — YAML `type:` identifiers are snake_case:
 
-`code`, `text`, `file`, `diff`, `behavior`, `action_sequence`, `skill_invocation`, `tool_constraint`, `trigger`, `prompt`, `json_schema`, `program`.
+`code`, `text`, `file`, `diff`, `behavior`, `action_sequence`, `skill_invocation`, `tool_constraint`, `tool_calls`, `trigger`, `prompt`, `json_schema`, `program`.
 
-Config enums (same schema):
+Config enums / shapes (same schema):
 
 - `code` → `language: python | javascript`
 - `action_sequence` → `matching_mode: exact_match | in_order_match | any_order_match`
 - `skill_invocation` → `mode: exact_match | in_order | any_order`
 - `trigger` → `mode: positive | negative`
-- `prompt` → `mode: independent | pairwise`, `reasoning_effort: low | medium | high | xhigh | max`
+- `prompt` → `mode: independent | pairwise`, `reasoning_effort: low | medium | high | xhigh | max`; optional `evidence_context` (v0.39.0) selects a frozen judge-evidence bundle for fresh isolated judge sessions
+- `tool_calls` (v0.40.0-era) → config needs one of `required_tools`, `forbidden_tools`, `min_calls`, `max_calls`, `expect` (`[{tool, args?}]`)
+- `program` → receives grading context JSON (v0.40.0)
 
 Do **not** use `regex` or `keyword` as `type:` values — they are not in the schema (use `text`, `code`, or `json_schema` instead). Graders can also be remote references (`graders[].ref`, resolved by `waza get` into a pinned `waza.lock`).
 
@@ -94,7 +98,7 @@ waza's repo ships ready-made LLM-judge rubrics under `examples/rubrics/`: intent
 
 ## Token budget override
 
-waza's default SKILL.md token budget is 500 (hard limit reported by `waza check`). Configure per-repo in `.waza.yaml` using `tokens.limits.defaults` (glob → limit map; most specific pattern wins) and optional `tokens.limits.overrides` (exact-path suffix match). **Never use a bare `tokens.limits.max` key** — it is not in the schema; on waza 0.38.10 it hard-fails commands with `field max not found in type projectconfig.TokenLimitsConfig` (older releases ignored it silently):
+waza's default SKILL.md token budget is 500 (hard limit reported by `waza check`; `waza tokens check` exits nonzero on strict-budget violation since v0.40.1). Configure per-repo in `.waza.yaml` using `tokens.limits.defaults` (glob → limit map; most specific pattern wins) and optional `tokens.limits.overrides` (exact-path suffix match). The legacy `.token-limits.json` file is deprecated — migrate to `.waza.yaml`. **Never use a bare `tokens.limits.max` key** — it is not in the schema; on waza 0.38.10 it hard-fails commands with `field max not found in type projectconfig.TokenLimitsConfig` (older releases ignored it silently):
 
 ```yaml
 tokens:
