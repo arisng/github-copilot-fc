@@ -1,8 +1,8 @@
 ---
 name: git-atomic-commit
-description: 'Analyze git changes, group into atomic commits, generate conventional commit messages with proper type(scope) format. Use when committing changes, grouping staged/unstaged files, or generating commit messages. Enforces universal commit types + repo-specific scopes from .github/git-scope-constitution.md, plain-English messages, and the repository''s established CONTEXT.md vocabulary. Honors caller-constrained file scopes (e.g. from git-session-atomic-commits): commits only the provided files, never stages out-of-scope worktree changes, and verifies the staged set before every commit.'
+description: 'Group changed files into atomic conventional commits: assign each file a type and scope, plan a build-safe sequence, write type(scope) messages, and execute behind staged-set verification gates. Use when creating commits or drafting commit messages — for the full worktree, or for a caller-constrained file list where only the given files may be staged. Scopes come from .github/git-scope-constitution.md; reach git-commit-scope-constitution to create or amend it.'
 metadata: 
-   version: 2.3.0
+   version: 2.4.0
    author: arisng
 ---
 
@@ -46,7 +46,9 @@ Messages follow `type(scope): subject`. **Type** = intent of the change; **Scope
 
 ### Tier 3: Workspace-Specific Scopes
 
-Repo-specific, governed by `.github/git-scope-constitution.md`. **Scope granularity:** scopes are the *artifact category*, not a specific instance — `type(category)` tells what kind of thing changed; the subject tells *which one*. Example mappings: [references/type-scope-mapping.md](references/type-scope-mapping.md).
+Repo-specific, governed by `.github/git-scope-constitution.md`, which also owns scope
+granularity (category-level, not instance) and naming. Example mappings:
+[references/type-scope-mapping.md](references/type-scope-mapping.md).
 
 ## File Assignment Rules
 
@@ -84,9 +86,8 @@ When no constrained list is provided, analyze the full worktree.
 
 ### 3. Validate Scopes
 
-1. If `.github/git-scope-constitution.md` exists, verify every chosen scope is approved for its type.
-2. If not, use the `git-commit-scope-constitution` skill to propose scopes.
-3. Scope names: kebab-case, lowercase, singular, 1-3 words, domain/module-based.
+1. If `.github/git-scope-constitution.md` exists, verify every chosen scope is approved for its type and follows the constitution's naming conventions.
+2. If not, use the `git-commit-scope-constitution` skill to propose scopes — it owns naming rules and the single-scope mandate.
 
 ### 4. Pre-Commit Verification Checklist (MANDATORY)
 
@@ -111,7 +112,7 @@ Each planned commit must: share one type, represent one logical change, apply in
 
 ### 7. Generate Commit Messages
 
-Format: `<type>(<scope>): <subject>` — exactly ONE scope; mention secondary areas in the subject.
+Format: `<type>(<scope>): <subject>` — one scope per the constitution; mention secondary areas in the subject.
 
 - **Type**: Tier 1 or Tier 2 (extended wins)
 - **Scope**: single, concise, from the constitution
@@ -147,8 +148,6 @@ Show a summary of all commits created.
 - Never discard or reset user's changes
 - **Never stage or commit out-of-scope files when a caller-constrained scope is active**
 - Never use broad staging (`git add .` / `-A` / `<dir>`, `git commit -a`); stage mixed-hunk files per-hunk with `git add -p`
-- MANDATORY: project-specific commit types; pre-commit checklist; one type per commit; approved scopes; plain-English messages; repository vocabulary; durable references only
-- Keep commits atomic; commit order maintains a buildable state
 - Repository terminology rules (e.g. `.github/instructions/`, audit scripts) are authoritative
 
 ## Integration with git-commit-scope-constitution

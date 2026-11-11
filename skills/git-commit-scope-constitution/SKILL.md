@@ -1,8 +1,8 @@
 ---
 name: git-commit-scope-constitution
-description: 'Build and refine a constitution defining valid commit scopes for each commit type. Use when maintaining .github/git-scope-constitution.md, discovering new scopes from git history or repo structure, validating scope choices, or conducting weekly scope reviews. Scopes are repo-specific; types are universal.'
+description: 'Build and maintain the repository''s commit scope constitution (.github/git-scope-constitution.md): approved scopes per type, naming rules, boundaries, amendment process. Use when validating or choosing a scope, proposing or amending scopes, discovering scopes from git history or repo structure, or running the weekly scope review.'
 metadata: 
-   version: 2.0.0
+   version: 2.1.0
    author: arisng
 ---
 
@@ -10,29 +10,16 @@ metadata:
 
 ## Overview
 
-This skill enables building and maintaining a living constitution that defines the inventory and rules for commit scopes used in conventional commits. The constitution serves as the authoritative source for:
+This skill builds and maintains a living constitution — the authoritative source for approved scopes per commit type, naming rules, scope boundaries, and scope-selection guidance, stored in the repository itself.
 
-- Approved scope names organized by commit type
-- Naming conventions and patterns for scopes
-- Scope definitions and boundaries
-- Guidance for choosing appropriate scopes
+## Core Principle: Type vs. Scope
 
-**Repository-Specific Design:** Each repository maintains its own scopes inventory and constitution, stored within the repository itself. This ensures scopes align with the specific project structure, domains, and modules of that repository.
+Commit messages follow `type(scope): subject`:
 
-## Core Principle: Type vs. Scope (Three-Tier Model)
+- **Type** = intent of the change. Tier 1 universal and Tier 2 extended types are governed by **git-atomic-commit** (its Type vs. Scope section and `references/type-scope-mapping.md`).
+- **Scope** = the repository's domain/module/location (Tier 3, repo-specific).
 
-Commit messages follow the pattern `type(scope): subject`, governed by a three-tier hierarchy:
-
-| Tier | What it governs | Defined by | Stability |
-|------|----------------|------------|-----------|
-| **1. Universal** | Standard Conventional Commits types (`feat`, `fix`, `docs`, etc.) | Industry convention | Fixed across all repos |
-| **2. Author Preferences** | Extended types (`agent`, `copilot`, `devtool`, `codex`) + default file-path mappings | Skill author (opinionated, portable) | Shared across author's repos; users may override |
-| **3. Workspace-Specific** | Scopes, additional types, file-path overrides | `.github/git-scope-constitution.md` per repo | Unique per repository |
-
-- **Commit Type (Tier 1 + 2)**: Represents the *intent* or *category* of the change. Universal types are immutable; extended types are the author's opinionated additions that take precedence when applicable.
-- **Commit Scope (Tier 3)**: Represents the *domain*, *module*, or *location* of the change. Scopes are tightly coupled to the context of each repository.
-
-**This skill's primary job is to define the Tier 3 Scopes for a specific repository and map them to the appropriate Types.**
+**This skill's primary job is to define the Tier 3 scopes for a repository and map them to the appropriate types.**
 
 ## Repository Storage Convention
 
@@ -51,10 +38,6 @@ Commit messages follow the pattern `type(scope): subject`, governed by a three-t
 - **Format**: Structured markdown with sections for different commit types and governance
 
 **Key Distinction**: The inventory shows *what has been used* (historical fact), while the constitution defines *what should be used* (governance policy). The inventory feeds into constitution updates, but the constitution governs future commits.
-
-**Template Reference:** `skills/git-commit-scope-constitution/references/scope-constitution.md`
-- Template for creating new constitutions
-- Not used at runtime (exists only in this skill)
 
 ## Constitution Format
 
@@ -120,9 +103,7 @@ python skills/git-commit-scope-constitution/scripts/extract_scopes.py --format m
 python skills/git-commit-scope-constitution/scripts/extract_scopes.py --since "3 months ago" --format markdown
 ```
 
-This generates an inventory of all scopes currently used in the repository's git history, organized by commit type.
-
-**Note**: The scopes inventory shows *historical usage* (what has been done), while the constitution defines *approved usage* (what should be done). Use the inventory as input for constitution updates, but always reference the constitution for governance decisions.
+This generates an inventory of all scopes currently used in the repository's git history, organized by commit type. Inventory (what was used) vs constitution (what is approved): see Key Distinction in Repository Storage Convention above.
 
 #### 1b. Analyze Repository Structure
 
@@ -148,15 +129,7 @@ This generates an inventory of all scopes currently used in the repository's git
 **Example Analysis:**
 ```
 Repository: github-copilot-fc
-
-Top-level structure:
-- agents/          → Custom agent definitions
-- instructions/    → Copilot instructions
-- prompts/         → Prompt templates
-- skills/          → Claude skills
-- scripts/         → Automation scripts
-- tools/           → Tools inventory and VS Code runtime toolsets
-- .docs/           → Documentation
+Top-level: agents/, instructions/, prompts/, skills/, scripts/, tools/, .docs/
 
 Derived scope patterns:
 - Artifact-based: agent, instruction, prompt, skill, toolset
@@ -201,6 +174,8 @@ Evaluate the current scope landscape:
 - Identify naming patterns (e.g., module-based feature-based, domain-based, file-path-based)
 - Detect inconsistencies (same concept with different names)
 - Find under-scoped types (types with no or too few scopes)
+
+**Done when** you hold an explicit discrepancy list — scopes used but undocumented, structures without scopes, naming inconsistencies, redundancy candidates — or a confirmed empty list.
 
 ### 5. Draft or Update Constitution
 
@@ -317,50 +292,7 @@ When uncertain about scope naming:
 
 ## Scripts
 
-### `scripts/extract_scopes.py`
-
-Analyzes git history to extract all scopes used in conventional commit messages.
-
-**Usage:**
-```bash
-# Extract all scopes
-python scripts/extract_scopes.py
-
-# Filter by time period
-python scripts/extract_scopes.py --since "1 week ago"
-
-# Output as JSON
-python scripts/extract_scopes.py --format json
-
-# Save to file
-python scripts/extract_scopes.py --output inventory.md
-```
-
-**Output Formats:**
-- `markdown`: Structured inventory with summary statistics and organized scope lists
-- `json`: Machine-readable structure for tooling
-
-**Inventory Structure:**
-```markdown
-# Scopes Inventory
-
-**Repository:** [name]
-**Last Updated:** [date]
-**Source:** Git commit history analysis
-
-## Summary
-- Total Commit Types: N
-- Total Unique Scopes: N
-- Analysis Period: [timeframe]
-
-## Scopes by Commit Type
-### `type`
-- scope-1
-- scope-2
-
-## Notes
-[Additional context]
-```
+`scripts/extract_scopes.py` extracts historical scopes from git log; invocations are in Workflow step 1a. Output formats and inventory structure: [references/playbook.md](references/playbook.md).
 
 ## References
 
@@ -376,23 +308,7 @@ python scripts/extract_scopes.py --output inventory.md
 - Shows expected output structure
 - Used as reference for manual inventory creation
 
-### Repository Files (Version Controlled)
-
-**`.github/git-scope-constitution.md`** (in target repository)
-- **Role**: Authoritative constitution defining all approved scopes and governance rules
-- **Content**: Scope definitions, naming conventions, selection guidelines, amendment process
-- **Purpose**: Governs what scopes developers should use in future commits
-- **Maintenance**: Manually updated through constitutional amendments
-- **Usage**: Primary reference for developers and commit validation tooling
-- **Update Frequency**: Weekly reviews, amendments as repository evolves
-
-**`.github/git-scope-inventory.md`** (in target repository)
-- **Role**: Historical inventory of scopes actually used in the repository
-- **Content**: Machine-readable list of all scopes found in git commit history
-- **Purpose**: Tracks what scopes have been used (descriptive, not prescriptive)
-- **Maintenance**: Automatically generated by `extract_scopes.py` script
-- **Usage**: Analysis input for constitution updates and scope evolution tracking
-- **Update Frequency**: With each constitution review or on-demand analysis
+(Repository files `.github/git-scope-constitution.md` and `.github/git-scope-inventory.md` are covered in Repository Storage Convention above.)
 
 ## Best Practices
 
@@ -461,40 +377,11 @@ For extended types (`agent`, `copilot`, `devtool`, `codex`), scopes must be **ar
 
 ## Maintenance Schedule
 
-**Maintenance Schedule:**
-- Extract scopes from past week (`--since "1 week ago"`)
-- Analyze any new folders/modules added to repository
-- Compare with constitution
-- Flag anomalies or new scopes
-- Update constitution if patterns warrant
-
-**Monthly:**
-- Review scope usage patterns
-- Analyze repository structure changes (refactoring, new modules)
-- Identify consolidation opportunities
-- Update naming conventions if needed
-
-**Quarterly:**
-- Comprehensive constitution review
-- Major amendments and restructuring based on repository evolution
-- Scope lifecycle management (deprecations/retirements)
+Weekly / monthly / quarterly review cadence: [references/playbook.md](references/playbook.md).
 
 ## Integration with git-atomic-commit
 
-This skill complements the `git-atomic-commit` skill:
-
-1. **git-atomic-commit** enforces commit type mappings (file path → commit type)
-2. **git-commit-scope-constitution** defines valid scopes within each commit type
-3. Together they ensure: `correct_type(approved_scope): clear message`
-
-**Workflow Integration:**
-```
-File Changed → git-atomic-commit → Commit Type Assigned
-                                           ↓
-                          git-commit-scope-constitution → Scope Selected
-                                           ↓
-                                    Final Commit Message
-```
+git-atomic-commit assigns each file its type and groups the commits; it reaches this skill to validate or select scopes, and to create or amend the constitution when none exists. Together they produce `correct_type(approved_scope): clear message`.
 
 ## Error Handling
 
@@ -518,127 +405,4 @@ File Changed → git-atomic-commit → Commit Type Assigned
 
 ## Examples
 
-### Example 1: Creating Initial Constitution with Repository Analysis
-
-```bash
-# Step 1: Extract historical scopes
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py \
-  --output .github/git-scope-inventory.md
-
-# Step 2: Analyze repository structure
-# List top-level directories
-Repository: my-web-app/
-  src/
-    components/     → UI components
-    services/       → Business logic services
-    utils/          → Utility functions
-  tests/            → Test files
-  scripts/          → Build/automation scripts
-  docs/             → Documentation
-  .github/          → GitHub workflows
-
-# Step 3: Map structure to scopes
-From structure analysis:
-- components/ → scope: "components" or specific component names
-- services/auth/ → scope: "auth"
-- services/billing/ → scope: "billing"
-- scripts/ → scope: "script" or "build"
-- docs/ → scope: "docs"
-
-From git history (.github/git-scope-inventory.md):
-- feat(components): Used 15 times
-- feat(auth): Used 8 times
-- feat(billing): Used 12 times
-- fix(api): Used 6 times
-- chore(deps): Used 20 times
-
-# Step 4: Create constitution
-# Combine structure-based and history-based scopes
-# Document in .github/git-scope-constitution.md with clear definitions
-```
-
-### Example 2: Weekly Refinement
-
-```bash
-# Extract last week's scopes
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py \
-  --since "1 week ago" --format markdown
-
-# Check for new folders/modules
-# Found: New folder src/services/notifications/
-
-# Review against constitution
-# Found new scope: feat(notifications) used 3 times
-# Found folder: services/notifications/ (new module)
-
-# Update constitution
-# Add to appropriate section:
-# - `notifications`: Notification service and delivery system
-```
-
-### Example 3: Scope Selection for Existing Codebase
-
-```
-Scenario: Modifying skills/git-atomic-commit/SKILL.md
-
-Step 1: Check commit type mapping
-  → File pattern: skills/* → Type: agent
-
-Step 2: Consult constitution under Type: agent
-  → Available scopes: skill, instruction
-
-Step 3: Select appropriate scope
-  → Change affects a skill → Use scope: `skill`
-  → Specific skill name goes in the subject
-
-Result: agent(skill): improve pre-commit validation checklist for git-atomic-commit
-```
-
-### Example 4: Scope Selection with Repository Structure Analysis
-
-```
-Scenario: Adding new authentication feature
-
-Step 1: Analyze repository structure
-  → services/auth/ exists (authentication module)
-  → New files: services/auth/oauth.ts, services/auth/jwt.ts
-
-Step 2: Check commit type
-  → File pattern: services/* → feat (no project-specific type)
-
-Step 3: Check constitution for feat scopes
-  → .github/git-scope-constitution.md shows:
-    - auth: Authentication and authorization
-    - billing: Payment processing
-    - dashboard: Dashboard features
-
-Step 4: Select scope based on structure
-  → Files in services/auth/ → Use scope: auth
-  → Aligns with both structure and constitution
-
-Result: feat(auth): implement OAuth 2.0 authentication flow
-```
-
-### Example 5: Constitutional Amendment
-
-```markdown
-## Amendment History
-
-### 2026-02-04 - Amendment #12
-
-**Changes:**
-- Deprecated `ai` extended type in favor of `agent`
-- Consolidated instance-level scopes (e.g., `pdf`, `diataxis`) into
-  category-level scope `skill` under `agent` type
-- Adopted "category-level scope" principle: scopes represent artifact
-  categories, not specific instances
-  
-**Rationale:**
-`agent(skill)` immediately tells the reader an agent skill was changed.
-The subject line provides the specific skill name, enabling efficient
-git log scanning without opening the diff.
-
-**Migration Notes:**
-Existing commits with old `ai(*)` scopes remain in history.
-Use `agent(skill)` for all future skill-related commits.
-```
+Worked scenarios (initial constitution from repo analysis, weekly refinement, scope selection, amendment): [references/playbook.md](references/playbook.md).

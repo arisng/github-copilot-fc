@@ -1,9 +1,9 @@
 ---
 name: git-session-atomic-commits
-description: "Session-scoped git commit orchestrator with hard scope enforcement: commits ONLY files with evidence of belonging to the current agent session and leaves every other dirty worktree change untouched. Builds an evidence-based allowlist (user-provided scope, files the agent created/edited this session, session logs) and an ignore list of everything else; enforces a blocking pre-commit gate so unrelated files or hunks can never be staged or committed. Inherits git-atomic-commit for atomic grouping and commit message execution (constrained to the allowlist only) and git-commit-scope-constitution for scope governance and validation. Use when asked to commit this session only, isolate commits from mixed worktree state, or when the worktree contains pre-existing dirty changes that must not be committed."
+description: "Session-scoped commit orchestrator: commit only files with evidence of belonging to the current agent session and leave every other dirty worktree change untouched. Use when the worktree carries pre-existing unrelated changes, or when asked to commit this session's work only. Builds an evidence-based allowlist from user scope, session file history, and session logs; blocks on any out-of-scope staged path; delegates grouping and message execution to git-atomic-commit under the allowlist constraint."
 argument-hint: "Optional session scope hint: feature, issue, files, or short intent"
 metadata:
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Session-Scoped Atomic Commits
@@ -72,16 +72,19 @@ if the delegated agent stages anything outside the allowlist, stop and unstage i
 
 ## Phase 4 — Pre-Commit Verification Gate (MANDATORY, Blocking)
 
-Before ANY `git commit`, verify all of the following. Any failure blocks the commit:
+Before ANY `git commit`, verify the scope boundary — any failure blocks the commit:
 
 - [ ] **Staged set == allowlist**: `git diff --cached --name-only` matches the allowlist
       exactly — no more, no fewer.
 - [ ] **Zero ignore-list paths staged**: intersection of `git diff --cached --name-only`
       with the ignore list is empty.
 - [ ] **No pre-existing unrelated staged files** remain in the index.
-- [ ] **No broad staging** was used (`git add .`, `git add -A`, `git add <dir>`,
-      `git commit -a` / `-am`).
-- [ ] **Scopes validated** via **git-commit-scope-constitution**.
+
+Every other verification in **git-atomic-commit** applies as written — Step 3 scope
+validation against the constitution and the Step 8 execution gates (staged set == this
+commit's plan, no broad staging, per-hunk mixed files, post-commit stat check). That
+skill is the single source for staging discipline; this phase adds only the allowlist
+boundary.
 
 If any check fails: unstage the offending paths (`git restore --staged <path>`),
 re-verify, and only then proceed.
@@ -95,20 +98,20 @@ re-verify, and only then proceed.
 
 ## Hard Rules (Non-Negotiable)
 
-1. **Never stage or commit a file not on the allowlist.** Default classification of any
-   changed file is OUT OF SCOPE until evidence says otherwise.
-2. **Never use broad staging**: `git add .`, `git add -A`, `git add <dir>`,
-   `git commit -a` / `-am`.
+1. **Stage and commit allowlist paths only.** Default classification of any changed file
+   is OUT OF SCOPE until evidence says otherwise; ignore-list files stay exactly as
+   `git status` found them.
+2. **Stage explicit paths or hunks only** (`git add <path>`, `git add -p`); broad staging
+   (`git add .`, `-A`, `<dir>`, `git commit -a` / `-am`) is never used.
 3. **Never commit over pre-staged unrelated files** — stop and ask.
-4. **Never stash, checkout, reset, or delete unrelated changes** to "clean up" the
-   worktree. Leave them exactly as-is.
+4. **Leave unrelated changes untouched**: no stash, checkout, reset, or delete to "clean
+   up" the worktree.
 5. **Never guess a file into the session.** Insufficient evidence → stop and ask.
 6. **Never amend** existing commits unless explicitly requested.
 7. **If the session boundary cannot be established confidently, stop and report.**
    Do not proceed, do not "do your best".
 8. **Scope expansion is explicit**: if the user asks to include an ignore-list file,
    add it to the allowlist with the user's confirmation, then re-run Phase 4.
-9. Prefer non-destructive git commands at all times.
 
 ## Output
 
