@@ -9,14 +9,14 @@
 
 ## AI in VS Code
 - [Overview](https://code.visualstudio.com/docs/agents/overview)
-## Get Started
+### Get Started
   - [Find a Guide](https://code.visualstudio.com/docs/agents/guides/overview)
   - [Choose an AI Feature](https://code.visualstudio.com/docs/agents/reference/ai-features-cheat-sheet)
   - [Set Up GitHub Copilot](https://code.visualstudio.com/docs/setup/copilot)
   - [Agents Quickstart](https://code.visualstudio.com/docs/agents/quickstart)
   - [Agents Tutorial](https://code.visualstudio.com/docs/agents/agents-tutorial)
   - [Best Practices](https://code.visualstudio.com/docs/agents/best-practices)
-## Work with AI
+### Work with AI
   - [Inline Suggestions](https://code.visualstudio.com/docs/editing/ai-powered-suggestions)
   - [Smart Actions](https://code.visualstudio.com/docs/editing/copilot-smart-actions)
   - [Chat View and Layout](https://code.visualstudio.com/docs/agents/run/chat-view)
@@ -27,27 +27,28 @@
   - [Add Prompt Context](https://code.visualstudio.com/docs/chat/copilot-chat-context)
   - [Review & Revert Changes](https://code.visualstudio.com/docs/agents/run/review-code-edits)
   - [Configure the Agents Window](https://code.visualstudio.com/docs/agents/run/agents-window-configuration)
-### Plan and Run Tasks
+#### Plan and Run Tasks
     - [Plan Work](https://code.visualstudio.com/docs/agents/run/planning)
     - [Use Tools](https://code.visualstudio.com/docs/agents/run/tools)
     - [Browser Tools](https://code.visualstudio.com/docs/agents/run/browser-tools)
     - [Subagents](https://code.visualstudio.com/docs/agents/run/subagents)
     - [Automations](https://code.visualstudio.com/docs/agents/run/automations)
-### Sessions
+#### Sessions
     - [Manage Sessions](https://code.visualstudio.com/docs/agents/run/sessions/manage-sessions)
     - [Organize & Triage Sessions](https://code.visualstudio.com/docs/agents/run/sessions/organize-sessions)
     - [Memory](https://code.visualstudio.com/docs/agents/run/memory)
     - [Artifacts](https://code.visualstudio.com/docs/agents/run/artifacts)
-### Permissions and Security
+#### Permissions and Security
     - [Approvals & Permissions](https://code.visualstudio.com/docs/agents/run/approvals)
     - [Agent Sandboxing](https://code.visualstudio.com/docs/agents/run/agent-sandboxing)
     - [AI Security](https://code.visualstudio.com/docs/agents/run/security)
-## Choose Models and Agents
+### Choose Models and Agents
   - [Choose and Configure Models](https://code.visualstudio.com/docs/agent-customization/language-models)
   - [Choose an Agent Harness](https://code.visualstudio.com/docs/agents/run/agent-harnesses)
   - [Move from Local to Copilot](https://code.visualstudio.com/docs/agents/run/move-to-copilot)
-  - [Compare Model Results](https://code.visualstudio.com/docs/agents/run/compare-models)
-## Customize and Extend
+  - [Compare Models Side by Side](https://code.visualstudio.com/docs/agents/run/compare-models)
+  - [Guide: Choose the Right Model](https://code.visualstudio.com/docs/agents/guides/choose-a-model)
+### Customize and Extend
   - [Overview](https://code.visualstudio.com/docs/agent-customization/overview)
   - [Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
   - [Agent Skills](https://code.visualstudio.com/docs/agent-customization/agent-skills)
@@ -59,17 +60,18 @@
   - [Hooks](https://code.visualstudio.com/docs/agent-customization/hooks)
   - [Prompt Files](https://code.visualstudio.com/docs/agent-customization/prompt-files)
   - [Migrate Existing Customizations](https://code.visualstudio.com/docs/agent-customization/migrate-customizations)
-## Work Across Apps and Machines
+### Work Across Apps and Machines
   - [Cloud Continuity Tutorial](https://code.visualstudio.com/docs/agents/cloud-continuity-tutorial)
   - [Remote Agent Sessions](https://code.visualstudio.com/docs/agents/run/remote-agent-sessions)
   - [Cloud Sessions](https://code.visualstudio.com/docs/agents/run/cloud-sandbox-sessions)
   - [Session History](https://code.visualstudio.com/docs/agents/run/sessions/session-history)
-## Tutorials & Guides
+### Tutorials & Guides
   - [Find a Guide](https://code.visualstudio.com/docs/agents/guides/overview)
   - [Explore a Codebase](https://code.visualstudio.com/docs/agents/guides/explore-a-codebase)
   - [Add a Feature](https://code.visualstudio.com/docs/agents/guides/add-a-feature)
   - [Fix an API Bug](https://code.visualstudio.com/docs/agents/guides/fix-a-bug-with-agents)
   - [Refactor Safely](https://code.visualstudio.com/docs/agents/guides/refactor-safely)
+  - [Compare and Choose Models](https://code.visualstudio.com/docs/agents/guides/choose-a-model)
   - [Add Tests](https://code.visualstudio.com/docs/agents/guides/test-code-with-ai)
   - [Test Web Apps](https://code.visualstudio.com/docs/agents/guides/browser-agent-testing-guide)
   - [Test-Driven Development](https://code.visualstudio.com/docs/agents/guides/test-driven-development-guide)
@@ -80,7 +82,7 @@
   - [Jupyter Notebooks](https://code.visualstudio.com/docs/agents/guides/notebooks-with-ai)
   - [Reduce Credit Usage](https://code.visualstudio.com/docs/agents/guides/optimize-usage)
   - [Prompt Examples](https://code.visualstudio.com/docs/agents/guides/prompt-examples)
-## Concepts
+### Concepts
   - [Agents](https://code.visualstudio.com/docs/agents/concepts/agents)
   - [How Models Work](https://code.visualstudio.com/docs/agents/concepts/language-models)
   - [Context](https://code.visualstudio.com/docs/agents/concepts/context)
@@ -89,8 +91,8 @@
   - [Trust & Safety](https://code.visualstudio.com/docs/agents/concepts/trust-and-safety)
   - [Agent Harnesses](https://code.visualstudio.com/docs/agents/concepts/agent-harnesses)
   - [Agent Customization](https://code.visualstudio.com/docs/agents/concepts/customization)
-## Reference and Help
-### Reference
+### Reference and Help
+#### Reference
     - [Cheat Sheet](https://code.visualstudio.com/docs/agents/reference/ai-features-cheat-sheet)
     - [Tools and Context](https://code.visualstudio.com/docs/agents/reference/tools-reference)
     - [Workspace Context](https://code.visualstudio.com/docs/agents/reference/workspace-context)
@@ -103,7 +105,7 @@
     - [Hooks Reference](https://code.visualstudio.com/docs/agents/reference/hooks-reference)
     - [OpenTelemetry Monitoring](https://code.visualstudio.com/docs/agents/guides/monitoring-agents)
     - [Agent Host Architecture](https://code.visualstudio.com/docs/agents/concepts/agent-host)
-### Troubleshooting
+#### Troubleshooting
     - [Troubleshooting](https://code.visualstudio.com/docs/agents/agent-troubleshooting/troubleshooting)
     - [Debug Chat Interactions](https://code.visualstudio.com/docs/agents/agent-troubleshooting/chat-debug-view)
     - [Diagnose Prompt Caching](https://code.visualstudio.com/docs/agents/agent-troubleshooting/cache-explorer)
@@ -111,11 +113,11 @@
 
 ## Editor
 - [Overview](https://code.visualstudio.com/docs/editing/getting-started/overview)
-## Getting Started
+### Getting Started
   - [Editor Tutorial](https://code.visualstudio.com/docs/editing/getting-started/editor-tutorial)
   - [User Interface](https://code.visualstudio.com/docs/editing/getting-started/userinterface)
   - [Tips and Tricks](https://code.visualstudio.com/docs/editing/getting-started/tips-and-tricks)
-## Write code
+### Write code
   - [Basic Editing](https://code.visualstudio.com/docs/editing/codebasics)
   - [IntelliSense](https://code.visualstudio.com/docs/editing/intellisense)
   - [Inline Suggestions](https://code.visualstudio.com/docs/editing/ai-powered-suggestions)
@@ -123,28 +125,28 @@
   - [Code Navigation](https://code.visualstudio.com/docs/editing/editingevolved)
   - [Refactoring](https://code.visualstudio.com/docs/editing/refactoring)
   - [Snippets](https://code.visualstudio.com/docs/editing/userdefinedsnippets)
-### Workspaces
+#### Workspaces
     - [Overview](https://code.visualstudio.com/docs/editing/workspaces/workspaces)
     - [Multi-Root Workspaces](https://code.visualstudio.com/docs/editing/workspaces/multi-root-workspaces)
     - [Workspace Trust](https://code.visualstudio.com/docs/editing/workspaces/workspace-trust)
-## Configure the editor
+### Configure the editor
   - [Display Language](https://code.visualstudio.com/docs/configure/locales)
   - [Layout](https://code.visualstudio.com/docs/configure/custom-layout)
   - [Keyboard Shortcuts](https://code.visualstudio.com/docs/configure/keybindings)
   - [Settings](https://code.visualstudio.com/docs/configure/settings)
   - [Settings Sync](https://code.visualstudio.com/docs/configure/settings-sync)
-### Extensions
+#### Extensions
     - [Overview](https://code.visualstudio.com/docs/configure/extensions/extensions)
     - [Extension Marketplace](https://code.visualstudio.com/docs/configure/extensions/extension-marketplace)
     - [Extension Runtime Security](https://code.visualstudio.com/docs/configure/extensions/extension-runtime-security)
   - [Themes](https://code.visualstudio.com/docs/configure/themes)
   - [Profiles](https://code.visualstudio.com/docs/configure/profiles)
-### Accessibility
+#### Accessibility
     - [Overview](https://code.visualstudio.com/docs/configure/accessibility/accessibility)
     - [Voice Interactions](https://code.visualstudio.com/docs/configure/accessibility/voice)
   - [Command Line Interface](https://code.visualstudio.com/docs/configure/command-line)
   - [Telemetry](https://code.visualstudio.com/docs/configure/telemetry)
-## Reference
+### Reference
   - [Default Keyboard Shortcuts](https://code.visualstudio.com/docs/reference/default-keybindings)
   - [Default Settings](https://code.visualstudio.com/docs/reference/default-settings)
   - [Substitution Variables](https://code.visualstudio.com/docs/reference/variables-reference)
@@ -172,12 +174,13 @@
 
 ## Debugging & Testing
 - [Debugging](https://code.visualstudio.com/docs/debugtest/debugging)
+- [Debugging Quickstart](https://code.visualstudio.com/docs/debugtest/quickstart)
 - [Debug Configuration](https://code.visualstudio.com/docs/debugtest/debugging-configuration)
 - [Tasks](https://code.visualstudio.com/docs/debugtest/tasks)
 - [Testing](https://code.visualstudio.com/docs/debugtest/testing)
 - [Integrated Browser](https://code.visualstudio.com/docs/debugtest/integrated-browser)
 - [Port Forwarding](https://code.visualstudio.com/docs/debugtest/port-forwarding)
-## Guides & Tutorials
+### Guides & Tutorials
   - [Fix an API Bug](https://code.visualstudio.com/docs/agents/guides/fix-a-bug-with-agents)
   - [Add Tests](https://code.visualstudio.com/docs/agents/guides/test-code-with-ai)
   - [Test-Driven Development](https://code.visualstudio.com/docs/agents/guides/test-driven-development-guide)

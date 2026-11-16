@@ -23,12 +23,20 @@ def parse_toc_json(text):
 
 
 def fetch_toc():
-    """Fetch the TOC JSON from GitHub."""
+    """Fetch and parse the TOC JSON from GitHub.
+
+    Exit codes: 2 = network/fetch failure (freshness unverifiable), 1 = parse failure.
+    """
     try:
         with urllib.request.urlopen(TOC_URL, timeout=30) as response:
-            return parse_toc_json(response.read().decode("utf-8"))
+            text = response.read().decode("utf-8")
     except Exception as e:
-        print(f"Error fetching TOC: {e}", file=sys.stderr)
+        print(f"Error fetching TOC (network): {e}", file=sys.stderr)
+        sys.exit(2)
+    try:
+        return parse_toc_json(text)
+    except Exception as e:
+        print(f"Error parsing TOC JSON: {e}", file=sys.stderr)
         sys.exit(1)
 
 def parse_topics(topics, level=0):
@@ -43,7 +51,8 @@ def parse_topics(topics, level=0):
                 nested = topic[2]
                 name = nested.get("name", "")
                 if name:
-                    header = "#" * (level + 2)  # ## for level 0, ### for level 1, etc.
+                    # +3 so nested sections start at ### — top-level sections use ##
+                    header = "#" * (level + 3)
                     lines.append(f"{header} {name}")
                 if "topics" in nested:
                     lines.extend(parse_topics(nested["topics"], level + 1))
@@ -58,7 +67,7 @@ def parse_topics(topics, level=0):
             # Direct nested section
             name = topic.get("name", "")
             if name:
-                header = "#" * (level + 2)
+                header = "#" * (level + 3)
                 lines.append(f"{header} {name}")
             if "topics" in topic:
                 lines.extend(parse_topics(topic["topics"], level + 1))
@@ -83,12 +92,16 @@ def generate_markdown(toc_data):
     return "\n".join(lines)
 
 def main():
-    """Main function."""
+    """Main function. Optional: --out <path> overrides the default assets/toc.md."""
+    output_path = Path(__file__).parent.parent / "assets" / "toc.md"
+    if len(sys.argv) == 3 and sys.argv[1] == "--out":
+        output_path = Path(sys.argv[2])
+    elif len(sys.argv) > 1:
+        print(f"Usage: {sys.argv[0]} [--out <path>]", file=sys.stderr)
+        sys.exit(64)
+
     toc_data = fetch_toc()
     markdown = generate_markdown(toc_data)
-
-    # Write to assets/toc.md
-    output_path = Path(__file__).parent.parent / "assets" / "toc.md"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, 'w', encoding='utf-8') as f:
