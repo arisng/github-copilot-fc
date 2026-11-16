@@ -57,6 +57,7 @@ function Invoke-CopilotWorkspaceCommand {
         'issues:reindex'       = 'pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1'
         'workspace:list-skills' = 'Get-ChildItem -Path skills -Directory | Select-Object Name'
         'workspace:status'      = "Write-Host 'Copilot FC Workspace Status'; Get-ChildItem -Path skills -Directory | Measure-Object | Select-Object -ExpandProperty Count; Write-Host ' skills available'"
+        'workspace:check'       = 'pwsh -NoProfile -File scripts/workspace/workspace-check.ps1'
     }
 
     # If no command specified or 'list', show available commands

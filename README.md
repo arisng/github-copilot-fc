@@ -87,8 +87,29 @@ Current command map is implemented directly in `scripts/workspace/run-command.ps
 - `skills:publish`
 - `toolsets:publish`
 - `issues:reindex`
+- `workspace:check`
 - `workspace:list-skills`
 - `workspace:status`
+
+## Local CI (quality enforcement)
+
+Quality gates run locally from repo scripts — this repo intentionally uses no cloud CI workflows:
+
+```powershell
+# Run all checks: TOC freshness, OpenSpec validators, waza (advisory)
+pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
+# or via the dispatcher:
+pwsh -NoProfile -File scripts/workspace/run-command.ps1 workspace:check
+```
+
+Activate the versioned git hooks once per clone:
+
+```powershell
+git config core.hooksPath scripts/hooks
+```
+
+- `scripts/hooks/pre-push` runs `workspace-check` before every push; gate failures block the push.
+- `scripts/hooks/post-commit` publishes any skill changed by the commit to personal folders.
 
 ## Publishing Model
 

@@ -59,6 +59,9 @@ function Get-SpecFiles {
     [CmdletBinding()]
     param([string]$Root)
 
+    if (-not (Test-Path -Path $Root)) {
+        return ,@()  # absent specs root = nothing to validate (caller reports skip)
+    }
     $resolved = Resolve-Path -Path $Root -ErrorAction Stop
     Get-ChildItem -Path $resolved -Filter 'spec.md' -Recurse -File
 }
