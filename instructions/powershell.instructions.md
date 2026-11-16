@@ -48,6 +48,7 @@ PowerShell scripts in infrastructure projects need to be:
 
 ### ✅ Do
 - Write modular, single-purpose functions
+- Quote git revision expressions containing `@{...}` (e.g. `'HEAD...@{u}'`) — PowerShell parses a bare `@{u}` as a hashtable literal and git fails with "ambiguous argument"
 - Include parameter validation with [Validate*] attributes
 - Use Pester for unit testing
 - Mock external commands and APIs
