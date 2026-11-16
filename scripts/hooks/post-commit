@@ -1,0 +1,24 @@
+#!/bin/bash
+# Post-commit: publish skills touched by the commit to personal folders.
+# Versioned source — activate once per clone with:
+#   git config core.hooksPath scripts/hooks
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)" || exit 0
+
+changed="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+skills="$(printf '%s\n' "$changed" | grep '^skills/' | cut -d/ -f2 | sort -u || true)"
+
+[ -z "$skills" ] && exit 0
+
+for name in $skills; do
+  # Only real skill folders (skips skills/README.md, .archived/, deletions)
+  [ -f "skills/$name/SKILL.md" ] || continue
+  echo "post-commit: publishing skill '$name'..."
+  if ! pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name "$name"; then
+    echo "post-commit: WARNING - publishing '$name' failed; run 'pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name $name' manually" >&2
+  fi
+done
+
+# Never fail: post-commit exit code must not affect the committed state.
+exit 0

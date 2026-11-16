@@ -1,0 +1,3 @@
+# Git hooks are executed by bash — they must stay LF even on Windows
+# (core.autocrlf=true would otherwise turn them into CRLF and break the shebang).
+scripts/hooks/* text eol=lf

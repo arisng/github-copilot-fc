@@ -1,0 +1,10 @@
+#!/bin/bash
+# Pre-push: local CI — run the workspace quality checks before every push.
+# Versioned source — activate once per clone with:
+#   git config core.hooksPath scripts/hooks
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
+exit $?
