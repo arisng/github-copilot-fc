@@ -1,30 +1,35 @@
 # VS Code Expertise Areas
 
-## GitHub Copilot Features
+## AI in VS Code (GitHub Copilot & Agents)
 
-### Chat and Conversations
-- Multi-turn conversations with context awareness
-- Session management and history
-- Code explanation and debugging assistance
-- Natural language to code generation
+### Ways to Work
+- **Inline suggestions**: completions and next-edit suggestions as you type
+- **Chat view**: conversational agent alongside the editor
+- **Inline chat & Quick Chat**: focused edits without leaving the editor
+- **Agents window**: delegate tasks and manage multiple agent sessions across projects
+- **Automations**: reusable scheduled or event-driven runs, local or cloud
 
-### Inline Suggestions
-- Real-time code completions
-- Context-aware suggestions based on codebase
-- Multi-line completions and function generation
-- Language-agnostic support
+### Harnesses & Models
+- Harnesses: **Copilot** (default for new sessions since VS Code 1.143), **Claude**, and **Codex**; the **Local harness is deprecated and scheduled for removal in February 2027**
+- Models from multiple providers through Copilot, BYOK API keys, and supported local models
+- A harness provides the tools and workflow around a model; choosing a model does not switch the harness
 
 ### Customization
-- **Instructions files**: Project-specific guidance in `.github/copilot-instructions.md`
-- **Prompt files**: Reusable prompt templates in `.github/prompts/`
-- **Agents**: Specialized AI assistants for domain-specific tasks
-- **Settings**: Model selection, suggestion behavior, and privacy controls
+- **Instructions**: `.github/copilot-instructions.md` or `AGENTS.md` project-wide; scoped `.github/instructions/*.instructions.md` with `applyTo` patterns
+- **Prompt files**: `.prompt.md` slash commands — Local harness only (deprecated path); migrate to skills (see prompt-files.md)
+- **Skills**: reusable multi-step workflows packaged as `SKILL.md`
+- **Custom agents**: specialized roles with their own tools and model settings
+- **Hooks, plugins, MCP servers, connectors**: extend behavior and connect external tools
 
-### Advanced Features
-- **Prompt engineering**: Techniques for better code generation
-- **Code analysis**: Security scanning, performance suggestions
-- **Testing assistance**: Unit test generation and debugging
-- **Documentation**: Code commenting and README generation
+### Context
+- `#`-mentions for files, folders, symbols, terminal output, source-control changes, plus `#codebase` (workspace search) and `#fetch` (web content)
+- `@`-mentions, direct URLs, images, and browser content as additional context
+
+### Safety & Operations
+- Approval flows and URL confirmation before external access
+- Managed sandbox and permission policies on the Copilot harness
+- Session continuity across the editor window, Agents window, and cloud sessions
+- Agent Debug Log and Cache Explorer for diagnosing prompts and token use
 
 ## Core VS Code Features
 
@@ -64,5 +69,5 @@
 
 ### Migration Guides
 - **Breaking changes**: Migration instructions
-- **Deprecations**: Timeline for removed features
-- **New features**: Adoption guides and tutorials
+- **Deprecations**: Timeline for removed features — e.g. Local harness removal (February 2027), with customization migration steps at https://code.visualstudio.com/docs/agent-customization/migrate-customizations
+- **New features**: Adoption guides and tutorials in release notes

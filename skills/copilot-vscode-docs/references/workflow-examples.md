@@ -25,17 +25,22 @@
 - Identify the core VS Code feature or Copilot capability being asked about
 - Determine if this requires official documentation research
 
-### 2. Documentation Navigation
+### 2. Freshness Check
+- Open `https://code.visualstudio.com/updates` to see the current stable version
+- If `assets/toc.md` is older than the latest major release, regenerate it: `python3 scripts/parse_toc.py`
+- For customization topics (instructions, prompt files, skills, agents), assume fast-moving status and verify the live page
+
+### 3. Documentation Navigation
 - Read `assets/toc.md` to locate relevant sections
 - Identify 2-3 most relevant documentation pages
-- Check release notes for recent changes if applicable
+- Fall back to `https://code.visualstudio.com/llms.txt` when the TOC doesn't cover the topic
 
-### 3. Content Retrieval
-- Use web fetching tools to get specific page content
+### 4. Content Retrieval
+- Fetch pages with the `.md` suffix (e.g. `https://code.visualstudio.com/docs/agent-customization/prompt-files.md`) for clean Markdown
 - Focus on official Microsoft documentation URLs
 - Retrieve related pages for comprehensive coverage
 
-### 4. Answer Grounding
+### 5. Answer Grounding
 - Base responses on retrieved documentation content
 - Cite specific URLs and version information
 - Include practical examples from official docs
@@ -56,8 +61,9 @@
 - Identifying knowledge gaps
 
 ### When to Update TOC
-- TOC seems outdated (check GitHub repo for recent changes)
+- TOC seems outdated (check the microsoft/vscode-docs repo for recent changes)
 - New major VS Code release
+- A link in `assets/toc.md` returns 404
 - User reports missing documentation sections
 
 ## Quality Assurance
@@ -70,5 +76,5 @@
 
 ### Currency Checks
 - Verify release notes for recent changes
-- Check for breaking changes in updates
+- Check for breaking changes and deprecations (e.g. harness lifecycle)
 - Update TOC if structure has changed significantly
