@@ -1,5 +1,7 @@
 # GitHub Copilot VS Code Prompt Files (.prompt.md) Reference
 
+> **Retired (2026-11):** GitHub Copilot deprecated prompt files. The workspace's `prompts/` folder and `publish-prompts.ps1` were retired; archived copies live under `.archived/prompts/`. This page is kept for historical reference only.
+
 **Documentation Date:** January 22, 2026  
 **Source:** Official VS Code Documentation (v1.108+)
 

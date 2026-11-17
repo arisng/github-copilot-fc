@@ -1,11 +1,12 @@
 ---
 category: reference
 source_artifacts:
-  - openspec/specs/ralph-v2-orchestration/orchestration/spec.md
+
   - agents/ralph-v2/instructions/ralph-v2-orchestrator.instructions.md
   - agents/ralph-v2/instructions/ralph-v2-reviewer.instructions.md
   - agents/ralph-v2/README.md
   - agents/ralph-v2/specs/normalization.spec.md
+
 extracted_at: 2026-03-09T12:34:25+07:00
 promoted: true
 promoted_at: 2026-03-09T12:34:25+07:00
@@ -46,7 +47,6 @@ This reference captures the durable Ralph-v2 workflow contract so later staging 
 
 ## Stable implementation points
 
-- `openspec/specs/ralph-v2-orchestration/orchestration/spec.md` defines the canonical state machine and ordered handoff rules.
 - `agents/ralph-v2/instructions/ralph-v2-orchestrator.instructions.md` defines the cross-role concurrency and sequencing contract.
 - `agents/ralph-v2/instructions/ralph-v2-reviewer.instructions.md` defines the iteration-review checklist and session-review structure.
 - `agents/ralph-v2/README.md` and `agents/ralph-v2/specs/normalization.spec.md` summarize and normalize the public-facing contract.

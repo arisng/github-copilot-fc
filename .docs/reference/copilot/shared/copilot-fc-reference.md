@@ -17,7 +17,6 @@ pwsh -NoProfile -File scripts/workspace/run-command.ps1 "skills:publish"
 
 - `agents:publish`
 - `instructions:publish`
-- `prompts:publish`
 - `skills:publish`
 - `toolsets:publish`
 - `issues:reindex`
@@ -28,7 +27,6 @@ pwsh -NoProfile -File scripts/workspace/run-command.ps1 "skills:publish"
 
 - `scripts/publish/publish-agents.ps1`
 - `scripts/publish/publish-instructions.ps1`
-- `scripts/publish/publish-prompts.ps1`
 - `scripts/publish/publish-skills.ps1` ~~(deprecated — prefer `npx skills <options>`)~~
 - `scripts/publish/publish-toolsets.ps1`
 - `scripts/publish/publish-artifact.ps1`

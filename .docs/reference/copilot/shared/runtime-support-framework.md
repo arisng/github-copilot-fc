@@ -53,6 +53,7 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 **Script:** `scripts/publish/publish-instructions.ps1` — currently targets VS Code only. CLI and WSL targets are **not yet implemented** (⚠️ Manual). Planned redesign adds `-Mode Concat` (default) and `-Mode EnvVar` parameters.
 
 **Delivery mechanism detail:**
+
 - **Mode Concat** (default): All workspace `.instructions.md` files are concatenated into a single `copilot-instructions.md`, stripping `applyTo` frontmatter (lost in translation — all instructions apply globally).
 - **Mode EnvVar**: Individual `.instructions.md` files are copied to a structured directory, and `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` environment variable is set to point to it. This preserves `applyTo` semantics but requires one-time env var setup.
 
@@ -85,11 +86,11 @@ The matrix below maps **6 artifact primitives** (rows) across **4 runtime target
 
 | Runtime            | Destination Path                                     | Delivery                                 |
 | :----------------- | :--------------------------------------------------- | :--------------------------------------- |
-| VS Code (Stable)   | `%APPDATA%/Code/User/prompts/*.prompt.md`            | Direct file copy                         |
-| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.prompt.md` | Direct file copy                         |
+| VS Code (Stable)   | `%APPDATA%/Code/User/prompts/*.prompt.md`            | ~~Direct file copy~~ retired             |
+| VS Code (Insiders) | `%APPDATA%/Code - Insiders/User/prompts/*.prompt.md` | ~~Direct file copy~~ retired             |
 | copilot-cli        | ❌ N/A                                                | No `.prompt.md` discovery in copilot-cli |
 
-**Script:** `scripts/publish/publish-prompts.ps1` — targets VS Code only. Prompts are a VS Code-specific artifact with no copilot-cli equivalent.
+**Retired (2026-11):** GitHub Copilot deprecated prompt files; `scripts/publish/publish-prompts.ps1` was removed and workspace copies moved to `.archived/prompts/`.
 
 ### Toolsets
 

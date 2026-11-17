@@ -24,6 +24,7 @@ When a skill covers a protocol or workflow complex enough to require both portab
 ## Validation Pattern
 
 A cross-artifact consistency audit should verify:
+
 1. No contradictory rules between layers (terminology, directory conventions, mutation policies)
 2. Layer 1 stays within its routing-only scope
 3. Layer 2 does not duplicate enforcement rules from Layer 3
@@ -32,7 +33,8 @@ A cross-artifact consistency audit should verify:
 
 ## Applied Example
 
-The OpenSpec SDD skill uses this pattern:
-- Layer 1: `skills/openspec-sdd/SKILL.md` — alias table for 4 core commands, pointer to reference doc
-- Layer 2: `skills/openspec-sdd/references/ai-coding-agent-workflow.md` — full agent policy
-- Layer 3: `instructions/openspec-protocol.instructions.md` — workspace enforcement with stricter directory rules
+The three-layer pattern separates a skill's core guidance from workspace-specific enforcement:
+
+- Layer 1: `skills/copilot-plugin-builder/SKILL.md` — workflow phases, pointers to reference docs
+- Layer 2: `skills/copilot-plugin-builder/references/marketplace-guide.md` — full marketplace schema and procedures
+- Layer 3: `.github/copilot-instructions.md` — workspace enforcement with stricter artifact rules

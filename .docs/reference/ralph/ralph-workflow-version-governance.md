@@ -1,12 +1,13 @@
 ---
 category: reference
 source_artifacts:
+
   - agents/ralph-v2/vscode/ralph-v2-orchestrator-VSCode.agent.md
-  - openspec/specs/ralph-v2-orchestration/session/spec.md
   - plugins/cli/ralph-v2/plugin.json
   - plugins/vscode/ralph-v2/plugin.json
   - scripts/publish/build-plugins.ps1
   - scripts/publish/publish-plugins.ps1
+
 extracted_at: 2026-03-09T10:55:16+07:00
 promoted: true
 promoted_at: 2026-03-09T11:00:21.9466240+07:00
@@ -57,6 +58,5 @@ This reference defines Ralph-v2's two-version governance model so workflow chang
 ## Stable implementation points
 
 - `agents/ralph-v2/vscode/ralph-v2-orchestrator-VSCode.agent.md` and the sibling Ralph source agent wrappers carry the canonical workflow version in `metadata.version`.
-- `openspec/specs/ralph-v2-orchestration/session/spec.md` defines the normative workflow-version governance requirements and scenarios.
 - `plugins/cli/ralph-v2/plugin.json` and `plugins/vscode/ralph-v2/plugin.json` carry plugin release version in their `version` field.
 - Build and publish documentation should present that manifest version as the shipped plugin version and the source agent frontmatter version as the separate workflow contract version.
