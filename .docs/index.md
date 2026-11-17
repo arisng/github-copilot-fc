@@ -25,10 +25,10 @@ This index links Diátaxis-organized documentation for the workspace.
 #### Shared
 
 - [Getting started with Copilot FC](tutorials/copilot/shared/getting-started-with-copilot-fc.md)
+
 #### Vscode
 
 - _No documents yet._
-
 
 ## How-to Guides
 
@@ -51,6 +51,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to Create a CLI Plugin](how-to/copilot/cli/how-to-create-cli-plugin.md)
 - [How to implement custom slash commands in Copilot CLI](how-to/copilot/cli/how-to-implement-custom-slash-commands-in-copilot-cli.md)
 - [How to Publish Copilot Customizations for Copilot CLI](how-to/copilot/cli/how-to-publish-customizations-for-copilot-cli.md)
+
 #### Github Mobile
 
 - _No documents yet._
@@ -72,13 +73,10 @@ This index links Diátaxis-organized documentation for the workspace.
 - [How to use Copilot FC commands](how-to/copilot/shared/how-to-use-copilot-fc-commands.md)
 - [How to Run the copilot-byok Feature Harness](how-to/copilot/shared/how-to-run-copilot-byok-feature-harness.md)
 - [Smoke Test Publish Scripts](how-to/copilot/shared/smoke-test-publish-scripts.md)
+
 #### Vscode
 
 - [How to Configure VS Code to Auto-Approve Terminal Commands with Dynamic Arguments](how-to/copilot/vscode/how-to-configure-vscode-terminal-autoapprove.md)
-
-### Openspec
-
-- [How To Validate Openspec Specs](how-to/openspec/how-to-validate-openspec-specs.md)
 
 ### Ralph
 
@@ -113,6 +111,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [GitHub Copilot CLI - An AI-powered coding assistant](reference/copilot/cli/copilot-cli-help.md)
 - [Copilot CLI Session State Schema Reference](reference/copilot/cli/copilot-cli-session-state-schema.md)
 - [Fleet and Task Subagent Dispatch in Copilot CLI](reference/copilot/cli/fleet-and-task-subagent-dispatch.md)
+
 #### Github Mobile
 
 - _No documents yet._
@@ -139,18 +138,12 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Runtime Support Framework](reference/copilot/shared/runtime-support-framework.md)
 - [Three Layer Skill Artifact Architecture](reference/copilot/shared/three-layer-skill-artifact-architecture.md)
 - [Wsl Helpers Api Reference](reference/copilot/shared/wsl-helpers-api-reference.md)
+
 #### Vscode
 
 - [Custom Toolsets Reference for GitHub Copilot VS Code](reference/copilot/vscode/copilot-vscode-custom-toolset.md)
 - [Copilot Agent Host and Agents Window Tool Surface Reference](reference/copilot/vscode/copilot-vscode-agent-host-tools.md)
-- [GitHub Copilot VS Code Prompt Files (.prompt.md) Reference](reference/copilot/vscode/copilot-vscode-prompt-files.md)
 - [Fleet In VS Code As A Generic Orchestrator Reference](reference/copilot/vscode/fleet-vscode-generic-orchestrator.md)
-
-### Openspec
-
-- [Openspec Custom Profile Command Routing](reference/openspec/openspec-custom-profile-command-routing.md)
-- [Openspec Ralph V2 Domain Map](reference/openspec/openspec-ralph-v2-domain-map.md)
-- [Openspec Workspace Scoping Convention](reference/openspec/openspec-workspace-scoping-convention.md)
 
 ### Ralph
 
@@ -209,6 +202,7 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph-v2 Tool Compatibility Analysis for Copilot CLI](explanation/copilot/cli/copilot-cli-ralph-v2-tool-compatibility.md)
 - [Copilot CLI Session Topology and Orchestration Layer](explanation/copilot/cli/copilot-cli-session-topology.md)
 - [Understanding `/fleet` orchestration in Copilot CLI](explanation/copilot/cli/fleet-mode-as-prompt-injection.md)
+
 #### Github Mobile
 
 - _No documents yet._
@@ -220,6 +214,7 @@ This index links Diátaxis-organized documentation for the workspace.
 #### Sdk
 
 - [Mental Model: GitHub Copilot SDK Communication with CLI in ACP Server Mode](explanation/copilot/sdk/copilot-sdk-acp-mental-model.md)
+
 #### Shared
 
 - [About Copilot FC workspace commands](explanation/copilot/shared/about-copilot-fc.md)
@@ -232,14 +227,11 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Portable Vs Workspace Enforcement Layering](explanation/copilot/shared/portable-vs-workspace-enforcement-layering.md)
 - [Shared Instruction Pattern Trade Offs](explanation/copilot/shared/shared-instruction-pattern-trade-offs.md)
 - [Wsl Publish Shell Bootstrap Lessons](explanation/copilot/shared/wsl-publish-shell-bootstrap-lessons.md)
+
 #### Vscode
 
 - [Understanding Copilot VS Code Custom Instructions Injection](explanation/copilot/vscode/copilot-vscode-instructions-injection.md)
 - [Orchestrator Core Appendix Split Rationale](explanation/copilot/vscode/orchestrator-core-appendix-split-rationale.md)
-
-### Openspec
-
-- [Runtime Agnostic Spec Abstraction](explanation/openspec/runtime-agnostic-spec-abstraction.md)
 
 ### Ralph
 
@@ -249,5 +241,3 @@ This index links Diátaxis-organized documentation for the workspace.
 - [Ralph V1 State Machine](explanation/ralph/ralph-v1-state-machine.md)
 - [Self Critique Extension Rationale](explanation/ralph/self-critique-extension-rationale.md)
 - [V2.10.0 Knowledge Pipeline Refactor](explanation/ralph/v2.10.0-knowledge-pipeline-refactor.md)
-
-
