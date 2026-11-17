@@ -3,10 +3,10 @@
     "inputs": [
         {
             "id": "type",
-            "description": "Type of artifact to publish (agent, instruction, prompt, skill)",
+            "description": "Type of artifact to publish (agent, hook, instruction, skill, toolset)",
             "default": "agent",
             "type": "pickString",
-            "options": ["agent", "hook", "instruction", "prompt", "skill", "toolset"]
+            "options": ["agent", "hook", "instruction", "skill", "toolset"]
         },
         {
             "id": "name",
