@@ -125,13 +125,59 @@ The `./` prefix is optional — `"plugins/frontend-design"` resolves identically
 
 `sha` must be a full 40-character commit SHA. Pin to a `sha` for reproducible installs immune to force-pushes or tag/branch moves.
 
+## Maintaining the Catalog
+
+`marketplace.json` is maintained by hand — no generator owns it — so catalog and repo drift apart unless every plugin change lands with its catalog edit. The patterns below follow [dotnet/skills](https://github.com/dotnet/skills), which publishes its whole plugin family from one repository.
+
+### Entry ↔ plugin.json invariants
+
+| Entry field | Mirrors | Rule |
+|-------------|---------|------|
+| `name` | `plugin.json` → `name` | Exact match — it is half the install identity (`name@marketplace`) |
+| `source` | the plugin's directory | Must resolve to a directory containing `plugin.json` |
+| `description` | `plugin.json` → `description` | Keep identical; a deliberate host-specific wording is the only exception (see multi-host below) |
+| `version` | `plugin.json` → `version` | Optional per schema. When present, exact match — the CLI's update check compares against it. When omitted, `plugin.json` stays the only version file (dotnet/skills omits it everywhere and stamps versions into the manifests with automation). Pick one convention per catalog and apply it to every entry |
+
+Every plugin directory gets exactly one entry, and every entry points at exactly one directory.
+
+### Change flows
+
+- **Add a plugin:** create `plugins/<name>/` with its `plugin.json`, append a `{ name, version?, description, source }` entry to `plugins[]`, and bump `metadata.version` (it tracks the catalog structure).
+- **Remove a plugin:** delete its entry and bump `metadata.version`. Already-installed copies stay until users uninstall.
+- **Rename a plugin:** change the directory, `plugin.json` → `name`, and the entry `name` together — published `name@marketplace` identifiers appear in user settings, so a rename breaks them.
+- **Change a description:** update entry and `plugin.json` in one commit (they are one meaning in two files).
+
+### Catalog placement
+
+- **Same repo** (relative `source`): the plugin repo is the marketplace repo; users register it with `copilot plugin marketplace add OWNER/REPO`. This is the common case — dotnet/skills works this way.
+- **Separate catalog repo** (GitHub `source` objects): curate plugins from many repositories; pin `ref` or `sha` for reproducible installs.
+
+### One catalog per host (multi-host distribution)
+
+Copilot reads `.github/plugin/marketplace.json` (canonical, with `.claude-plugin/marketplace.json` as fallback). Hosts other than Copilot read their own manifests, so a repo serving all of them keeps several catalogs in lockstep. dotnet/skills ships four:
+
+| Host | Manifest |
+|------|----------|
+| Copilot | `.github/plugin/marketplace.json` |
+| Claude | `.claude-plugin/marketplace.json` |
+| Cursor | `.cursor-plugin/marketplace.json` |
+| Codex | `.agents/plugins/marketplace.json` |
+
+Keep `name` and `source` identical across every catalog; `description` may differ where a host lacks the capability (a Codex catalog must not advertise Copilot-only `.agent.md` agents or LSP integration). Copilot-only distribution needs just the Copilot manifest.
+
+### Checks that keep the catalog honest
+
+- `python3 scripts/verify-version-sync.py <marketplace-dir>` — fails on version or name drift; warns on orphans, description divergence, and unresolvable sources. Run it in CI on changes to `marketplace.json` or plugin manifests.
+- **Orphan audit** — diff every `plugin.json` under the plugins root against catalog entries, in both directions.
+- **Install smoke test** — register the catalog in a clean environment, `marketplace browse`, install one plugin, and assert its skills/MCP servers appear. dotnet/skills runs exactly this install-and-discovery smoke on every catalog or manifest change.
+
 ## Versioning & Updates
 
 ### Three Version Fields, Two Logical Versions
 
 A plugin distributed through a marketplace has **three version fields** across two files — but they represent only **two logical versions**:
 
-```
+```text
 plugin.json (inside the plugin directory)          marketplace.json (at the marketplace root)
 ├── version  ← SOURCE OF TRUTH for the plugin      ├── metadata.version  ← catalog version (independent)
                                                    └── plugins[]
@@ -145,7 +191,7 @@ plugin.json (inside the plugin directory)          marketplace.json (at the mark
 | `marketplace.json` → `metadata.version` | Marketplace root | **Catalog version** | Independent. Tracks changes to the marketplace manifest itself (plugins added/removed). |
 
 > [!CRITICAL]
-> **`plugins[].version` and `plugin.json` → `version` MUST be kept in sync.** They describe the same plugin. When you bump one, you must bump the other. Drift between them (e.g., `plugin.json` at `0.1.4` while the marketplace entry still shows `0.1.3`) means users will either miss updates or install an unexpected version. This is the most common versioning mistake in multi-plugin marketplaces.
+> **`plugins[].version` and `plugin.json` → `version` MUST be kept in sync.** They describe the same plugin. When you bump one, you must bump the other (entries that omit `version` have nothing to sync — see [Maintaining the Catalog](#maintaining-the-catalog)). Drift between them (e.g., `plugin.json` at `0.1.4` while the marketplace entry still shows `0.1.3`) means users will either miss updates or install an unexpected version. This is the most common versioning mistake in multi-plugin marketplaces.
 
 > [!IMPORTANT]
 > **`metadata.version` is independent.** Bumping `plugins[].version` does NOT require bumping `metadata.version`, and vice versa. The CLI uses `plugins[].version` for update detection; `metadata.version` is purely informational for the catalog.
@@ -171,10 +217,13 @@ When bumping a plugin version, follow this exact sequence. Both files must be up
 2. **Edit `plugin.json`** — update the `version` field. This is the source of truth.
 3. **Edit `marketplace.json`** — update the matching `plugins[]` entry's `version` field to the same value.
 4. **Verify alignment** — run the verification script:
+
    ```bash
    python3 scripts/verify-version-sync.py <marketplace-dir>
    ```
+
    This checks every `plugins[].version` against its `plugin.json` and exits non-zero on drift. If the script is unavailable, manually confirm both files show the same version string.
+
 5. **Commit atomically** — stage and commit both files in a single commit. Never commit one without the other.
 
 ```diff
@@ -223,7 +272,8 @@ Consider a marketplace with three plugins, each with its own `plugin.json`:
 ```
 
 Each plugin's `plugin.json` has a matching version:
-```
+
+```text
 plugins/formatter/plugin.json  →  "version": "1.2.0"
 plugins/linter/plugin.json     →  "version": "2.0.1"
 plugins/analyzer/plugin.json   →  "version": "0.5.0"
@@ -241,6 +291,7 @@ plugins/analyzer/plugin.json   →  "version": "0.5.0"
 - "version": "2.0.1"
 + "version": "2.0.2"
 ```
+
 - Only `linter` shows "Update available" for users
 - `formatter` and `analyzer` untouched in both files
 - `metadata.version` stays at `1.0.0` (catalog didn't change)
@@ -261,6 +312,7 @@ plugins/analyzer/plugin.json   →  "version": "0.5.0"
   # New file: plugins/deployer/plugin.json
 + { "name": "deployer", "version": "1.0.0", ... }
 ```
+
 - Existing plugins unchanged — no update triggered
 - `metadata.version` bumped because the catalog gained a plugin
 - `deployer` starts at `1.0.0` in both `plugin.json` and `marketplace.json`
@@ -386,10 +438,13 @@ copilot plugin install ./my-plugin
 
 1. **Add your plugin to a marketplace repo** (or create your own)
 2. **Users register the marketplace:**
+
    ```bash
    copilot plugin marketplace add OWNER/REPO
    ```
+
 3. **Users browse and install:**
+
    ```bash
    copilot plugin marketplace browse my-marketplace
    copilot plugin install my-plugin@my-marketplace

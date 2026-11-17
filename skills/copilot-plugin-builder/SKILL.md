@@ -1,8 +1,8 @@
 ---
 name: copilot-plugin-builder
-description: "Author, scaffold, test, and distribute GitHub Copilot plugins — portable Agent Plugins 1.0 packages (skills + MCP servers) plus Copilot-specific components (agents, commands, rules, hooks) that run across Copilot CLI, VS Code/Agents Window, the GitHub Copilot desktop app, and the Copilot SDK. Use when the user wants to: (1) create or scaffold a new Copilot plugin, (2) add skills, agents, hooks, commands, or MCP servers to a plugin, (3) write or validate a plugin.json manifest, (4) distribute or install a plugin via a marketplace or Git repository, (5) test a local plugin in any Copilot runtime, (6) migrate a legacy Copilot-format plugin to Agent Plugins 1.0, (7) bump or sync plugin versions, or (8) build programmable plugins with @github/copilot-sdk. Covers the Agent Plugins 1.0 format (agent-plugins.org) and the legacy Copilot format. Do NOT use for Copilot CLI extensions (tools/commands/canvas via @github/copilot-sdk/extension) — use copilot-extension-builder instead."
+description: "Author, scaffold, test, and distribute GitHub Copilot plugins — portable Agent Plugins 1.0 packages (skills, MCP servers) plus Copilot agents, commands, rules, and hooks for the CLI, VS Code, the Copilot app, and the SDK. Use when creating or editing a plugin or its plugin.json, testing locally, distributing or installing via marketplace or Git, migrating a legacy plugin to Agent Plugins 1.0, syncing versions, or building plugins with @github/copilot-sdk. Not for Copilot CLI extensions (tools/commands/canvas via @github/copilot-sdk/extension) — use copilot-extension-builder instead."
 metadata:
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Copilot Plugin Builder
@@ -22,6 +22,8 @@ Plugins are **file-based** (markdown + JSON). No compilation required. Two Copil
 
 Always use **Agent Plugins 1.0** unless the user has a specific reason for the legacy format.
 
+> Legacy **Copilot Extensions** (the GitHub App–based tools/commands/canvas platform) are a different artifact: sunset 2025-11-10, with plugins as the replacement.
+
 ### Portability model
 
 | Component | Location (Agent Plugins 1.0) | Portable |
@@ -38,7 +40,40 @@ Always use **Agent Plugins 1.0** unless the user has a specific reason for the l
 
 Clients ignore namespaces they don't implement (for example `com.example.client/`), so Copilot-specific components never block portability.
 
-## Directory Layout (Agent Plugins 1.0)
+## Repo Layout: One Plugin or Many
+
+Decide the repo layout before scaffolding — it fixes where `plugin.json` lives, how users install, and what marketplace entries point at. Layout is independent of manifest format: Agent Plugins 1.0 and legacy both work in either layout.
+
+**Single-plugin repo** — the plugin is the repo:
+
+```text
+my-plugin/                      ← repository root
+├── plugin.json
+├── skills/
+└── com.github.copilot/
+```
+
+- `copilot plugin install OWNER/REPO` works directly — the repo root must be the plugin root.
+- One manifest, one version, no catalog required. Default for a first plugin.
+
+**Multi-plugin repo** — related plugins share one repo behind one catalog:
+
+```text
+skills-repo/                    ← repository root
+├── .github/plugin/marketplace.json
+└── plugins/
+    ├── formatter/plugin.json
+    └── linter/plugin.json
+```
+
+- Direct installs carry a path: `copilot plugin install OWNER/REPO:plugins/formatter`.
+- The catalog gives each plugin a flat identity: an entry like `{ "name": "formatter", "version": "1.2.0", "source": "./plugins/formatter" }` lets users run `copilot plugin install formatter@my-marketplace`.
+- Each plugin versions independently; adding one touches only its directory plus its catalog entry.
+- The catalog may live in the same repo (relative `source` paths) or in a separate catalog repo (GitHub `source` objects).
+
+Reach for multi-plugin only once a second plugin is planned or you want one register-and-browse catalog for a family of plugins — until then the root layout costs nothing. Real example: [dotnet/skills](https://github.com/dotnet/skills) keeps its domain plugins (ASP.NET Core, MAUI, test, upgrade, …) under `plugins/` behind a single catalog; a new skill joins the best-matching domain plugin, and a new plugin is created only when no domain fits. Moving an existing plugin out of the repo root changes every install path and catalog `source` — ship that as a breaking change.
+
+## Plugin Directory Layout (Agent Plugins 1.0)
 
 ```text
 my-plugin/
@@ -71,12 +106,13 @@ Ask the user these questions (one at a time, skip if already specified):
 2. **Which components?** — Skills, agents, hooks, commands, MCP servers, or a combination
 3. **Which runtimes?** — Copilot CLI, VS Code/Agents Window, Copilot app, SDK (drives the test matrix)
 4. **Plugin name?** — 1–64 chars, lowercase ASCII letters, digits, hyphens, periods
+5. **One plugin or a family?** — Repo Layout decides where it lives; default to single-plugin
 
 If unsure about components, suggest the simplest approach: a single skill.
 
 ### Phase 2: Scaffold the Plugin
 
-Create the directory structure with `plugin.json`:
+Place the plugin per **Repo Layout** above — repository root for a single-plugin repo, `plugins/<name>/` for a multi-plugin repo — then create its component structure with `plugin.json`:
 
 ```json
 {
@@ -211,17 +247,20 @@ Components are cached — re-run `copilot plugin install ./my-plugin` after edit
 ### Phase 5: Distribute
 
 **Local development:**
+
 ```bash
 copilot plugin install ./my-plugin
 ```
 
 **From GitHub repo:**
+
 ```bash
 copilot plugin install OWNER/REPO
 copilot plugin install OWNER/REPO:PATH/TO/PLUGIN
 ```
 
 **Via marketplace:** users register and browse with:
+
 ```bash
 copilot plugin marketplace add OWNER/REPO      # or a local path / .git URL
 copilot plugin marketplace browse my-marketplace
@@ -230,22 +269,37 @@ copilot plugin install my-plugin@my-marketplace
 
 In VS Code, marketplaces are configured with `chat.plugins.marketplaces` (shorthand `owner/repo`, `.git` URL, SCP-style remote, or `file:` URI; pin with `#<ref>` or a full 40-character commit SHA). Organizations govern plugins with `enabledPlugins`, `extraKnownMarketplaces`, and `strictKnownMarketplaces` in `managed-settings.json` across VS Code, CLI, the Copilot app, and Copilot cloud agent.
 
-For marketplace schema, versioning, and distribution details, see `references/marketplace-guide.md`.
+### Maintain the Catalog
+
+Nothing generates `marketplace.json` — it is a hand-maintained index of the repo's plugin directories. On any plugin addition, removal, rename, or description edit, land the catalog edit in the same commit, holding these invariants:
+
+- Every plugin directory has exactly one entry, and every entry resolves to a plugin directory. An unlisted plugin is an **orphan**: invisible to `marketplace browse`, installable only by full path.
+- Entry `name` and `description` mirror the plugin's `plugin.json`; `source` points at its directory.
+- Entry `version`, when present, mirrors `plugin.json` (see Version Bump).
+
+Verify the catalog against the repo:
+
+```bash
+python3 scripts/verify-version-sync.py <marketplace-dir>
+```
+
+The script exits non-zero on version or name drift and warns on orphans, description divergence, and unresolvable sources. For schema, source types, versioning, and multi-host catalogs (one catalog per host), see `references/marketplace-guide.md` → "Maintaining the Catalog".
 
 ### Version Bump
 
 When bumping a plugin's version, **always update both files atomically**:
 
 1. `plugin.json` → `version` (source of truth)
-2. `marketplace.json` → `plugins[name=X].version` (must mirror plugin.json)
+2. `marketplace.json` → `plugins[name=X].version` (when your entries carry `version`, it must mirror plugin.json)
 
-These MUST match. Drift causes users to miss updates or install unexpected versions. See `references/marketplace-guide.md` → "Bump Procedure" for the full checklist including verification and commit steps.
+When present, these MUST match. Drift causes users to miss updates or install unexpected versions. See `references/marketplace-guide.md` → "Bump Procedure" for the full checklist including verification and commit steps.
 
 ## SDK Usage
 
-The `@github/copilot-sdk` provides programmatic control via JSON-RPC. Supports 6 languages: TypeScript, Python, Go, .NET, Rust, Java. Agent Plugins 1.0 support is generally available in the SDK.
+The `@github/copilot-sdk` provides programmatic control via JSON-RPC. Supports 6 languages: TypeScript, Python, Go, .NET, Rust, Java. Agent Plugins 1.0 support is generally available in the SDK, and the SDK manages CLI process lifecycle automatically.
 
 Quick start (TypeScript):
+
 ```typescript
 import { CopilotClient, approveAll } from "@github/copilot-sdk";
 
@@ -262,30 +316,6 @@ await client.stop();
 
 For SDK examples in all languages, custom tools, streaming, plugin loading, and MCP configuration, see `references/sdk-examples.md`.
 
-## Component Reference
-
-| Component | Format | Location (Agent Plugins 1.0) | Portable | Purpose |
-|-----------|--------|------------------------------|----------|---------|
-| Skill | `SKILL.md` | `skills/<name>/SKILL.md` | Yes | Inject context/instructions |
-| MCP Server | `mcp.json` | `mcp.json` | Yes | External tool providers |
-| Agent | `.agent.md` | `com.github.copilot/agents/*.agent.md` | No | Scoped sub-agents |
-| Command | `.md` | `com.github.copilot/commands/` | No | `/` slash commands |
-| Rule | — | `com.github.copilot/rules/` | No | Standing instructions |
-| Hook | `hooks.json` | `com.github.copilot/hooks/hooks.json` | No | Lifecycle callbacks |
-| LSP Server | `lsp.json` | `com.github.copilot/lsp.json` | No | Language server integration |
-| Canvas / extension | — | `com.github.copilot/` namespace | No | Loaded by Copilot CLI and the Copilot app |
-| Automation | `.automation.md` | `automations/` (VS Code) | No | Prompt + schedule templates |
-
-## Key Concepts
-
-- **Agent Plugins 1.0** is the open, vendor-neutral standard from `agent-plugins.org` (spec: `github/agentplugins/agent-plugins-spec`); GA 2026-08-12 across VS Code, Copilot CLI, Copilot SDK, and the Copilot app
-- Portable core = `skills/` + `mcp.json`; everything Copilot-specific lives under the `com.github.copilot/` namespace
-- Legacy Copilot-format plugins remain supported — no migration required; migrate only for portability or to adopt fixed component locations
-- Legacy **Copilot Extensions** (GitHub App–based tools/commands/canvas platform) were sunset November 10, 2025 — do not build new ones on it
-- Plugins are **file-based** — no compilation or build step required
-- Hooks and MCP servers run code on the user's machine — review before installing from community marketplaces
-- The SDK manages CLI process lifecycle automatically
-
 ## Authoritative Sources
 
 - [Agent Plugins specification](https://agent-plugins.org/) — portable format, schemas, governance
@@ -298,7 +328,7 @@ For SDK examples in all languages, custom tools, streaming, plugin loading, and 
 
 ## References
 
-- `references/plugin-manifest.md` — Full manifest schema, fields, and validation
-- `references/sdk-examples.md` — SDK usage in all 6 languages with custom tools, streaming, plugin loading, MCP
-- `references/hook-lifecycle.md` — All hook events with input/output signatures
-- `references/marketplace-guide.md` — Creating and distributing through marketplaces
+- [references/plugin-manifest.md](references/plugin-manifest.md) — Full manifest schema, fields, and validation
+- [references/sdk-examples.md](references/sdk-examples.md) — SDK usage in all 6 languages with custom tools, streaming, plugin loading, MCP
+- [references/hook-lifecycle.md](references/hook-lifecycle.md) — All hook events with input/output signatures
+- [references/marketplace-guide.md](references/marketplace-guide.md) — Marketplace schema, catalog maintenance, versioning, and distribution
