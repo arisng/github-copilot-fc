@@ -46,11 +46,11 @@ function Invoke-CopilotWorkspaceCommand {
         'agents:publish'       = "pwsh -NoProfile -File scripts/publish/publish-agents.ps1$stagingArg"
         'hooks:publish'        = "pwsh -NoProfile -File scripts/publish/publish-hooks.ps1$stagingArg"
         'instructions:publish' = "pwsh -NoProfile -File scripts/publish/publish-instructions.ps1$stagingArg"
-        'prompts:publish'      = 'pwsh -NoProfile -File scripts/publish/publish-prompts.ps1'
         'skills:publish'       = 'pwsh -NoProfile -File scripts/publish/publish-skills.ps1'
         'toolsets:publish'     = 'pwsh -NoProfile -File scripts/publish/publish-toolsets.ps1'
         'tests:ralph-cli-smoke' = 'pwsh -NoProfile -File scripts/test/ralph-v2-cli-smoke.ps1'
         'tests:byok-features'  = 'pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1'
+        'tests:skills-pytest'  = 'python3 -m pytest skills -q'
         'tests:subsession-audit' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1'
         'tests:subsession-audit-live' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1 -Live'
         'tests:triage-backlog' = 'pwsh -NoProfile -File skills/triage-backlog/scripts/tests/test-triage.ps1'

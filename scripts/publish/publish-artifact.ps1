@@ -11,8 +11,8 @@ param(
 # It simply forwards the user’s arguments to the appropriate helper script and
 # emits a single diagnostic line so that callers know the command ran.
 #
-# Pattern matching is performed inside each helper (publish-agents, publish-prompts,
-# etc.).  Those scripts all accept wildcard names (`*`/`?`) and will warn if the
+# Pattern matching is performed inside each helper (publish-agents,
+# publish-instructions, etc.).  Those scripts all accept wildcard names (`*`/`?`) and will warn if the
 # pattern matches nothing.  To avoid PowerShell globbing the pattern against the
 # current directory, quote it at the command line: e.g. `-Name "ralphV2*"`.
 #
@@ -43,14 +43,8 @@ switch ($Type.ToLower()) {
         & "$PSScriptRoot/publish-instructions.ps1" -Instructions $Name @forward
     }
     "prompt" {
-        # call the prompt publisher directly using named params.  This avoids
-        # unpredictable behaviour when using splatting and prevents the wildcard
-        # string from being misinterpreted as a positional argument.
-        if ($Force) {
-            & "$PSScriptRoot/publish-prompts.ps1" -Prompts $Name -Force
-        } else {
-            & "$PSScriptRoot/publish-prompts.ps1" -Prompts $Name
-        }
+        Write-Error "Prompt publishing was retired: GitHub Copilot deprecated prompt files (.prompt.md). Archived copies live under .archived/prompts/."
+        exit 1
     }
     "skill" {
         if ($Force) {
@@ -78,7 +72,7 @@ switch ($Type.ToLower()) {
         }
     }
     default {
-        Write-Error "Unknown type: $Type. Supported types: agent, instruction, prompt, skill, toolset, hook, plugin"
+        Write-Error "Unknown type: $Type. Supported types: agent, instruction, skill, toolset, hook, plugin"
         exit 1
     }
 }
