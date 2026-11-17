@@ -1,0 +1,28 @@
+{
+  // Markdown lint for the Copilot FC workspace — mechanical rules only.
+  // Wired into scripts/workspace/workspace-check.ps1, which passes the .md files
+  // changed in the working tree / pending branch commits (a ratchet: touch it, fix it).
+  // No "globs" here on purpose: inputs come from the caller so a bare config
+  // can never fan out to a whole-repo lint of legacy docs.
+  "config": {
+    "default": true,
+    "MD013": false, // line length — tables, command lines, and wiki prose run long by design
+    "MD024": { "siblings_only": true }, // repeated section names across different parents are fine
+    "MD033": false, // inline HTML (details/badges) appears in older docs
+    "MD036": false, // bold lead-ins are used as pseudo-headings in some lists
+    "MD028": false, // consecutive admonition blocks (CRITICAL/IMPORTANT) are intentional
+    "MD060": false // table pipe style — legacy tables mix compact/aligned styles everywhere
+  },
+  "ignores": [
+    "**/node_modules/**",
+    "**/.archived/**",
+    "**/.build/**",
+    "**/.playwright-cli/**",
+    ".ralph-sessions/**",
+    "scripts/test/.artifacts/**",
+    "workshops/**",
+    ".issues/**",
+    "evals/**/fixtures/**",
+    "evals/**/results/**"
+  ]
+}
