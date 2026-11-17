@@ -8,7 +8,6 @@ Use this repository to create, validate, and distribute:
 - Custom Agents (`agents/*.agent.md`)
 - Agent Hooks (`hooks/<name>/<name>.json`)
 - Custom Instructions (`instructions/*.instructions.md`)
-- Prompt files (`prompts/*.prompt.md`)
 - Skills (`skills/<skill-name>/SKILL.md`)
 - Tools inventory (`tools/`)
 
@@ -27,13 +26,12 @@ The repository is operationally script-driven: VS Code tasks are convenience wra
 - `agents/`: active agent definitions plus `agents/ralph-v2/` system docs.
 - `hooks/`: agent hook configurations organized as per-hook directories with manifests and companion scripts; publish manifests to `.github/hooks/`.
 - `instructions/`: reusable instruction files; `instructions/.archived/` for superseded items.
-- `prompts/`: reusable prompt files for workflow automation.
 - `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
 - `skills/`: skill factory source; publish from here to personal skill folders.
 - `tools/`: cross-runtime tools inventory, tool docs, and VS Code toolsets under `tools/vscode/toolsets/`.
 - `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
 - `scripts/`: automation entry points:
-  - `scripts/publish/`: publish agents, hooks, instructions, prompts, skills, toolsets.
+  - `scripts/publish/`: publish agents, hooks, instructions, skills, toolsets.
   - `scripts/issues/`: issue metadata extraction and indexing.
   - `scripts/workspace/`: workspace command router.
   - `scripts/changelog/`: weekly changelog generation.
@@ -48,11 +46,12 @@ Archived locations that should not be used as authoring templates:
 - `agents/.archived/`
 - `instructions/.archived/`
 - `skills/playwright-cli-archived/`
+- `.archived/prompts/` (retired — GitHub Copilot deprecated prompt files)
 
 ## Quickstart
 
-1. Edit or add artifacts in `plugins/`, `agents/`, `hooks/`, `instructions/`, `prompts/`, `skills/`, or `tools/`.
-2. Validate changes locally in the workspace.
+1. Edit or add artifacts in `plugins/`, `agents/`, `hooks/`, `instructions/`, `skills/`, or `tools/`.
+2. Validate changes locally: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 workspace:check`.
 3. Publish with scripts under `scripts/publish/`.
 
 ## Terminal-First Commands
@@ -83,10 +82,10 @@ Current command map is implemented directly in `scripts/workspace/run-command.ps
 - `agents:publish`
 - `hooks:publish`
 - `instructions:publish`
-- `prompts:publish`
 - `skills:publish`
 - `toolsets:publish`
 - `issues:reindex`
+- `tests:skills-pytest`
 - `workspace:check`
 - `workspace:list-skills`
 - `workspace:status`
@@ -96,7 +95,7 @@ Current command map is implemented directly in `scripts/workspace/run-command.ps
 Quality gates run locally from repo scripts — this repo intentionally uses no cloud CI workflows:
 
 ```powershell
-# Run all checks: TOC freshness, OpenSpec validators, waza (advisory)
+# Run all checks: TOC freshness, waza (advisory), skill pytest, markdown lint
 pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
 # or via the dispatcher:
 pwsh -NoProfile -File scripts/workspace/run-command.ps1 workspace:check
@@ -118,7 +117,6 @@ Publish scripts are the canonical distribution path (skills/plugins have preferr
 - `scripts/publish/publish-agents.ps1` (supports `-CopilotHome` staging override)
 - `scripts/publish/publish-hooks.ps1` (supports `-CopilotHome` staging override)
 - `scripts/publish/publish-instructions.ps1` (supports `-CopilotHome` staging override)
-- `scripts/publish/publish-prompts.ps1`
 - `scripts/publish/publish-toolsets.ps1`
 - `scripts/publish/publish-artifact.ps1` (type-based router)
 - ~~`scripts/publish/publish-skills.ps1`~~ **deprecated** — prefer `npx skills <options>` (Skills CLI)
@@ -126,7 +124,7 @@ Publish scripts are the canonical distribution path (skills/plugins have preferr
 
 Publish destination behavior:
 
-- Agents, instructions, prompts, and VS Code toolsets are copied to VS Code user prompts paths:
+- Agents, instructions, and VS Code toolsets are copied to VS Code user prompts paths:
   - `%APPDATA%/Code/User/prompts`
   - `%APPDATA%/Code - Insiders/User/prompts`
 - Hooks are copied to workspace `.github/hooks/` for VS Code agent hook discovery.
@@ -139,7 +137,6 @@ Publish destination behavior:
 Wildcard patterns are supported by helpers for name selection. Quote patterns to avoid shell expansion.
 
 ```powershell
-pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type prompt -Name "git*"
 pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name "playwright*" -Force
 ```
 
@@ -155,15 +152,9 @@ Primary documentation sections in `.docs/`:
 - `explanation/`
 - `research/`
 
-## Prompt Locations
-
-- `prompts/`: primary authoring location for prompt files.
-- `.github/prompts/`: additional prompt assets used by repository workflows.
-- When the same prompt exists in both places, treat `prompts/` as source for publish scripts.
-
 ## Artifact Scope
 
-- Agents, hooks, instructions, prompts, toolsets: Copilot-focused artifacts.
+- Agents, hooks, instructions, toolsets: Copilot-focused artifacts.
 - Skills: cross-platform reusable assets (Copilot, Codex, Claude workflows).
 
 ## VS Code Tasks
@@ -180,28 +171,10 @@ Workspace tasks are wrappers for script entry points. The same behavior should r
 - Agent file naming: `agents/<name>.agent.md`
 - Hook file naming: `hooks/<name>/<name>.json`
 - Instruction naming: `instructions/<name>.instructions.md`
-- Prompt naming: `prompts/<name>.prompt.md`
 - Skill folder requirement: `skills/<name>/SKILL.md`
 - Tools inventory root: `tools/`
 - VS Code toolset naming: `tools/vscode/toolsets/<name>.toolsets.jsonc`
 - Use forward slashes in markdown links.
-
-## OpenSpec Specifications
-
-Behavioral specifications for the Ralph v2 multi-agent system live under `openspec/specs/ralph-v2-orchestration/`. Each domain has its own `spec.md` following the OpenSpec SDD convention.
-
-| Domain        | Path                                                          | Description                                                                         |
-| ------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Session       | `openspec/specs/ralph-v2-orchestration/session/spec.md`       | Abstract vocabulary, session/iteration model, artifact ownership, progress tracking |
-| Signals       | `openspec/specs/ralph-v2-orchestration/signals/spec.md`       | Live intervention protocol — 4 signal types, acknowledgment, polling                |
-| Orchestration | `openspec/specs/ralph-v2-orchestration/orchestration/spec.md` | 10-state machine, transitions, routing, messenger protocol                          |
-| Planning      | `openspec/specs/ralph-v2-orchestration/planning/spec.md`      | 9-mode task management, breakdown algorithm, grounding                              |
-| Discovery     | `openspec/specs/ralph-v2-orchestration/discovery/spec.md`     | 3-mode Q&A discovery, research protocol                                             |
-| Execution     | `openspec/specs/ralph-v2-orchestration/execution/spec.md`     | Single-task execution model, rework, dependency inheritance                         |
-| Review        | `openspec/specs/ralph-v2-orchestration/review/spec.md`        | 4-mode quality assurance, version control commit                                    |
-| Knowledge     | `openspec/specs/ralph-v2-orchestration/knowledge/spec.md`     | 4-stage Diátaxis knowledge pipeline                                                 |
-
-> **Deprecated specs**: The 3 ad-hoc specs under `agents/ralph-v2/specs/` (`normalization.spec.md`, `live-signals.spec.md`, `ralph-v2-stop-hook-metadata-finalization.spec.md`) are deprecated. Each contains a `superseded_by:` pointer to its OpenSpec replacement.
 
 ## Related References
 
@@ -210,7 +183,6 @@ Behavioral specifications for the Ralph v2 multi-agent system live under `opensp
 - Skills-specific guidance: `skills/README.md`
 - Tools inventory: `tools/inventory.yaml`
 - Ralph v2 system docs: `agents/ralph-v2/README.md`
-- OpenSpec configuration: `openspec/config.yaml`
 
 ## Troubleshooting
 
