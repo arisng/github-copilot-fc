@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)]
     [string]$Slug,
 
-    [ValidateSet('feature', 'fix', 'experiment', 'openspec', 'release', 'hotfix', 'branch')]
+    [ValidateSet('feature', 'fix', 'experiment', 'release', 'hotfix', 'branch')]
     [string]$Mode = 'feature',
 
     [string]$BaseBranch = 'main',
@@ -93,7 +93,6 @@ else {
         'feature' { "feature/$(Join-NameParts -Parts @($today, $slugToken, $sessionToken))" }
         'fix' { "fix/$(Join-NameParts -Parts @($today, $slugToken, $sessionToken))" }
         'experiment' { "experiment/$(Join-NameParts -Parts @($today, $slugToken, $sessionToken))" }
-        'openspec' { "openspec/$(Join-NameParts -Parts @($today, $slugToken, $sessionToken))" }
         'release' { "release/$slugToken" }
         'hotfix' { "hotfix/$slugToken" }
         'branch' { throw 'Branch mode requires -Branch.' }

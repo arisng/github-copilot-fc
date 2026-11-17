@@ -20,7 +20,7 @@ This skill uses **only native `git worktree` commands**. Optional helper scripts
 
 ## Core Concept
 
-```
+```text
 Primary repo (integration surface, read-only during sessions)
 ├── .git/
 ├── src/
@@ -45,13 +45,13 @@ Primary repo (integration surface, read-only during sessions)
 | Feature work | `feature/<date>-<slug>` | `feature/250715-login-redesign` |
 | Fix/bug | `fix/<date>-<slug>` | `fix/250715-null-pointer` |
 | Experiment | `experiment/<slug>` | `experiment/rust-backend` |
-| OpenSpec delta | `openspec/<date>-<slug>` | `openspec/250726-add-pagination` |
 | Release | `release/<version>` | `release/2.5.0` |
 | Hotfix | `hotfix/<slug>` | `hotfix/login-timeout` |
 
 Use `YYYYMMDD` date prefix to keep branches sorted and avoid collisions.
 
 Slash (`/`) in branch names becomes dash (`-`) in worktree folder names:
+
 - `feature/250715-login-redesign` → folder `feature-250715-login-redesign`
 - `hotfix/login-timeout` → folder `hotfix-login-timeout`
 
@@ -155,7 +155,7 @@ This skill provides optional PowerShell scripts in `scripts/` to automate repeti
 
 | Script | What it does | Key parameters |
 |---|---|---|
-| `New-GitWorktreeSession.ps1` | Fetches origin, creates detached worktree, creates task branch | `-Slug` (required), `-Mode` (feature/fix/experiment/openspec/release/hotfix/branch), `-BaseBranch`, `-SessionId`, `-Branch`, `-WorktreeName`, `-SyncBase`, `-BootstrapCommand` |
+| `New-GitWorktreeSession.ps1` | Fetches origin, creates detached worktree, creates task branch | `-Slug` (required), `-Mode` (feature/fix/experiment/release/hotfix/branch), `-BaseBranch`, `-SessionId`, `-Branch`, `-WorktreeName`, `-SyncBase`, `-BootstrapCommand` |
 | `Integrate-GitWorktreeBranch.ps1` | Rebases onto integration branch, merges with configurable mode, optionally pushes | `-Branch` (required), `-BaseBranch`, `-MergeMode` (NoFastForward/FastForwardOnly/Squash), `-SkipFetch`, `-SkipRebase`, `-ValidationCommand`, `-Push` |
 | `Remove-GitWorktreeSession.ps1` | Removes worktree, prunes, optionally deletes local branch | `-Branch` or `-WorktreePath` (required, mutually exclusive), `-BaseBranch`, `-DeleteBranch`, `-Force` |
 

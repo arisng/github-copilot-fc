@@ -1,6 +1,6 @@
 ---
 name: copilot-cli-tools-inventory-refresh
-description: '**REFRESH SKILL** — Keep `tools/inventory.yaml` (the workspace cross-runtime tools inventory) accurate and up to date, grounded in the latest GitHub Copilot CLI. USE FOR: refreshing/updating the tools inventory after CLI updates; validating the inventory YAML schema; checking that CLI, VS Code, and GitHub Copilot tool spellings are current; detecting drift between the inventory and the live CLI surface (--available-tools/--excluded-tools, agent tools: aliases, built-in MCP servers); recording cli_version and last_verified metadata. DO NOT USE FOR: authoring new Copilot CLI customization files (use copilot-cli-agent-customization instead); general coding; VS Code toolset authoring (use the workspace publish-toolsets flow); OpenSpec spec maintenance.'
+description: '**REFRESH SKILL** — Keep `tools/inventory.yaml` (the workspace cross-runtime tools inventory) accurate and up to date, grounded in the latest GitHub Copilot CLI. USE FOR: refreshing/updating the tools inventory after CLI updates; validating the inventory YAML schema; checking that CLI, VS Code, and GitHub Copilot tool spellings are current; detecting drift between the inventory and the live CLI surface (--available-tools/--excluded-tools, agent tools: aliases, built-in MCP servers); recording cli_version and last_verified metadata. DO NOT USE FOR: authoring new Copilot CLI customization files (use copilot-cli-agent-customization instead); general coding; VS Code toolset authoring (use the workspace publish-toolsets flow).'
 metadata:
   author: arisng
   version: 0.1.0
@@ -98,7 +98,7 @@ These rules keep the YAML parseable and lossless (enforced by the validator):
 
 ## Common Pitfalls
 
-**Colons in notes break YAML.** A `tools:` or `foo: bar` sequence inside an unquoted `notes:` value is a YAML mapping error. Avoid `: ` sequences in unquoted strings, or quote the value.
+**Colons in notes break YAML.** A `tools:` or `foo: bar` sequence inside an unquoted `notes:` value is a YAML mapping error. Avoid colon-space sequences in unquoted strings, or quote the value.
 
 **The inventory counts 31 entries across 7 categories.** Verify after conversion/refresh that the category taxonomy is intact: `core-built-in`, `limited-applicability`, `builtin-mcp`, `custom-mcp`, `cli-surface`, `vscode-surface`, `agent-host`. In particular, no `cli-surface` family (`cli-shell-session-family`, `cli-file-write-family`, `cli-agent-management-family`, `cli-search-and-fetch-family`, `cli-orchestration-and-state-family`) or `vscode-surface` family (`vscode-terminal-family`, `vscode-memory`, `vscode-user-interaction`, `vscode-editor-control-family`) was dropped. Do not reintroduce a catch-all bucket such as the old `runtime-only` category; a runtime's concrete tool inventory belongs in that runtime's `*-surface` category, and an MCP tool set belongs in `custom-mcp`.
 

@@ -77,11 +77,11 @@ Review the codebase for security vulnerabilities:
     -Name "exec-plan" `
     -Prompt @"
 Execute the implementation plan at:
-  c:/Workplace/my-repo/openspec/changes/auth-impl/plan.md
-  c:/Workplace/my-repo/openspec/changes/auth-impl/tasks.md
+  c:/Workplace/my-repo/docs/plans/auth-impl/plan.md
+  c:/Workplace/my-repo/docs/plans/auth-impl/tasks.md
 
-Reference specs:
-  c:/Workplace/my-repo/openspec/specs/auth/spec.md
+Reference requirements:
+  c:/Workplace/my-repo/requirements/auth.md
 
 Working directory: c:/Workplace/my-repo
 Read each file before executing. Report progress after each step.
@@ -188,6 +188,7 @@ Inline newlines via `` `n `` also work: `-Prompt "Line 1`nLine 2`nLine 3"`.
 .\scripts\Invoke-CopilotCliSubSession.ps1 -Prompt "Execute the plan above" -Name "exec-auth" -SessionId $uuid
 .\scripts\Invoke-CopilotCliSubSession.ps1 -SlashCommand "review" -Name "review-auth" -SessionId $uuid
 ```
+
 ## Custom agent invocation (`-Agent`)
 
 Pin a specific agent to the sub-session. Plugin agents use **colon**: `plugin:agent-name`. Repo agents use bare name.
@@ -207,6 +208,7 @@ Pin a specific agent to the sub-session. Plugin agents use **colon**: `plugin:ag
 ```
 
 Agent discovery paths (in precedence order):
+
 1. `~/.copilot/agents/` (user-level)
 2. `.github/agents/` (repo-level)
 3. `plugin:agent-name` (qualified, from installed plugins)
@@ -231,11 +233,11 @@ When delegating to a sub-session, **always prioritize listing the full absolute 
     -Name "exec" `
     -Prompt @"
 Execute the implementation plan at:
-  c:/Workplace/my-repo/openspec/changes/auth-impl/plan.md
-  c:/Workplace/my-repo/openspec/changes/auth-impl/tasks.md
+  c:/Workplace/my-repo/docs/plans/auth-impl/plan.md
+  c:/Workplace/my-repo/docs/plans/auth-impl/tasks.md
 
-Reference specs:
-  c:/Workplace/my-repo/openspec/specs/auth/spec.md
+Reference requirements:
+  c:/Workplace/my-repo/requirements/auth.md
 
 Start from working directory: c:/Workplace/my-repo
 After each step, report progress.
@@ -259,9 +261,9 @@ After each step, report progress.
 
 | Context type | Files to reference by path |
 |--------------|----------------------------|
-| Implementation plan | `openspec/changes/*/plan.md`, `openspec/changes/*/tasks.md` |
-| Research findings | `openspec/research/*.md`, `docs/design-docs/*.md` |
-| Specifications | `openspec/specs/**/spec.md`, `requirements/*.md` |
+| Implementation plan | `docs/plans/*/plan.md`, `docs/plans/*/tasks.md` |
+| Research findings | `docs/design-docs/*.md`, `research/*.md` |
+| Requirements | `requirements/*.md`, `docs/requirements/*.md` |
 | Active task checklist | Current todo list, task breakdown |
 | Configuration / conventions | `.github/git-scope-constitution.md`, relevant `*.agent.md` |
 | **Copilot CLI session state** | `~/.copilot/session-state/<session-uuid>/` (see below) |
@@ -338,6 +340,7 @@ To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstruct
 
 1. **Edit** the artifact under test — e.g. `scripts/Invoke-CopilotCliSubSession.ps1`, this `SKILL.md`, or a referenced skill/agent.
 2. **Stage it** — repo-level skills/agents/hooks are picked up from the working directory (`.github/skills/`, `.github/agents/`, `.github/hooks/`) with **no extra step** (discovery is workspace-relative, independent of `COPILOT_HOME`). Personal-level artifacts can be staged with the publish scripts' `-CopilotHome` override:
+
    ```powershell
    # Agents → <CopilotHome>/agents (skips WSL mirroring)
    pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -CopilotHome "$HOME\.copilot-dojo" -Force
@@ -351,10 +354,13 @@ To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstruct
    # Or direct copy for anything else
    Copy-Item -Recurse "$PWD\skills\copilot-cli-subsession" "$HOME\.copilot-dojo\skills\"
    ```
+
 3. **Spawn** a sub-session in staging:
+
    ```powershell
    .\scripts\Invoke-CopilotCliSubSession.ps1 -CopilotHome "$HOME\.copilot-dojo" -Prompt "test the change"
    ```
+
 4. **Observe** — the returned object's `CopilotHome` confirms the child used staging; session artifacts live under `$HOME\.copilot-dojo\session-state\<session-uuid>\`.
 5. **Iterate** — repeat 1–4. Staging is never re-seeded and never auto-cleaned, so state persists across iterations; delete the tree to reset.
 
