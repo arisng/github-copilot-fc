@@ -66,24 +66,23 @@ Medium confidence: the public sources I reviewed do not fully spell out every de
 
 ## Footnotes
 
-[^1]: GitHub Docs, "About GitHub Copilot CLI" — https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli. This page lists the official CLI customization surfaces (custom instructions, MCP servers, custom agents, hooks, skills, memory) and documents `-p` / `--prompt` for programmatic prompts.
+[^1]: GitHub Docs, "About GitHub Copilot CLI" — <https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli>. This page lists the official CLI customization surfaces (custom instructions, MCP servers, custom agents, hooks, skills, memory) and documents `-p` / `--prompt` for programmatic prompts.
 
-[^2]: GitHub Docs, "GitHub Copilot CLI plugin reference" — https://docs.github.com/en/copilot/reference/cli-plugin-reference. This page documents `plugin.json` and its `commands` component path, plus the plugin install flow and precedence rules where skills override commands.
+[^2]: GitHub Docs, "GitHub Copilot CLI plugin reference" — <https://docs.github.com/en/copilot/reference/cli-plugin-reference>. This page documents `plugin.json` and its `commands` component path, plus the plugin install flow and precedence rules where skills override commands.
 
-[^3]: GitHub Docs, "Prompt files" — https://docs.github.com/en/copilot/tutorials/customization-library/prompt-files. This page says prompt files are reusable prompt examples and are only available in VS Code, Visual Studio, and JetBrains IDEs.
+[^3]: GitHub Docs, "Prompt files" — <https://docs.github.com/en/copilot/tutorials/customization-library/prompt-files>. This page says prompt files are reusable prompt examples and are only available in VS Code, Visual Studio, and JetBrains IDEs.
 
-[^4]: Visual Studio Code docs, "Prompt files" — https://code.visualstudio.com/docs/copilot/customization/prompt-files. This page says prompt files are also known as slash commands, explains `/name` invocation in chat, and recommends prompt files for lightweight prompts and skills for multi-file capabilities.
+[^4]: Visual Studio Code docs, "Prompt files" — <https://code.visualstudio.com/docs/copilot/customization/prompt-files>. This page says prompt files are also known as slash commands, explains `/name` invocation in chat, and recommends prompt files for lightweight prompts and skills for multi-file capabilities.
 
 [^5]: `C:\Workplace\Agents\github-copilot-fc\plugins\README.md:3-4,36-68,71-83,113-131,161-171`. The repository's plugin docs describe plugins as bundles of agents, skills, commands, hooks, MCP servers, and LSP servers; they also document the supported CLI install flow and note that instructions are not a plugin field.
 
 [^6]: `C:\Workplace\Agents\github-copilot-fc\scripts\publish\build-plugins.ps1:1186-1299,1351-1363` and `C:\Workplace\Agents\github-copilot-fc\scripts\publish\publish-plugins.ps1:21-31,64-83`. These scripts show that `commands` is an official component field, component paths are copied into runtime bundles, and CLI plugins are installed from the built local bundle with `copilot plugin install`.
 
-[^7]: `C:\Workplace\Agents\github-copilot-fc\scripts\publish\publish-prompts.ps1:10-17,39-43,58-83,99-122`. This script publishes prompt files from `prompts/` to VS Code Stable and Insiders user prompt directories.
+[^7]: Historical: `scripts/publish/publish-prompts.ps1` (removed 2026-11) published prompt files from `prompts/` to VS Code Stable and Insiders user prompt directories. Workspace copies moved to `.archived/prompts/` when GitHub Copilot deprecated prompt files.
 
 [^8]: `C:\Workplace\Agents\github-copilot-fc\scripts\publish\publish-instructions.ps1:26-29`. This script explicitly says CLI instruction publishing is intentionally excluded because concatenating all instruction files would overload the CLI context window.
 
 [^9]: `C:\Workplace\Agents\github-copilot-fc\.github\prompts\publishPrompt.prompt.md:1-27`. This prompt file shows the workspace's pattern for command-like reusable prompts: YAML frontmatter with `name`, `description`, `argument-hint`, and `agent`, plus a body that runs the publish script.
-
 
 [^11]: [github/awesome-copilot](https://github.com/github/awesome-copilot) — `eng/update-plugin-commands-to-skills.mjs`. This maintainer script converts plugin `./commands/foo.md` entries into `./skills/foo/`, which is a strong indicator that command files are Markdown single-file definitions.
 

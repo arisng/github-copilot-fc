@@ -355,7 +355,7 @@ tools:
 - **Use agents**: For complex, reusable workflows, create an agent with the prompt content embedded in its instructions
 - **Use `--prompt` flag**: Pass prompt content directly via CLI flag for one-off use
 
-**No publish-prompts.ps1 changes needed** — prompts remain a VS Code-specific artifact.
+**`publish-prompts.ps1` retired (2026-11):** GitHub Copilot deprecated prompt files; the script was removed and workspace copies moved to `.archived/prompts/`.
 
 ---
 
@@ -366,6 +366,7 @@ This section specifies the changes needed to make `publish-instructions.ps1` sup
 ### Current state
 
 `publish-instructions.ps1` copies `instructions/*.instructions.md` files to:
+
 - `%APPDATA%\Code\User\prompts\` (VS Code Stable)
 - `%APPDATA%\Code - Insiders\User\prompts\` (VS Code Insiders)
 
@@ -515,7 +516,7 @@ Publish-InstructionsToCopilotCliDirs -ProjectInstructionsPath $projectInstructio
 | `publish-skills.ps1`       | Already targets `~/.copilot/skills/`         | ~~Deprecated~~ — prefer `npx skills <options>` |
 | `publish-instructions.ps1` | VS Code only                                 | ⚠️ Needs update (see implementation plan above; supports `-CopilotHome` staging) |
 | `publish-hooks.ps1`        | Publishes to `.github/hooks/` (works in CLI) | ✅ No changes needed (supports `-CopilotHome` staging) |
-| `publish-prompts.ps1`      | VS Code only, no CLI equivalent              | ℹ️ No changes possible                          |
+| ~~`publish-prompts.ps1`~~ | Retired (2026-11) — prompt files deprecated | 🛑 Removed                                  |
 | `publish-toolsets.ps1`     | VS Code only, CLI uses flags                 | ℹ️ No changes possible                          |
 
 ---

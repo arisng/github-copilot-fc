@@ -6,20 +6,21 @@ category: explanation
 
 ## The Problem
 
-When a skill (e.g., `openspec-sdd`) travels across repositories, its guidance must work in diverse environments — single-system repos, multi-workflow monorepos, greenfield and brownfield codebases. But a specific workspace may need stricter rules than the skill's generic defaults.
+When a skill travels across repositories, its guidance must work in diverse environments — single-system repos, multi-workflow monorepos, greenfield and brownfield codebases. But a specific workspace may need stricter rules than the skill's generic defaults.
 
 ## The Solution: Intentional Asymmetry
 
 The three-layer architecture deliberately allows **asymmetric strictness**:
 
-- **Portable layer** (SKILL.md + reference docs): Generic, permissive defaults. Example: "For a single-system repository, `openspec/specs/<domain>/spec.md` is fine."
-- **Workspace layer** (instruction file): Stricter, workspace-specific enforcement. Example: "Never place domain specs directly under `openspec/specs/`. All domains must nest under a workflow-scoped subdirectory."
+- **Portable layer** (SKILL.md + reference docs): Generic, permissive defaults. Example: "For a single-system repository, keeping domain specs under `specs/<domain>/` is fine."
+- **Workspace layer** (instruction file): Stricter, workspace-specific enforcement. Example: "Never place domain specs directly under `specs/`. All domains must nest under a workflow-scoped subdirectory."
 
 This is not a contradiction — it is intentional layering. The portable skill offers the broadest correct guidance; the workspace instruction narrows it for the current environment.
 
 ## When to Apply
 
 Use this pattern when:
+
 - A skill's rules depend on repository structure (single vs multi-system, naming conventions)
 - The workspace has conventions that go beyond the portable skill's defaults
 - The instruction file's `applyTo` scope activates only in the relevant workspace context
@@ -34,6 +35,7 @@ Use this pattern when:
 ## Validation Checklist
 
 When auditing this layering:
+
 - Confirm portable artifacts don't accidentally adopt workspace-specific rules (over-tightening)
 - Confirm workspace instructions don't contradict portable rules (only narrow them)
 - Confirm both layers use consistent terminology for shared concepts

@@ -64,7 +64,7 @@ Place your customization files in the directories declared by the component path
 
 ### Self-contained layout (for distribution)
 
-```
+```text
 plugins/cli/my-plugin/
   plugin.json
   agents/
@@ -89,8 +89,7 @@ For workspace plugins that reference existing artifacts, use relative paths in `
   "hooks": "../../hooks/",
   "skills": [
     "../../skills/diataxis/",
-    "../../skills/git-atomic-commit/",
-    "../../skills/openspec-sdd/"
+    "../../skills/git-atomic-commit/"
   ]
 }
 ```
