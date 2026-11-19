@@ -2,6 +2,9 @@
 name: context7-cli
 description: CLI tool for managing AI coding skills across different AI assistants like Claude, Cursor, and others. Use when you need to search, install, generate, or manage AI coding skills using the Context7 registry. Supports authentication, skill discovery, installation, and generation workflows.
 version: 1.0.0
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # Context7 CLI
@@ -85,6 +88,7 @@ ctx7 skills g
 ```
 
 The generation process:
+
 1. Describe the expertise you want (e.g., "OAuth authentication with NextAuth.js")
 2. Select relevant libraries from search results
 3. Answer clarifying questions

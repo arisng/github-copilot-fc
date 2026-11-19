@@ -2,6 +2,9 @@
 name: cap
 description: Comprehensive guidance for implementing distributed transactions and event bus patterns using DotNetCore.CAP library. Use when working with CAP for microservices event-driven architecture, message publishing/subscribing, outbox pattern implementation, and integration with message queues like RabbitMQ, Kafka, Azure Service Bus, and databases like SQL Server, PostgreSQL, MongoDB.
 version: 1.0.0
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # CAP (DotNetCore.CAP) Skill
@@ -20,23 +23,27 @@ An EventBus is a mechanism that allows different components to communicate with 
 ## Key Capabilities
 
 ### Setup and Configuration
+
 - Installing CAP packages for different transports and storage providers
 - Configuring CAP in ASP.NET Core applications
 - Setting up message queues (RabbitMQ, Kafka, Azure Service Bus, etc.)
 - Configuring databases (SQL Server, PostgreSQL, MySQL, MongoDB)
 
 ### Publishing Messages
+
 - Publishing events within transactions
 - Delayed message publishing
 - Message headers and metadata
 
 ### Subscribing to Messages
+
 - Controller-based subscriptions
 - Service-based subscriptions with ICapSubscribe
 - Consumer groups and load balancing
 - Asynchronous message processing
 
 ### Advanced Features
+
 - Partial topic subscriptions
 - Custom serialization
 - Monitoring with dashboard
@@ -47,11 +54,13 @@ An EventBus is a mechanism that allows different components to communicate with 
 ### 1. Installation
 
 Install the main CAP package:
+
 ```bash
 dotnet add package DotNetCore.CAP
 ```
 
 Choose your transport (message queue):
+
 ```bash
 # RabbitMQ
 dotnet add package DotNetCore.CAP.RabbitMQ
@@ -64,6 +73,7 @@ dotnet add package DotNetCore.CAP.AzureServiceBus
 ```
 
 Choose your storage provider:
+
 ```bash
 # SQL Server
 dotnet add package DotNetCore.CAP.SqlServer
@@ -175,6 +185,7 @@ await _capPublisher.PublishDelayAsync(
 ### Monitoring
 
 Use the CAP dashboard to monitor message status:
+
 - Access at `/cap` by default
 - View published and received messages
 - Manually retry failed messages
@@ -183,6 +194,7 @@ Use the CAP dashboard to monitor message status:
 ## References
 
 See [references/](references/) for detailed documentation on:
+
 - [Configuration options](references/configuration.md)
 - [Message patterns](references/patterns.md)
 - [Troubleshooting guide](references/troubleshooting.md)

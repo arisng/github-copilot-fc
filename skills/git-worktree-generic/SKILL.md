@@ -1,6 +1,9 @@
 ---
 name: git-worktree-generic
 description: "Create, manage, and clean up git worktrees using native git commands only. Works with any language, any repo, any platform — no custom scripts, no framework assumptions, no workspace-specific conventions. Use when the user says: 'create a worktree', 'worktree session', 'parallel branches', 'work on multiple features', 'new branch without switching', 'clean up worktree', 'remove worktree', 'git worktree', 'detached worktree', or any request involving working on two branches at once."
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # Git Worktree (Generic)

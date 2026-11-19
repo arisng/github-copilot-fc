@@ -8,17 +8,21 @@ description: >
   "create a VM", "Cloud Run", "GKE cluster", "Cloud Storage bucket", "set GCP project",
   "service account", "Cloud Functions", "App Engine deploy", or any request to manage
   Google Cloud resources via command line.
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # gcloud CLI
 
 ## Command Structure
 
-```
+```text
 gcloud [GROUP] [SUB-GROUP] COMMAND [FLAGS]
 ```
 
 Examples:
+
 ```bash
 gcloud compute instances list
 gcloud run services deploy my-svc --image gcr.io/my-project/my-image
@@ -98,23 +102,27 @@ For service-specific commands (Compute Engine, Cloud Run, GKE, Cloud Storage, IA
 ## Common Patterns
 
 ### Get resource details
+
 ```bash
 gcloud RESOURCE describe RESOURCE_NAME [--region/--zone]
 ```
 
 ### Wait for long-running operations
+
 ```bash
 # Most commands support --async; poll with:
 gcloud compute operations wait OPERATION_ID
 ```
 
 ### Use `--format=value()` in scripts
+
 ```bash
 PROJECT=$(gcloud config get-value project)
 IMAGE_DIGEST=$(gcloud container images describe gcr.io/$PROJECT/app:latest --format="value(image_summary.digest)")
 ```
 
 ### IAM policy binding pattern
+
 ```bash
 gcloud RESOURCE add-iam-policy-binding RESOURCE_ID \
   --member="serviceAccount:SA@PROJECT.iam.gserviceaccount.com" \

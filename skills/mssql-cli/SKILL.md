@@ -2,6 +2,9 @@
 name: mssql-cli
 description: Query SQL Server databases from the command line using mssql-cli (or sqlcmd). Use when the user provides a SQL Server connection string and needs to execute queries, explore schema, or run batch SQL scripts against the database. Handles connection string parsing (ADO.NET, ODBC, Azure SQL formats) into CLI flags, query execution, and result capture.
 allowed-tools: Bash(mssql-cli:*), Bash(python3:*), Bash(sqlcmd:*)
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # SQL Server CLI Querying
@@ -129,7 +132,7 @@ mssql-cli $CONN -Q "SELECT @@VERSION"
 
 ## Key Connection Flags
 
-```
+```text
 -S   Server host[,port]           e.g. localhost  or  srv.database.windows.net,1433
 -d   Database name
 -U   Username (SQL Auth)
@@ -145,26 +148,31 @@ mssql-cli $CONN -Q "SELECT @@VERSION"
 ## Executing Queries
 
 ### Single inline query
+
 ```bash
 mssql-cli -S localhost -d mydb -U sa -P 'Pass123' -Q "SELECT TOP 10 * FROM Orders"
 ```
 
 ### From a SQL file
+
 ```bash
 mssql-cli -S localhost -d mydb -U sa -P 'Pass123' -i migration.sql
 ```
 
 ### Capture output to file
+
 ```bash
 mssql-cli -S localhost -d mydb -U sa -P 'Pass123' -Q "SELECT * FROM sys.tables" -o tables.txt
 ```
 
 ### Suppress welcome/goodbye banner
+
 ```bash
 mssql-cli ... --less-chatty -Q "SELECT 1"
 ```
 
 ### Check exit code (for scripting)
+
 ```bash
 mssql-cli ... -Q "SELECT 1" && echo "OK" || echo "FAILED"
 ```
@@ -174,6 +182,7 @@ mssql-cli ... -Q "SELECT 1" && echo "OK" || echo "FAILED"
 ## Schema Exploration
 
 ### Via system views (scriptable — preferred)
+
 ```bash
 # List all tables
 mssql-cli $CONN -Q "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_SCHEMA, TABLE_NAME"
@@ -189,7 +198,8 @@ mssql-cli $CONN -Q "SELECT t.name, p.rows FROM sys.tables t JOIN sys.partitions 
 ```
 
 ### Interactive meta-commands (mssql-cli only)
-```
+
+```text
 \dt [pattern]    List tables matching pattern
 \dv [pattern]    List views
 \di [pattern]    List indexes
@@ -209,6 +219,7 @@ mssql-cli -S "tcp:myserver.database.windows.net,1433" -d mydb -U "user@myserver"
 ```
 
 Or parsed from an Azure connection string:
+
 ```bash
 CONN=$(python3 /path/to/skill/scripts/parse_connection_string.py "$AZURE_CONN_STR")
 mssql-cli $CONN -Q "SELECT @@VERSION"
@@ -238,7 +249,8 @@ sqlcmd -S localhost -d mydb -U sa -P 'Pass123' -Q "SELECT @@VERSION"
 ```
 
 Additional sqlcmd-specific flags:
-```
+
+```text
 -b   Abort batch on error (like sqlcmd classic)
 -r   Redirect error messages to stderr
 ```

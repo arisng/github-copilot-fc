@@ -1,6 +1,9 @@
 ---
 name: speckit-task-grounding
 description: Task grounding validation framework for ensuring development tasks are properly specified in planning artifacts before implementation. Use when validating feature specifications, checking task grounding against artifacts like spec.md, plan.md, data-model.md, api-contracts.md, research.md, and quickstart.md, or when performing parallel task validation for feature readiness assessment.
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # SpecKit Task Grounding Validator
@@ -46,11 +49,13 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 ## Decision Matrix
 
 ### Phase Thresholds
+
 - **Phase 1 (Setup)**: ≥90% tasks at ≥80% grounding
 - **Phase 2 (Foundation)**: ≥80% tasks at ≥70% grounding
 - **Phase 3+ (Features)**: ≥70% tasks at ≥60% grounding
 
 ### Risk Levels
+
 - **🟢 Low**: ≥90% grounding, no gaps
 - **🟡 Medium**: 70-89% grounding, resolvable gaps
 - **🔴 High**: <70% grounding, critical gaps
@@ -58,6 +63,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 ## 📚 Grounding Status Glossary
 
 ### Task Grounding Status Values
+
 | Status                                  | Meaning | Description                                                                                                                                    | Action                         |
 | --------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | 🟢 **Documented**<br/>(Fully Grounded)   | 80-100% | Clear specification with implementation details from planning phase artifacts (plan.md, research.md, data-model.md, contracts/, quickstart.md) | ✅ Ready to implement           |
@@ -65,6 +71,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 | 🔴 **Missing**<br/>(Ungrounded)          | <50%    | No evidence found in artifacts                                                                                                                 | 🔴 Block until specified        |
 
 ### Phase-Level Grounding Status Values
+
 | Status                   | Meaning                     | Description                                  |
 | ------------------------ | --------------------------- | -------------------------------------------- |
 | 🟢 **Fully Documented**   | ≥80% tasks fully grounded   | All critical tasks have clear specifications |
@@ -74,6 +81,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 | 🔴 **Poorly Grounded**    | <30% tasks fully grounded   | Critical gaps, block implementation          |
 
 ### Risk Level Values
+
 | Level        | Meaning                           | Description                            |
 | ------------ | --------------------------------- | -------------------------------------- |
 | 🟢 **Low**    | ≥90% grounding, no gaps           | Straightforward implementation         |
@@ -81,6 +89,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 | 🔴 **High**   | <70% grounding, critical gaps     | High risk, may require planning rework |
 
 ### Overall Assessment Values
+
 | Assessment                | Meaning                                 | Description                    |
 | ------------------------- | --------------------------------------- | ------------------------------ |
 | ✅ **APPROVE**             | Meets phase thresholds                  | Proceed with implementation    |
@@ -88,6 +97,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 | 🔴 **BLOCK**               | Critical gaps or insufficient grounding | Return to planning phase       |
 
 ### Grounding Score Scale (0-100%)
+
 | Score    | Qualitative Term | Evidence Required                                                                                                           |
 | -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **100%** | Explicit         | Direct quote with exact location from planning phase artifacts                                                              |
@@ -111,6 +121,7 @@ This skill integrates with the **Spec-Driven Development (SDD)** methodology imp
 ## Usage Workflow
 
 For each task in tasks.md:
+
 1. **Extract** task details and requirements
 2. **Exhaustively search ALL artifacts** in order: spec.md → plan.md → research.md → data-model.md → contracts/ → quickstart.md (do not stop at first evidence found - scan all artifacts for complete grounding assessment)
 3. **Score** grounding level based on evidence strength
@@ -120,11 +131,13 @@ For each task in tasks.md:
 ## Parallel Processing Workflow
 
 ### Step 1: Assign Tasks to Reviewers
+
 - **Reviewer A**: Tasks T001-T003 (Phase 1)
 - **Reviewer B**: Tasks T004-T005 (Phase 2)
 - **Reviewer C**: Tasks T006+ (Phase 3+)
 
 ### Step 2: Individual Validation
+
 ```powershell
 # Reviewer A validates their assigned tasks
 .\scripts\Validate-TaskGrounding.ps1 -FeaturePath "specs/my-feature" -TaskFilter "T001,T002,T003" -JsonOutput -OutputPath "specs/my-feature/assessments/reviewerA-assessment.json"
@@ -134,18 +147,21 @@ For each task in tasks.md:
 ```
 
 ### Step 3: Aggregate Results
+
 ```powershell
 # Combine all individual assessments into final report
 .\scripts\Aggregate-TaskGrounding.ps1 -FeatureName "my-feature" -AssessmentFiles @("specs/my-feature/assessments/reviewerA-assessment.json", "specs/my-feature/assessments/reviewerB-assessment.json", "specs/my-feature/assessments/reviewerC-assessment.json") -OutputPath "specs/my-feature/tasks.grounding.md"
 ```
 
 **Post-Aggregation Cleanup:**
+
 ```powershell
 # Optional: Remove intermediate assessment files after successful aggregation
 Remove-Item "specs/my-feature/assessments/*.json"
 ```
 
 **Benefits:**
+
 - **Parallel Execution**: 2-3 minutes per reviewer instead of 15-25 minutes total
 - **Independent Validation**: Each task assessed by one person, avoiding conflicts
 - **Efficient Aggregation**: Automated combination maintains consistency
@@ -155,7 +171,7 @@ Remove-Item "specs/my-feature/assessments/*.json"
 
 After complete validation, your specification folder will contain:
 
-```
+```text
 specs/[branch-name]/
 ├── spec.md                    # Original artifacts
 ├── plan.md
@@ -207,6 +223,7 @@ specs/[branch-name]/
 - `tasks.grounding.md` - Final comprehensive validation report
 
 **Report Contents:**
+
 - Executive Summary table with phase status
 - Task Grounding Matrix with status indicators
 - Gap analysis with impact and resolution steps

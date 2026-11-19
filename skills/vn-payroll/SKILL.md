@@ -1,6 +1,9 @@
 ---
 name: vn-payroll
 description: Calculates Net Income, Personal Income Tax (PIT), and Social Insurance (BHXH) based on Vietnam's progressive tax brackets.
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # Skill: Vietnam Payroll & Tax Calculator (2025 Rules)

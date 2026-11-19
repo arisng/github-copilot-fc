@@ -2,7 +2,12 @@
 name: handoff
 description: Compact the current conversation into a handoff document for another agent to pick up.
 argument-hint: "What will the next session be used for?"
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
+
+# Handoff
 
 Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save it to `.agent-handoffs` (relative to current repo root) and use naming convention `yymmdd-<topic>.md` (read the file before you write to it).
 

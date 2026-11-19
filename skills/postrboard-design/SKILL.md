@@ -1,6 +1,9 @@
 ---
 name: postrboard-design
 description: Apply the Postrboard design language — a refined, airy, code-native aesthetic used across postrboard.com and burkeholland.github.io — when designing or building any website, landing page, UI component, or web app. Use this skill whenever the user asks to design, style, or build a site and wants it to feel polished, modern, and developer-native. Trigger on phrases like "build me a site", "design a landing page", "make it look like postrboard", "use my design language", "create a new site", etc.
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # Postrboard Design Language
@@ -30,7 +33,7 @@ Use this spec as a creative framework, not a rigid template. Every new site shou
 
 This coral → azure → sage progression is the cross-site brand signature. It appears as gradients, individual accents, or subtle ambient glows.
 
-```
+```text
 Coral:  #ff7f50   (warm, energetic, primary attention)
 Azure:  #0ea5e9   (cool, trustworthy, secondary accent)
 Sage:   #84cc16   (fresh, natural, tertiary or completion state)
@@ -39,12 +42,14 @@ Sage:   #84cc16   (fresh, natural, tertiary or completion state)
 ### The Core Gradient
 
 When using the trio as a gradient:
+
 ```css
 linear-gradient(135deg, #ff7f50, #0ea5e9)          /* two-stop, most common */
 linear-gradient(to right, #ff7f50, #0ea5e9, #84cc16) /* three-stop, signature */
 ```
 
 Use gradients on:
+
 - Hero highlighted words or wordmarks
 - CTA buttons
 - Logo marks or decorative periods
@@ -54,7 +59,7 @@ Avoid gradients on: body text, large background washes (unless very subtle), nav
 
 ### Light Mode Palette
 
-```
+```text
 Page background:     #f0f4f8  (cool gray-blue mist) or
                      linear-gradient(to bottom right, #ffffff, #f0f9ff, #f6fff8)
 Card/surface:        #ffffff  or rgba(255,255,255,0.7) for glass
@@ -66,7 +71,7 @@ Border:              #e2e8f0  or rgba(255,255,255,0.5) for glass
 
 ### Dark Mode Palette
 
-```
+```text
 Page background:     #0b0f14  (near-black with blue cast)
 Surface/panel:       #111820
 Text:                #e2e8f0
@@ -79,7 +84,7 @@ Grain texture:       subtle noise overlay, opacity 0.02
 
 ### Soft-tone Tints (for badges, chips, highlights)
 
-```
+```text
 Coral soft:   #fff0eb
 Azure soft:   #e8f7fe
 Sage soft:    #f2fde0
@@ -104,7 +109,7 @@ Never use more than two font families. The sans handles UI and body; the mono ha
 
 ### Typographic Scale
 
-```
+```text
 Display/wordmark:   clamp(3.5rem, 10vw, 18rem)  weight 700–800  tracking -0.06em to -0.07em
 Hero H1:            56px–64px                   weight 800       tracking -1.5px to -2.5px
 Section H2:         clamp(3.5rem, 6vw, 7rem)    weight 700–800   tracking tight
@@ -128,7 +133,7 @@ Mono command:       13px–14px                  weight 400
 
 ### Max Widths
 
-```
+```text
 Full editorial layout:   1200px–1400px
 Article/utility layout:  880px
 Compact/terminal:        680px
@@ -136,7 +141,7 @@ Compact/terminal:        680px
 
 ### Rhythm Vocabulary
 
-```
+```text
 Section vertical padding:  5rem–7rem (spacious gallery rhythm)
 Hero padding:              7rem top, 5rem bottom
 Card internal:             24px–32px
@@ -169,7 +174,7 @@ Use glass surfaces for: sticky navigation, cards over gradient backgrounds.
 
 ### Elevation Scale
 
-```
+```text
 Subtle (body cards):      0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)
 Medium (interactive):     0 4px 8px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.10)
 High (terminal/demo):     0 32px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.04)
@@ -177,6 +182,7 @@ Dark terminal:            0 24px 60px -12px rgba(0,0,0,0.45), 0 0 0 1px rgba(255
 ```
 
 Colored button shadows use the accent color:
+
 ```css
 box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);  /* azure-keyed */
 ```
@@ -187,7 +193,7 @@ box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);  /* azure-keyed */
 
 There are three distinct corner languages — use one consistently within a surface type:
 
-```
+```text
 Pill (CTAs, filter pills, tags):  border-radius: 9999px or 100px
 Soft (cards, panels, terminals):  border-radius: 16px–18px
 Compact (utility, code blocks):   border-radius: 6px–12px
@@ -219,6 +225,7 @@ color:         white;
 box-shadow:    0 4px 12px rgba(14,165,233,0.3);
 transition:    all 0.2s ease;
 ```
+
 Hover: `translateY(-2px)`, shadow spreads.
 
 ### Cards
@@ -232,6 +239,7 @@ backdrop-filter: blur(8px);
 box-shadow:      0 4px 6px -1px rgba(0,0,0,0.1);
 transition:      transform 0.2s ease;
 ```
+
 Hover: `translateY(-4px)`.
 
 ### Pill Tags / Badges
@@ -249,6 +257,7 @@ Use soft tints (`#fff0eb`, `#e8f7fe`, `#f2fde0`) for categorized/themed badges.
 ### Terminal / Code Block
 
 Dark mode, regardless of site mode:
+
 ```css
 background:    #0d1117 or #0c0e14;
 border-radius: 10px–18px;
@@ -285,7 +294,7 @@ Add `grain overlay` (SVG or CSS noise filter) at `opacity: 0.02` for texture.
 
 All transitions are **ambient and micro** — never distracting.
 
-```
+```text
 Duration:    0.15s–0.2s ease
 Hover lift:  translateY(-2px) to translateY(-4px)
 Hover scale: 1.02–1.05 (images only)
