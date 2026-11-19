@@ -194,7 +194,9 @@ function Test-MarkdownLint {
         return @{ Status = 'WARN'; Detail = 'markdownlint-cli2 unavailable via npx (offline first run?) - markdown lint skipped this run' }
     }
 
-    $rel = $files | ForEach-Object { $_ -replace '\\', '/' }
+    # Wrap in @(): a pipeline yielding one path returns a scalar string, and
+    # splatting a string enumerates its characters as separate arguments.
+    $rel = @($files | ForEach-Object { $_ -replace '\\', '/' })
     Push-Location $repoRoot
     try {
         $lintOutput = & npx --yes markdownlint-cli2 @rel 2>&1
