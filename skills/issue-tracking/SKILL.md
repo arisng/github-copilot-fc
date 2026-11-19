@@ -3,7 +3,7 @@ name: issue-tracking
 description: >
   Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive Q&A or auto-inferred in autopilot; the manifest schema is owned by this skill), then triages incoming issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated issue tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Use when asked to triage, groom, refine, prioritize, or audit issues, decide what to work on next by theme, file or link a new issue, refresh .issues/tree.md, render or view the issue tree HTML, verify issue claims against git history, or set up a repo's issue tracker manifest. Routes GitHub issues to triage-backlog; Azure DevOps via az boards.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   author: arisng
 ---
 
@@ -133,8 +133,15 @@ The HTML is rendered from `assets/tree-template.html` + the parsed tree — neve
 edited by hand; `-Check` fails when either the template or the tree moved without a
 re-render. Deterministic: same inputs, byte-identical output.
 
-**Done:** both `-Check`s exit 0. A stale tree or view exits 1 here and again in
-the repo's pre-commit gate whenever the store changes (by default `.issues/`).
+**Auto-refresh wiring (pre-commit):** when a commit stages store files, regenerate
+first — `issue-tree.ps1` then `render-issue-tree.ps1`, both validation-first (an
+invalid store is refused *before* anything is written) — then `git add` the two
+artifacts and run both `-Check`s. An issue mutation can then never land with a
+stale tree or view, while corrupt data still fails the commit.
+
+**Done:** both `-Check`s exit 0. A stale tree or view exits 1 here; a repo wired
+with the pattern above regenerates and stages the artifacts itself, and still
+refuses an invalid store (store files live under `.issues/` by default).
 
 ## 5. Report and land
 
