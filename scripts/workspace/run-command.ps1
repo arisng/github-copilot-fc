@@ -51,6 +51,7 @@ function Invoke-CopilotWorkspaceCommand {
         'tests:ralph-cli-smoke' = 'pwsh -NoProfile -File scripts/test/ralph-v2-cli-smoke.ps1'
         'tests:byok-features'  = 'pwsh -NoProfile -File scripts/test/copilot-byok-feature-test.ps1'
         'tests:skills-pytest'  = 'python3 -m pytest skills -q'
+        'tests:workspace-check-lint' = 'pwsh -NoProfile -File scripts/test/workspace-check-lint.tests.ps1'
         'tests:subsession-audit' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1'
         'tests:subsession-audit-live' = 'pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1 -Live'
         'tests:triage-backlog' = 'pwsh -NoProfile -File skills/triage-backlog/scripts/tests/test-triage.ps1'

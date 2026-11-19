@@ -17,6 +17,11 @@
     4. Markdown lint — markdownlint-cli2 over the .md files changed in the working
        tree or pending on the branch (a ratchet: touch it, fix it). An npx that
        cannot bootstrap (offline first run) downgrades to a warning.
+    5. Skill frontmatter — every skills/*/SKILL.md declares a semver
+       metadata.version, so `npx skills update -g` can update it.
+    6. Lint self-test — scripts/test/workspace-check-lint.tests.ps1 proves a
+       single changed .md reaches markdownlint as one path argument (guards the
+       scalar-splat bug where each character became its own glob).
 
     Exits non-zero when any gated check fails. Used by scripts/hooks/pre-push.
 
@@ -146,43 +151,88 @@ function Test-SkillPytest {
     }
 }
 
-function Test-MarkdownLint {
+function Test-SkillFrontmatter {
     [CmdletBinding()]
     param()
+
+    # Public skills ship to personal folders; metadata.version is what
+    # `npx skills update -g` compares, so a skill without it never updates.
+    $skillsRoot = Join-Path $repoRoot 'skills'
+    $offenders = [System.Collections.Generic.List[string]]::new()
+    $count = 0
+    foreach ($dir in Get-ChildItem -Path $skillsRoot -Directory) {
+        $skillMd = Join-Path $dir.FullName 'SKILL.md'
+        if (-not (Test-Path -LiteralPath $skillMd)) { continue }
+        $count++
+        $raw = Get-Content -LiteralPath $skillMd -Raw
+        $m = [regex]::Match($raw, '\A---\r?\n(.*?)\r?\n---', 'Singleline')
+        if (-not $m.Success) {
+            $offenders.Add("$($dir.Name): no YAML frontmatter")
+            continue
+        }
+        $fm = $m.Groups[1].Value
+        if ($fm -notmatch '(?m)^metadata:\s*$') {
+            $offenders.Add("$($dir.Name): missing metadata block")
+            continue
+        }
+        if ($fm -notmatch "(?m)^\s+version:\s*['`"]?\d+\.\d+\.\d+[0-9A-Za-z.+-]*['`"]?\s*$") {
+            $offenders.Add("$($dir.Name): metadata.version missing or not semver")
+        }
+    }
+    if ($offenders.Count -eq 0) {
+        return @{ Status = 'PASS'; Detail = "$count skill(s) declare metadata.version" }
+    }
+    return @{ Status = 'FAIL'; Detail = "missing metadata.version (blocks npx skills update -g): $($offenders -join '; ')" }
+}
+
+function Test-MarkdownLint {
+    [CmdletBinding()]
+    param(
+        # Pre-resolved file list (relative to the repo root). Discovery via git is
+        # skipped when provided — used by the lint self-test to pin the single-file
+        # path that the scalar-splat bug (828c9a2) once broke.
+        [string[]]$Files
+    )
 
     if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
         return @{ Status = 'FAIL'; Detail = 'npx not found on PATH (required for markdown lint)' }
     }
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        return @{ Status = 'FAIL'; Detail = 'git not found on PATH (needed to find changed .md files)' }
-    }
 
-    $changed = [System.Collections.Generic.List[string]]::new()
-    Push-Location $repoRoot
-    try {
-        # Working tree (staged + unstaged), untracked files, and branch commits
-        # not yet on the upstream — the set a push would carry.
-        foreach ($line in @(& git diff --name-only --diff-filter=ACM HEAD -- '*.md')) {
-            if ($line) { $changed.Add($line.Trim()) }
+    if ($PSBoundParameters.ContainsKey('Files')) {
+        $files = @($Files)
+    }
+    else {
+        if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+            return @{ Status = 'FAIL'; Detail = 'git not found on PATH (needed to find changed .md files)' }
         }
-        foreach ($line in @(& git ls-files --others --exclude-standard -- '*.md')) {
-            if ($line) { $changed.Add($line.Trim()) }
-        }
-        $null = & git rev-parse --abbrev-ref '--symbolic-full-name' '@{upstream}' 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            foreach ($line in @(& git diff --name-only --diff-filter=ACM '@{upstream}...HEAD' -- '*.md')) {
+
+        $changed = [System.Collections.Generic.List[string]]::new()
+        Push-Location $repoRoot
+        try {
+            # Working tree (staged + unstaged), untracked files, and branch commits
+            # not yet on the upstream — the set a push would carry.
+            foreach ($line in @(& git diff --name-only --diff-filter=ACM HEAD -- '*.md')) {
                 if ($line) { $changed.Add($line.Trim()) }
             }
+            foreach ($line in @(& git ls-files --others --exclude-standard -- '*.md')) {
+                if ($line) { $changed.Add($line.Trim()) }
+            }
+            $null = & git rev-parse --abbrev-ref '--symbolic-full-name' '@{upstream}' 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                foreach ($line in @(& git diff --name-only --diff-filter=ACM '@{upstream}...HEAD' -- '*.md')) {
+                    if ($line) { $changed.Add($line.Trim()) }
+                }
+            }
         }
-    }
-    finally {
-        Pop-Location
-    }
+        finally {
+            Pop-Location
+        }
 
-    # Defense in depth: drop paths the markdownlint config ignores, so they are
-    # never handed to the linter as explicit inputs.
-    $denyPattern = '(^|/)(node_modules|\.archived|\.build|\.playwright-cli|\.ralph-sessions|\.issues|workshops)(/|$)|^scripts/test/\.artifacts/|^evals/[^/]+/(fixtures|results)/'
-    $files = @($changed | Sort-Object -Unique | Where-Object { $_ -notmatch $denyPattern } | Where-Object { Test-Path -LiteralPath (Join-Path $repoRoot $_) })
+        # Defense in depth: drop paths the markdownlint config ignores, so they are
+        # never handed to the linter as explicit inputs.
+        $denyPattern = '(^|/)(node_modules|\.archived|\.build|\.playwright-cli|\.ralph-sessions|\.issues|workshops)(/|$)|^scripts/test/\.artifacts/|^evals/[^/]+/(fixtures|results)/'
+        $files = @($changed | Sort-Object -Unique | Where-Object { $_ -notmatch $denyPattern } | Where-Object { Test-Path -LiteralPath (Join-Path $repoRoot $_) })
+    }
     if ($files.Count -eq 0) {
         return @{ Status = 'SKIP'; Detail = 'no changed .md files' }
     }
@@ -216,27 +266,55 @@ function Test-MarkdownLint {
     return @{ Status = 'FAIL'; Detail = "markdownlint violations in changed .md files (exit $code) - run 'npx --yes markdownlint-cli2 <file>' for details" }
 }
 
+function Test-LintSelfTest {
+    [CmdletBinding()]
+    param()
+
+    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'pwsh not found on PATH (required to run the lint self-test)' }
+    }
+    $testScript = Join-Path $repoRoot 'scripts/test/workspace-check-lint.tests.ps1'
+    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("lint-selftest-" + [guid]::NewGuid().ToString() + '.txt')
+    try {
+        & pwsh -NoProfile -File $testScript *> $tempOut
+        $code = $LASTEXITCODE
+    }
+    finally {
+        Remove-Item -Path $tempOut -ErrorAction SilentlyContinue
+    }
+    if ($code -eq 0) {
+        return @{ Status = 'PASS'; Detail = 'single-file markdown lint passes its argv intact (splat regression covered)' }
+    }
+    return @{ Status = 'FAIL'; Detail = "lint self-test failed (exit $code) - run: pwsh -NoProfile -File $testScript" }
+}
+
 # ---------------------------------------------------------------------------
 # Run all checks
 # ---------------------------------------------------------------------------
-$checks = @(
-    @{ Name = 'TOC freshness'; Result = Test-TocFreshness },
-    @{ Name = 'waza check (advisory)'; Result = Invoke-WazaCheck },
-    @{ Name = 'Skill pytest'; Result = Test-SkillPytest },
-    @{ Name = 'Markdown lint'; Result = Test-MarkdownLint }
-)
 
-foreach ($check in $checks) {
-    Write-CheckResult -Name $check.Name -Status $check.Result.Status -Detail $check.Result.Detail
-    if ($check.Result.Status -eq 'FAIL') {
-        $failures.Add($check.Name)
+# Skipped when dot-sourced (the self-test loads this file for its functions).
+if ($MyInvocation.InvocationName -ne '.') {
+    $checks = @(
+        @{ Name = 'TOC freshness'; Result = Test-TocFreshness },
+        @{ Name = 'waza check (advisory)'; Result = Invoke-WazaCheck },
+        @{ Name = 'Skill pytest'; Result = Test-SkillPytest },
+        @{ Name = 'Skill frontmatter'; Result = Test-SkillFrontmatter },
+        @{ Name = 'Markdown lint'; Result = Test-MarkdownLint },
+        @{ Name = 'Lint self-test'; Result = Test-LintSelfTest }
+    )
+
+    foreach ($check in $checks) {
+        Write-CheckResult -Name $check.Name -Status $check.Result.Status -Detail $check.Result.Detail
+        if ($check.Result.Status -eq 'FAIL') {
+            $failures.Add($check.Name)
+        }
     }
-}
 
-if ($failures.Count -gt 0) {
-    Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ')" -ForegroundColor Red
-    exit 1
-}
+    if ($failures.Count -gt 0) {
+        Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ')" -ForegroundColor Red
+        exit 1
+    }
 
-Write-Host 'workspace-check: all checks passed' -ForegroundColor Green
-exit 0
+    Write-Host 'workspace-check: all checks passed' -ForegroundColor Green
+    exit 0
+}
