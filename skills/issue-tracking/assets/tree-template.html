@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="issue-tracking skill - render-issue-tree.ps1">
+<title>Issue tree</title>
+<style>
+:root {
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --panel-2: #f9fafc;
+  --text: #1b2430;
+  --muted: #67717f;
+  --border: #e2e7ee;
+  --accent: #2563eb;
+  --st-open: #2563eb;
+  --st-in-progress: #d97706;
+  --st-blocked: #dc2626;
+  --st-done: #16a34a;
+  --st-dropped: #94a3b8;
+  --p0: #dc2626;
+  --p1: #ea580c;
+  --p2: #2563eb;
+  --p3: #94a3b8;
+  --flash: #fde68a;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 4px 16px rgba(15, 23, 42, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1319;
+    --panel: #161d26;
+    --panel-2: #1b232e;
+    --text: #e6ebf2;
+    --muted: #93a0b1;
+    --border: #26303d;
+    --accent: #60a5fa;
+    --st-open: #60a5fa;
+    --st-in-progress: #fbbf24;
+    --st-blocked: #f87171;
+    --st-done: #4ade80;
+    --st-dropped: #94a3b8;
+    --p0: #f87171;
+    --p1: #fb923c;
+    --p2: #60a5fa;
+    --p3: #94a3b8;
+    --flash: #92400e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .35);
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 64px; }
+header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
+header.top h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+header.top .src { color: var(--muted); font-size: 12px; margin-left: auto; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+  padding: 2px 10px; font-size: 12px; color: var(--muted); box-shadow: var(--shadow);
+}
+.badge b { color: var(--text); font-variant-numeric: tabular-nums; }
+.next {
+  background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.next .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.next .title { font-weight: 600; flex: 1 1 0; min-width: 0; }
+.next .st, .next .prio { flex: none; }
+.toolbar {
+  position: sticky; top: 0; z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px; margin-bottom: 10px; box-shadow: var(--shadow);
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+.toolbar input[type="search"] {
+  flex: 1 1 220px; min-width: 180px;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit;
+}
+.toolbar input[type="search"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; user-select: none;
+}
+.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: baseline; background: var(--st, var(--pc, var(--muted))); }
+button.ghost {
+  border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+}
+button.ghost:hover { border-color: var(--accent); color: var(--text); }
+.count { color: var(--muted); font-size: 12px; margin: 2px 2px 10px; }
+section.theme {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 12px; box-shadow: var(--shadow); overflow: hidden;
+}
+section.theme > .head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: var(--panel-2); border: 0; color: inherit; font: inherit;
+  padding: 10px 14px; cursor: pointer; text-align: left;
+}
+section.theme > .head:hover { background: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
+section.theme > .head .chev { transition: transform .15s ease; color: var(--muted); font-size: 11px; }
+section.theme.collapsed > .head .chev { transform: rotate(-90deg); }
+section.theme > .head .tid { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: 12px; }
+section.theme > .head .ttitle { font-weight: 650; flex: 1; min-width: 120px; }
+section.theme > .head .tcount { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pwrap { display: flex; align-items: center; gap: 6px; flex: none; }
+.pbar {
+  width: 104px; height: 8px; border-radius: 99px; background: var(--border);
+  overflow: hidden; display: flex;
+}
+.pbar i { display: block; height: 100%; font-style: normal; }
+.pwrap .pct {
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--muted); min-width: 3ch;
+}
+.pwrap.complete .pct { color: var(--st-done); }
+.rows { border-top: 1px solid var(--border); }
+section.theme.collapsed .rows { display: none; }
+.row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  padding-left: calc(14px + var(--depth, 0) * 22px);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.row:last-child { border-bottom: 0; }
+.row:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.row.context { opacity: .62; }
+.row.hidden, section.theme.hidden { display: none; }
+.row .sdot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--st, var(--muted)); }
+.row .pid {
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted);
+  cursor: pointer; border-radius: 5px; padding: 1px 5px; flex: none;
+}
+.row .pid:hover { background: var(--panel-2); outline: 1px solid var(--border); }
+.row .title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.prio {
+  font-size: 11px; font-weight: 700; border-radius: 5px; padding: 1px 7px; flex: none;
+  color: #fff; background: var(--pc, var(--muted));
+}
+.st {
+  font-size: 11px; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 7px; flex: none; background: var(--panel-2);
+}
+.row .parent { font-size: 11px; color: var(--muted); flex: none; }
+.row .parent a { color: var(--muted); text-decoration: none; }
+.row .parent a:hover { color: var(--accent); text-decoration: underline; }
+.badge.st-open { color: var(--st-open); border-color: color-mix(in srgb, var(--st-open) 45%, transparent); }
+.badge.st-in-progress { color: var(--st-in-progress); border-color: color-mix(in srgb, var(--st-in-progress) 45%, transparent); }
+.badge.st-blocked { color: var(--st-blocked); border-color: color-mix(in srgb, var(--st-blocked) 45%, transparent); }
+.badge.st-done { color: var(--st-done); border-color: color-mix(in srgb, var(--st-done) 45%, transparent); }
+.badge.st-dropped { color: var(--st-dropped); border-color: color-mix(in srgb, var(--st-dropped) 45%, transparent); }
+.empty {
+  background: var(--panel); border: 1px dashed var(--border); border-radius: 10px;
+  padding: 28px; text-align: center; color: var(--muted);
+}
+.flash { animation: flash 2.2s ease; }
+@keyframes flash { 0%, 55% { background: var(--flash); } 100% { background: transparent; } }
+#toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(8px);
+  background: var(--text); color: var(--bg); border-radius: 8px; padding: 7px 14px;
+  font-size: 13px; opacity: 0; pointer-events: none; transition: all .18s ease; z-index: 50;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+footer { color: var(--muted); font-size: 12px; margin-top: 18px; text-align: center; }
+footer code { background: var(--panel); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
+@media (max-width: 640px) {
+  .row .st, .row .parent { display: none; }
+  .pwrap .pbar { display: none; }
+  .toolbar { position: static; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Issue tree</h1>
+    <div class="badges" id="summary"></div>
+    <div class="src" id="src"></div>
+  </header>
+
+  <div class="next" id="next" hidden>
+    <span class="label">Next up</span>
+    <span class="pid" id="next-id" style="cursor:pointer"></span>
+    <span class="title" id="next-title"></span>
+    <span class="st" id="next-status"></span>
+    <span class="prio" id="next-prio"></span>
+  </div>
+
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="Search id or title…  (press /)" autocomplete="off">
+    <div class="chips" id="status-chips" aria-label="Filter by status"></div>
+    <div class="chips" id="prio-chips" aria-label="Filter by priority"></div>
+    <button class="ghost" id="expand" type="button">Expand all</button>
+    <button class="ghost" id="collapse" type="button">Collapse all</button>
+    <button class="ghost" id="clear" type="button">Clear</button>
+  </div>
+
+  <div class="count" id="count"></div>
+  <main id="tree"></main>
+  <div class="empty" id="empty" hidden>No issues match the current filters.</div>
+
+  <footer>
+    Generated from <code id="foot-src"></code> — edit issues, not this file.<br>
+    Regenerate: <code>pwsh &lt;skill-folder&gt;/scripts/render-issue-tree.ps1</code>
+  </footer>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script id="issue-tree-data" type="application/json">__ISSUE_TREE_DATA__</script>
+<script>
+(function () {
+  "use strict";
+  var DATA = JSON.parse(document.getElementById("issue-tree-data").textContent);
+
+  var STATUSES = ["open", "in-progress", "blocked", "done", "dropped"];
+  var PRIOS = ["P0", "P1", "P2", "P3"];
+  var state = { q: "", status: new Set(), prio: new Set(), collapsed: new Set() };
+  var nodesById = {};          // id -> {row, section?} for deep links
+  var sections = [];           // {el, theme, rows: [{el, node}]}
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  function cssStatus(s) { return "--st: var(--st-" + s.replace(/[^a-z-]/g, "") + ")"; }
+  function cssPrio(p) { return "--pc: var(--" + p.toLowerCase() + ")"; }
+
+  // ---- summary + next -------------------------------------------------------
+  (function renderSummary() {
+    var box = document.getElementById("summary");
+    var order = ["themes", "issues", "P0", "P1", "P2", "P3", "blocked"];
+    order.forEach(function (k) {
+      if (!(k in DATA.summary)) return;
+      var b = el("span", "badge");
+      b.appendChild(el("b", null, String(DATA.summary[k])));
+      b.appendChild(document.createTextNode(" " + (k === "themes" ? "themes" : k === "issues" ? "issues" : k === "blocked" ? "blocked" : k)));
+      box.appendChild(b);
+    });
+    var src = DATA.source || "";
+    document.getElementById("src").textContent = src;
+    document.getElementById("foot-src").textContent = src;
+  })();
+
+  (function renderNext() {
+    if (!DATA.next) return;
+    var n = DATA.next;
+    var box = document.getElementById("next");
+    box.hidden = false;
+    var idEl = document.getElementById("next-id");
+    idEl.textContent = n.id;
+    idEl.addEventListener("click", function () { copyText(n.id, "copied " + n.id); });
+    document.getElementById("next-title").textContent = n.title;
+    var st = document.getElementById("next-status");
+    st.textContent = n.status;
+    st.className = "st badge st-" + n.status;
+    var pr = document.getElementById("next-prio");
+    pr.textContent = n.priority;
+    pr.className = "prio";
+    pr.setAttribute("style", cssPrio(n.priority));
+    box.addEventListener("click", function (e) {
+      if (e.target === idEl) return;
+      location.hash = n.id;
+    });
+  })();
+
+  // ---- tree ----------------------------------------------------------------
+  function buildRow(node, depth) {
+    var row = el("div", "row");
+    row.style.setProperty("--depth", String(depth));
+    row.dataset.id = node.id;
+    row.dataset.status = node.status;
+    row.dataset.prio = node.priority;
+    row.id = "issue-" + node.id;
+
+    var dot = el("span", "sdot");
+    dot.setAttribute("style", cssStatus(node.status));
+    row.appendChild(dot);
+
+    var pid = el("span", "pid", node.id);
+    pid.title = "click to copy " + node.id;
+    pid.addEventListener("click", function (e) {
+      e.stopPropagation();
+      copyText(node.id, "copied " + node.id);
+    });
+    row.appendChild(pid);
+
+    row.appendChild(el("span", "title", node.title));
+    row.appendChild(el("span", "st", node.status));
+    var prio = el("span", "prio", node.priority);
+    prio.setAttribute("style", cssPrio(node.priority));
+    row.appendChild(prio);
+
+    if (node.parent && node.parent !== "-") {
+      var p = el("span", "parent");
+      var a = el("a", null, "↳ " + node.parent);
+      a.href = "#issue-" + node.parent;
+      p.appendChild(a);
+      row.appendChild(p);
+    }
+    nodesById[node.id] = { row: row };
+    return row;
+  }
+
+  // Completion progress for a theme = status breakdown of its whole subtree
+  // (the theme row itself is not counted; dropped is tracked but excluded from
+  // the percentage denominator - it is not remaining work).
+  function subtreeStats(node) {
+    var s = { total: 0, done: 0, open: 0, inprogress: 0, blocked: 0, dropped: 0 };
+    (function walk(n) {
+      (n.children || []).forEach(function (c) {
+        s.total++;
+        if (c.status === "done") s.done++;
+        else if (c.status === "in-progress") s.inprogress++;
+        else if (c.status === "blocked") s.blocked++;
+        else if (c.status === "dropped") s.dropped++;
+        else s.open++;
+        walk(c);
+      });
+    })(node);
+    return s;
+  }
+
+  function buildTheme(theme) {
+    var sec = el("section", "theme");
+    sec.dataset.theme = theme.id;
+
+    var head = el("button", "head");
+    head.type = "button";
+    head.appendChild(el("span", "chev", "▼"));
+    head.appendChild(el("span", "tid", theme.id));
+    var t = el("span", "ttitle", theme.title);
+    head.appendChild(t);
+
+    // Completion progress: stacked status bar + percentage of countable issues
+    // (done / total-minus-dropped) with a full breakdown in the tooltip.
+    var stats = subtreeStats(theme);
+    var denom = stats.total - stats.dropped;
+    var pct = denom <= 0 ? 100 : Math.round(stats.done * 100 / denom);
+    var pwrap = el("span", "pwrap");
+    if (pct >= 100) pwrap.classList.add("complete");
+    var bar = el("span", "pbar");
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-valuemin", "0");
+    bar.setAttribute("aria-valuemax", "100");
+    bar.setAttribute("aria-valuenow", String(pct));
+    bar.setAttribute("aria-label", "completion for theme " + theme.id);
+    bar.title = stats.total + " issues: " + stats.done + " done, " + stats.inprogress +
+      " in progress, " + stats.blocked + " blocked, " + stats.open + " open" +
+      (stats.dropped ? ", " + stats.dropped + " dropped" : "");
+    [["done", stats.done], ["in-progress", stats.inprogress], ["blocked", stats.blocked],
+     ["open", stats.open], ["dropped", stats.dropped]].forEach(function (seg) {
+      if (seg[1] <= 0) return;
+      var i = el("i");
+      i.style.width = (seg[1] * 100 / stats.total) + "%";
+      i.style.background = "var(--st-" + seg[0] + ")";
+      bar.appendChild(i);
+    });
+    pwrap.appendChild(bar);
+    var pctEl = el("span", "pct", pct + "%");
+    pctEl.title = stats.done + " of " + denom + " countable issues done" +
+      (stats.dropped ? " (" + stats.dropped + " dropped excluded)" : "");
+    pwrap.appendChild(pctEl);
+    head.appendChild(pwrap);
+
+    head.appendChild(el("span", "tcount", ""));
+    head.querySelector(".tcount").hidden = true;   // shown only while filtering
+    var hp = el("span", "prio", theme.priority);
+    hp.setAttribute("style", cssPrio(theme.priority));
+    head.appendChild(hp);
+    var hs = el("span", "st", theme.status);
+    hs.className = "st badge st-" + theme.status;
+    head.appendChild(hs);
+
+    var rowsBox = el("div", "rows");
+    var entries = [];
+    (function addChildren(parent, depth) {
+      (parent.children || []).forEach(function (c) {
+        var row = buildRow(c, depth);
+        rowsBox.appendChild(row);
+        entries.push({ el: row, node: c });
+        addChildren(c, depth + 1);
+      });
+    })(theme, 0);
+
+    head.addEventListener("click", function () { toggleTheme(theme.id); });
+    sec.appendChild(head);
+    sec.appendChild(rowsBox);
+    nodesById[theme.id] = { row: head, section: sec };
+    return { el: sec, theme: theme, head: head, rows: entries, countEl: head.querySelector(".tcount") };
+  }
+
+  var treeBox = document.getElementById("tree");
+  DATA.themes.forEach(function (th) {
+    var s = buildTheme(th);
+    sections.push(s);
+    treeBox.appendChild(s.el);
+  });
+
+  // ---- filtering -----------------------------------------------------------
+  function textHit(node, q) {
+    return (node.id + " " + node.title).toLowerCase().indexOf(q) !== -1;
+  }
+  function dimHit(node) {
+    if (state.status.size && !state.status.has(node.status)) return false;
+    if (state.prio.size && !state.prio.has(node.priority)) return false;
+    return true;
+  }
+  // Row semantics: search text propagates down the tree (matching a theme shows
+  // its subtree), status/priority filters apply per row, and a row that passes
+  // all filters but has no visible ancestors is still shown as context so the
+  // hierarchy never breaks. "ownMatch" rows count toward the result count.
+  function applyFilters() {
+    var q = state.q.trim().toLowerCase();
+    var shown = 0, total = 0, anySection = false;
+
+    sections.forEach(function (s) {
+      var entryOf = new Map();
+      s.rows.forEach(function (e) { entryOf.set(e.node, e); });
+
+      function evalEntries(nodes, textInherited) {
+        var any = false;
+        (nodes || []).forEach(function (node) {
+          var entry = entryOf.get(node);
+          if (!entry) return;
+          var ownText = !q || textHit(node, q);
+          var textHere = textInherited || ownText;
+          var childAny = evalEntries(node.children, textHere);
+          var ownMatch = textHere && dimHit(node);
+          var show = ownMatch || childAny;
+          entry.el.classList.toggle("hidden", !show);
+          entry.el.classList.toggle("context", show && !ownMatch);
+          if (ownMatch) shown++;
+          if (show) any = true;
+          total++;
+        });
+        return any;
+      }
+
+      var themeText = !q || textHit(s.theme, q);
+      var childAny = evalEntries(s.theme.children, themeText);
+      var themeOwn = themeText && dimHit(s.theme);
+      var visible = themeOwn || childAny;
+      s.el.classList.toggle("hidden", !visible);
+      s.head.classList.toggle("context", !themeOwn && visible);
+      var visibleRows = s.rows.filter(function (e) { return !e.el.classList.contains("hidden"); }).length;
+      // The row counter only matters while filtering - at rest it would just
+      // read N/N and invite confusion with the completion percentage beside it.
+      var filtered = !!q || state.status.size > 0 || state.prio.size > 0;
+      s.countEl.hidden = !filtered;
+      s.countEl.textContent = visibleRows + "/" + s.rows.length;
+      s.countEl.title = "rows matching the current filters: " + visibleRows +
+        " of " + s.rows.length + " (completion % is store-wide, not filter-aware)";
+      if (visible) anySection = true;
+    });
+
+    document.getElementById("count").textContent =
+      "showing " + shown + " of " + total + " issues" +
+      (q || state.status.size || state.prio.size ? " (filtered)" : "");
+    document.getElementById("empty").hidden = shown > 0 || anySection;
+  }
+
+  // ---- chips ----------------------------------------------------------------
+  function makeChips(boxId, values, set, colorFn) {
+    var box = document.getElementById(boxId);
+    values.forEach(function (v) {
+      var c = el("button", "chip");
+      c.type = "button";
+      c.textContent = v;
+      if (colorFn) {
+        var d = el("span", "dot");
+        d.setAttribute("style", colorFn(v));
+        c.insertBefore(d, c.firstChild);
+      }
+      c.setAttribute("aria-pressed", "false");
+      c.addEventListener("click", function () {
+        if (set.has(v)) set.delete(v); else set.add(v);
+        c.setAttribute("aria-pressed", set.has(v) ? "true" : "false");
+        applyFilters();
+      });
+      box.appendChild(c);
+    });
+  }
+  var presentStatuses = STATUSES.filter(function (st) {
+    return DATA.themes.some(function (t) {
+      return t.status === st || (t.children || []).some(function deep(c) {
+        return c.status === st || (c.children || []).some(deep);
+      });
+    });
+  });
+  makeChips("status-chips", presentStatuses, state.status, function (v) { return cssStatus(v); });
+  makeChips("prio-chips", PRIOS, state.prio, function (v) { return cssPrio(v); });
+
+  // ---- toolbar actions --------------------------------------------------------
+  var qInput = document.getElementById("q");
+  qInput.addEventListener("input", function () { state.q = qInput.value; applyFilters(); });
+  document.getElementById("expand").addEventListener("click", function () {
+    state.collapsed.clear();
+    sections.forEach(function (s) { s.el.classList.remove("collapsed"); });
+  });
+  document.getElementById("collapse").addEventListener("click", function () {
+    sections.forEach(function (s) {
+      state.collapsed.add(s.theme.id);
+      s.el.classList.add("collapsed");
+    });
+  });
+  document.getElementById("clear").addEventListener("click", function () {
+    state.q = ""; qInput.value = "";
+    state.status.clear(); state.prio.clear();
+    document.querySelectorAll(".chip").forEach(function (c) { c.setAttribute("aria-pressed", "false"); });
+    applyFilters();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && document.activeElement !== qInput) { e.preventDefault(); qInput.focus(); }
+    if (e.key === "Escape" && document.activeElement === qInput) {
+      qInput.value = ""; state.q = ""; applyFilters(); qInput.blur();
+    }
+  });
+
+  function toggleTheme(id) {
+    var s = sections.find(function (x) { return x.theme.id === id; });
+    if (!s) return;
+    var collapsed = s.el.classList.toggle("collapsed");
+    if (collapsed) state.collapsed.add(id); else state.collapsed.delete(id);
+  }
+
+  // ---- deep links + toast ------------------------------------------------------
+  function goToHash() {
+    var id = (location.hash || "").replace(/^#/, "");
+    if (!id) return;
+    var target = nodesById[id] || nodesById[id.replace(/^issue-/, "")];
+    if (!target) return;
+    if (target.section) {
+      target.section.classList.remove("collapsed");
+      state.collapsed.delete(target.section.dataset.theme);
+    } else {
+      var sec = target.row.closest("section.theme");
+      if (sec) {
+        sec.classList.remove("collapsed");
+        state.collapsed.delete(sec.dataset.theme);
+      }
+    }
+    target.row.scrollIntoView({ block: "center" });
+    var flashEl = target.row.classList.contains("head") ? target.row.parentElement : target.row;
+    flashEl.classList.remove("flash");
+    void flashEl.offsetWidth;
+    flashEl.classList.add("flash");
+  }
+  window.addEventListener("hashchange", goToHash);
+
+  var toastTimer = null;
+  function copyText(text, msg) {
+    var done = function () {
+      var t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) { /* best effort */ }
+    document.body.removeChild(ta);
+  }
+
+  applyFilters();
+  goToHash();
+})();
+</script>
+<noscript>
+  <div class="wrap"><div class="empty">This view needs JavaScript; the raw data is in the
+  <code>issue-tree-data</code> script block, generated from the issue store.</div></div>
+</noscript>
+</body>
+</html>
