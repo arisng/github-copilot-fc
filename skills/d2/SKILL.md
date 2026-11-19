@@ -1,6 +1,9 @@
 ---
 name: d2
 description: "Author, verify, and export D2 (d2lang) diagram-as-code, and package the output as self-contained HTML for web apps. Covers declarative syntax for shapes, connections, and containers; drill-down composition with layers/scenarios/steps and link attributes (link: layers.x, link: _); animated connections (style.animated); tooltips, themes, and vars.d2-config; bundled layout engines (dagre/elk/tala); deterministic d2 fmt; full-compile verification (d2 validate is parser-only and misses unknown shapes and bad style values); and one-file HTML packaging for single-board diagrams, multi-board click-through drill-down, and auto-cycling boards (--animate-interval). Use when creating, editing, reviewing, or debugging .d2 files, embedding D2 diagrams into HTML or web apps, or wiring a D2 build/verify step into an agent workflow. Not for Mermaid, PlantUML, Graphviz, or draw.io diagrams."
+metadata:
+  version: 1.0.0
+  author: arisng
 ---
 
 # D2: author, verify, package self-contained HTML
