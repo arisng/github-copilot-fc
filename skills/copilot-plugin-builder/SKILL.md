@@ -2,7 +2,7 @@
 name: copilot-plugin-builder
 description: "Author, scaffold, test, and distribute GitHub Copilot plugins — portable Agent Plugins 1.0 packages (skills, MCP servers) plus Copilot agents, commands, rules, and hooks for the CLI, VS Code, the Copilot app, and the SDK. Use when creating or editing a plugin or its plugin.json, testing locally, distributing or installing via marketplace or Git, migrating a legacy plugin to Agent Plugins 1.0, syncing versions, or building plugins with @github/copilot-sdk. Not for Copilot CLI extensions (tools/commands/canvas via @github/copilot-sdk/extension) — use copilot-extension-builder instead."
 metadata:
-  version: 0.3.0
+  version: 0.3.1
 ---
 
 # Copilot Plugin Builder
@@ -294,6 +294,20 @@ When bumping a plugin's version, **always update both files atomically**:
 
 When present, these MUST match. Drift causes users to miss updates or install unexpected versions. See `references/marketplace-guide.md` → "Bump Procedure" for the full checklist including verification and commit steps.
 
+## Submission Review
+
+**Trigger: use before shipping any plugin.** Run the sectioned PASS/FAIL checklist in
+[references/submission-review.md](references/submission-review.md) — manifest validity,
+cross-file consistency, component discoverability, frontmatter completeness, README
+quality, and release readiness (stable bundle via `-OutputRoot`, marketplace version
+parity, throwaway `COPILOT_HOME` install smoke). Report one
+`[PASS]/[FAIL] <section>: <evidence>` line per section plus a prioritized fix list.
+
+The plugin's root `README.md` must follow
+[references/plugin-readme-template.md](references/plugin-readme-template.md)
+(Installation / Quick start / How it works / Components / License) — the review's README
+section grades against it.
+
 ## SDK Usage
 
 The `@github/copilot-sdk` provides programmatic control via JSON-RPC. Supports 6 languages: TypeScript, Python, Go, .NET, Rust, Java. Agent Plugins 1.0 support is generally available in the SDK, and the SDK manages CLI process lifecycle automatically.
@@ -332,3 +346,5 @@ For SDK examples in all languages, custom tools, streaming, plugin loading, and 
 - [references/sdk-examples.md](references/sdk-examples.md) — SDK usage in all 6 languages with custom tools, streaming, plugin loading, MCP
 - [references/hook-lifecycle.md](references/hook-lifecycle.md) — All hook events with input/output signatures
 - [references/marketplace-guide.md](references/marketplace-guide.md) — Marketplace schema, catalog maintenance, versioning, and distribution
+- [references/submission-review.md](references/submission-review.md) — PASS/FAIL checklist to run before a plugin ships
+- [references/plugin-readme-template.md](references/plugin-readme-template.md) — Consumer-facing README template (Installation, Quick start, Components, License)
