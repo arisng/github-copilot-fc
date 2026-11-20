@@ -1,10 +1,10 @@
 # Issue Metadata Index
 
-**Generated:** 2026-11-20 13:52:01
+**Generated:** 2026-11-20 15:46:56
 
 **Statistics:**
-- Total Issues: 15
-- YAML Format: 15
+- Total Issues: 17
+- YAML Format: 17
 - Legacy Format: 0
 
 | # | Status | Type | File   | Date   | Severity | Format |
@@ -24,3 +24,5 @@
 | 13 | Open for Comment | RFC | 260401_googleworkspace-cli-agent-skill-proposal.md | 2026-04-01 | High | YAML |
 | 14 | resolved | RFC | 260406_ai-skill-self-improvement-framework.md | 2026-04-06 | High | YAML |
 | 15 | Proposed | Feature Plan | 260425_openspec-custom-profile-evolution-baseline.md | 2026-04-25 | High | YAML |
+| 16 | Open | Bug | 261120_byok-subsession-audit-failures.md | 2026-11-20 | Low | YAML |
+| 17 | Open | Task | 261120_waza-check-backlog-triage.md | 2026-11-20 | Low | YAML |
