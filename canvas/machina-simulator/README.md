@@ -27,7 +27,7 @@ match what authors see when they score a definition.
 the `machine-simulator` canvas via the `open_canvas` tool. You can also pass a
 machine JSON string to preload it:
 
-```
+```text
 /machina-simulator
 /machina-simulator { "id": "pm-release-notes", ... }
 ```
@@ -310,18 +310,18 @@ After stopping the primary, nothing needs manual restart:
 Extensions are experimental. Run `copilot --experimental` (or use
 `/experimental on` in a session), then place this folder under one of:
 
-* User scope — `~/.copilot/extensions/machina-simulator/extension.mjs`
-* Project scope — `.github/extensions/machina-simulator/extension.mjs`
+- User scope — `~/.copilot/extensions/machina-simulator/extension.mjs`
+- Project scope — `.github/extensions/machina-simulator/extension.mjs`
 
 Reload with `/clear` (fresh session) or "Reload my extensions" (Load & Augment).
 Verify with `/extensions manage`.
 
 ## Usage examples (agent-facing)
 
-* "Validate `state-machine.json` with machina_validate."
-* "Run machina_autofill on the machine in `sample.json` and show what changed."
-* "Give me the machina_spec for v1.0.0 as JSON Schema."
-* "Open the machine-simulator canvas for this state machine."
+- "Validate `state-machine.json` with machina_validate."
+- "Run machina_autofill on the machine in `sample.json` and show what changed."
+- "Give me the machina_spec for v1.0.0 as JSON Schema."
+- "Open the machine-simulator canvas for this state machine."
 
 ## Development
 
@@ -344,7 +344,7 @@ suite loads `simulator/samples/machina-order.json` as its reference state machin
 
 ## Notes
 
-* Uses `session.log()` never `console.log()` — stdout is reserved for JSON-RPC.
-* The compliance engine matches the documented model used by the `machina-authoring`
+- Uses `session.log()` never `console.log()` — stdout is reserved for JSON-RPC.
+- The compliance engine matches the documented model used by the `machina-authoring`
   skill's bundled `machine-validator.py`: `pass(false)` reports a failing check, and checks
   apply when `since ≤ target spec version` (all 17 checks at v2.0.0, total weight 100).

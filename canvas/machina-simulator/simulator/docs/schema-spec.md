@@ -109,7 +109,7 @@ name.
 A **run ledger** records a driven Machina run as an ordered, hash-chained JSONL consumed by
 `machina_replay` / `replayRunLedger`:
 
-```
+```json
 { "prev_hash": "<sha256 of prior record>|null", "payload": { … }, "hash": "<sha256 of payload>" }
 ```
 

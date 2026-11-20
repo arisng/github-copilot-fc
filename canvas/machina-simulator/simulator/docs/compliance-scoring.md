@@ -7,7 +7,7 @@ The 17-check scoring model, findings shape, and deterministic "Generate missing"
 1. [Scoring model](#scoring-model)
 2. [Check registry](#check-registry)
 3. [Result shape](#result-shape)
-4. [Autofill pipeline](#autofill-pipeline--generate-missing)
+4. [Autofill pipeline](#autofill-pipeline-generate-missing)
 5. [Deterministic builders (exact output)](#deterministic-builders-exact-output)
 6. [Review-only items — never invented](#review-only-items--never-invented)
 7. [Compliance modal UI](#compliance-modal-ui)

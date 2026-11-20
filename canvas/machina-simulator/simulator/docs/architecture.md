@@ -140,7 +140,7 @@ The **Runs** tab surfaces persisted run history with zero `runRef` plumbing:
 - `runHistory` is also exposed via `/state` for programmatic consumers, so an empty canvas
   open already surfaces the discovered inventory without any app interaction.
 
-## Guard/action evaluation:
+## Guard/action evaluation
 
 - `evalGuard`: reads context by dotted path (`getPath`); string `value` resolves against context
   keys then numeric-coerces; unknown op → pass (default true). Ops: `eq·neq·lt·lte·gt·gte`.
@@ -186,7 +186,7 @@ factor `0.7 / 1.0 / 1.4` scaling `COLW`/`ROWGAP` in `computeLayout`. Normal defa
 ## Scenario generation & coverage
 
 - `getEntryPoints()`: deduped `scenarios[].initial` split by interface (`UI` vs `API`)
-  + `machine.initial` as default `API` entry.
+  - `machine.initial` as default `API` entry.
 - `generateScenarios()`: DFS, `MAX_DEPTH 24`, `MAX_SCEN 500`, per-state `MAX_VISITS 2`;
   records every path to terminal; dedupes identical state sequences; labels `start → end`
   with `(n)` disambiguator. Cached in `generatedScenarios`.
