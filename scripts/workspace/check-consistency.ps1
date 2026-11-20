@@ -18,6 +18,10 @@
         mechanical naming rule moved here from instruction prose - retro
         candidate 4; file-name exceptions that toolchains own, such as
         pytest test_*.py and waza trigger_tests.yaml, stay prose)
+      - issue-tracking tree-template.html must match the fingerprint in
+        assets/tree-template.version.json (FAIL; an edit without a version
+        bump would only surface in consumer repos at render time - retro
+        2026-11-20)
 
     Severity policy (plan Sequencing "day-one red guard"): structural rules
     FAIL and are green on today's tree; content budgets WARN-first until the
@@ -248,6 +252,37 @@ else {
     }
     else {
         Add-Finding -Level 'PASS' -Area 'catalog' -Detail (($catalogOut -join ' | ') -replace '^\[(PASS|FAIL)\] ', '')
+    }
+}
+
+# --- Issue-tree template version integrity (retro 2026-11-20) ---------------
+# The rendered view's version contract: assets/tree-template.version.json must
+# fingerprint assets/tree-template.html. Without this gate a template edit that
+# skips bump-tree-template-version.ps1 passes here and only fails in consumer
+# repos at render time, when the fix has to travel through a skill release.
+$tplLib = Join-Path $repoRoot 'skills' 'issue-tracking' 'scripts' 'template-version-lib.ps1'
+$tplAsset = Join-Path $repoRoot 'skills' 'issue-tracking' 'assets' 'tree-template.html'
+$tplVersionFile = Join-Path $repoRoot 'skills' 'issue-tracking' 'assets' 'tree-template.version.json'
+if (-not (Test-Path $tplLib)) {
+    Add-Finding -Level 'FAIL' -Area 'template' -Detail 'missing skills/issue-tracking/scripts/template-version-lib.ps1'
+}
+elseif (-not (Test-Path $tplAsset) -or -not (Test-Path $tplVersionFile)) {
+    Add-Finding -Level 'FAIL' -Area 'template' -Detail 'issue-tracking template assets incomplete (assets/tree-template.html or assets/tree-template.version.json missing)'
+}
+else {
+    . $tplLib
+    $tplState = Get-TreeTemplateVersionState -Path $tplVersionFile
+    if ($tplState.Error) {
+        Add-Finding -Level 'FAIL' -Area 'template' -Detail $tplState.Error
+    }
+    else {
+        $tplActual = Get-TreeTemplateSha256 -Path $tplAsset
+        if ($tplActual -ne $tplState.Sha256) {
+            Add-Finding -Level 'FAIL' -Area 'template' -Detail "skills/issue-tracking/assets/tree-template.html changed without a version bump (recorded v$($tplState.Version)) - run: pwsh skills/issue-tracking/scripts/bump-tree-template-version.ps1 -Version <new>"
+        }
+        else {
+            Add-Finding -Level 'PASS' -Area 'template' -Detail "tree-template.html fingerprint matches recorded v$($tplState.Version)"
+        }
     }
 }
 
