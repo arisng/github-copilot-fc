@@ -86,6 +86,14 @@ if (-not (Test-Path $SessionDbPath)) {
     exit 1
 }
 
+# Membership rules — keep in sync with Get-SessionCoverage.ps1: a session
+# grounds here by repository key OR by cwd under this checkout, so a store row
+# whose repository key drifted (or was never recorded) is still caught.
+# Escape char '@': with '\', Windows path backslashes would be consumed as
+# escapes and match nothing.
+$repoPathNorm = ($RepoRoot -replace '/', '\').TrimEnd('\').ToLowerInvariant()
+$repoPathLike = ($repoPathNorm -replace '([%_@])', '@$1') + '\'
+
 # Local store timestamps are UTC; convert the local-day bounds at runtime.
 $utcStart = $parsedStart.AddHours(-$UtcOffsetHours)
 $utcEnd = $parsedEnd.AddHours(-$UtcOffsetHours)
@@ -100,7 +108,9 @@ SELECT DISTINCT s.id,
        s.created_at, s.updated_at
 FROM sessions s
 INNER JOIN turns t ON t.session_id = s.id
-WHERE s.repository = '$repoFilter'
+WHERE (s.repository = '$repoFilter'
+       OR lower(replace(COALESCE(s.cwd, ''), '/', '\')) = '$repoPathNorm'
+       OR lower(replace(COALESCE(s.cwd, ''), '/', '\')) LIKE '$repoPathLike%' ESCAPE '@')
   AND t.timestamp >= '$utcStartStr' AND t.timestamp < '$utcEndStr'
 ORDER BY s.updated_at DESC
 "@

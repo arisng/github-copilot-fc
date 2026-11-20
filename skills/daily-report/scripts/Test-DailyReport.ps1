@@ -8,7 +8,9 @@
   body, section structure and caps, refs format, one-page budget,
   session-transcript exports (every session the report mentions must have
   its sessions/<slug>.html beside the report), report-to-canonical glossary
-  consistency, and — with -EvidenceJson — empty-source honesty. Exits
+  consistency, and — with -EvidenceJson — empty-source honesty; with
+  -CoverageJson — grounding completeness (receipt verified, no missed
+  in-scope session, a transcript export per in-scope session). Exits
   non-zero with a specific message per violation. Writes nothing.
 .EXAMPLE
   .\Test-DailyReport.ps1 -RepoRoot .. -GitUser TranKhnhDuy -Date 2026-11-10
@@ -19,7 +21,8 @@ param(
     [string]$GitUser = "",
     [string]$Date = "",
     [string]$GlossaryPath = "",
-    [string]$EvidenceJson = ""
+    [string]$EvidenceJson = "",
+    [string]$CoverageJson = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -208,6 +211,36 @@ if ($EvidenceJson -and (Test-Path $EvidenceJson)) {
     if ($commits -eq 0 -and $sessions -eq 0 -and $working -eq 0) {
         if ($body -notmatch '(?i)gap|no evidence|no session|no commit') {
             Fail 'empty-source honesty: grounding returned zero rows and the report states no gap'
+        }
+    }
+}
+
+# ---- session grounding coverage (with -CoverageJson) ----
+if ($CoverageJson) {
+    if (-not (Test-Path -LiteralPath $CoverageJson)) { Fail "coverage: receipt not found: $CoverageJson" }
+    else {
+        $cov = $null
+        try { $cov = Get-Content -LiteralPath $CoverageJson -Raw | ConvertFrom-Json }
+        catch { Fail "coverage: receipt is not valid JSON: $($_.Exception.Message)" }
+        if ($cov) {
+            if ([int]$cov.schema -ne 1) { Fail "coverage: unsupported receipt schema '$($cov.schema)'" }
+            elseif ([string]$cov.date -ne $Date) { Fail "coverage: receipt date '$($cov.date)' does not match report date '$Date'" }
+            elseif (-not $cov.verified) { Fail 'coverage: receipt is unverified — pass every per-repo evidence file to Get-SessionCoverage.ps1 -EvidenceJson' }
+            elseif (@($cov.missed).Count -gt 0) { Fail "coverage: in-scope session(s) missing from evidence: $(@($cov.missed) -join ', ')" }
+            else {
+                $sessionsDir = Join-Path (Split-Path $ReportPath -Parent) 'sessions'
+                $bases = @()
+                if (Test-Path -LiteralPath $sessionsDir) {
+                    $bases = @(Get-ChildItem -LiteralPath $sessionsDir -Filter '*.html' -File | ForEach-Object { $_.BaseName.ToLowerInvariant() })
+                }
+                foreach ($sid in @($cov.inScopeIds)) {
+                    if (-not $sid) { continue }
+                    $sidL = ([string]$sid).ToLowerInvariant()
+                    if (-not @($bases | Where-Object { $sidL.Contains($_) }).Count) {
+                        Fail "coverage: no transcript export for in-scope session $sidL — run Export-SessionTranscripts.ps1 with -CoverageJson"
+                    }
+                }
+            }
         }
     }
 }

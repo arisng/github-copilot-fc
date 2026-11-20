@@ -115,6 +115,33 @@ updated: 2026-11-17 16:00 +07:00
         }
     }
 
+    It 'exports a coverage-receipt session the report never mentions' {
+        $r = New-Report 'cov.md' '- **Refs:** check `task test` → PASS'
+        $cov = Join-Path $TestDrive 'cov.json'
+        '{"schema":1,"date":"2026-11-17","verified":true,"missed":[],"inScopeIds":["ccccdddd-0000-4000-8000-000000000001"]}' | Set-Content $cov
+        $j = (& $export -ReportPath $r -CopilotHome $fxHome -CoverageJson $cov | Out-String) | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $j.total | Should -Be 1
+        $sessionsDir = Join-Path (Split-Path $r -Parent) 'sessions'
+        (Get-Content (Join-Path $sessionsDir 'ccccdddd-0000-4000-8000-000000000001.html') -Raw) | Should -Match 'DB answer'
+    }
+
+    It 'keeps the mention slug when a receipt repeats a cited session' {
+        $r = New-Report 'cov-dedupe.md' '- **Refs:** session `ccccdddd`'
+        $cov = Join-Path $TestDrive 'cov.json'
+        '{"schema":1,"date":"2026-11-17","verified":true,"missed":[],"inScopeIds":["ccccdddd-0000-4000-8000-000000000001"]}' | Set-Content $cov
+        $j = (& $export -ReportPath $r -CopilotHome $fxHome -CoverageJson $cov | Out-String) | ConvertFrom-Json
+        $j.total | Should -Be 1
+        $sessionsDir = Join-Path (Split-Path $r -Parent) 'sessions'
+        Test-Path (Join-Path $sessionsDir 'ccccdddd.html') | Should -BeTrue
+        Test-Path (Join-Path $sessionsDir 'ccccdddd-0000-4000-8000-000000000001.html') | Should -BeFalse
+    }
+
+    It 'fails loudly when the coverage receipt is missing' {
+        $r = New-Report 'cov-ghost.md' '- **Refs:** check `task test` → PASS'
+        { & $export -ReportPath $r -CopilotHome $fxHome -CoverageJson (Join-Path $TestDrive 'ghost-coverage.json') } | Should -Throw -ExpectedMessage '*coverage receipt not found*'
+    }
+
     It 'emits a zero-total receipt and creates no folder when nothing is mentioned' {
         $r = New-Report 'none.md' '- **Refs:** check `task test` → PASS'
         $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json

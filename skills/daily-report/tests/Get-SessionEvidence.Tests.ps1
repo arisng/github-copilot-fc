@@ -7,21 +7,25 @@ Describe 'Get-SessionEvidence.ps1' {
         git -C $repo remote add origin 'https://github.com/o/r.git'
         $db = Join-Path $TestDrive 'store.db'
         sqlite3.exe $db @'
-CREATE TABLE sessions (id TEXT, branch TEXT, summary TEXT, repository TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE sessions (id TEXT, branch TEXT, summary TEXT, repository TEXT, created_at TEXT, updated_at TEXT, cwd TEXT);
 CREATE TABLE turns (session_id TEXT, turn_index INT, user_message TEXT, assistant_response TEXT, timestamp TEXT);
 CREATE TABLE session_files (session_id TEXT, file_path TEXT, tool_name TEXT, turn_index INT);
 CREATE TABLE session_refs (session_id TEXT, ref_type TEXT, ref_value TEXT, created_at TEXT);
-INSERT INTO sessions VALUES ('s1','main','work','o/r','2026-11-10','2026-11-10');
-INSERT INTO sessions VALUES ('s2','main','other repo','x/y','2026-11-10','2026-11-10');
-INSERT INTO sessions VALUES ('s3','main','azure work','contoso/Proj/App','2026-11-10','2026-11-10');
+INSERT INTO sessions VALUES ('s1','main','work','o/r','2026-11-10','2026-11-10','');
+INSERT INTO sessions VALUES ('s2','main','other repo','x/y','2026-11-10','2026-11-10','');
+INSERT INTO sessions VALUES ('s3','main','azure work','contoso/Proj/App','2026-11-10','2026-11-10','');
 INSERT INTO turns VALUES ('s1',0,'do things','done','2026-11-10T02:00:00');
 INSERT INTO turns VALUES ('s2',0,'other','other','2026-11-10T02:00:00');
 INSERT INTO turns VALUES ('s3',0,'azure','done','2026-11-10T02:00:00');
 INSERT INTO turns VALUES ('s1',1,'yesterday','old','2026-11-09T02:00:00');
+INSERT INTO turns VALUES ('s4',0,'cwd q','cwd a','2026-11-10T06:00:00');
 INSERT INTO session_files VALUES ('s1','a.txt','edit',0);
 INSERT INTO session_files VALUES ('s1','b.txt','edit',1);
 INSERT INTO session_files VALUES ('s1','c.txt','create',2);
 '@
+        # s4: repository never recorded - grounds only by cwd under the checkout.
+        sqlite3.exe $db "INSERT INTO sessions VALUES ('s4',NULL,'cwd fallback only','','2026-11-09','2026-11-09','$repo\sub');"
+        if ($LASTEXITCODE -ne 0) { throw 'fixture db creation failed' }
     }
 
     It 'parses multi-row results (sqlite3 pretty-prints across lines)' {
@@ -39,11 +43,15 @@ INSERT INTO session_files VALUES ('s1','c.txt','create',2);
         $turns[0].turn | Should -Be 0
     }
 
-    It 'returns only sessions of the current repository in the day' {
+    It 'returns only sessions of the current repository — by key or by cwd' {
         $out = & (Join-Path $scriptDir 'Get-SessionEvidence.ps1') -Date '2026-11-10' -RepoRoot $repo -SessionDbPath $db -UtcOffsetHours 7 | Out-String
         $j = $out | ConvertFrom-Json
-        $j.sessionCount | Should -Be 1
-        $j.sessions[0].id | Should -Be 's1'
+        $j.sessionCount | Should -Be 2
+        @($j.sessions | ForEach-Object { $_.id }) | Should -Contain 's1'
+        # s4: repository never recorded, grounded only by cwd under the checkout
+        @($j.sessions | ForEach-Object { $_.id }) | Should -Contain 's4'
+        @($j.sessions | ForEach-Object { $_.id }) | Should -Not -Contain 's2'
+        @($j.sessions | ForEach-Object { $_.id }) | Should -Not -Contain 's3'
     }
 
     It 'refuses an unresolvable repository (no unfiltered queries)' {

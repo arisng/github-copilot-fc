@@ -55,6 +55,12 @@ updated: $stamp
             [IO.File]::WriteAllText((Join-Path $sessDir '16f5c5b5.html'), "<!doctype html><html><body>transcript 16f5c5b5</body></html>")
             return $report
         }
+
+        function New-CoverageReceipt([string]$Report, [string]$Json) {
+            $p = Join-Path (Split-Path $Report -Parent) 'sessions/261110.coverage.json'
+            [IO.File]::WriteAllText($p, $Json)
+            return $p
+        }
     }
 
     It 'passes a report that satisfies every guardrail' {
@@ -134,5 +140,44 @@ updated: $stamp
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
         $LASTEXITCODE | Should -Be 0
         "$out" | Should -Match 'PASS'
+    }
+
+    It 'passes with a verified coverage receipt whose in-scope sessions all have transcripts' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $cov = New-CoverageReceipt $r '{"schema":1,"date":"2026-11-10","verified":true,"missed":[],"inScopeIds":["16f5c5b5-1111-4222-8333-444444444444"],"outOfScope":[],"unattributed":[]}'
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson $cov 2>&1
+        $LASTEXITCODE | Should -Be 0
+        "$out" | Should -Match 'PASS'
+    }
+
+    It 'fails on an unverified coverage receipt' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $cov = New-CoverageReceipt $r '{"schema":1,"date":"2026-11-10","verified":false,"missed":[],"inScopeIds":[],"outOfScope":[],"unattributed":[]}'
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson $cov 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'coverage: receipt is unverified'
+    }
+
+    It 'fails when evidence missed an in-scope session' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $cov = New-CoverageReceipt $r '{"schema":1,"date":"2026-11-10","verified":true,"missed":["eeeeeeee-1111-4222-8333-444444444444"],"inScopeIds":["eeeeeeee-1111-4222-8333-444444444444"],"outOfScope":[],"unattributed":[]}'
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson $cov 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'coverage: in-scope session\(s\) missing from evidence'
+    }
+
+    It 'fails when an in-scope session has no transcript export' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $cov = New-CoverageReceipt $r '{"schema":1,"date":"2026-11-10","verified":true,"missed":[],"inScopeIds":["deadbeef-0000-4222-8333-444444444444"],"outOfScope":[],"unattributed":[]}'
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson $cov 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'coverage: no transcript export for in-scope session deadbeef'
+    }
+
+    It 'fails when the coverage receipt file is missing' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson (Join-Path $TestDrive 'ghost-coverage.json') 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'coverage: receipt not found'
     }
 }

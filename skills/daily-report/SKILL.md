@@ -116,7 +116,7 @@ exist only where the manifest says they do.
   (`(Get-Date).ToString('zzz')`) and stamped into the frontmatter — never
   hardcode an offset.
 
-### 2. Ground — two mandatory sources, then link verification
+### 2. Ground — two mandatory sources, a coverage cross-check, then link verification
 
 **Step 0 — identify the runner.** A report describes one person's work only.
 
@@ -157,8 +157,9 @@ grounding loop and is named as a grounding gap.
 2. **Session evidence (mandatory — once per repository in scope).**
    `scripts/Get-SessionEvidence.ps1 -Date "<yyyy-MM-dd>" -RepoRoot <checkout>`
    once per resolved checkout.
-   Emits JSON from the Copilot session store, scoped to `sessions.repository`
-   matching that checkout — the script refuses unfiltered queries. For the
+   Emits JSON from the Copilot session store, scoped by `sessions.repository`
+   matching that checkout — or by its cwd sitting under the checkout when the
+   store recorded no repository key — the script refuses unfiltered queries. For the
    cloud store, export the same day and repo scope through the harness
    session-store query and merge with `-CloudJson <file>`; out-of-scope rows are
    refused. Confirm the export's newest row reaches the target day before
@@ -169,7 +170,17 @@ grounding loop and is named as a grounding gap.
    in middle turns; never substitute conversation memory for the queried turns.
    Zero rows is a real result: the report must state that grounding gap
    instead of reading like a day off.
-3. **Link verification (only).** `gh` verifies references the two sources
+3. **Session coverage (mandatory — multi and single).** After every
+   repository's session evidence is collected, run
+   `scripts/Get-SessionCoverage.ps1 -Date "<yyyy-MM-dd>" -RepoRoot <root>
+   -EvidenceJson <every per-repo evidence file from this run>` and write its
+   receipt to the report's `sessions/<yymmdd>.coverage.json` (pass `-OutJson
+   <path>`). The receipt classifies every session the store held that day:
+   `inScope` must match what evidence returned (`verified: true`, `missed`
+   empty), while `outOfScope` and `unattributed` sessions are grounding gaps
+   the report-back must name. The mandated validation run in step 6 passes
+   this receipt, and it fails on a missing, unverified, or gapped one.
+4. **Link verification (only).** `gh` verifies references the two sources
    produced — issue and pull request numbers must exist on GitHub
    (`gh issue view <n>`). `gh` is **not** a grounding source.
 
@@ -242,9 +253,12 @@ that user's single `glossary.md`. A path outside the runner's own folder is
 refused — two users on one day produce two folders, never one merged file.
 
 **Session transcript exports (enforced):** right after the report file is
-written, run `scripts/Export-SessionTranscripts.ps1 -ReportPath <path>`. It
+written, run `scripts/Export-SessionTranscripts.ps1 -ReportPath <path>
+-CoverageJson <receipt>`. It
 reads every session the body mentions (``session `xxxxxxxx` `` — the slug is
-that id, lowercased; `grill session` mentions are never exported) and writes
+that id, lowercased; `grill session` mentions are never exported) plus every
+`inScope` session in the coverage receipt — cited or not, each grounded
+session leaves one artifact — and writes
 one self-contained HTML file per session to `sessions/<session-slug>.html`
 beside the report. The session data comes from **this machine's** Copilot state
 (`$env:COPILOT_HOME`, else `~/.copilot`): `events.jsonl` first, then the
@@ -287,16 +301,22 @@ rename it into this folder/naming before updating.
 
 ### 6. Validate, then report back
 
-- `scripts/Test-DailyReport.ps1 -RepoRoot <root> -GitUser <git user> -Date <yyyy-MM-dd>`
-  must **PASS** before reporting back. It enforces path/naming, the frontmatter
+- `scripts/Test-DailyReport.ps1 -RepoRoot <root> -GitUser <git user> -Date <yyyy-MM-dd>
+  -CoverageJson <receipt>` must **PASS** before reporting back. It enforces
+  path/naming, the frontmatter
   schema, the timeless body, structure and caps, refs format, the session
   transcript exports (every mentioned session must have its
-  `sessions/<slug>.html`), the budget, and report-to-canonical glossary
-  consistency (failures are line-specific).
+  `sessions/<slug>.html`), the budget, report-to-canonical glossary
+  consistency, and — with the coverage receipt — grounding completeness (a
+  receipt that is missing, unverified, or lists missed in-scope sessions
+  fails, as does an in-scope session without a transcript export). Failures
+  are line-specific.
 - Report back: the active mode (`single` or `multi`, plus the tower path in
   multi), the file path, counts (N Completed, M Active), created/updated
   stamps, the glossary receipt, the transcript-export receipt
-  (`exported`/`notice`/`kept`), and any grounding gap.
+  (`exported`/`notice`/`kept`), the coverage receipt's
+  `inScope`/`outOfScope`/`unattributed`/`complete` counts, and any grounding
+  gap.
 
 ## Batch mode (backfill)
 
@@ -316,9 +336,11 @@ single-day path** — no separate rendering logic:
    A session-evidence refusal (a remote the script cannot scope, a store error)
    records a grounding gap on that day's entry instead of failing the day: git
    proof still collects, and the summary's `gapped` count names the days.
+   Pass `-EvidenceDir <dir>` in backfills: the per-day coverage step verifies
+   against those per-repo evidence files.
 2. For each day with evidence, render the single-day report (this procedure,
-   which includes its session-transcript export), then `Merge-Glossary`, then
-   `Test-DailyReport`.
+   which includes session coverage, its session-transcript export), then
+   `Merge-Glossary`, then `Test-DailyReport`.
 3. Validate the range afterwards with `Invoke-DailyReportBatch.ps1 ... -Validate`.
 
 ## Scripts (this skill owns all of them)
@@ -327,16 +349,18 @@ single-day path** — no separate rendering logic:
 | --- | --- |
 | `scripts/Get-ReportManifest.ps1` | Resolves the per-machine manifest: active mode, tower (home repo), and watched repo full paths with origin name and existence; `-Optional` makes an absent manifest a single-mode answer. |
 | `scripts/Get-GitProof.ps1` | Single-day, author-filtered, checkpoint-excluding git evidence as JSON. |
-| `scripts/Get-SessionEvidence.ps1` | Single-day Copilot session evidence, scoped to the current repository; optional `-CloudJson` merge. |
-| `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report mentions to `sessions/<session-slug>.html` (events store first, session-store fallback, honest notice page when absent on this machine); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
+| `scripts/Get-SessionEvidence.ps1` | Single-day Copilot session evidence, scoped to the current repository by repository key or cwd (exact match only, no unfiltered queries); optional `-CloudJson` merge. |
+| `scripts/Get-SessionCoverage.ps1` | Per-day cross-check of the store against the watched set: classifies every session (inScope / outOfScope / unattributed) and, with `-EvidenceJson`, diffs in-scope ids against what evidence returned; emits the coverage receipt for export and validation. |
+| `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report mentions — plus every `inScope` coverage-receipt session with `-CoverageJson` — to `sessions/<session-slug>.html` (events store first, session-store fallback, honest notice page when absent on this machine); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
 | `scripts/Merge-Glossary.ps1` | All canonical-glossary mechanics: parse, validate, upsert, sort, atomic write, JSON receipt; `-Validate` shared with the test script. |
 | `scripts/Invoke-DailyReportBatch.ps1` | Backfill loop: date enumeration, skip/regenerate policy, per-day evidence, isolation. |
-| `scripts/Test-DailyReport.ps1` | Read-only validator for report + glossary against the pinned formats. |
+| `scripts/Test-DailyReport.ps1` | Read-only validator for report + glossary against the pinned formats; `-EvidenceJson` adds empty-source honesty, `-CoverageJson` adds grounding-completeness enforcement. |
 
 Relationship: `Get-ReportManifest → batch → (per day: Get-GitProof +
-Get-SessionEvidence per repository in scope [+ link verification]) →
-render → Export-SessionTranscripts → Merge-Glossary →
-Test-DailyReport`. The agent
+Get-SessionEvidence per repository in scope, then Get-SessionCoverage
+[+ link verification]) →
+render → Export-SessionTranscripts -CoverageJson → Merge-Glossary →
+Test-DailyReport -CoverageJson`. The agent
 does the semantic work (writing, NEW/known judgment); the scripts own every
 mechanical invariant. Pester tests for every script live under `tests/`.
 
@@ -384,7 +408,9 @@ Mechanical guardrails are enforced by `Test-DailyReport.ps1`,
 manifest schema, attribution,
 path and naming, frontmatter schema, timeless body, structure and budget, rerun
 idempotency, empty-source honesty, batch isolation, session-transcript export
-presence for every session the report mentions, and the glossary schema,
+presence for every session the report mentions, session-grounding coverage
+(receipt verified against evidence, no missed in-scope session, one transcript
+per in-scope session), and the glossary schema,
 ownership, idempotency, and report-to-canonical consistency. A violation fails
 loudly with a specific message; it is never silently skipped.
 

@@ -23,10 +23,14 @@
 
   -ListOnly prints the mentioned ids (one per line) and stops before any store
   or Python access; Test-DailyReport.ps1 uses it to enforce the exports.
+  -CoverageJson <receipt> additionally exports every in-scope session of the
+  day from Get-SessionCoverage.ps1, cited or not, so each grounded session
+  leaves an artifact. The report's mention form wins the slug (validator
+  checks those paths); coverage-only sessions get the full-id slug.
 .EXAMPLE
   .\Export-SessionTranscripts.ps1 -ReportPath ..\..\..\reports\daily\alice\261117.md
 .EXAMPLE
-  .\Export-SessionTranscripts.ps1 -ReportPath <path> -Refresh
+  .\Export-SessionTranscripts.ps1 -ReportPath <path> -CoverageJson sessions\261117.coverage.json
 #>
 param(
     [string]$ReportPath = "",
@@ -35,6 +39,7 @@ param(
     [string]$Date = "",
     [string]$CopilotHome = "",
     [string]$Python = "",
+    [string]$CoverageJson = "",
     [switch]$Refresh,
     [switch]$ListOnly
 )
@@ -80,6 +85,25 @@ function Get-MentionedSessions([string]$Text) {
 
 $mentioned = @(Get-MentionedSessions ([IO.File]::ReadAllText($ReportPath)))
 if ($ListOnly) { $mentioned; exit 0 }
+
+# Coverage union: every in-scope session of the day gets an export, cited or
+# not. Applied after -ListOnly so the validator's mention list stays exact;
+# the mention form wins the slug it already checks.
+if ($CoverageJson) {
+    if (-not (Test-Path -LiteralPath $CoverageJson)) { Write-Error "coverage receipt not found: $CoverageJson"; exit 1 }
+    $cov = Get-Content -LiteralPath $CoverageJson -Raw | ConvertFrom-Json
+    foreach ($raw in @($cov.inScopeIds)) {
+        if (-not $raw) { continue }
+        $id = ([string]$raw).ToLowerInvariant()
+        $dup = $false
+        foreach ($existing in $mentioned) {
+            if ($existing -eq $id) { $dup = $true; break }
+            if ($id.Length -gt 8 -and $id.StartsWith($existing)) { $dup = $true; break }
+            if ($existing.Length -gt 8 -and $existing.StartsWith($id)) { $dup = $true; break }
+        }
+        if (-not $dup) { $mentioned += $id }
+    }
+}
 
 $sessionsDir = Join-Path (Split-Path $ReportPath -Parent) 'sessions'
 if ($mentioned.Count -eq 0) {
