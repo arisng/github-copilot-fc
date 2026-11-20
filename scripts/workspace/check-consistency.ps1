@@ -14,6 +14,10 @@
       - schema/frontmatter validation via validate-manifests.py (the
         jsonschema engine: plugin/skill/marketplace schemas + instruction
         frontmatter description/applyTo)
+      - kebab-case directory names across every authored tree (FAIL; the
+        mechanical naming rule moved here from instruction prose - retro
+        candidate 4; file-name exceptions that toolchains own, such as
+        pytest test_*.py and waza trigger_tests.yaml, stay prose)
 
     Severity policy (plan Sequencing "day-one red guard"): structural rules
     FAIL and are green on today's tree; content budgets WARN-first until the
@@ -264,6 +268,35 @@ else {
     else {
         Add-Finding -Level 'PASS' -Area 'marketplace' -Detail 'verify-version-sync: marketplace <-> manifest parity clean'
     }
+}
+
+# --- Directory naming: kebab-case in authored trees (retro candidate 4) ----
+# Mechanical rule promoted from .github/copilot-instructions.md prose to a
+# deterministic check: directories only, hidden dirs / __pycache__ /
+# node_modules excluded. Green on today's tree, so it ships FAIL.
+$namedTrees = @('skills', 'agents', 'instructions', 'hooks', 'canvas', 'evals', 'docs', 'plugins', 'scripts')
+$dirNamesChecked = 0
+$badDirNames = [System.Collections.Generic.List[string]]::new()
+foreach ($tree in $namedTrees) {
+    $treeRoot = Join-Path $repoRoot $tree
+    if (-not (Test-Path $treeRoot)) { continue }
+    $rootLen = $treeRoot.Length
+    Get-ChildItem -Path $treeRoot -Recurse -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        $segments = @((($_.FullName.Substring($rootLen)) -split '[\\/]') | Where-Object { $_ })
+        if (@($segments | Where-Object { $_ -like '.*' -or $_ -in @('__pycache__', 'node_modules') }).Count -gt 0) { return }
+        $dirNamesChecked++
+        if ($_.Name -notmatch '^[a-z0-9]+(-[a-z0-9]+)*$') {
+            $badDirNames.Add("$tree/" + ($segments -join '/'))
+        }
+    }
+}
+if ($badDirNames.Count -gt 0) {
+    foreach ($bad in $badDirNames) {
+        Add-Finding -Level 'FAIL' -Area 'naming' -Detail "directory not kebab-case: $bad"
+    }
+}
+else {
+    Add-Finding -Level 'PASS' -Area 'naming' -Detail "$dirNamesChecked directory name(s) across $($namedTrees.Count) authored tree(s) kebab-case clean"
 }
 
 # --- Report -----------------------------------------------------------------
