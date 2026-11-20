@@ -34,6 +34,14 @@
       "type": "string",
       "description": "Placeholder hint when the skill is invoked as a slash command."
     },
+    "user-invocable": {
+      "type": "boolean",
+      "description": "Copilot harness key: whether the user can invoke the skill directly."
+    },
+    "disable-model-invocation": {
+      "type": "boolean",
+      "description": "Copilot harness key: prevent the model from invoking the skill automatically; manual invocation only."
+    },
     "allowed-tools": {
       "oneOf": [
         { "type": "string" },
