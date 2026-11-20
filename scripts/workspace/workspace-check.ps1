@@ -41,6 +41,9 @@
        schema/inventory validation against waza's embedded authoritative schema
        (no execution - waza gate/run stays deferred). Schema/configuration
        errors FAIL; resource.file fixture debt WARNs.
+    6. Skill tests - `python3 -m pytest skills -q`: the pytest suites under
+       skills/*/tests (regression tests for skill scripts). Wired here so a red
+       suite blocks the push instead of sitting unwired behind `task test`.
 
     Exits non-zero when any check FAILs. Used by .githooks/pre-commit (-Quick)
     and .githooks/pre-push (full).
@@ -333,6 +336,71 @@ function Test-EvalPreflight {
     return @{ Status = 'PASS'; Detail = "$($evalFiles.Count) eval(s) pass offline waza preflight" }
 }
 
+function Test-SkillPester {
+    [CmdletBinding()]
+    param()
+
+    # Skill Pester suites (skills/**/*.Tests.ps1) are the skill scripts' own
+    # guardrail; without this check they never run in any repo gate
+    # (task test is pytest-only). Full mode only — the quick pre-commit
+    # gate stays fast.
+    $testFiles = @(Get-ChildItem -Path (Join-Path $repoRoot 'skills') -Recurse -Filter '*.Tests.ps1' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\\.archived\\' })
+    if ($testFiles.Count -eq 0) {
+        return @{ Status = 'SKIP'; Detail = 'no skills/**/*.Tests.ps1 found' }
+    }
+    if (-not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version.Major -ge 5 })) {
+        return @{ Status = 'FAIL'; Detail = 'Pester 5+ not available - Install-Module Pester -Scope CurrentUser' }
+    }
+    $dirs = @($testFiles | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique)
+    try {
+        $result = Invoke-Pester -Path $dirs -PassThru -Output None
+    }
+    catch {
+        return @{ Status = 'FAIL'; Detail = "Invoke-Pester failed: $($_.Exception.Message)" }
+    }
+    if ($result.FailedCount -gt 0) {
+        return @{ Status = 'FAIL'; Detail = "$($result.FailedCount) failed / $($result.TotalCount) Pester tests ($($testFiles.Count) file(s) in $($dirs.Count) dir(s))" }
+    }
+    return @{ Status = 'PASS'; Detail = "$($result.PassedCount) Pester tests green ($($testFiles.Count) file(s) in $($dirs.Count) dir(s))" }
+}
+
+function Invoke-SkillTests {
+    [CmdletBinding()]
+    param()
+
+    # Pytest suites under skills/ (task test): regression tests for skill
+    # scripts. Wired into the full gate so a red suite blocks the push -
+    # an unwired test suite is silently broken by definition (retro
+    # 2026-11-20).
+    if (-not (Get-Command python3 -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'python3 not found on PATH (required for the skill test suite)' }
+    }
+    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("skill-tests-" + [guid]::NewGuid().ToString() + '.txt')
+    try {
+        Push-Location $repoRoot
+        try {
+            & python3 -m pytest skills -q *> $tempOut
+            $code = $LASTEXITCODE
+        }
+        finally {
+            Pop-Location
+        }
+        $lines = @(Get-Content -Path $tempOut -ErrorAction SilentlyContinue)
+    }
+    finally {
+        Remove-Item -Path $tempOut -ErrorAction SilentlyContinue
+    }
+
+    $summary = if ($lines.Count -gt 0) { $lines[$lines.Count - 1] } else { 'pytest produced no output' }
+    if ($code -ne 0) {
+        $failures = @($lines | Where-Object { $_ -match '^(FAILED|ERROR)' } | Select-Object -First 3) -join ' | '
+        if (-not $failures) { $failures = $summary }
+        return @{ Status = 'FAIL'; Detail = "skill tests failed - run: python3 -m pytest skills -q ($failures); install with python3 -m pip install pytest if the module is missing" }
+    }
+    return @{ Status = 'PASS'; Detail = "skill tests pass - $summary" }
+}
+
 # --- Run -------------------------------------------------------------------
 $checks = @(
     @{ Name = 'Markdown lint'; Result = Test-MarkdownLint },
@@ -342,7 +410,9 @@ if (-not $Quick) {
     $checks += @(
         @{ Name = 'waza check (advisory)'; Result = Invoke-WazaCheck },
         @{ Name = 'Supply chain'; Result = Test-SupplyChain },
-        @{ Name = 'Eval preflight'; Result = Test-EvalPreflight }
+        @{ Name = 'Eval preflight'; Result = Test-EvalPreflight },
+        @{ Name = 'Skill tests'; Result = Invoke-SkillTests },
+        @{ Name = 'Skill tests (Pester)'; Result = Test-SkillPester }
     )
 }
 
