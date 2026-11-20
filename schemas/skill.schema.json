@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/arisng/github-copilot-fc/schemas/skill.schema.json",
   "title": "Copilot FC SKILL.md frontmatter",
-  "description": "Frontmatter schema for skills/<name>/SKILL.md. Delta vs existing layers: waza check reports spec compliance/token budgets (advisory), hooks/skill-description-guard warns on >1024-char descriptions (advisory), and workspace-check gates metadata.version. This schema adds blocking structure: kebab name <=64, description 10-1024, required metadata.version, and rejects unknown top-level keys.",
+  "description": "Frontmatter schema for skills/<name>/SKILL.md. Delta vs existing layers: waza check reports spec compliance/token budgets (advisory) and workspace-check gates metadata.version. This schema adds blocking structure: kebab name <=64, description 10-1024, required metadata.version, and rejects unknown top-level keys.",
   "type": "object",
   "required": ["name", "description", "metadata"],
   "additionalProperties": false,
@@ -18,7 +18,7 @@
       "type": "string",
       "minLength": 10,
       "maxLength": 1024,
-      "description": "The router: written for skill discovery. Follow the USE FOR / DO NOT USE FOR partitioning convention documented in skills/README.md. Blocking floor+ceiling; the write-time hook remains advisory."
+      "description": "The router: written for skill discovery. Follow the USE FOR / DO NOT USE FOR partitioning convention documented in skills/README.md. Blocking floor+ceiling, validated by scripts/workspace/validate-manifests.py."
     },
     "metadata": {
       "type": "object",

@@ -27,7 +27,7 @@ Key facts:
 | `evals/` | waza evaluations, one folder per evaluated skill |
 | `docs/` | Diátaxis-style documentation; currently only `docs/blazor-agui/` |
 | `.issues/` | Markdown issue documents plus the generated `.issues/index.md` |
-| `.github/` | Workspace-discovered artifacts: this file, `skills/copilot-cli-tools-inventory-refresh/`, `git-scope-constitution.md`, `git-scope-inventory.md`, `copilot-memories.jsonl` |
+| `.github/` | Workspace-discovered artifacts: this file, `.github/skills/copilot-cli-tools-inventory-refresh/`, `git-scope-constitution.md`, `git-scope-inventory.md`, `copilot-memories.jsonl` |
 | `tools/` | Cross-runtime tools inventory (`tools/inventory.yaml`, drift report) |
 | `workshops/` | Workshop material (ignored by markdownlint) |
 | `.githooks/` | `pre-commit` and `pre-push` hooks |
@@ -92,7 +92,7 @@ Layout: `skills/<name>/SKILL.md` with optional `references/`, `scripts/`, `asset
 
 ### Hooks
 
-One folder per hook: `hooks/<name>/<name>.json` (the name matching the folder is what Copilot CLI discovery expects) with command scripts under `hooks/<name>/scripts/` (provide both `.ps1` and `.sh` where the hook runs shell logic). Prefer the Copilot CLI schema for shared hook files: lowerCamelCase event keys such as `preToolUse` and `subagentStop`, `bash`/`powershell` command properties, and `timeoutSec`. `hooks/README.md` documents the format; `hooks/skill-description-guard` is the existing advisory guard on overlong skill descriptions.
+One folder per hook: `hooks/<name>/<name>.json` (the name matching the folder is what Copilot CLI discovery expects) with command scripts under `hooks/<name>/scripts/` (provide both `.ps1` and `.sh` where the hook runs shell logic). Prefer the Copilot CLI schema for shared hook files: lowerCamelCase event keys such as `preToolUse` and `subagentStop`, `bash`/`powershell` command properties, and `timeoutSec`. `hooks/README.md` documents the format; skill-description length is enforced by `schemas/skill.schema.json` (10-1,024 chars) via `scripts/workspace/validate-manifests.py`.
 
 ### Canvas
 

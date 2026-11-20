@@ -22,6 +22,11 @@
         assets/tree-template.version.json (FAIL; an edit without a version
         bump would only surface in consumer repos at render time - retro
         2026-11-20)
+      - steering files (.github/copilot-instructions.md, git-scope docs,
+        AGENTS.md/CLAUDE.md/CODING_STANDARDS.md when present) must not name
+        repo paths that do not exist (FAIL; wildcard paths checked at their
+        directory part, documented-conditional paths excepted - retro
+        2026-11-20)
 
     Severity policy (plan Sequencing "day-one red guard"): structural rules
     FAIL and are green on today's tree; content budgets WARN-first until the
@@ -284,6 +289,71 @@ else {
             Add-Finding -Level 'PASS' -Area 'template' -Detail "tree-template.html fingerprint matches recorded v$($tplState.Version)"
         }
     }
+}
+
+# --- Steering files: no references to retired repo paths (retro 2026-11-20) --
+# The always-loaded workspace instructions once sent agents to a dispatcher
+# removed weeks earlier (6d98e87); reconciling retired artifacts happened by
+# hand twice (9c481f8, 566bc59), and a stale hook claim (retired by 4ec4c64)
+# still survived in three files. Mechanical rule: every repo-root-relative
+# path a steering file names must exist - wildcard paths are checked at their
+# directory part, and documented-conditional paths are excepted. The next
+# retirement fails here instead of shipping an instruction that costs every
+# session a failed command.
+$steeringFiles = @(
+    '.github/copilot-instructions.md',
+    '.github/git-scope-constitution.md',
+    '.github/git-scope-inventory.md',
+    'AGENTS.md',
+    'CLAUDE.md',
+    'CODING_STANDARDS.md'
+) | Where-Object { Test-Path -LiteralPath (Join-Path $repoRoot $_) }
+# Named by design before it exists (conditional wording in the steering file).
+$steeringOptional = @('.github/plugin/marketplace.json')
+$steeringRoots = [System.Collections.Generic.List[string]]::new()
+foreach ($entry in Get-ChildItem -LiteralPath $repoRoot -Force) {
+    if ($entry.Name -eq '.git') { continue }
+    $steeringRoots.Add($entry.Name)
+}
+# Retired top-level names stay matchable, so a reference to a whole removed
+# directory still trips the rule instead of silently falling out of the scan.
+foreach ($name in @('.docs')) { $steeringRoots.Add($name) }
+$rootPattern = ($steeringRoots | Sort-Object -Unique | ForEach-Object { [regex]::Escape($_) }) -join '|'
+$steeringRx = "(?<![A-Za-z0-9_./-])(?:$rootPattern)/[A-Za-z0-9._\\/-]*"
+$steeringMissing = [System.Collections.Generic.List[string]]::new()
+$steeringSeen = @{}
+$steeringGlobs = 0
+$steeringOptionalHits = 0
+foreach ($file in $steeringFiles) {
+    $text = [System.IO.File]::ReadAllText((Join-Path $repoRoot $file))
+    foreach ($m in [regex]::Matches($text, $steeringRx)) {
+        $nextChar = if ($m.Index + $m.Length -lt $text.Length) { $text[$m.Index + $m.Length] } else { ' ' }
+        $isGlob = ($nextChar -eq '*' -or $nextChar -eq '?')
+        if ($isGlob) {
+            # Wildcard path: only its directory part is knowable.
+            $check = $m.Value.Substring(0, $m.Value.LastIndexOf('/'))
+        }
+        else {
+            $check = $m.Value.TrimEnd('/').TrimEnd('.', '-')
+        }
+        if ([string]::IsNullOrEmpty($check)) { continue }
+        if ($steeringSeen.ContainsKey($check)) { continue }
+        $steeringSeen[$check] = $true
+        if ($isGlob) { $steeringGlobs++ }
+        if ($check -in $steeringOptional) { $steeringOptionalHits++; continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $repoRoot $check))) {
+            $steeringMissing.Add("$file -> $check")
+        }
+    }
+}
+if ($steeringMissing.Count -gt 0) {
+    foreach ($bad in $steeringMissing) {
+        Add-Finding -Level 'FAIL' -Area 'steering' -Detail "retired or dangling path reference: $bad"
+    }
+}
+else {
+    $steeringSuffix = $steeringOptionalHits -gt 0 ? "; $steeringOptionalHits documented-conditional" : ''
+    Add-Finding -Level 'PASS' -Area 'steering' -Detail "$($steeringSeen.Count) path reference(s) across $($steeringFiles.Count) steering file(s) resolve$steeringSuffix ($steeringGlobs wildcard-checked)"
 }
 
 # --- Marketplace parity (absorb shipped verifier, B3) -----------------------
