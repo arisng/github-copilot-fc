@@ -47,9 +47,9 @@ exit 0
         $out = & $batch -StartDate '2026-11-01' -EndDate '2026-11-03' -RepoRoot $repo -GitUser 'alice' -ScriptsDir $stub | Out-String
         $j = $out | ConvertFrom-Json
         @($j.days).Count | Should -Be 3
-        $j.days[0].status | Should -Be 'evidence-ready'
+        $j.days[0].status | Should -Be 'evidence-ready' -Because "detail: $($j.days[0].detail)"
         $j.days[1].status | Should -Be 'failed'
-        $j.days[2].status | Should -Be 'evidence-ready'
+        $j.days[2].status | Should -Be 'evidence-ready' -Because "detail: $($j.days[2].detail)"
         $j.failed | Should -Be 1
     }
 
@@ -60,7 +60,8 @@ exit 0
         $out = & $batch -StartDate '2026-11-01' -EndDate '2026-11-01' -RepoRoot $repo -GitUser 'alice' -ScriptsDir $stub | Out-String
         ($out | ConvertFrom-Json).days[0].status | Should -Be 'skipped'
         $out2 = & $batch -StartDate '2026-11-01' -EndDate '2026-11-01' -RepoRoot $repo -GitUser 'alice' -ScriptsDir $stub -Regenerate | Out-String
-        ($out2 | ConvertFrom-Json).days[0].status | Should -Be 'evidence-ready'
+        $d2 = ($out2 | ConvertFrom-Json).days[0]
+        $d2.status | Should -Be 'evidence-ready' -Because "detail: $($d2.detail)"
     }
 
     It 'rejects an inverted range and a range wider than 31 days' {
@@ -81,7 +82,8 @@ exit 0
             Remove-Item Env:BATCH_STUB_MANIFEST_MODE -ErrorAction SilentlyContinue
             Remove-Item Env:BATCH_STUB_WATCHED -ErrorAction SilentlyContinue
         }
-        ($out | ConvertFrom-Json).days[0].status | Should -Be 'evidence-ready'
+        $days = ($out | ConvertFrom-Json).days
+        $days[0].status | Should -Be 'evidence-ready' -Because "detail: $($days[0].detail)"
         $log = Get-Content (Join-Path $env:TEMP 'batch-calls.log') -Raw
         $log | Should -Match ([regex]::Escape($repo))
         $log | Should -Match ([regex]::Escape($watched))
@@ -98,7 +100,8 @@ exit 0
             Remove-Item Env:BATCH_STUB_MANIFEST_MODE -ErrorAction SilentlyContinue
             Remove-Item Env:BATCH_STUB_WATCHED -ErrorAction SilentlyContinue
         }
-        ($out | ConvertFrom-Json).days[0].status | Should -Be 'evidence-ready'
+        $days = ($out | ConvertFrom-Json).days
+        $days[0].status | Should -Be 'evidence-ready' -Because "detail: $($days[0].detail)"
         $log = Get-Content (Join-Path $env:TEMP 'batch-calls.log') -Raw
         $log | Should -Match ([regex]::Escape($repo))
         $log | Should -Not -Match 'watched-missing'
