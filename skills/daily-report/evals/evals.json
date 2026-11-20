@@ -1,0 +1,83 @@
+{
+  "skill_name": "daily-report",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "generate a report for me of what I did from 8am to 1pm today",
+      "expected_output": "A new one-page file `reports/daily/<git user>/yymmdd.md` with `created`/`updated` frontmatter stamps carrying runtime UTC offsets (no `covers`): Completed Today holds up to 4 outcomes with Why, Result, and one refs line of 2 to 4 pointers (session id, hyperlinked issue or pull request, check short label, or file — never commit hashes, turn numbers, or window tags) backed by queried proof; Under Review, Active Work, Blockers & Risks, Next Up, and Glossary honor their row caps; the body is timeless; any grounding gap is stated explicitly.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "give me the report for the 13h-19h window yesterday - work that finished goes in Done, work still open goes in In Progress",
+      "expected_output": "Yesterday's per-day file `reports/daily/<git user>/yymmdd.md` (the day of the requested window): the same-day window scopes the grounding query only — the body carries no window; only outcomes finished inside it appear in Completed Today, each backed by a proof row, pull request, or completion statement; work still open appears in Active Work with an honest Current State.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "summarize what got done in this session so far into the daily report file",
+      "expected_output": "Uses the default window from start of day to the current machine time, collects evidence with the skill's own scripts (Get-GitProof.ps1 and Get-SessionEvidence.ps1 — never another skill's scripts), writes to `reports/daily/<git user>/yymmdd.md`, and updates an existing same-day file in place instead of creating a second one, preserving `created` and refreshing `updated`.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "run the daily report again tonight for today - I already ran it this morning",
+      "expected_output": "Detects the existing `reports/daily/<git user>/yymmdd.md`, updates it in place (never a second file), preserves `created`, refreshes `updated` with the runtime offset, merges the new outcomes under the one-page budget, and reports that the file was updated.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "I keep sessions from several repositories on this machine - only report this repository's work",
+      "expected_output": "Runs grounding once per repository in `repo_names` (the current checkout plus each additional repository in the list): git proof and session evidence are merged across repositories, repos outside the list stay out entirely, and a checkout that cannot be resolved is named as a grounding gap rather than silently dropped.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "run today's report - my glossary.md already contains two terms but not the new one from this morning's grill",
+      "expected_output": "Renders the Glossary after reading `reports/daily/<git user>/glossary.md`: existing terms marked `known` with meanings matching canonical verbatim, the harvested new term marked `NEW` and listed first, at most 8 rows; then upserts through `Merge-Glossary.ps1` and quotes its JSON receipt (added/refreshed/kept/total/changed) in the report-back.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "me and my colleague both run today's report in the shared checkout - give each of us our own file",
+      "expected_output": "Each run resolves its Step 0 identity and writes only under `reports/daily/<runner git user>/yymmdd.md` with its own `glossary.md`; two users produce two folders for the day, never merging into one file, and a run refuses any path that would land in another user's folder.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "I remember working on something this morning but there is no commit or PR I can point to - put it in the report anyway",
+      "expected_output": "Refuses to list it as Completed: a Completed item needs a proof row from `Get-GitProof.ps1` (an author-filtered commit in the window, or a working-tree file created in the window), a pull request, or an explicit completion statement; the candidate is dropped or the grounding gap is stated honestly, and uncommitted work appears in Active Work or Blockers with git status as evidence.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "tạo báo cáo ngày hôm qua từ 13h đến 18h cho mình",
+      "expected_output": "Routes to the daily-report skill from the Vietnamese trigger: yesterday's per-day file under the runner's user folder, the same-day window scoping the grounding only, completed outcomes backed by proof, body timeless with `created`/`updated` frontmatter.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "write the pull request description for #123",
+      "expected_output": "Does NOT fire the daily-report skill: PR-description writing is a genuine negative and routes elsewhere (or asks to be handled as PR work).",
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "backfill daily reports for 2026-11-01 to 2026-11-07",
+      "expected_output": "Runs batch mode via `Invoke-DailyReportBatch.ps1`: one day per iteration over the same single-day path (Get-GitProof + Get-SessionEvidence per day), days whose report exists are skipped by default (regenerate only on explicit opt-in), a failing day is reported and the loop continues, and no day leaves a half-written file.",
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "run today's report again - nothing changed since this morning, no new terms",
+      "expected_output": "Updates the report in place and reruns `Merge-Glossary.ps1` with `keep` ops: the receipt shows `changed: false`, `glossary.md` is byte-identical (no rewrite), and the report-back states the no-op honestly.",
+      "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "generate today's report and make sure I can open the transcripts of every session it cites",
+      "expected_output": "After writing `reports/daily/<git user>/yymmdd.md`, runs `scripts/Export-SessionTranscripts.ps1 -ReportPath <path>`: every session mentioned in the body (short or full id, grill sessions excluded) lands as `sessions/<session-slug>.html` beside the report — real turns-only transcript when this machine holds the session, an explicit notice page when it does not — and the JSON receipt (total/exported/notice/kept) is quoted in the report-back. `Test-DailyReport.ps1` fails any report whose cited session lacks its `sessions/<slug>.html`, and the exported `*.html` files are git-ignored.",
+      "files": []
+    }
+  ]
+}
