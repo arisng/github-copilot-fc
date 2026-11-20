@@ -3,7 +3,7 @@
     Local test suite for machina-run-path-guard hook.
 .DESCRIPTION
     Tests the run-path-guard.ps1 script with mock payloads.
-    Run: pwsh -NoProfile -File hooks/machina-run-path-guard/scripts/tests/test-run-path-guard.ps1
+    Run: pwsh -NoProfile -File skills/machina-driving/hooks/machina-run-path-guard/scripts/tests/test-run-path-guard.ps1
 #>
 
 $ErrorActionPreference = 'Stop'

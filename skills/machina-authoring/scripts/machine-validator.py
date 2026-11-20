@@ -2,7 +2,7 @@
 """Machina machine tooling — deterministic authoring engine for Machina machine JSON.
 
 Faithful Python port of the deterministic routines in the Machina simulator
-(served by the machina-simulator extension; engine source: copilot-extensions/machina-simulator/machine-simulator.mjs):
+(served by the machina-simulator extension; engine source: canvas/machina-simulator/machine-simulator.mjs):
 validation, the 24-check compliance scorer, gap analysis, autofill patches,
 scenario generation, cycle detection, and coverage-block building.
 

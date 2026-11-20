@@ -4,7 +4,7 @@
     "agentStop": [
       {
         "type": "command",
-        "powershell": "pwsh -NoProfile -File hooks\\machina-summary-guard\\scripts\\summary-guard.ps1",
+        "powershell": "pwsh -NoProfile -File skills\\machina-driving\\hooks\\machina-summary-guard\\scripts\\summary-guard.ps1",
         "timeoutSec": 30
       }
     ]

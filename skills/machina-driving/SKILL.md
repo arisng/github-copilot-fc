@@ -30,6 +30,7 @@ All machina run history must be stored in:
   `<session-workspace>/machina-runs/<run-id>/`
 
 This convention ensures:
+
 - Consistent traceability across sessions
 - Easy discovery of run artifacts
 - Standardized audit trail
@@ -80,7 +81,7 @@ the state machine being driven in real time.
 
 After a successful `init`, open the simulator canvas:
 
-```
+```text
 open_canvas(canvasId: "machine-simulator", input: {
   runRef: "<run-id>",
   sessionWorkspace: "<session-folder>"
@@ -116,8 +117,8 @@ grounded report to the human conductor is the escalation channel.
    without canvas tools): **auto-start the standalone simulator** instead of
    giving up — run `node "<extension>/scripts/start-standalone.mjs"` where
    `<extension>` is the installed machina-simulator folder
-   (`~/.copilot/extensions/machina-simulator`; the workspace copy's
-   `scripts/start-standalone.mjs` works too). The launcher is idempotent: if
+   (`~/.copilot/extensions/machina-simulator`; or the workspace copy
+   `canvas/machina-simulator` with its `scripts/start-standalone.mjs`). The launcher is idempotent: if
    a simulator already listens on `127.0.0.1:7750` it exits 0 with
    "already running" — treat both outcomes as success. Then emit **one line**
    for the human conductor:
@@ -178,13 +179,15 @@ the run refuses to continue.
 | [references/driving-protocol.md](references/driving-protocol.md) | Any driving task — the full protocol: command surface, driving loop, evidence, phase states, STUCK/escalation, report grounding, discovery |
 | [references/schema-v3.md](references/schema-v3.md) | Reading or writing machine JSON — v3 field reference, tools registry, checks/requires/ensures, inputs, limits, phase states |
 
-## Dependency
+## Engine and companion extension
 
-This skill **depends on** [`machina-authoring`](../machina-authoring/SKILL.md):
 `scripts/machine-driver.py` imports the shared engine (guard/action evaluation,
-terminal detection, compliance scoring) from `machina-authoring/scripts/machine-validator.py`.
-Distributing this skill to a workspace **implicitly distributes `machina-authoring`**.
-The [`machina-simulator`](../../.copilot/extensions/machina-simulator) Copilot
+terminal detection, compliance scoring) from the **bundled**
+`scripts/machine_validator.py` — a copy of
+[`machina-authoring`](../machina-authoring/SKILL.md)'s `machine-validator.py`,
+its source of truth. This skill is therefore self-contained: it installs
+standalone, and when the engine is edited, update both copies together.
+The [`machina-simulator`](../../canvas/machina-simulator) Copilot
 extension is **auto-invoked** when installed — the driving skill opens its
 canvas on `init` for live visual observability. When absent, the skill degrades
 gracefully (no canvas, run continues normally).
@@ -235,9 +238,11 @@ Three agent hooks provide lifecycle-based enforcement that augments the driver's
   against `report.json` facts. If contradictions are found, forces another turn
   to correct the summary (capped at 8 consecutive blocks).
 
-**Deployment:** These hooks live in `hooks/machina-*/` and are published to
-`.github/hooks/` via `publish-hooks.ps1`. They activate automatically when the
-agent uses the machina-driving skill.
+**Deployment:** These hooks ship inside this skill at
+`skills/machina-driving/hooks/machina-*/`. Deploy by copying a hook folder to
+`.github/hooks/` (see `hooks/README.md`); the JSON command paths are
+repo-root-relative. They activate automatically when the agent uses the
+machina-driving skill.
 
 ## Report output contract
 

@@ -8,9 +8,10 @@ is the *sole* mutator of machine state, context, history, and logs (INV-1), and
 it enforces legality plus declared evidence checks (gatekeeper model).
 
 The shared engine (guard/action evaluation, terminal detection, compliance
-scoring) is imported from the `machina-authoring` skill's
-`machine-validator.py` — never re-implemented here, so the two skills cannot
-drift. This file contains only the v3 execution layer: tools/evidence,
+scoring) ships as a bundled copy beside this script (`scripts/machine_validator.py`)
+so this skill is self-contained; that copy mirrors the machina-authoring
+skill's `machine-validator.py`, its source of truth — never re-implement the
+engine logic here. This file contains only the v3 execution layer: tools/evidence,
 inputs, limits, phase delegation, the tamper-evident ledger, and the command
 surface.
 
@@ -69,12 +70,12 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 def _find_validator():
-    """Locate machine-validator.py from the machina-authoring skill.
+    """Locate the bundled machine-validator engine.
 
     Search order:
       1. $MACHINA_VALIDATOR env var (explicit override)
-      2. sibling of this script (same skill dir, e.g. tests)
-      3. workspace skills/machina-authoring/scripts/
+      2. bundled copy beside this script (self-contained install)
+      3. workspace skills/machina-authoring/scripts/ (engine source of truth)
       4. walk up from cwd looking for skills/machina-authoring/scripts/
       5. user skill roots (~/.agents/skills, ~/.copilot/skills)
     """
@@ -93,8 +94,8 @@ def _find_validator():
         if c.exists():
             return c
     raise ImportError(
-        "machine-validator.py not found. machina-driving depends on machina-authoring; "
-        "set MACHINA_VALIDATOR=<path> or install the machina-authoring skill."
+        "machine-validator.py not found. Expected the bundled copy in this skill's "
+        "scripts/machine_validator.py; set MACHINA_VALIDATOR=<path> or restore it."
     )
 
 

@@ -4,7 +4,7 @@
     "postToolUse": [
       {
         "type": "command",
-        "powershell": "pwsh -NoProfile -File hooks\\machina-run-path-guard\\scripts\\run-path-guard.ps1",
+        "powershell": "pwsh -NoProfile -File skills\\machina-driving\\hooks\\machina-run-path-guard\\scripts\\run-path-guard.ps1",
         "timeoutSec": 10
       }
     ]

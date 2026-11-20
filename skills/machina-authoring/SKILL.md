@@ -132,7 +132,10 @@ Excellent one — a v3.0.0 definition needs a checker before it can reach the to
 All deterministic authoring logic from the Machina simulator (validation, the 24-check
 compliance scorer, gap analysis, autofill patching, scenario generation, cycle detection,
 coverage building) is bundled as a standalone CLI. Run it instead of re-deriving logic or
-loading simulator source:
+loading simulator source. This script is the engine's **source of truth**; the
+machina-driving skill bundles a copy beside its driver
+(`skills/machina-driving/scripts/machine_validator.py`) that must be re-copied
+whenever this file changes.
 
 ```powershell
 # From workspace root; python3 on Linux/WSL
@@ -163,7 +166,7 @@ auto-fillable items → `apply` (or hand-fix review items — they never appear 
    in-app scorer therefore grades v3.0.0 definitions differently from `machine-validator.py`.
 
 When editing the simulator itself, follow
-[the machina-simulator extension's canonical maintenance docs](../../copilot-extensions/machina-simulator/simulator/docs/maintenance.md)
+[the machina-simulator extension's canonical maintenance docs](../../canvas/machina-simulator/simulator/docs/maintenance.md)
 and keep these divergences in mind.
 
 ### Compliance boundary — what the scorer does and does not verify
