@@ -31,9 +31,9 @@ This repository exists to:
 | Path | Description |
 | ---- | ----------- |
 | `.github/` | Workspace-discovered customizations: shared skills, memories, and git-scope docs. |
-| `.githooks/` | `pre-commit` and `pre-push` hooks (enable with `git config core.hooksPath .githooks`). |
+| `.githooks/` | `pre-commit` and `pre-push` hooks (wire with `task hooks:install`). |
 | `.issues/` | Planning/change issue documents; `index.md` is generated from issue frontmatter. |
-| `Taskfile.yml` | go-task v3 entry points: `lint`, `check`, `test`, `issues:index`, `skills:catalog`. |
+| `Taskfile.yml` | go-task v3 entry points: `lint`, `check`, `test`, `issues:index`, `skills:catalog`, `hooks:install`. |
 | `agents/` | Custom agent definitions (`*.agent.md`). |
 | `canvas/` | Copilot canvas/extension sources: `machina-simulator`, `session-md-reader`. |
 | `docs/` | Repository documentation; currently `docs/blazor-agui/` with four explanation pages. |
@@ -58,11 +58,12 @@ automation:
 | `task test` | Run skill test suites — pytest over `skills/`. |
 | `task issues:index` | Regenerate `.issues/index.md` from issue frontmatter. |
 | `task skills:catalog` | Regenerate the skills catalog table in `skills/README.md`. |
+| `task hooks:install` | Wire `.githooks` for this clone (run once after `git clone` or worktree creation). |
 
 ### Git hooks
 
-Hooks are wired once per clone with `git config core.hooksPath .githooks`, then run
-automatically:
+`task hooks:install` (a wrapper for `git config core.hooksPath .githooks`) wires the
+hooks once per clone; after that they run automatically:
 
 - `.githooks/pre-commit` runs the quick lint mode (equivalent to `task lint`) and blocks the
   commit on lint violations.
@@ -81,8 +82,10 @@ never bricked.
 - `check-supply-chain.py` — supply-chain sanity checks.
 - `generate-skills-catalog.py` — regenerates the catalog table in `skills/README.md`.
 - `waza check` (advisory) and offline `waza preflight` over `evals/`.
-- markdownlint over the markdown files changed in the working tree (config in
-  `.markdownlint-cli2.jsonc`).
+- markdownlint over every markdown file in the repo, compared against the frozen-debt
+  baseline in `scripts/workspace/markdown-debt-baseline.txt` (config in
+  `.markdownlint-cli2.jsonc`; regenerate the baseline with
+  `workspace-check.ps1 -UpdateMarkdownBaseline` only to accept a reviewed change).
 
 ## Using the skills
 
