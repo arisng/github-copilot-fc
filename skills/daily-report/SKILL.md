@@ -1,10 +1,10 @@
 ---
 name: daily-report
-description: "Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as `reports/daily/{git user}/yymmdd.md` with `created`/`updated` frontmatter, a personal glossary at `glossary.md`, and one turns-only HTML transcript per grounded session (cited or coverage-listed) under `sessions/{session-slug}.html`. USE THIS SKILL whenever the user asks what was done in a time range or wants their daily report, in English or Vietnamese: 'daily report', 'daily standup', 'daily update', 'what did I work on', 'yesterday's work', 'what did I do today', 'generate a report from 9h to 13h today', 'tạo báo cáo hôm nay'. Also for backfilling a date range (batch mode). NOT for: weekly or monthly stakeholder summaries, pull-request description writing. Two modes: single-repo (default) or multi-repo tower, dictated by the manifest `reports/daily/daily-report.manifest.json`."
+description: "Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as `reports/daily/{git user}/yymmdd.md` with `created`/`updated` frontmatter, a personal glossary at `glossary.md`, and one turns-only HTML transcript per grounded session (cited or coverage-listed) under `sessions/{yymmdd}/{session-slug}.html`. USE THIS SKILL whenever the user asks what was done in a time range or wants their daily report, in English or Vietnamese: 'daily report', 'daily standup', 'daily update', 'what did I work on', 'yesterday's work', 'what did I do today', 'generate a report from 9h to 13h today', 'tạo báo cáo hôm nay'. Also for backfilling a date range (batch mode). NOT for: weekly or monthly stakeholder summaries, pull-request description writing. Two modes: single-repo (default) or multi-repo tower, dictated by the manifest `reports/daily/daily-report.manifest.json`."
 user-invocable: true
 disable-model-invocation: true
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   author: arisng
 ---
 
@@ -174,7 +174,7 @@ grounding loop and is named as a grounding gap.
    repository's session evidence is collected, run
    `scripts/Get-SessionCoverage.ps1 -Date "<yyyy-MM-dd>" -RepoRoot <root>
    -EvidenceJson <every per-repo evidence file from this run>` and write its
-   receipt to the report's `sessions/<yymmdd>.coverage.json` (pass `-OutJson
+   receipt to the report's `sessions/<yymmdd>/coverage.json` (pass `-OutJson
    <path>`). The receipt classifies every session the store held that day:
    `inScope` must match what evidence returned (`verified: true`, `missed`
    empty), while `outOfScope` and `unattributed` sessions are grounding gaps
@@ -265,8 +265,9 @@ reads every session the body mentions (``session `xxxxxxxx` `` — the slug is
 that id, lowercased; `grill session` mentions are never exported) plus every
 `inScope` session in the coverage receipt — cited or not, each grounded
 session leaves one artifact — and writes
-one self-contained HTML file per session to `sessions/<session-slug>.html`
-beside the report. The session data comes from **this machine's** Copilot state
+one self-contained HTML file per session to `sessions/<yymmdd>/<session-slug>.html`
+beside the report — every day's transcripts in their own date folder, never
+mixed with another report day's. The session data comes from **this machine's** Copilot state
 (`$env:COPILOT_HOME`, else `~/.copilot`): `events.jsonl` first, then the
 session store. A session this machine does not hold gets an explicit
 "not available" notice page instead of a silent skip. The JSON receipt
@@ -313,7 +314,7 @@ rename it into this folder/naming before updating.
   schema, the timeless body, structure and caps, refs format, multi-mode
   per-repo scoping, the session
   transcript exports (every mentioned session must have its
-  `sessions/<slug>.html`), the budget, report-to-canonical glossary
+  `sessions/<yymmdd>/<slug>.html`), the budget, report-to-canonical glossary
   consistency, and — with the coverage receipt — grounding completeness (a
   receipt that is missing, unverified, or lists missed in-scope sessions
   fails, as does an in-scope session without a transcript export). Failures
@@ -358,7 +359,7 @@ single-day path** — no separate rendering logic:
 | `scripts/Get-GitProof.ps1` | Single-day, author-filtered, checkpoint-excluding git evidence as JSON. |
 | `scripts/Get-SessionEvidence.ps1` | Single-day Copilot session evidence, scoped to the current repository by repository key or cwd (exact match only, no unfiltered queries); optional `-CloudJson` merge. |
 | `scripts/Get-SessionCoverage.ps1` | Per-day cross-check of the store against the watched set: classifies every session (inScope / outOfScope / unattributed) and, with `-EvidenceJson`, diffs in-scope ids against what evidence returned; emits the coverage receipt for export and validation. |
-| `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report mentions — plus every `inScope` coverage-receipt session with `-CoverageJson` — to `sessions/<session-slug>.html` (events store first, session-store fallback, honest notice page when absent on this machine); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
+| `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report mentions — plus every `inScope` coverage-receipt session with `-CoverageJson` — to `sessions/<yymmdd>/<session-slug>.html` grouped by the report's date (events store first, session-store fallback, honest notice page when absent on this machine); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
 | `scripts/Merge-Glossary.ps1` | All canonical-glossary mechanics: parse, validate, upsert, sort, atomic write, JSON receipt; `-Validate` shared with the test script. |
 | `scripts/Invoke-DailyReportBatch.ps1` | Backfill loop: date enumeration, skip/regenerate policy, per-day evidence, isolation. |
 | `scripts/Test-DailyReport.ps1` | Read-only validator for report + glossary against the pinned formats; `-EvidenceJson` adds empty-source honesty, `-CoverageJson` adds grounding-completeness enforcement. |

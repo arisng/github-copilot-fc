@@ -16,9 +16,9 @@
   produced) the receipt also diffs the store's in-scope ids against what
   evidence returned: a non-empty missed list and verified/complete flags are
   what Test-DailyReport.ps1 -CoverageJson enforces. Write the receipt to the
-  report's sessions/<yymmdd>.coverage.json.
+  report's sessions/<yymmdd>/coverage.json.
 .EXAMPLE
-  .\Get-SessionCoverage.ps1 -Date 2026-11-19 -RepoRoot ..\home-repo -EvidenceJson ev\kit.json,ev\fc.json -OutJson sessions\261119.coverage.json
+  .\Get-SessionCoverage.ps1 -Date 2026-11-19 -RepoRoot ..\home-repo -EvidenceJson ev\kit.json,ev\fc.json -OutJson sessions\261119\coverage.json
 #>
 param(
     [Parameter(Mandatory = $true)]

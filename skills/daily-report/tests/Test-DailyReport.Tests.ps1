@@ -50,14 +50,14 @@ updated: $stamp
 "@
             [IO.File]::WriteAllText($report, $body)
             # The report cites session 16f5c5b5; enforcement requires its export.
-            $sessDir = Join-Path $dir 'sessions'
+            $sessDir = Join-Path $dir 'sessions/261110'
             New-Item -ItemType Directory -Force -Path $sessDir | Out-Null
             [IO.File]::WriteAllText((Join-Path $sessDir '16f5c5b5.html'), "<!doctype html><html><body>transcript 16f5c5b5</body></html>")
             return $report
         }
 
         function New-CoverageReceipt([string]$Report, [string]$Json) {
-            $p = Join-Path (Split-Path $Report -Parent) 'sessions/261110.coverage.json'
+            $p = Join-Path (Split-Path $Report -Parent) 'sessions/261110/coverage.json'
             [IO.File]::WriteAllText($p, $Json)
             return $p
         }
@@ -139,7 +139,7 @@ updated: $stamp
 
     It 'fails when an exported transcript for a cited session is missing' {
         $r = New-Fixture '2026-11-10 13:57 +07:00'
-        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/16f5c5b5.html')
+        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5.html')
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
         $LASTEXITCODE | Should -Be 1
         "$out" | Should -Match 'sessions:'
@@ -150,7 +150,7 @@ updated: $stamp
         $r = New-Fixture '2026-11-10 13:57 +07:00'
         $c = [IO.File]::ReadAllText($r) -replace 'session `16f5c5b5`', 'grill session `20261105-120133`'
         [IO.File]::WriteAllText($r, $c)
-        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/16f5c5b5.html')
+        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5.html')
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
         $LASTEXITCODE | Should -Be 0
         "$out" | Should -Match 'PASS'

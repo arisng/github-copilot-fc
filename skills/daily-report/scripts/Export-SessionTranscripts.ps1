@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-  Export every session a daily report mentions to sessions/<session-slug>.html.
+  Export every session a daily report mentions to sessions/<yymmdd>/<session-slug>.html.
 .DESCRIPTION
   Parses the report for session mentions (`session `xxxxxxxx``; a full UUID also
   matches, `grill session` never does) and writes a self-contained turns-only
-  HTML transcript beside the report under sessions/, one file per mentioned
+  HTML transcript beside the report under sessions/<yymmdd>/, one file per mentioned
   session. The slug is the id exactly as the report cites it (lowercased), so
   Test-DailyReport.ps1 re-checks the same paths through -ListOnly without
   touching the session stores.
@@ -30,7 +30,7 @@
 .EXAMPLE
   .\Export-SessionTranscripts.ps1 -ReportPath ..\..\..\reports\daily\alice\261117.md
 .EXAMPLE
-  .\Export-SessionTranscripts.ps1 -ReportPath <path> -CoverageJson sessions\261117.coverage.json
+  .\Export-SessionTranscripts.ps1 -ReportPath <path> -CoverageJson sessions\261117\coverage.json
 #>
 param(
     [string]$ReportPath = "",
@@ -105,7 +105,14 @@ if ($CoverageJson) {
     }
 }
 
-$sessionsDir = Join-Path (Split-Path $ReportPath -Parent) 'sessions'
+# Transcripts and the coverage receipt group under the report's date folder:
+# sessions/<yymmdd>/<slug>.html, so days never mix in one flat directory.
+$dayCode = [IO.Path]::GetFileNameWithoutExtension($ReportPath)
+if ($dayCode -notmatch '^\d{6}$') {
+    Write-Error "report must be named yymmdd.md for date-grouped exports, got '$([IO.Path]::GetFileName($ReportPath))'."
+    exit 1
+}
+$sessionsDir = Join-Path (Join-Path (Split-Path $ReportPath -Parent) 'sessions') $dayCode
 if ($mentioned.Count -eq 0) {
     [ordered]@{ report = $ReportPath; sessionsDir = $sessionsDir; total = 0; exported = @(); notice = @(); kept = @() } | ConvertTo-Json -Depth 6
     exit 0

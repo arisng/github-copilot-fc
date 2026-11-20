@@ -7,7 +7,7 @@
   schema (created/updated with runtime UTC offsets, no covers), timeless
   body, section structure and caps, refs format, one-page budget,
   session-transcript exports (every session the report mentions must have
-  its sessions/<slug>.html beside the report), report-to-canonical glossary
+  its sessions/<yymmdd>/<slug>.html beside the report), report-to-canonical glossary
   consistency, and — with -EvidenceJson — empty-source honesty; with
   -CoverageJson — grounding completeness (receipt verified, no missed
   in-scope session, a transcript export per in-scope session). Exits
@@ -54,6 +54,11 @@ if ($GitUser -and $fileName -match '^(\d{2})(\d{2})(\d{2})\.md$' -and $Date) {
 if (-not (Test-Path $ReportPath)) { Write-Error "report not found: $ReportPath"; exit 1 }
 $content = [IO.File]::ReadAllText($ReportPath)
 $lines = $content -split "\r?\n"
+# Transcripts and the coverage receipt live in the report's date folder:
+# sessions/<yymmdd>/<slug>.html (flat fallback only when the name is already
+# failing the naming guardrail above).
+$dayCode = if ($fileName -match '^(\d{6})\.md$') { $matches[1] } else { '' }
+$sessionsDir = if ($dayCode) { Join-Path (Join-Path (Split-Path $ReportPath -Parent) 'sessions') $dayCode } else { Join-Path (Split-Path $ReportPath -Parent) 'sessions' }
 
 # ---- frontmatter schema guardrail ----
 $fmEnd = -1
@@ -176,7 +181,6 @@ foreach ($r in $refLines) {
         catch { Fail "sessions: cannot list mentioned sessions for '$ReportPath' — $($_.Exception.Message)" }
         if ($listed -and $LASTEXITCODE -ne 0) { Fail "sessions: session listing failed for '$ReportPath' (exit $LASTEXITCODE)" }
         if ($listed) {
-            $sessionsDir = Join-Path (Split-Path $ReportPath -Parent) 'sessions'
             foreach ($sid in $mentioned) {
                 if ($sid -and -not (Test-Path -LiteralPath (Join-Path $sessionsDir "$sid.html"))) {
                     Fail "sessions: no exported transcript for session $sid — run scripts/Export-SessionTranscripts.ps1 -ReportPath '$ReportPath'"
@@ -279,7 +283,6 @@ if ($CoverageJson) {
             elseif (-not $cov.verified) { Fail 'coverage: receipt is unverified — pass every per-repo evidence file to Get-SessionCoverage.ps1 -EvidenceJson' }
             elseif (@($cov.missed).Count -gt 0) { Fail "coverage: in-scope session(s) missing from evidence: $(@($cov.missed) -join ', ')" }
             else {
-                $sessionsDir = Join-Path (Split-Path $ReportPath -Parent) 'sessions'
                 $bases = @()
                 if (Test-Path -LiteralPath $sessionsDir) {
                     $bases = @(Get-ChildItem -LiteralPath $sessionsDir -Filter '*.html' -File | ForEach-Object { $_.BaseName.ToLowerInvariant() })
