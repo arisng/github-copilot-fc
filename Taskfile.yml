@@ -2,7 +2,8 @@
 #
 # The automated lint suite lives in scripts/workspace/ and is wired to git
 # hooks via core.hooksPath=.githooks:
-#   - .githooks/pre-commit -> task lint  (fast: changed markdown + schema/consistency)
+#   - task hooks:install        -> wire .githooks once per clone
+#   - .githooks/pre-commit -> task lint  (fast: markdown baseline + schema/consistency)
 #   - .githooks/pre-push   -> task check (full suite)
 version: '3'
 
@@ -36,3 +37,8 @@ tasks:
     desc: Regenerate the skills catalog table in skills/README.md
     cmds:
       - python3 scripts/workspace/generate-skills-catalog.py
+
+  hooks:install:
+    desc: Wire .githooks as the git hooks directory for this clone (run once per clone/worktree)
+    cmds:
+      - git config core.hooksPath .githooks
