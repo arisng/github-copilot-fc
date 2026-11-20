@@ -15,7 +15,7 @@ This instruction codifies the workspace convention for placing and authoring waz
 
 Skills and evals live in **separate top-level directories**:
 
-```
+```text
 skills/<name>/SKILL.md          ← skill definition (source of truth for behavior)
 evals/<name>/eval.yaml          ← eval harness (config, tasks, graders)
 evals/<name>/tasks/*.yaml       ← individual task definitions
@@ -76,6 +76,27 @@ tokens:
 ```
 
 Never use `tokens.limits.max` — it is not a schema key and hard-fails every command with `field max not found in type projectconfig.TokenLimitsConfig`.
+
+## Eval design rules (quality bar)
+
+Authoring rules adopted from the dotnet/skills evaluation quality bar (research synthesis 2026-11-19):
+
+1. **Baseline-delta, not vibes.** Judge each skill as a *delta against the same model with no skill* (arms: baseline / skilled / plugin). A skill passes only when skilled beats baseline; raw quality scores alone prove nothing.
+2. **Statistical floor for preference claims.** Use ≥5 distinct stimuli per comparison with an exact one-sided sign test at p≤0.05. Dormancy/routing contracts are exempt from the floor but still need trigger tests.
+3. **Golden acceptance + mutation rejection.** Every task's grader must accept a known-good output *and* reject a plausible mutated one — a grader that passes everything is not a grader.
+4. **Triage failures in order before editing content:** fixture → spec-load → reliability → power → design → content → routing → cost. Editing skill content first masks upstream causes.
+5. **Conformance.** All `evals/*/eval.yaml` are spot-checked against these rules when they change; `evals/standup` (9 tasks) is the reference shape.
+
+## Structural validation (in the gate)
+
+- `waza preflight <eval.yaml>` runs inside `workspace-check.ps1` for every eval: offline, agent-free inventory + prereq/grader-ref checks against waza's **embedded authoritative schema** (`schemas/eval.schema.json` lives in the waza repo — never fork a local copy).
+- Workspace-only rules live in `scripts/workspace/validate-manifests.py` (declared metric weights must be *positive numbers* — waza treats weights as relative, so there is no sum-1 contract; `tasks` globs must resolve): things preflight does not cover for *this* repo.
+- **Gate classification:** schema/configuration preflight errors FAIL (a corrupt `eval.yaml` must break the gate). `resource.file` errors WARN as *fixture-class debt*: this repo mixes two path conventions — `machina-authoring` tasks resolve bare filenames under waza's default `eval/<name>/fixtures` base, while `machina-driving`/`machina-simulator` declare repo-root-relative paths (`skills/...`) that only resolve with `--context-dir .`. Triage that debt per rule 4 below (fixture class first); do not silently rewrite paths to one convention without checking how the executor materializes workspaces at run time.
+- This is structural validation only. **`waza gate` / `waza run` CI execution stays deferred** (2026-10-16 policy).
+
+## CI evaluation lane (design note, wiring deferred)
+
+When execution gating is lifted, adopt the manual-but-bound pattern: a pending commit status on PRs, triggered by a maintainer comment `/evaluate <sha>` bound to a *reviewed* commit; results post as a PR comment plus artifacts; failures include a paste-in "investigate this with your agent" prompt. Never an automatic PR blocker, and never evaluating an unreviewed head.
 
 ## References
 

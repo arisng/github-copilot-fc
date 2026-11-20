@@ -1,7 +1,7 @@
 ---
 name: meta
 description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
-##applyTo: '**/*.instructions.md'
+applyTo: '**/*.instructions.md'
 ---
 
 # Custom Instructions File Guidelines
@@ -32,7 +32,7 @@ applyTo: 'glob pattern for target files (e.g., **/*.ts, **/*.py)'
 ---
 ```
 
-### Frontmatter Guidelines    
+### Frontmatter Guidelines
 
 - **description**: Single-quoted string, 1-500 characters, clearly stating the purpose
 - **applyTo**: Glob pattern(s) specifying which files these instructions apply to
@@ -40,6 +40,8 @@ applyTo: 'glob pattern for target files (e.g., **/*.ts, **/*.py)'
   - Multiple patterns: `'**/*.ts, **/*.tsx, **/*.js'`
   - Specific files: `'src/**/*.py'`
   - All files: `'**'`
+
+> **See also**: Instruction `description` fields follow the same router discipline as skill descriptions — explicit `USE FOR:` (positive triggers) and `DO NOT USE FOR:` (negative space) clauses that partition on the real discriminator — as documented in [skills/README.md](../skills/README.md). Skill authoring lives there: instructions are policy files, skills are execution playbooks.
 
 ## File Structure
 
