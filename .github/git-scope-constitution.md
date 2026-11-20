@@ -20,7 +20,7 @@ This repository is a **customization factory** for GitHub Copilot customizations
 | `tools/`              | Tools Inventory       | `inventory.yaml`, runtime toolsets   |
 | `plugins/`            | Copilot CLI Plugins   | `plugin.json` + local components   |
 | `copilot-sdk/`        | SDK Documentation     | `.md` docs                         |
-| `copilot-extensions/` | Copilot CLI Extensions| `.mjs`, `.json`, `package.json`    |
+| `canvas/` | Copilot canvas extensions | `.mjs`, `.json`, `package.json`    |
 | `prompt-engineering/` | PE Research           | `.md`, `.json` docs                |
 | `.github/`            | Repository Governance | Constitution, inventory, workflows |
 
@@ -46,7 +46,7 @@ Changes to GitHub Copilot customization artifact files — the most-used commit 
 - `prompt`: Copilot prompt files (`prompts/**/*.prompt.md`)
 - `toolset`: Copilot tool inventory and runtime toolset files (`tools/**`)
 - `hook`: Copilot hook lifecycle configurations (`hooks/`)
-- `copilot-extension`: Copilot CLI canvas extension files (`copilot-extensions/**/`)
+- `copilot-extension`: Copilot canvas extension files (`canvas/**/`)
 
 ### `agent`
 
@@ -228,19 +228,21 @@ To propose a new scope or modify an existing one:
 ### 2026-07-26 — Amendment #4 (Add `copilot-extension` scope for Copilot CLI extensions)
 
 **Changes:**
-- Added `copilot-extensions/` to the Repository Context table
+
+- Added `canvas/` (renamed from `canvas/`) to the Repository Context table
 - Added `copilot-extension` scope under `copilot` type for Copilot CLI canvas extension files
 - Retroactively rebased 5 recent commits to use `copilot(copilot-extension)` scope
 
 **Rationale:**
-The `copilot-extensions/` directory is a distinct artifact type — self-contained HTTP server + SPA canvas extensions — separate from plugins, agents, or skills. A dedicated scope improves git log scanning clarity.
+The `canvas/` directory (renamed from `canvas/`) is a distinct artifact type — self-contained HTTP server + SPA canvas extensions — separate from plugins, agents, or skills. A dedicated scope improves git log scanning clarity.
 
 **Migration Notes:**
-All commits touching `copilot-extensions/` should use `copilot(copilot-extension)` scope going forward.
+All commits touching `canvas/` should use `copilot(copilot-extension)` scope going forward.
 
 ### 2026-02-24 — Amendment #1 (Initial Constitution)
 
 **Changes:**
+
 - Created initial constitution from full git history analysis (51 unique scopes across 10 commit types)
 - Established approved scope sets for: `copilot`, `ai`, `docs`, `devtool`, `chore`, `feat`, `refactor`, `build`, `style`, `vscode`
 - Deprecated 9 path-style and plural scopes (see Deprecated Scopes table)
@@ -252,6 +254,7 @@ All commits touching `copilot-extensions/` should use `copilot(copilot-extension
 Initial constitution creation based on analysis of all git history combined with repository structure inspection. The `copilot(custom-agent)` pattern dominates the commit history and is the primary workflow type in this repo.
 
 **Migration Notes:**
+
 - Existing commits with deprecated scopes are preserved as-is (no history rewriting)
 - For new commits, consult the `agent` vs `copilot` selection guide above
 - The `feat` type should use simple single-word scopes, not path-style scopes
@@ -259,6 +262,7 @@ Initial constitution creation based on analysis of all git history combined with
 ### 2026-02-24 — Amendment #2 (Inventory Refresh)
 
 **Changes:**
+
 - Regenerated scope inventory → 52 unique scopes (up from 51 at initial creation)
 - Confirmed `docs(constitution)` is now active in git history (first usage: the initial constitution commit itself)
 - Restored deprecated annotations to inventory after regeneration (extraction script strips annotations; they are maintained manually)
@@ -273,8 +277,9 @@ No changes to approved scopes. All existing commit patterns remain valid.
 ### 2026-02-24 — Amendment #3 (Deprecate `ai` type, introduce `agent`)
 
 **Changes:**
+
 - Deprecated `ai` commit type entirely; use `agent` for all AI model-facing behavior commits going forward
-- Added `### \`agent\`` section with 6 approved scopes: `codex`, `instruction`, `mcp`, `prompt`, `prompt-engineering`, `skill`
+- Added `### \`agent\`` section with 6 approved scopes: `codex`,`instruction`,`mcp`,`prompt`,`prompt-engineering`,`skill`
 - Scope `ai(agent)` migrates to `agent(instruction)` (avoids the `agent(agent)` identity redundancy)
 - All other `ai` scopes carry over to `agent` unchanged
 - Updated `ai` vs `copilot` Selection Guide → `agent` vs `copilot` Selection Guide (all examples updated)
@@ -285,6 +290,7 @@ No changes to approved scopes. All existing commit patterns remain valid.
 The `ai` type was removed from the author's commit conventions in favor of the more precise `agent` extended type. `agent` already exists in Tier 2 of the `git-atomic-commit` skill to cover AI agent assets (`skills/*`, `**/AGENTS.md`). Consolidating under `agent` eliminates the ambiguity between `ai` and `agent` types and aligns the constitution with the skill's actual Tier 2 mapping.
 
 **Migration Notes:**
+
 - All new commits previously using `ai(skill)` → use `agent(skill)`
 - All new commits previously using `ai(agent)` → use `agent(instruction)`
 - All other `ai(scope)` → use `agent(scope)` verbatim
