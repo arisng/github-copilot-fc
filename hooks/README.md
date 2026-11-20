@@ -1,6 +1,6 @@
 # Agent Hooks
 
-Agent hooks are VS Code Copilot lifecycle hooks that execute custom shell commands at key points during agent sessions. Use hooks to automate workflows, enforce security policies, validate operations, and integrate with external tools.
+Agent hooks are GitHub Copilot lifecycle hooks that execute custom shell commands at key points during agent sessions. Use hooks to automate workflows, enforce security policies, validate operations, and integrate with external tools.
 
 ## References (Official Documentation)
 
@@ -9,21 +9,14 @@ Periodically check official documentation for updates on hook capabilities and b
 - [About hooks](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks)
 - [Using hooks with GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks)
 - [Hooks configuration](https://docs.github.com/en/copilot/reference/hooks-configuration)
-- [Agent hooks in Visual Studio Code (Preview)](https://code.visualstudio.com/docs/copilot/customization/hooks)
-
-For shared hook files that must work in both VS Code and Copilot CLI, prefer the CLI-style schema:
-
-- lowerCamelCase event keys such as `preToolUse` and `subagentStop`
-- `bash` and `powershell` command properties
-- `timeoutSec` instead of VS Code-only `timeout`
-
-The VS Code hooks documentation explicitly states that VS Code can parse Copilot CLI hook configurations and map the lowerCamelCase event names plus `bash` and `powershell` properties into the VS Code runtime shape.
 
 ## Hook File Format
 
 Each hook manifest is a JSON file containing a `hooks` object with arrays of hook commands keyed by event type.
 
 **Naming convention:** `hooks/<name>/<name>.json` (matches Copilot CLI discovery of `*.json` in hook directories)
+
+Prefer the Copilot CLI schema for new hooks: lowerCamelCase event keys (`preToolUse`, `subagentStop`, ...), `bash`/`powershell` command properties, and `timeoutSec`.
 
 **Authoring layout:**
 
@@ -72,64 +65,39 @@ hooks/
 | Property  | Type   | Description                               |
 | --------- | ------ | ----------------------------------------- |
 | `type`    | string | Must be `"command"`                       |
-| `bash`    | string | POSIX shell command in the CLI schema     |
-| `powershell` | string | PowerShell command in the CLI schema   |
-| `command` | string | VS Code preview cross-platform command    |
-| `windows` | string | VS Code preview Windows override          |
-| `linux`   | string | VS Code preview Linux override            |
-| `osx`     | string | VS Code preview macOS override            |
+| `bash`    | string | POSIX shell command                       |
+| `powershell` | string | PowerShell command                    |
 | `cwd`     | string | Working directory (relative to repo root) |
 | `env`     | object | Additional environment variables          |
-| `timeoutSec` | number | Cross-runtime timeout in seconds       |
-| `timeout` | number | VS Code preview timeout in seconds        |
+| `timeoutSec` | number | Timeout in seconds                    |
 
 ## Hook I/O
 
-Hook scripts receive JSON via stdin and emit JSON via stdout. The payload schema differs between VS Code and CLI runtimes.
+Hook scripts receive JSON via stdin and emit JSON via stdout.
 
-### Common Fields (Both Runtimes)
+### Common Fields
 
 `timestamp`, `cwd`, `sessionId`, `hookEventName`, `transcript_path`
 
 ### Tool Hook Fields (`preToolUse` / `postToolUse`)
 
-| Field | VS Code (snake_case) | CLI (camelCase) | Notes |
-|-------|---------------------|-----------------|-------|
-| Tool name | `tool_name` | `toolName` | |
-| Tool arguments | `tool_input` (parsed object) | `toolArgs` (JSON string) | VS Code sends a native object; CLI sends a serialized JSON string |
-| Tool result | `tool_response` | `toolResult` | |
+| Field | CLI (camelCase) | Notes |
+|-------|-----------------|-------|
+| Tool name | `toolName` | |
+| Tool arguments | `toolArgs` (JSON string) | serialized JSON string |
+| Tool result | `toolResult` | |
 
 ### Subagent Hook Fields (`subagentStart` / `subagentStop`)
 
-| Field | VS Code (snake_case) | CLI (camelCase) |
-|-------|---------------------|------------------|
-| Agent name | `agent_id` | `agentName` |
-| Agent type | `agent_type` | *(not present)* |
+Agent name arrives as `agentName`.
 
 ### Output
 
 - JSON via stdout: `continue`, `stopReason`, `systemMessage`, plus event-specific `hookSpecificOutput`.
 - **Exit codes**: `0` = success, `2` = blocking error, other = non-blocking warning.
 
-### Cross-Runtime Compatibility
-
-The Ralph logger scripts use dual-field fallback to consume both schemas. For tool arguments, VS Code `tool_input` (object) is returned directly while CLI `toolArgs` (string) is parsed to an object — both normalize to the same internal representation.
-
-**VS Code payload example** (snake_case, `tool_input` is an object):
-```json
-{
-  "hookEventName": "postToolUse",
-  "tool_name": "readFile",
-  "tool_input": { "path": "src/index.ts", "startLine": 1, "endLine": 50 },
-  "tool_response": { "resultType": "text", "textResultForLlm": "..." },
-  "agent_id": "Executor-VSCode",
-  "agent_type": "participant",
-  "timestamp": 1741588800000,
-  "cwd": "/workspace"
-}
-```
-
 **CLI payload example** (camelCase, `toolArgs` is a JSON string):
+
 ```json
 {
   "hookEventName": "postToolUse",
@@ -144,49 +112,38 @@ The Ralph logger scripts use dual-field fallback to consume both schemas. For to
 
 ## Deployment Locations
 
-`.github/hooks/` is the **primary default** deployment target. VS Code discovers hook files in this workspace directory automatically. User-level deployment to `~/.copilot/hooks/` is **opt-in** and requires `-Scope user-level` plus the `chat.hookFilesLocations` VS Code setting — it is **not** a default VS Code search path.
+`hooks/<name>/` is the **authored source** location. Deploy by copying a hook folder where the runtime discovers it:
 
 | Location | Scope | Discovery |
 | --- | --- | --- |
-| `.github/hooks/*.json` | Workspace (shared) | **Default** — VS Code and Copilot CLI discover automatically |
-| `~/.copilot/hooks/*.json` | User (global) | **Default** — Copilot CLI discovers automatically at startup |
+| `.github/hooks/<name>/` | Workspace (shared) | Discovered automatically from the repository |
+| `~/.copilot/hooks/<name>/` | User (global) | Discovered automatically at startup |
 
-## Publishing
+## Deployment
 
-The publish script discovers hook manifests under `hooks/<name>/` and publishes them to `.github/hooks/` for workspace deployment (default). User-level publishing to `~/.copilot/hooks/` is available via `-Scope user-level`:
+There is no publish script — deployment is an explicit copy (the repository is the distribution source):
 
 ```powershell
-# Publish all hooks (workspace-level only, default)
-pwsh -NoProfile -File scripts/publish/publish-hooks.ps1
+# Workspace-level deployment (committed, shared via the repository)
+Copy-Item -Recurse hooks/<name> .github/hooks/<name>
 
-# Publish as user-level hooks (requires chat.hookFilesLocations setting)
-pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level
-
-# Legacy alias (supported, but prefer -Scope user-level)
-pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -UserLevel
-
-# Publish specific hooks
-pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Hooks "security-policy"
-
-# Via the artifact router
-pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type hook -Name "security-policy"
-
-# Stage user-level hooks into a test Copilot home (dojo) — skips WSL + VS Code settings mutation
-pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome C:\temp\copilot-staging
+# User-level deployment
+Copy-Item -Recurse hooks/<name> "$HOME\.copilot\hooks\<name>"
 ```
+
+Hook commands are written repo-root-relative (`hooks\<name>\scripts\...`). When deploying, keep the same relative layout or update the `bash`/`powershell` command paths in the copied JSON to match the destination.
 
 ## Authoring Guidelines
 
 1. Author each hook in its own `hooks/<name>/` directory (not directly in `.github/hooks/`).
 2. Use the `*.json` naming convention (matches Copilot CLI discovery of `*.json` in hook directories).
 3. Provide `windows` overrides alongside the default `command` for cross-platform compatibility.
-4. Keep hook scripts under the owning hook's `scripts/` folder (for example, `hooks/security-policy/scripts/`) or the relevant skill's `scripts/` folder. In user-level mode, the publish script copies referenced scripts into `~/.copilot/hooks/<name>/scripts/` and rewrites the published hook JSON to use full script paths.
+4. Keep hook scripts under the owning hook's `scripts/` folder (for example, `hooks/security-policy/scripts/`) or, for skill-owned hooks, under the skill folder (for example, `skills/<skill>/hooks/<name>/scripts/`).
 5. Always validate and sanitize stdin input in hook scripts to prevent injection.
 6. Never hardcode secrets — use environment variables or credential stores.
 
 ## Security
 
-- Hooks execute with VS Code's permissions. Review all hook scripts before enabling.
-- Use `chat.tools.edits.autoApprove` to prevent the agent from editing hook scripts without approval.
+- Hooks execute with your user privileges. Review all hook scripts before enabling.
+- Restrict write access to hook folders so the agent cannot silently edit them.
 - Check `stop_hook_active` in `Stop`/`SubagentStop` hooks to prevent infinite loops.
-

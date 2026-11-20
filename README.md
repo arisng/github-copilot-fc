@@ -1,197 +1,122 @@
-# Copilot FC
+# GitHub Copilot FC
 
-Copilot FC is a workspace-first factory for authoring and publishing Copilot customization artifacts.
+GitHub Copilot FC is a **customization factory for GitHub Copilot** — a single workspace where
+agent plugins, individual skills, Copilot customizations, evaluations, guardrails, and
+documentation are authored, validated, and maintained. Skills are distributed straight from this
+repository with the Skills CLI, customizations live in dedicated source folders, and an automated
+lint suite wired into git hooks keeps the whole workspace consistent.
 
-Use this repository to create, validate, and distribute:
+## Purposes
 
-- Plugins (`plugins/<plugin-name>/`)
-- Custom Agents (`agents/*.agent.md`)
-- Agent Hooks (`hooks/<name>/<name>.json`)
-- Custom Instructions (`instructions/*.instructions.md`)
-- Skills (`skills/<skill-name>/SKILL.md`)
-- Tools inventory (`tools/`)
+This repository exists to:
 
-The repository is operationally script-driven: VS Code tasks are convenience wrappers around `scripts/`.
+1. **Author public agent plugins** — `plugins/` is intentionally empty today, reserved for a
+   from-scratch rebuild grounded in the `skills/copilot-plugin-builder` skill; `schemas/` holds
+   the plugin, marketplace, and skill JSON Schemas that rebuild must satisfy.
+2. **Author public individual skills** — `skills/` holds ~50 standalone skills, distributed to
+   any agent environment via `npx skills add arisng/github-copilot-fc`.
+3. **Author GitHub Copilot customizations** — custom agents (`agents/`), instruction files
+   (`instructions/`), hooks (`hooks/`), Copilot canvas/extension sources (`canvas/`), and
+   workspace-discovered customizations (`.github/`).
+4. **Maintain evaluations** — `evals/` holds waza evaluation suites, with conventions codified
+   in `instructions/waza-eval.instructions.md`. Validation is structural only; execution gating
+   in CI is deferred.
+5. **Maintain local repo guardrails** — an automated lint suite under `scripts/workspace/`,
+   backed by JSON Schemas in `schemas/`.
+6. **Maintain local repo docs and issues** — `docs/` (currently `docs/blazor-agui/`, four
+   explanation pages) and `.issues/`, indexed by `.issues/index.md`.
 
-## Core Principles
+## Repository layout
 
-- Workspace-first authoring: build artifacts in this repo, then publish to personal locations.
-- Script-first operations: `scripts/` is the source of truth for automation behavior.
-- Clear boundaries: treat `.archived/` content as deprecated and not a template source.
-- Cross-shell usage: commands are designed to run from Windows PowerShell and Linux/WSL (`pwsh`).
+| Path | Description |
+| ---- | ----------- |
+| `.github/` | Workspace-discovered customizations: shared skills, memories, and git-scope docs. |
+| `.githooks/` | `pre-commit` and `pre-push` hooks (enable with `git config core.hooksPath .githooks`). |
+| `.issues/` | Planning/change issue documents; `index.md` is generated from issue frontmatter. |
+| `Taskfile.yml` | go-task v3 entry points: `lint`, `check`, `test`, `issues:index`, `skills:catalog`. |
+| `agents/` | Custom agent definitions (`*.agent.md`). |
+| `canvas/` | Copilot canvas/extension sources: `machina-simulator`, `session-md-reader`. |
+| `docs/` | Repository documentation; currently `docs/blazor-agui/` with four explanation pages. |
+| `evals/` | waza evaluation suites — one directory per skill, each with `eval.yaml` and task YAML. |
+| `hooks/` | Agent hook configurations: one directory per hook with manifest and companion scripts. |
+| `instructions/` | Reusable instruction files (`*.instructions.md`). |
+| `plugins/` | Intentionally empty — reserved for the plugin rebuild (see below). |
+| `schemas/` | JSON Schemas for plugins (`plugin.schema.json`), marketplaces, and skills. |
+| `scripts/workspace/` | The lint suite: `workspace-check.ps1` plus consistency, manifest, supply-chain, and catalog checks. |
+| `skills/` | ~50 public skills — see [`skills/README.md`](skills/README.md) for authoring conventions. |
+| `tools/` | Cross-runtime tools inventory (`inventory.yaml`) with generated drift reports. |
 
-## Repository Layout
+## Workflows
 
-- `plugins/`: plugin definitions and assets for local development; publish to personal plugin folders.
-- `agents/`: active agent definitions plus `agents/ralph-v2/` system docs.
-- `hooks/`: agent hook configurations organized as per-hook directories with manifests and companion scripts; publish manifests to `.github/hooks/`.
-- `instructions/`: reusable instruction files; `instructions/.archived/` for superseded items.
-- `prompt-engineering/`: system message data models, reverse-engineering notes, and samples.
-- `skills/`: skill factory source; publish from here to personal skill folders.
-- `tools/`: cross-runtime tools inventory, tool docs, and VS Code toolsets under `tools/vscode/toolsets/`.
-- `copilot-sdk/`: architecture and planning documents for Copilot SDK and Ralph v2 implementation.
-- `scripts/`: automation entry points:
-  - `scripts/publish/`: publish agents, hooks, instructions, skills, toolsets.
-  - `scripts/issues/`: issue metadata extraction and indexing.
-  - `scripts/workspace/`: workspace command router.
-  - `scripts/changelog/`: weekly changelog generation.
-- `.docs/`: workspace documentation index and Diataxis-style content.
-- `.issues/`: issue documents used as planning/change inputs.
-- `.ralph-sessions/`: Ralph session artifacts and iteration state.
-  - Session folders use `<YYMMDD>-<hhmmss>` format.
-  - Session-level instruction files may exist as `.ralph-sessions/<session-id>.instructions.md`.
+The repo uses [go-task](https://taskfile.dev) (`Taskfile.yml`) as the single entry point for
+automation:
 
-Archived locations that should not be used as authoring templates:
+| Command | What it does |
+| ------- | ------------ |
+| `task lint` | Quick lint — changed markdown plus schema/consistency engine (the pre-commit gate). |
+| `task check` | Full lint suite — all workspace checks (the pre-push gate; also the default task). |
+| `task test` | Run skill test suites — pytest over `skills/`. |
+| `task issues:index` | Regenerate `.issues/index.md` from issue frontmatter. |
+| `task skills:catalog` | Regenerate the skills catalog table in `skills/README.md`. |
 
-- `agents/.archived/`
-- `instructions/.archived/`
-- `skills/playwright-cli-archived/`
-- `.archived/prompts/` (retired — GitHub Copilot deprecated prompt files)
+### Git hooks
 
-## Quickstart
+Hooks are wired once per clone with `git config core.hooksPath .githooks`, then run
+automatically:
 
-1. Edit or add artifacts in `plugins/`, `agents/`, `hooks/`, `instructions/`, `skills/`, or `tools/`.
-2. Validate changes locally: `pwsh -NoProfile -File scripts/workspace/run-command.ps1 workspace:check`.
-3. Publish with scripts under `scripts/publish/`.
+- `.githooks/pre-commit` runs the quick lint mode (equivalent to `task lint`) and blocks the
+  commit on lint violations.
+- `.githooks/pre-push` runs the full suite (equivalent to `task check`) and blocks the push on
+  any failure.
 
-## Terminal-First Commands
+Both hooks skip cleanly when `pwsh` is missing from `PATH`, so a clone without PowerShell is
+never bricked.
 
-Run from repository root:
+### The lint suite
 
-```powershell
-# Show available workspace commands
-pwsh -NoProfile -File scripts/workspace/run-command.ps1 list
+`scripts/workspace/workspace-check.ps1` orchestrates the checks:
 
-# Execute a named workspace command
-pwsh -NoProfile -File scripts/workspace/run-command.ps1 skills:publish
+- `check-consistency.ps1` — cross-file consistency checks.
+- `validate-manifests.py` — JSON Schema validation (jsonschema engine against `schemas/`).
+- `check-supply-chain.py` — supply-chain sanity checks.
+- `generate-skills-catalog.py` — regenerates the catalog table in `skills/README.md`.
+- `waza check` (advisory) and offline `waza preflight` over `evals/`.
+- markdownlint over the markdown files changed in the working tree (config in
+  `.markdownlint-cli2.jsonc`).
 
-# Reindex issue metadata (.issues)
-pwsh -NoProfile -File scripts/issues/extract-issue-metadata.ps1
+## Using the skills
 
-# Publish one artifact via router
-pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name diataxis
+Install everything this repository offers, or a single skill by name:
 
-# Publish all skills (preferred: Skills CLI)
-npx skills <options>
-# Publish all skills (legacy workspace copy)
-pwsh -NoProfile -File scripts/publish/publish-skills.ps1
+```bash
+# Install every skill from this repository
+npx skills add arisng/github-copilot-fc
+
+# Install one specific skill
+npx skills add arisng/github-copilot-fc -s <name>
 ```
 
-Current command map is implemented directly in `scripts/workspace/run-command.ps1` and includes:
+Skills are copied into your personal skills folder (`~/.agents/skills/` by default), so agent
+tools find exactly one active copy of each skill. For skill-authoring conventions, distribution
+details, and the full catalog, see [`skills/README.md`](skills/README.md).
 
-- `agents:publish`
-- `hooks:publish`
-- `instructions:publish`
-- `skills:publish`
-- `toolsets:publish`
-- `issues:reindex`
-- `tests:skills-pytest`
-- `workspace:check`
-- `workspace:list-skills`
-- `workspace:status`
+## Plugins: empty by design
 
-## Local CI (quality enforcement)
+`plugins/` contains no live plugins yet. It is an intentionally empty folder reserved for a
+from-scratch rebuild of the plugin factory, grounded in the
+[`copilot-plugin-builder`](skills/copilot-plugin-builder/SKILL.md) skill and validated against
+the JSON Schemas in `schemas/`. Until that rebuild lands, treat the schemas — not folder
+contents — as the contract.
 
-Quality gates run locally from repo scripts — this repo intentionally uses no cloud CI workflows:
+## Contributing
 
-```powershell
-# Run all checks: TOC freshness, waza (advisory), skill pytest, markdown lint
-pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
-# or via the dispatcher:
-pwsh -NoProfile -File scripts/workspace/run-command.ps1 workspace:check
-```
+1. Create or edit artifacts in their source folders (`skills/`, `agents/`, `instructions/`,
+   `hooks/`, `canvas/`, `evals/`, `docs/`).
+2. Run `task check` before pushing — the git hooks run the same gates automatically.
+3. After editing issue frontmatter or the skills catalog, regenerate with `task issues:index`
+   and `task skills:catalog`.
+4. Follow [`skills/README.md`](skills/README.md) when authoring or modifying a skill.
 
-Activate the versioned git hooks once per clone:
+## License
 
-```powershell
-git config core.hooksPath scripts/hooks
-```
-
-- `scripts/hooks/pre-push` runs `workspace-check` before every push; gate failures block the push.
-- `scripts/hooks/post-commit` publishes any skill changed by the commit to personal folders.
-
-## Publishing Model
-
-Publish scripts are the canonical distribution path (skills/plugins have preferred CLI alternatives):
-
-- `scripts/publish/publish-agents.ps1` (supports `-CopilotHome` staging override)
-- `scripts/publish/publish-hooks.ps1` (supports `-CopilotHome` staging override)
-- `scripts/publish/publish-instructions.ps1` (supports `-CopilotHome` staging override)
-- `scripts/publish/publish-toolsets.ps1`
-- `scripts/publish/publish-artifact.ps1` (type-based router)
-- ~~`scripts/publish/publish-skills.ps1`~~ **deprecated** — prefer `npx skills <options>` (Skills CLI)
-- ~~`scripts/publish/publish-plugins.ps1`~~ **deprecated** — prefer `copilot plugins <options>` (native CLI; `build-plugins.ps1` for bundle-only)
-
-Publish destination behavior:
-
-- Agents, instructions, and VS Code toolsets are copied to VS Code user prompts paths:
-  - `%APPDATA%/Code/User/prompts`
-  - `%APPDATA%/Code - Insiders/User/prompts`
-- Hooks are copied to workspace `.github/hooks/` for VS Code agent hook discovery.
-- Skills are copied to personal skill folders:
-  - `%USERPROFILE%/.claude/skills`
-  - `%USERPROFILE%/.codex/skills`
-  - `%USERPROFILE%/.copilot/skills`
-  - WSL equivalents are **NOT** published by default (2026-08): WSL mirroring is opt-in via the `-IncludeWSL` switch and is discouraged for regular use.
-
-Wildcard patterns are supported by helpers for name selection. Quote patterns to avoid shell expansion.
-
-```powershell
-pwsh -NoProfile -File scripts/publish/publish-artifact.ps1 -Type skill -Name "playwright*" -Force
-```
-
-## Documentation Structure
-
-Documentation root: `.docs/index.md`.
-
-Primary documentation sections in `.docs/`:
-
-- `tutorials/`
-- `how-to/`
-- `reference/`
-- `explanation/`
-- `research/`
-
-## Artifact Scope
-
-- Agents, hooks, instructions, toolsets: Copilot-focused artifacts.
-- Skills: cross-platform reusable assets (Copilot, Codex, Claude workflows).
-
-## VS Code Tasks
-
-Workspace tasks are wrappers for script entry points. The same behavior should remain available via terminal commands:
-
-- `Workspace Commands`
-- `Publish Skills`
-- `Publish Artifact`
-- `Reindex Issues`
-
-## Naming and Authoring Conventions
-
-- Agent file naming: `agents/<name>.agent.md`
-- Hook file naming: `hooks/<name>/<name>.json`
-- Instruction naming: `instructions/<name>.instructions.md`
-- Skill folder requirement: `skills/<name>/SKILL.md`
-- Tools inventory root: `tools/`
-- VS Code toolset naming: `tools/vscode/toolsets/<name>.toolsets.jsonc`
-- Use forward slashes in markdown links.
-
-## Related References
-
-- Workspace authoring rules: `.github/copilot-instructions.md`
-- Git scope governance: `.github/git-scope-constitution.md`, `.github/git-scope-inventory.md`
-- Skills-specific guidance: `skills/README.md`
-- Tools inventory: `tools/inventory.yaml`
-- Ralph v2 system docs: `agents/ralph-v2/README.md`
-
-## Troubleshooting
-
-- PowerShell execution policy blocks scripts:
-  - Run PowerShell with proper policy or trusted shell context.
-- Publish output not reflected:
-  - Re-run publish script and verify personal target folders.
-- Issue index not generated:
-  - Ensure `.issues` exists and contains markdown issue files.
-- Python tooling scripts fail:
-  - Most Python utilities are skill-local under `skills/<skill-name>/scripts/`.
-  - Install Python 3 and invoke those utilities as `python3`.
+MIT — see [LICENSE](LICENSE).
