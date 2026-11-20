@@ -12,10 +12,19 @@
     Determinism: same tree file + same template -> byte-identical HTML
     (no timestamps; stable key order; platform line endings only).
 
+    Template versioning: assets/tree-template.version.json records the current
+    template version + sha256 fingerprint. The fingerprint is verified before
+    hydrating (an edit to assets/tree-template.html without a version bump via
+    bump-tree-template-version.ps1 fails here), and the version is embedded in
+    the page (meta tree-template-version + footer) so -Check can report template
+    version drift separately from tree-data staleness - a version mismatch means
+    the installed skill's template moved and re-rendering patches the output.
+
     Modes:
       default   write the HTML file
-      -Check    fail (exit 1) when the HTML file is missing or stale
-                (repo issue lint, pre-commit gate)
+      -Check    fail (exit 1) when the HTML file is missing, built by another
+                template version (drift), or stale (repo issue lint, pre-commit
+                gate)
     -Out overrides the output path (default: tree file with .html extension).
 
     Interactive features live in the template: search (/), status/priority
@@ -54,8 +63,25 @@ if (Test-Path -LiteralPath $manifestPath) {
 $treeLabel = $treePath -replace '\\', '/'
 
 $templatePath = Join-Path -Path $PSScriptRoot -ChildPath '..\assets\tree-template.html'
+$versionPath = Join-Path -Path $PSScriptRoot -ChildPath '..\assets\tree-template.version.json'
+. (Join-Path -Path $PSScriptRoot -ChildPath 'template-version-lib.ps1')
 if (-not (Test-Path -LiteralPath $templatePath)) {
     "render-tree: template not found at $templatePath (skill assets must ship with the script)"
+    exit 1
+}
+
+# --- Verify the template's recorded version (integrity gate) --------------------
+$versionState = Get-TreeTemplateVersionState -Path $versionPath
+if ($versionState.Error) {
+    "render-tree: $($versionState.Error)"
+    "render-tree: create/repair it from the skill repo: pwsh <skill-folder>/scripts/bump-tree-template-version.ps1 -Version <new-version>"
+    exit 1
+}
+$templateVersion = $versionState.Version
+$actualSha256 = Get-TreeTemplateSha256 -Path $templatePath
+if ($actualSha256 -ne $versionState.Sha256) {
+    "render-tree: assets/tree-template.html changed without a version bump (recorded v$templateVersion, sha256 $($versionState.Sha256) -> $actualSha256)"
+    "render-tree: bump it from the skill repo: pwsh <skill-folder>/scripts/bump-tree-template-version.ps1 -Version <new-version>"
     exit 1
 }
 if (-not (Test-Path -LiteralPath $treePath)) {
@@ -211,12 +237,17 @@ $dataJson = '{{"source":{0},"summary":{1},"next":{2},"themes":[{3}]}}' -f
 
 # --- Hydrate the template -------------------------------------------------------
 $template = [System.IO.File]::ReadAllText($templatePath)
+$versionPlaceholderCount = ([regex]::Matches($template, '__TREE_TEMPLATE_VERSION__')).Count
+if ($versionPlaceholderCount -eq 0) {
+    "render-tree: no __TREE_TEMPLATE_VERSION__ placeholder in the template - the generated view would carry no version marker"
+    exit 1
+}
 $placeholderCount = [regex]::Matches($template, '__ISSUE_TREE_DATA__').Count
 if ($placeholderCount -ne 1) {
     "render-tree: expected exactly 1 __ISSUE_TREE_DATA__ placeholder in the template, found $placeholderCount"
     exit 1
 }
-$htmlLf = ($template.Replace('__ISSUE_TREE_DATA__', $dataJson) -replace "`r`n", "`n")
+$htmlLf = ($template.Replace('__TREE_TEMPLATE_VERSION__', $templateVersion).Replace('__ISSUE_TREE_DATA__', $dataJson) -replace "`r`n", "`n")
 $html = $htmlLf.Replace("`n", [Environment]::NewLine)
 
 if ([string]::IsNullOrWhiteSpace($Out)) {
@@ -230,11 +261,25 @@ if ($Check) {
         exit 1
     }
     $existing = ([System.IO.File]::ReadAllText((Join-Path (Get-Location).Path $Out)) -replace "`r`n", "`n")
-    if ($existing -ne $htmlLf) {
-        "TREE-HTML  $OutLabel is stale - run: pwsh $PSCommandPath"
+    $existingVersion = ''
+    if ($existing -match 'name="tree-template-version"\s+content="([^"]*)"') {
+        $existingVersion = $Matches[1]
+    }
+    if ($existingVersion -ne $templateVersion) {
+        if ([string]::IsNullOrEmpty($existingVersion)) {
+            "TREE-HTML  $OutLabel has no template version marker (built before versioning or by a foreign template)"
+        }
+        else {
+            "TREE-HTML  $OutLabel version drift: generated with template v$existingVersion, current template is v$templateVersion"
+        }
+        "TREE-HTML  patch it (re-render embeds the new version) - run: pwsh $PSCommandPath"
         exit 1
     }
-    "render-tree: OK ($($themes.Count) themes, $rowTotal issues, $OutLabel fresh)"
+    if ($existing -ne $htmlLf) {
+        "TREE-HTML  $OutLabel is stale (tree data changed) - run: pwsh $PSCommandPath"
+        exit 1
+    }
+    "render-tree: OK ($($themes.Count) themes, $rowTotal issues, template v$templateVersion, $OutLabel fresh)"
     exit 0
 }
 
@@ -244,5 +289,5 @@ if (-not (Test-Path -LiteralPath $outDir)) {
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 }
 [System.IO.File]::WriteAllText($fullOut, $html, [System.Text.UTF8Encoding]::new($false))
-"render-tree: OK ($($themes.Count) themes, $rowTotal issues, wrote $OutLabel)"
+"render-tree: OK ($($themes.Count) themes, $rowTotal issues, template v$templateVersion, wrote $OutLabel)"
 exit 0
