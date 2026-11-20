@@ -1,35 +1,50 @@
 <#
 .SYNOPSIS
-    Local CI: run all workspace quality checks in one command.
-
+    Automated lint suite for the Copilot FC workspace (local CI - no cloud workflows).
 .DESCRIPTION
-    Aggregates the repo's quality gates (local CI only — no cloud workflows):
+    Runs the repo's lint checks in one command. Two modes:
 
-    1. TOC freshness — regenerates the copilot-vscode-docs documentation TOC to a
-       temp file and compares it with assets/toc.md. Fails when the generator is
-       broken or the committed TOC is stale vs upstream toc.json. A network
-       failure downgrades to a warning so offline pushes still work.
-    2. waza check — advisory skill-quality report (exit 2 = known pre-existing
-       backlog; reported but non-blocking, because waza gate/run CI gating is
+    -Quick : fast checks only - markdown lint over changed .md files plus the
+             cross-file consistency/schema engine. Wired to .githooks/pre-commit
+             and `task lint`.
+
+    (full) : everything -Quick runs, plus the waza advisory report, the
+             supply-chain scan, and offline eval preflight. Wired to
+             .githooks/pre-push and `task check`.
+
+    Checks (full suite):
+    1. Markdown lint - markdownlint-cli2 over the .md files changed in the
+       working tree or pending on the branch (a ratchet: touch it, fix it).
+       An npx that cannot bootstrap (offline first run) downgrades to a warning.
+    2. Consistency - scripts/workspace/check-consistency.ps1: jsonschema
+       validation of plugin/skill/marketplace/instruction frontmatter against
+       schemas/ (validate-manifests.py), cross-file rules (skill dir<->name,
+       body budgets, agent name uniqueness, EMBED marker resolution, no -beta
+       identity in source), skills-catalog freshness, issues-index freshness,
+       and marketplace parity via the shipped verifier once an index exists.
+    3. waza check (advisory) - skill-quality report (exit 2 = known pre-existing
+       backlog; reported as WARN, never blocking: waza gate/run CI gating stays
        deferred per instructions/waza-eval.instructions.md). A missing or
        crashing waza CLI fails the check.
-    3. Skill pytest — `python3 -m pytest skills -q` over every skills/*/tests suite.
-    4. Markdown lint — markdownlint-cli2 over the .md files changed in the working
-       tree or pending on the branch (a ratchet: touch it, fix it). An npx that
-       cannot bootstrap (offline first run) downgrades to a warning.
-    5. Skill frontmatter — every skills/*/SKILL.md declares a semver
-       metadata.version, so `npx skills update -g` can update it.
-    6. Lint self-test — scripts/test/workspace-check-lint.tests.ps1 proves a
-       single changed .md reaches markdownlint as one path argument (guards the
-       scalar-splat bug where each character became its own glob).
+    4. Supply chain - scripts/workspace/check-supply-chain.py: flags
+       shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags,
+       and link domains outside scripts/workspace/known-domains.txt
+       (warn-first; --strict is the future ratchet target).
+    5. Eval preflight - `waza preflight` over every evals/*/eval.yaml: offline
+       schema/inventory validation against waza's embedded authoritative schema
+       (no execution - waza gate/run stays deferred). Schema/configuration
+       errors FAIL; resource.file fixture debt WARNs.
 
-    Exits non-zero when any gated check fails. Used by scripts/hooks/pre-push.
-
+    Exits non-zero when any check FAILs. Used by .githooks/pre-commit (-Quick)
+    and .githooks/pre-push (full).
 .EXAMPLE
-    pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
+    pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -Quick
 #>
 [CmdletBinding()]
-param()
+param(
+    # Fast subset for pre-commit: markdown lint + consistency engine only.
+    [switch]$Quick
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -49,42 +64,110 @@ function Write-CheckResult {
     Write-Host "$icon $Name - $Detail" -ForegroundColor $color
 }
 
-function Test-TocFreshness {
+function Test-MarkdownLint {
     [CmdletBinding()]
     param()
 
-    $tocScript = Join-Path $repoRoot 'skills/copilot-vscode-docs/scripts/parse_toc.py'
-    $tocAsset = Join-Path $repoRoot 'skills/copilot-vscode-docs/assets/toc.md'
-
-    if (-not (Get-Command python3 -ErrorAction SilentlyContinue)) {
-        return @{ Status = 'FAIL'; Detail = 'python3 not found on PATH (required to verify the docs TOC)' }
+    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'npx not found on PATH (required for markdown lint)' }
+    }
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'git not found on PATH (needed to find changed .md files)' }
     }
 
-    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("toc-check-" + [guid]::NewGuid().ToString('N') + '.md')
+    $changed = [System.Collections.Generic.List[string]]::new()
+    Push-Location $repoRoot
     try {
-        & python3 $tocScript --out $tempOut 2>&1 | Out-Null
-        $code = $LASTEXITCODE
-        if ($code -eq 2) {
-            return @{ Status = 'WARN'; Detail = 'upstream toc.json unreachable (network) - freshness unverified this run' }
+        # Working tree (staged + unstaged), untracked files, and branch commits
+        # not yet on the upstream - the set a push would carry.
+        foreach ($line in @(& git diff --name-only --diff-filter=ACM HEAD -- '*.md')) {
+            if ($line) { $changed.Add($line.Trim()) }
         }
-        if ($code -ne 0) {
-            return @{ Status = 'FAIL'; Detail = "TOC regeneration failed (exit $code) - parse_toc.py is broken or upstream toc.json format changed" }
+        foreach ($line in @(& git ls-files --others --exclude-standard -- '*.md')) {
+            if ($line) { $changed.Add($line.Trim()) }
         }
+        $null = & git rev-parse --abbrev-ref '--symbolic-full-name' '@{upstream}' 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            foreach ($line in @(& git diff --name-only --diff-filter=ACM '@{upstream}...HEAD' -- '*.md')) {
+                if ($line) { $changed.Add($line.Trim()) }
+            }
+        }
+    }
+    finally {
+        Pop-Location
+    }
 
-        $new = (Get-Content -Path $tempOut -Raw) -replace "`r`n", "`n"
-        $old = if (Test-Path $tocAsset) { (Get-Content -Path $tocAsset -Raw) -replace "`r`n", "`n" } else { '' }
-        $linkCount = ([regex]::Matches($new, '(?m)^\s*- \[')).Count
-        if ($linkCount -lt 100) {
-            return @{ Status = 'FAIL'; Detail = "regenerated TOC has only $linkCount links (expected >= 100) - parser output looks degenerate" }
-        }
-        if ($new -ne $old) {
-            return @{ Status = 'FAIL'; Detail = 'assets/toc.md is stale vs upstream toc.json - run: python3 skills/copilot-vscode-docs/scripts/parse_toc.py && git add skills/copilot-vscode-docs/assets/toc.md' }
-        }
-        return @{ Status = 'PASS'; Detail = "assets/toc.md matches upstream toc.json ($linkCount links)" }
+    # Defense in depth: drop paths the markdownlint config ignores, so they are
+    # never handed to the linter as explicit inputs.
+    $denyPattern = '(^|/)(node_modules|\.archived|\.build|\.playwright-cli|\.issues|workshops)(/|$)|^evals/[^/]+/(fixtures|results)/|^docs/blazor-agui/'
+    $files = @($changed | Sort-Object -Unique | Where-Object { $_ -notmatch $denyPattern } | Where-Object { Test-Path -LiteralPath (Join-Path $repoRoot $_) })
+    if ($files.Count -eq 0) {
+        return @{ Status = 'SKIP'; Detail = 'no changed .md files' }
+    }
+
+    # Probe first: markdownlint-cli2 bootstraps through npx on first use, so an
+    # offline environment downgrades to a warning instead of blocking the hook.
+    & npx --yes markdownlint-cli2 --version *> $null
+    if ($LASTEXITCODE -ne 0) {
+        return @{ Status = 'WARN'; Detail = 'markdownlint-cli2 unavailable via npx (offline first run?) - markdown lint skipped this run' }
+    }
+
+    # Wrap in @(): a pipeline yielding one path returns a scalar string, and
+    # splatting a string enumerates its characters as separate arguments.
+    $rel = @($files | ForEach-Object { $_ -replace '\\', '/' })
+    Push-Location $repoRoot
+    try {
+        $lintOutput = & npx --yes markdownlint-cli2 @rel 2>&1
+        $code = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+    }
+    # Native stdout is part of the function's return stream - echo it via the
+    # host so the returned value stays a single hashtable.
+    if ($lintOutput) {
+        Write-Host (($lintOutput | Out-String).TrimEnd())
+    }
+    if ($code -eq 0) {
+        return @{ Status = 'PASS'; Detail = "$($files.Count) changed .md file(s) lint clean" }
+    }
+    return @{ Status = 'FAIL'; Detail = "markdownlint violations in changed .md files (exit $code) - run 'npx --yes markdownlint-cli2 <file>' for details" }
+}
+
+function Test-Consistency {
+    [CmdletBinding()]
+    param()
+
+    $checker = Join-Path $repoRoot 'scripts/workspace/check-consistency.ps1'
+    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'pwsh not found on PATH (required to run the consistency checker)' }
+    }
+    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("consistency-" + [guid]::NewGuid().ToString() + '.txt')
+    try {
+        # Child process on purpose: the checker ends with `exit`, which would
+        # otherwise take this gate down with it.
+        & pwsh -NoProfile -File $checker *> $tempOut
+        $code = $LASTEXITCODE
+        $lines = @(Get-Content -Path $tempOut -ErrorAction SilentlyContinue)
     }
     finally {
         Remove-Item -Path $tempOut -ErrorAction SilentlyContinue
     }
+
+    $summary = if ($lines.Count -gt 0) { $lines[$lines.Count - 1] } else { 'checker produced no output' }
+    if ($code -eq 0) {
+        $warns = @($lines | Where-Object { $_ -match '^\[WARN\]' })
+        if ($warns.Count -gt 0) {
+            return @{ Status = 'WARN'; Detail = "$($warns.Count) consistency warning(s), ratchet-pending: $($warns[0] -replace '^\[WARN\] ', '')" }
+        }
+        return @{ Status = 'PASS'; Detail = $summary }
+    }
+    if ($code -eq 2) {
+        return @{ Status = 'FAIL'; Detail = 'consistency checker: required tooling missing (python3/jsonschema/PyYAML)' }
+    }
+    $failLines = @($lines | Where-Object { $_ -match '^\[FAIL\]' })
+    $shown = (@($failLines | Select-Object -First 3) -join ' | ')
+    return @{ Status = 'FAIL'; Detail = "consistency checker found $($failLines.Count) failure(s): $shown - run: pwsh -NoProfile -File scripts/workspace/check-consistency.ps1" }
 }
 
 function Invoke-WazaCheck {
@@ -95,7 +178,7 @@ function Invoke-WazaCheck {
         return @{ Status = 'FAIL'; Detail = 'waza CLI not found on PATH - install it (skill-eval tool, see instructions/waza-eval.instructions.md)' }
     }
 
-    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("waza-check-" + [guid]::NewGuid().ToString('N') + '.txt')
+    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("waza-check-" + [guid]::NewGuid().ToString() + '.txt')
     Push-Location $repoRoot
     try {
         & waza check --no-update-check *> $tempOut
@@ -119,202 +202,117 @@ function Invoke-WazaCheck {
     }
 }
 
-function Test-SkillPytest {
+function Test-SupplyChain {
     [CmdletBinding()]
     param()
 
+    $checker = Join-Path $repoRoot 'scripts/workspace/check-supply-chain.py'
     if (-not (Get-Command python3 -ErrorAction SilentlyContinue)) {
-        return @{ Status = 'FAIL'; Detail = 'python3 not found on PATH (required to run skill tests)' }
+        return @{ Status = 'FAIL'; Detail = 'python3 not found on PATH (required for the supply-chain check)' }
     }
-
-    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("skill-pytest-" + [guid]::NewGuid().ToString() + '.txt')
-    Push-Location $repoRoot
+    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("supply-chain-" + [guid]::NewGuid().ToString() + '.txt')
     try {
-        & python3 -m pytest skills -q *> $tempOut
+        # Default mode exits 0 even with warnings (warn-first); nonzero means
+        # the tool itself broke (git listing failure) or --strict leaked in.
+        & python3 $checker *> $tempOut
         $code = $LASTEXITCODE
-    }
-    finally {
-        Pop-Location
-    }
-    try {
-        if ($code -eq 0) {
-            $summary = (Get-Content -Path $tempOut -Tail 1)
-            return @{ Status = 'PASS'; Detail = "skill pytest clean ($summary)" }
-        }
-        if ($code -eq 5) {
-            return @{ Status = 'SKIP'; Detail = 'no skill tests collected' }
-        }
-        return @{ Status = 'FAIL'; Detail = "skill pytest failed (exit $code) - run 'python3 -m pytest skills -q' (missing pytest? python3 -m pip install pytest)" }
+        $lines = @(Get-Content -Path $tempOut -ErrorAction SilentlyContinue)
     }
     finally {
         Remove-Item -Path $tempOut -ErrorAction SilentlyContinue
     }
+
+    $summary = if ($lines.Count -gt 0) { $lines[$lines.Count - 1] } else { 'checker produced no output' }
+    if ($code -ne 0) {
+        return @{ Status = 'FAIL'; Detail = "supply-chain checker crashed (exit $code): $summary" }
+    }
+    $warns = @($lines | Where-Object { $_ -match '^\[WARN\]' })
+    if ($warns.Count -gt 0) {
+        return @{ Status = 'WARN'; Detail = "$($warns.Count) supply-chain warning(s), ratchet-pending: $($warns[0] -replace '^\[WARN\] ', '')" }
+    }
+    return @{ Status = 'PASS'; Detail = $summary }
 }
 
-function Test-SkillFrontmatter {
+function Test-EvalPreflight {
     [CmdletBinding()]
     param()
 
-    # Public skills ship to personal folders; metadata.version is what
-    # `npx skills update -g` compares, so a skill without it never updates.
-    $skillsRoot = Join-Path $repoRoot 'skills'
-    $offenders = [System.Collections.Generic.List[string]]::new()
-    $count = 0
-    foreach ($dir in Get-ChildItem -Path $skillsRoot -Directory) {
-        $skillMd = Join-Path $dir.FullName 'SKILL.md'
-        if (-not (Test-Path -LiteralPath $skillMd)) { continue }
-        $count++
-        $raw = Get-Content -LiteralPath $skillMd -Raw
-        $m = [regex]::Match($raw, '\A---\r?\n(.*?)\r?\n---', 'Singleline')
-        if (-not $m.Success) {
-            $offenders.Add("$($dir.Name): no YAML frontmatter")
-            continue
-        }
-        $fm = $m.Groups[1].Value
-        if ($fm -notmatch '(?m)^metadata:\s*$') {
-            $offenders.Add("$($dir.Name): missing metadata block")
-            continue
-        }
-        if ($fm -notmatch "(?m)^\s+version:\s*['`"]?\d+\.\d+\.\d+[0-9A-Za-z.+-]*['`"]?\s*$") {
-            $offenders.Add("$($dir.Name): metadata.version missing or not semver")
-        }
+    # Classification per instructions/waza-eval.instructions.md triage order:
+    #   schema/configuration errors -> FAIL (a corrupt eval.yaml must fail),
+    #   resource.file / other [error] -> WARN (fixture/path debt: fixture-class
+    #   triage before any content edit, never a gate blocker for unrelated work).
+    if (-not (Get-Command waza -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'waza CLI not found on PATH - install it (see instructions/waza-eval.instructions.md)' }
     }
-    if ($offenders.Count -eq 0) {
-        return @{ Status = 'PASS'; Detail = "$count skill(s) declare metadata.version" }
-    }
-    return @{ Status = 'FAIL'; Detail = "missing metadata.version (blocks npx skills update -g): $($offenders -join '; ')" }
-}
-
-function Test-MarkdownLint {
-    [CmdletBinding()]
-    param(
-        # Pre-resolved file list (relative to the repo root). Discovery via git is
-        # skipped when provided — used by the lint self-test to pin the single-file
-        # path that the scalar-splat bug (828c9a2) once broke.
-        [string[]]$Files
-    )
-
-    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
-        return @{ Status = 'FAIL'; Detail = 'npx not found on PATH (required for markdown lint)' }
+    $evalFiles = @(Get-ChildItem -Path (Join-Path $repoRoot 'evals') -Filter 'eval.yaml' -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\\.archived\\' } |
+        Sort-Object FullName)
+    if ($evalFiles.Count -eq 0) {
+        return @{ Status = 'SKIP'; Detail = 'no evals/*/eval.yaml found' }
     }
 
-    if ($PSBoundParameters.ContainsKey('Files')) {
-        $files = @($Files)
-    }
-    else {
-        if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            return @{ Status = 'FAIL'; Detail = 'git not found on PATH (needed to find changed .md files)' }
-        }
-
-        $changed = [System.Collections.Generic.List[string]]::new()
-        Push-Location $repoRoot
+    $structural = [System.Collections.Generic.List[string]]::new()
+    $debt = [System.Collections.Generic.List[string]]::new()
+    foreach ($file in $evalFiles) {
+        $short = $file.Directory.Name
+        $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("preflight-" + [guid]::NewGuid().ToString() + '.txt')
         try {
-            # Working tree (staged + unstaged), untracked files, and branch commits
-            # not yet on the upstream — the set a push would carry.
-            foreach ($line in @(& git diff --name-only --diff-filter=ACM HEAD -- '*.md')) {
-                if ($line) { $changed.Add($line.Trim()) }
+            Push-Location $repoRoot
+            try {
+                & waza preflight $file.FullName *> $tempOut
+                $code = $LASTEXITCODE
             }
-            foreach ($line in @(& git ls-files --others --exclude-standard -- '*.md')) {
-                if ($line) { $changed.Add($line.Trim()) }
+            finally {
+                Pop-Location
             }
-            $null = & git rev-parse --abbrev-ref '--symbolic-full-name' '@{upstream}' 2>$null
-            if ($LASTEXITCODE -eq 0) {
-                foreach ($line in @(& git diff --name-only --diff-filter=ACM '@{upstream}...HEAD' -- '*.md')) {
-                    if ($line) { $changed.Add($line.Trim()) }
-                }
-            }
+            $lines = @(Get-Content -Path $tempOut -ErrorAction SilentlyContinue)
         }
         finally {
-            Pop-Location
+            Remove-Item -Path $tempOut -ErrorAction SilentlyContinue
         }
-
-        # Defense in depth: drop paths the markdownlint config ignores, so they are
-        # never handed to the linter as explicit inputs.
-        $denyPattern = '(^|/)(node_modules|\.archived|\.build|\.playwright-cli|\.ralph-sessions|\.issues|workshops)(/|$)|^scripts/test/\.artifacts/|^evals/[^/]+/(fixtures|results)/'
-        $files = @($changed | Sort-Object -Unique | Where-Object { $_ -notmatch $denyPattern } | Where-Object { Test-Path -LiteralPath (Join-Path $repoRoot $_) })
+        if ($code -eq 0) { continue }
+        $output = $lines -join "`n"
+        if ($output -match 'invalid eval\.(schema|configuration)') {
+            $structural.Add($short)
+        }
+        else {
+            $debt.Add($short)
+        }
     }
-    if ($files.Count -eq 0) {
-        return @{ Status = 'SKIP'; Detail = 'no changed .md files' }
+    if ($structural.Count -gt 0) {
+        return @{ Status = 'FAIL'; Detail = "waza preflight schema/configuration failure in: $($structural -join ', ') - corrupt eval.yaml; run: waza preflight evals/<name>/eval.yaml" }
     }
-
-    # Probe first: markdownlint-cli2 bootstraps through npx on first use, so an
-    # offline environment downgrades to a warning instead of blocking the push.
-    & npx --yes markdownlint-cli2 --version *> $null
-    if ($LASTEXITCODE -ne 0) {
-        return @{ Status = 'WARN'; Detail = 'markdownlint-cli2 unavailable via npx (offline first run?) - markdown lint skipped this run' }
+    if ($debt.Count -gt 0) {
+        return @{ Status = 'WARN'; Detail = "$($debt.Count) eval(s) with resource.file/fixture debt (ratchet-pending, fixture-class triage): $($debt -join ', ')" }
     }
-
-    # Wrap in @(): a pipeline yielding one path returns a scalar string, and
-    # splatting a string enumerates its characters as separate arguments.
-    $rel = @($files | ForEach-Object { $_ -replace '\\', '/' })
-    Push-Location $repoRoot
-    try {
-        $lintOutput = & npx --yes markdownlint-cli2 @rel 2>&1
-        $code = $LASTEXITCODE
-    }
-    finally {
-        Pop-Location
-    }
-    # Native stdout is part of the function's return stream — echo it via the
-    # host so the returned value stays a single hashtable.
-    if ($lintOutput) {
-        Write-Host (($lintOutput | Out-String).TrimEnd())
-    }
-    if ($code -eq 0) {
-        return @{ Status = 'PASS'; Detail = "$($files.Count) changed .md file(s) lint clean" }
-    }
-    return @{ Status = 'FAIL'; Detail = "markdownlint violations in changed .md files (exit $code) - run 'npx --yes markdownlint-cli2 <file>' for details" }
+    return @{ Status = 'PASS'; Detail = "$($evalFiles.Count) eval(s) pass offline waza preflight" }
 }
 
-function Test-LintSelfTest {
-    [CmdletBinding()]
-    param()
-
-    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
-        return @{ Status = 'FAIL'; Detail = 'pwsh not found on PATH (required to run the lint self-test)' }
-    }
-    $testScript = Join-Path $repoRoot 'scripts/test/workspace-check-lint.tests.ps1'
-    $tempOut = Join-Path ([System.IO.Path]::GetTempPath()) ("lint-selftest-" + [guid]::NewGuid().ToString() + '.txt')
-    try {
-        & pwsh -NoProfile -File $testScript *> $tempOut
-        $code = $LASTEXITCODE
-    }
-    finally {
-        Remove-Item -Path $tempOut -ErrorAction SilentlyContinue
-    }
-    if ($code -eq 0) {
-        return @{ Status = 'PASS'; Detail = 'single-file markdown lint passes its argv intact (splat regression covered)' }
-    }
-    return @{ Status = 'FAIL'; Detail = "lint self-test failed (exit $code) - run: pwsh -NoProfile -File $testScript" }
-}
-
-# ---------------------------------------------------------------------------
-# Run all checks
-# ---------------------------------------------------------------------------
-
-# Skipped when dot-sourced (the self-test loads this file for its functions).
-if ($MyInvocation.InvocationName -ne '.') {
-    $checks = @(
-        @{ Name = 'TOC freshness'; Result = Test-TocFreshness },
+# --- Run -------------------------------------------------------------------
+$checks = @(
+    @{ Name = 'Markdown lint'; Result = Test-MarkdownLint },
+    @{ Name = 'Consistency'; Result = Test-Consistency }
+)
+if (-not $Quick) {
+    $checks += @(
         @{ Name = 'waza check (advisory)'; Result = Invoke-WazaCheck },
-        @{ Name = 'Skill pytest'; Result = Test-SkillPytest },
-        @{ Name = 'Skill frontmatter'; Result = Test-SkillFrontmatter },
-        @{ Name = 'Markdown lint'; Result = Test-MarkdownLint },
-        @{ Name = 'Lint self-test'; Result = Test-LintSelfTest }
+        @{ Name = 'Supply chain'; Result = Test-SupplyChain },
+        @{ Name = 'Eval preflight'; Result = Test-EvalPreflight }
     )
-
-    foreach ($check in $checks) {
-        Write-CheckResult -Name $check.Name -Status $check.Result.Status -Detail $check.Result.Detail
-        if ($check.Result.Status -eq 'FAIL') {
-            $failures.Add($check.Name)
-        }
-    }
-
-    if ($failures.Count -gt 0) {
-        Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ')" -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host 'workspace-check: all checks passed' -ForegroundColor Green
-    exit 0
 }
+
+foreach ($check in $checks) {
+    Write-CheckResult -Name $check.Name -Status $check.Result.Status -Detail $check.Result.Detail
+    if ($check.Result.Status -eq 'FAIL') {
+        $failures.Add($check.Name)
+    }
+}
+
+if ($failures.Count -gt 0) {
+    Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ')" -ForegroundColor Red
+    exit 1
+}
+
+$mode = if ($Quick) { ' (quick)' } else { '' }
+Write-Host "workspace-check$mode : all checks passed" -ForegroundColor Green
+exit 0
