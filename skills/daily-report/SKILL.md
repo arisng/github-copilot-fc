@@ -229,6 +229,12 @@ Other rules:
 - **Classify by signals** — Completed only when a proof row (a commit or an
   in-window working-tree file), a pull request, or an explicit completion
   statement backs it. Group sessions that share a branch and topic into one item.
+- **Scope every change to its repository** — in multi mode each Completed
+  title starts with `[repo]` and each Under Review / Active Work row's first
+  cell starts with `[repo]`: an alias of a watched repo (a substring of its
+  path leaf; `+` joins a cross-repo change). Blockers and Next Up stay
+  untagged when no single repo owns them. Single mode needs no tags.
+  `Test-DailyReport.ps1` enforces this against the manifest.
 - **Executive budget** — frontmatter plus body fit one page: at most 56 lines and
   600 words. Over budget → cut the lowest-signal rows first, never Why/Result
   meaning (`templates/report.md`, "Cut rows, never meaning").
@@ -304,7 +310,8 @@ rename it into this folder/naming before updating.
 - `scripts/Test-DailyReport.ps1 -RepoRoot <root> -GitUser <git user> -Date <yyyy-MM-dd>
   -CoverageJson <receipt>` must **PASS** before reporting back. It enforces
   path/naming, the frontmatter
-  schema, the timeless body, structure and caps, refs format, the session
+  schema, the timeless body, structure and caps, refs format, multi-mode
+  per-repo scoping, the session
   transcript exports (every mentioned session must have its
   `sessions/<slug>.html`), the budget, report-to-canonical glossary
   consistency, and — with the coverage receipt — grounding completeness (a
@@ -384,11 +391,13 @@ mechanical invariant. Pester tests for every script live under `tests/`.
 - Output (shape of one item):
 
 ```markdown
-### 1. Verified local and origin develop sync
+### 1. [repo] Verified local and origin develop sync
 - **Why:** Untested sync leaves conflicting history for the next session.
 - **Result:** Fetched and rebased — develop matches origin/develop, 0 ahead, 0 conflicts.
 - **Refs:** session `16f5c5b5` · sync check → PASS (0 ahead).
 ```
+
+(The `[repo]` tag appears in multi mode; single mode omits it.)
 
 **Example 4 — multi-repo tower**
 

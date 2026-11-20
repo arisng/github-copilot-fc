@@ -61,6 +61,20 @@ updated: $stamp
             [IO.File]::WriteAllText($p, $Json)
             return $p
         }
+
+        # Multi-mode fixture: New-Fixture's report, then tags its changes with
+        # [alpha] (watched dir leaf 'watched-alpha') and a manifest in multi mode.
+        function New-MultiFixture([string]$Stamp) {
+            $watched = Join-Path $TestDrive 'watched-alpha'
+            New-Item -ItemType Directory -Force -Path $watched | Out-Null
+            git -C $watched init -q
+            $report = New-Fixture $Stamp
+            $root = Split-Path (Split-Path (Split-Path (Split-Path $report -Parent) -Parent) -Parent) -Parent
+            git -C $root init -q
+            $manifest = @{ schema = 1; mode = 'multi'; repos = @($watched) } | ConvertTo-Json
+            [IO.File]::WriteAllText((Join-Path $root 'reports/daily/daily-report.manifest.json'), $manifest)
+            return [pscustomobject]@{ report = $report; root = $root }
+        }
     }
 
     It 'passes a report that satisfies every guardrail' {
@@ -179,5 +193,54 @@ updated: $stamp
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson (Join-Path $TestDrive 'ghost-coverage.json') 2>&1
         $LASTEXITCODE | Should -Be 1
         "$out" | Should -Match 'coverage: receipt not found'
+    }
+
+    It 'passes a tagged multi-mode report with untagged blockers and next up' {
+        $f = New-MultiFixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($f.report)
+        $c = $c -replace '### 1\. ', '### 1. [alpha] '
+        $c = $c -replace '\| x \| y \| z \|', '| [alpha] x | y | z |'
+        $c = $c -replace '\| t \| w \| s \|', '| [alpha] t | w | s |'
+        [IO.File]::WriteAllText($f.report, $c)
+        $out = & $tester -ReportPath $f.report -RepoRoot $f.root -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 0
+        "$out" | Should -Match 'PASS'
+    }
+
+    It 'fails a multi-mode Completed item without a [repo] scope tag' {
+        $f = New-MultiFixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($f.report)
+        $c = $c -replace '### 1\. ', '### 1. [alpha] '
+        $c = $c -replace '\| x \| y \| z \|', '| [alpha] x | y | z |'
+        $c = $c -replace '\| t \| w \| s \|', '| [alpha] t | w | s |'
+        $c = $c -replace '### 1\. \[alpha\] ', '### 1. '
+        [IO.File]::WriteAllText($f.report, $c)
+        $out = & $tester -ReportPath $f.report -RepoRoot $f.root -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'scoping: Completed item has no \[repo\] scope tag'
+    }
+
+    It 'fails an unknown repo alias in a multi-mode tag' {
+        $f = New-MultiFixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($f.report)
+        $c = $c -replace '### 1\. ', '### 1. [ghost] '
+        $c = $c -replace '\| x \| y \| z \|', '| [alpha] x | y | z |'
+        $c = $c -replace '\| t \| w \| s \|', '| [alpha] t | w | s |'
+        [IO.File]::WriteAllText($f.report, $c)
+        $out = & $tester -ReportPath $f.report -RepoRoot $f.root -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match "scoping: unknown repo alias 'ghost'"
+    }
+
+    It 'fails an untagged Under Review row in multi mode' {
+        $f = New-MultiFixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($f.report)
+        $c = $c -replace '### 1\. ', '### 1. [alpha] '
+        $c = $c -replace '\| \[alpha\] x \|', '| x |'
+        $c = $c -replace '\| t \| w \| s \|', '| [alpha] t | w | s |'
+        [IO.File]::WriteAllText($f.report, $c)
+        $out = & $tester -ReportPath $f.report -RepoRoot $f.root -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match "scoping: row 'x' has no \[repo\] scope tag"
     }
 }

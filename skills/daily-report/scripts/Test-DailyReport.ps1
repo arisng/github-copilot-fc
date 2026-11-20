@@ -113,6 +113,57 @@ foreach ($r in $refLines) {
     if ($r -match '`[0-9a-f]{40}`') { Fail "refs: full commit hash in '$r'" }
 }
 
+    # ---- per-repo scoping (multi mode only: manifest tower) ----
+    # Single mode reports one checkout - implicitly scoped. Multi mode merges
+    # watched repos, so every change names its repository: [repo] on a
+    # Completed title, [repo] in the first cell of an Under Review / Active
+    # Work row. Blockers, Next Up, and Glossary stay untagged.
+    $scopingMode = 'single'
+    $watchedLeaves = @()
+    if (-not $RepoRoot) { $RepoRoot = (& git -C (Split-Path $ReportPath -Parent) rev-parse --show-toplevel 2>$null) }
+    $manifestScript = Join-Path $PSScriptRoot 'Get-ReportManifest.ps1'
+    if ($RepoRoot -and (Test-Path $manifestScript)) {
+        try {
+            $mfj = (& $manifestScript -RepoRoot $RepoRoot -Optional | Out-String | ConvertFrom-Json)
+            if ($mfj.mode -eq 'multi') {
+                $scopingMode = 'multi'
+                $watchedLeaves = @(@($mfj.repos) | Where-Object { $_.exists } | ForEach-Object { (Split-Path $_.path -Leaf).ToLowerInvariant() })
+            }
+        }
+        catch { Fail "scoping: manifest resolution failed - $($_.Exception.Message)" }
+    }
+    function Test-RepoAlias([string]$Token) {
+        foreach ($alias in ($Token -split '\+')) {
+            $a = $alias.Trim().ToLowerInvariant()
+            if (-not $a) { return $false }
+            $hit = $false
+            foreach ($leaf in $script:watchedLeaves) { if ($leaf.Contains($a)) { $hit = $true; break } }
+            if (-not $hit) { return $false }
+        }
+        return $true
+    }
+    if ($scopingMode -eq 'multi' -and $watchedLeaves.Count -gt 0) {
+        foreach ($t in @($bodyLines | Where-Object { $_ -match '^### ' })) {
+            if ($t -notmatch '^### \d+\. \[([^\]]+)\] ') { Fail "scoping: Completed item has no [repo] scope tag (multi mode): '$t'"; continue }
+            $tok = $matches[1]
+            if (-not (Test-RepoAlias $tok)) { Fail "scoping: unknown repo alias '$tok' in Completed item (watched: $($watchedLeaves -join ', '))" }
+        }
+        foreach ($sec in @('## 👀 Under Review', '## 🚀 Active Work')) {
+            $inSec = $false
+            foreach ($l in $bodyLines) {
+                if ($l -eq $sec) { $inSec = $true; continue }
+                if ($inSec -and $l -match '^## ') { break }
+                if (-not $inSec -or $l -notmatch '^\| ') { continue }
+                $cells = $l -split '\|'
+                $first = if ($cells.Count -gt 1) { $cells[1].Trim() } else { '' }
+                if ($first -in @('Item', 'Task Item') -or $first -match '^:?-+:?$' -or $first -eq '') { continue }
+                if ($first -notmatch '^\[([^\]]+)\]') { Fail "scoping: row '$first' has no [repo] scope tag (multi mode)"; continue }
+                $tok = $matches[1]
+                if (-not (Test-RepoAlias $tok)) { Fail "scoping: unknown repo alias '$tok' in row '$first' (watched: $($watchedLeaves -join ', '))" }
+            }
+        }
+    }
+
     # ---- session transcript exports (enforced) ----
     # Every session the body mentions must have its export beside the report;
     # Export-SessionTranscripts.ps1 -ListOnly is the single mention parser.

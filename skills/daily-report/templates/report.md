@@ -7,6 +7,7 @@ updated: {YYYY-MM-DD HH:mm +HH:MM}
 
 > Timeless body — no clock times, timestamps, or dates in the text. Time lives only in the `created` and `updated` stamps above, each carrying the generating machine's runtime UTC offset. The filename (`yymmdd.md`) carries the date; the folder (`<git-username>/`) carries the owner.
 > Section order is completion-first: Completed → Under Review → Active Work → Blockers → Next Up.
+> **Scope:** one checkout in single mode — no tags needed. In multi-repo tower mode every change names its repository: `[repo]` on a Completed title, `[repo]` in the first cell of an Under Review or Active Work row. The token is an alias of a watched repo (a substring of its path leaf; `+` joins a cross-repo change, e.g. `[webapi+fc]`). Blockers and Next Up stay untagged when no single repo owns them.
 > **Executive one-page report.** Signal over noise: every line must earn its place. Report outcomes and decisions — never a change log of files.
 
 ---
@@ -15,7 +16,7 @@ updated: {YYYY-MM-DD HH:mm +HH:MM}
 
 > Direct value delivered in the day. At most 4 items.
 
-### 1. {Main outcome — one line, written as an outcome, not a task name}
+### 1. [repo] {Main outcome — one line, written as an outcome, not a task name}
 
 - **Why:** {one sentence — what breaks or gets lost if this had not been done}
 - **Result:** {one sentence — the verifiable state change; the action verbs live here}
@@ -35,7 +36,7 @@ updated: {YYYY-MM-DD HH:mm +HH:MM}
 
 | Item | Awaiting | Where |
 | :--- | :--- | :--- |
-| {work that waits for feedback or approval} | {who or what it waits on} | {PR / issue / proposal pointer} |
+| {[repo] work that waits for feedback or approval} | {who or what it waits on} | {PR / issue / proposal pointer} |
 
 ---
 
@@ -45,7 +46,7 @@ updated: {YYYY-MM-DD HH:mm +HH:MM}
 
 | Task Item | Why it matters | Current State |
 | :--- | :--- | :--- |
-| {Task in flight} | {one clause — the outcome it aims at} | {honest state in one clause} |
+| {[repo] Task in flight} | {one clause — the outcome it aims at} | {honest state in one clause} |
 
 ---
 
