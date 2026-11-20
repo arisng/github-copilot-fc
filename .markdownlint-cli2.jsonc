@@ -18,10 +18,11 @@
     "**/.archived/**",
     "**/.build/**",
     "**/.playwright-cli/**",
-    ".ralph-sessions/**",
-    "scripts/test/.artifacts/**",
     "workshops/**",
     ".issues/**",
+    // Preserved third-party research essays (moved from .docs as-is) — kept,
+    // not ratchet-managed, same rationale as .issues/workshops above.
+    "docs/blazor-agui/**",
     "evals/**/fixtures/**",
     "evals/**/results/**"
   ]

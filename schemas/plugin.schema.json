@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arisng/github-copilot-fc/schemas/plugin.schema.json",
+  "title": "Copilot FC plugin.json",
+  "description": "Manifest schema for plugins/<runtime>/<name>/plugin.json. Covers the official Copilot plugin.json fields (see plugins/README.md) plus the repo-mandatory runtime field required by scripts/publish/build-plugins.ps1. additionalProperties:false rejects unknown keys such as the non-existent instructions component field.",
+  "type": "object",
+  "required": ["name", "runtime"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+      "maxLength": 64,
+      "description": "Kebab-case plugin identifier. Must equal the containing directory name (enforced by scripts/workspace/check-consistency.ps1)."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description shown in plugin listings."
+    },
+    "version": {
+      "$ref": "#/$defs/semver",
+      "description": "Semantic version. Must match the marketplace.json entry version (verify-version-sync.py)."
+    },
+    "runtime": {
+      "type": "string",
+      "enum": ["github-copilot-cli", "github-copilot-vscode"],
+      "description": "Repo-mandatory: which Copilot runtime the plugin targets (build-plugins.ps1 convention)."
+    },
+    "author": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "email": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "license": { "type": "string", "minLength": 1 },
+    "homepage": { "type": "string" },
+    "repository": { "type": "string" },
+    "bugs": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "url": { "type": "string" } }
+        }
+      ]
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "agents": { "$ref": "#/$defs/pathOrPaths" },
+    "skills": { "$ref": "#/$defs/pathOrPaths" },
+    "commands": { "$ref": "#/$defs/pathOrPaths" },
+    "hooks": { "$ref": "#/$defs/pathOrPaths" },
+    "mcpServers": { "$ref": "#/$defs/pathOrPaths" },
+    "lspServers": { "$ref": "#/$defs/pathOrPaths" }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "pathOrPaths": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    }
+  }
+}

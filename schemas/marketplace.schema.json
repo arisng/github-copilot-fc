@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arisng/github-copilot-fc/schemas/marketplace.schema.json",
+  "title": "Copilot FC marketplace.json",
+  "description": "Schema for the CLI marketplace index at .github/plugin/marketplace.json. Shape per official Copilot CLI plugin reference: top-level name + owner + plugins[]; each entry needs name + source, with version required in practice for update detection (must match plugin.json — verify-version-sync.py) and strict controlling schema validation per plugin. source targets the committed release tree, never raw source directories.",
+  "type": "object",
+  "required": ["name", "owner", "plugins"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Marketplace identifier, e.g. copilot-fc-plugins."
+    },
+    "owner": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string" }
+      }
+    },
+    "description": { "type": "string" },
+    "version": { "$ref": "#/$defs/semver" },
+    "plugins": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/pluginEntry" }
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "pluginEntry": {
+      "type": "object",
+      "required": ["name", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "maxLength": 64,
+          "description": "Must equal the target plugin.json name (verify-version-sync.py FAIL rule)."
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "Relative path (e.g. dist/plugins/cli/<name>) or remote URL."
+            },
+            {
+              "type": "object",
+              "description": "Advanced remote source form: {repo, ref|sha, path}. Allowed but unused by this repo today.",
+              "properties": {
+                "source": { "type": "string" },
+                "repo": { "type": "string" },
+                "ref": { "type": "string" },
+                "sha": { "type": "string" },
+                "path": { "type": "string" }
+              },
+              "additionalProperties": true
+            }
+          ]
+        },
+        "description": { "type": "string" },
+        "version": {
+          "$ref": "#/$defs/semver",
+          "description": "Must match plugin.json version; the CLI compares it against the installed version to detect updates."
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Marketplace-only field: controls schema validation for this plugin entry."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional marketplace metadata (free-form)."
+        }
+      }
+    }
+  }
+}

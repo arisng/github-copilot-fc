@@ -1,9 +1,9 @@
 */**/__pycache__/*
-.ralph-sessions/*
 .fleet-sessions/*
 */**/.build/
 */**/.install/
-scripts/test/.artifacts/
+**/tests/.artifacts/
+.pytest_cache/
 todos.db
 .playwright-cli/
 **/node_modules/
