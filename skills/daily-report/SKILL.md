@@ -1,10 +1,10 @@
 ---
 name: daily-report
-description: "Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as `reports/daily/{git user}/yymmdd.md` with `created`/`updated` frontmatter, a personal glossary at `glossary.md`, and one turns-only HTML transcript per cited session under `sessions/{session-slug}.html`. USE THIS SKILL whenever the user asks what was done in a time range or wants their daily report, in English or Vietnamese: 'daily report', 'daily standup', 'daily update', 'what did I work on', 'yesterday's work', 'what did I do today', 'generate a report from 9h to 13h today', 'tạo báo cáo hôm nay'. Also for backfilling a date range (batch mode). NOT for: weekly or monthly stakeholder summaries, pull-request description writing."
+description: "Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as `reports/daily/{git user}/yymmdd.md` with `created`/`updated` frontmatter, a personal glossary at `glossary.md`, and one turns-only HTML transcript per cited session under `sessions/{session-slug}.html`. USE THIS SKILL whenever the user asks what was done in a time range or wants their daily report, in English or Vietnamese: 'daily report', 'daily standup', 'daily update', 'what did I work on', 'yesterday's work', 'what did I do today', 'generate a report from 9h to 13h today', 'tạo báo cáo hôm nay'. Also for backfilling a date range (batch mode). NOT for: weekly or monthly stakeholder summaries, pull-request description writing. Two modes: single-repo (default) or multi-repo tower, dictated by the manifest `reports/daily/daily-report.manifest.json`."
 user-invocable: true
 disable-model-invocation: true
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   author: arisng
 ---
 
@@ -22,6 +22,12 @@ outcomes and decisions only, never a change log of files.
 This skill owns every script it runs, under `scripts/`. It never calls into
 another skill's scripts.
 
+The skill runs in one of **two modes**, dictated by a per-machine manifest:
+**single-repo** (the default — ground and write in the invoking checkout) or
+**multi-repo tower** — a home-repo watches every repo path the manifest lists,
+grounds them into one report, and persists the report, glossary, and
+transcripts under its own `reports/daily/`. No manifest, no tower.
+
 ## Arguments
 
 - **date** — the report's calendar day (`yyyy-MM-dd`), default today (machine
@@ -34,14 +40,72 @@ another skill's scripts.
 
 ## Config
 
-- **`repo_names`** — the repositories this skill may report on. A LIST; sessions
-  and commits outside it never enter the report. Default: the repository of the
-  current checkout (`owner/name` from `git remote get-url origin`). Override per
-  machine with `DAILY_REPORT_REPOS` (comma-separated).
+- **`repo_names`** — the repositories this skill may report on in **single**
+  mode. A LIST; sessions and commits outside it never enter the report.
+  Default: the repository of the current checkout (`owner/name` from
+  `git remote get-url origin`). Override per machine with
+  `DAILY_REPORT_REPOS` (comma-separated). In **multi** mode the manifest's
+  `repos` list is the scope and this list does not apply.
 - **Multi-machine rule** — this skill runs on more than one machine. Never assume
-  one machine's paths or environment exist on another. Resolve every path at run
-  time (`git rev-parse --show-toplevel`, `$env:` variables, the session store).
-  The repository name is the only identity the machines share.
+  one machine's paths or environment exist on another. The manifest is the one
+  file that legitimately stores machine-specific absolute paths; every other
+  path still resolves at run time (`git rev-parse --show-toplevel`, `$env:`
+  variables, the session store). The repository name is the only other
+  identity the machines share.
+
+## Manifest — the mode switch
+
+**Location.** `reports/daily/daily-report.manifest.json` at the root of the
+invoking checkout. The checkout that holds a manifest is the **home-repo (the
+tower)**. A checkout without a manifest runs single mode — the default and
+the backward-compatible answer.
+
+**Per machine.** The manifest holds absolute full paths, so it describes one
+machine. Git-ignore it in the tower (`reports/daily/daily-report.manifest.json`)
+by default; commit it only when every machine shares identical paths. Paths
+exist only where the manifest says they do.
+
+**Shape.** Copy `templates/manifest.example.json` into place:
+
+```json
+{
+  "schema": 1,
+  "mode": "multi",
+  "repos": [
+    "C:/Workplace/home-repo",
+    "C:/Workplace/DProcess/dprocess-dotnet-starter-kit"
+  ]
+}
+```
+
+- `mode` dictates the active mode: `single` or `multi`.
+- `repos` is read only in `multi` mode: the full absolute paths of the
+  watched checkouts. List the tower's own path to include the tower's work;
+  leave it out to watch only the other repos.
+- `schema` is `1`. Anything the validator does not accept fails loudly.
+
+**Resolve by script, never by hand.**
+`scripts/Get-ReportManifest.ps1 -RepoRoot <toplevel> -Optional` emits
+`{present, manifestPath, mode, homeRepoRoot, repos}` and, per repo, its
+`name` (`owner/name` from origin), `exists`, and `isHomeRepo`:
+
+- `-Optional` on an absent manifest returns `{present:false, mode:"single"}`
+  — the single-mode default.
+- A manifest that exists but fails validation (bad JSON, unsupported schema,
+  unknown mode, relative path, duplicate path, a path that is not a git
+  checkout) aborts loudly.
+- A watched path missing on this machine comes back `exists:false`; the run
+  continues and the report names it as a grounding gap — never dropped
+  silently.
+
+**Mode effects:**
+
+- **single** — unchanged behavior: ground the invoking checkout against
+  `repo_names`, write to its `reports/daily/`.
+- **multi** — ground every `exists:true` manifest repo once, merge the proof
+  and session rows across them, and write the one report, its glossary, and
+  its transcripts to the **tower's** `reports/daily/<git user>/`. The tower
+  is the report home for all watched repos.
 
 ## Procedure
 
@@ -58,16 +122,27 @@ another skill's scripts.
 
 - GitHub login: `gh api user -q .login`.
 - Git identity: `git config user.name` and `git config user.email`.
+- Mode (resolved by script): run
+  `scripts/Get-ReportManifest.ps1 -RepoRoot <toplevel> -Optional`. The
+  manifest in the invoking checkout dictates `single` or `multi`; no
+  manifest means `single`. In `multi` the invoking checkout is the tower
+  and the report home for every watched repo.
 - Repository: `git remote get-url origin` → `owner/name`, checked against
-  `repo_names`. Stop and ask when it does not match.
+  the active scope (the manifest `repos` in multi mode, `repo_names` in
+  single mode). Stop and ask when it does not match.
 - Derive `{git user}`: sanitize `git config user.name` — replace any character
   outside `[A-Za-z0-9._-]` with `-`. The same token names the user folder and
   the glossary owner.
 
-1. **Git proof (mandatory — once per repository in `repo_names`).**
-   Resolve each repository's local checkout at run time — the current checkout
-   when it matches, otherwise ask the conductor (never assume another machine's
-   paths) — and run
+**Repository set (the grounding scope):** in `multi` mode every manifest
+repo with `exists:true`; in `single` mode the current checkout, checked
+against `repo_names`. A manifest repo with `exists:false` stays out of the
+grounding loop and is named as a grounding gap.
+
+1. **Git proof (mandatory — once per repository in scope).**
+   The manifest supplies each checkout's full path in multi mode; in single
+   mode ground the current checkout (ask the conductor before using any
+   other path — never assume another machine's paths). Run
    `scripts/Get-GitProof.ps1 -Date "<yyyy-MM-dd>" [-Start "<local HH:mm>" -End "<local HH:mm>"] -RepoRoot <checkout>`
    once per checkout. Emits JSON: the runner's commits in the day with files,
    line counts, branch containment, pushed-or-local state; host checkpoint
@@ -79,7 +154,7 @@ another skill's scripts.
    an explicit completion statement;** with no proof, drop the item or state the
    gap. A repository with no local checkout is skipped and named as a grounding
    gap.
-2. **Session evidence (mandatory — once per repository in `repo_names`).**
+2. **Session evidence (mandatory — once per repository in scope).**
    `scripts/Get-SessionEvidence.ps1 -Date "<yyyy-MM-dd>" -RepoRoot <checkout>`
    once per resolved checkout.
    Emits JSON from the Copilot session store, scoped to `sessions.repository`
@@ -156,9 +231,11 @@ Other rules:
 ### 4. Write the output
 
 **Folder and naming (enforced):** `reports/daily/<git user>/yymmdd.md`, where
-`yymmdd` is the report's date (e.g. `261110.md`). The report always lives in the
-**invoking checkout's** `reports/daily/`, even when grounding spans repositories.
-The user folder also holds
+`yymmdd` is the report's date (e.g. `261110.md`). The report always lives in
+the **report home's** `reports/daily/`: the invoking checkout — which in
+multi mode is the **tower**, because the manifest that switched the mode
+lives there. Grounding may span repositories; the folder never moves. The
+user folder also holds
 that user's single `glossary.md`. A path outside the runner's own folder is
 refused — two users on one day produce two folders, never one merged file.
 
@@ -214,7 +291,8 @@ rename it into this folder/naming before updating.
   transcript exports (every mentioned session must have its
   `sessions/<slug>.html`), the budget, and report-to-canonical glossary
   consistency (failures are line-specific).
-- Report back: the file path, counts (N Completed, M Active), created/updated
+- Report back: the active mode (`single` or `multi`, plus the tower path in
+  multi), the file path, counts (N Completed, M Active), created/updated
   stamps, the glossary receipt, the transcript-export receipt
   (`exported`/`notice`/`kept`), and any grounding gap.
 
@@ -225,7 +303,11 @@ For a date range request, use `scripts/Invoke-DailyReportBatch.ps1
 single-day path** — no separate rendering logic:
 
 1. The script enumerates the days, applies the existence policy, and collects
-   per-day evidence (Get-GitProof + Get-SessionEvidence). Policy: **skip** days
+   per-day evidence (Get-GitProof + Get-SessionEvidence once per repository
+   in scope — it resolves the manifest itself with Get-ReportManifest, so
+   multi mode collects from every existing watched repo and a missing one is
+   left to the report's grounding gap). The report path stays `-RepoRoot`,
+   which is the tower in multi mode. Policy: **skip** days
    whose report exists (default — cheap, never clobbers) or **regenerate** with
    `-Regenerate`. Isolation: a failing day is reported and the loop continues;
    the batch writes no report files, so it can never leave a half-written file.
@@ -238,6 +320,7 @@ single-day path** — no separate rendering logic:
 
 | Script | Responsibility |
 | --- | --- |
+| `scripts/Get-ReportManifest.ps1` | Resolves the per-machine manifest: active mode, tower (home repo), and watched repo full paths with origin name and existence; `-Optional` makes an absent manifest a single-mode answer. |
 | `scripts/Get-GitProof.ps1` | Single-day, author-filtered, checkpoint-excluding git evidence as JSON. |
 | `scripts/Get-SessionEvidence.ps1` | Single-day Copilot session evidence, scoped to the current repository; optional `-CloudJson` merge. |
 | `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report mentions to `sessions/<session-slug>.html` (events store first, session-store fallback, honest notice page when absent on this machine); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
@@ -245,8 +328,9 @@ single-day path** — no separate rendering logic:
 | `scripts/Invoke-DailyReportBatch.ps1` | Backfill loop: date enumeration, skip/regenerate policy, per-day evidence, isolation. |
 | `scripts/Test-DailyReport.ps1` | Read-only validator for report + glossary against the pinned formats. |
 
-Relationship: `batch → (per day: Get-GitProof + Get-SessionEvidence [+
-link verification]) → render → Export-SessionTranscripts → Merge-Glossary →
+Relationship: `Get-ReportManifest → batch → (per day: Get-GitProof +
+Get-SessionEvidence per repository in scope [+ link verification]) →
+render → Export-SessionTranscripts → Merge-Glossary →
 Test-DailyReport`. The agent
 does the semantic work (writing, NEW/known judgment); the scripts own every
 mechanical invariant. Pester tests for every script live under `tests/`.
@@ -277,10 +361,22 @@ mechanical invariant. Pester tests for every script live under `tests/`.
 - **Refs:** session `16f5c5b5` · sync check → PASS (0 ahead).
 ```
 
+**Example 4 — multi-repo tower**
+
+- Input: `generate today's report from my home-repo`
+- Manifest: `mode: "multi"` with three watched paths, one of them missing on
+  this machine.
+- Output: `reports/daily/<git user>/261120.md` in the tower, grounded across
+  the two reachable repos with the third named as a grounding gap; the
+  glossary and every exported transcript land beside the report in the
+  tower.
+
 ## Guardrails
 
-Mechanical guardrails are enforced by `Test-DailyReport.ps1` and
-`Merge-Glossary.ps1` (with unit tests): day scope, repo scope, attribution,
+Mechanical guardrails are enforced by `Test-DailyReport.ps1`,
+`Get-ReportManifest.ps1`, and
+`Merge-Glossary.ps1` (with unit tests): day scope, repo scope, mode and
+manifest schema, attribution,
 path and naming, frontmatter schema, timeless body, structure and budget, rerun
 idempotency, empty-source honesty, batch isolation, session-transcript export
 presence for every session the report mentions, and the glossary schema,

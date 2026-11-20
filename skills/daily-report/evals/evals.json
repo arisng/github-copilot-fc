@@ -78,6 +78,18 @@
       "prompt": "generate today's report and make sure I can open the transcripts of every session it cites",
       "expected_output": "After writing `reports/daily/<git user>/yymmdd.md`, runs `scripts/Export-SessionTranscripts.ps1 -ReportPath <path>`: every session mentioned in the body (short or full id, grill sessions excluded) lands as `sessions/<session-slug>.html` beside the report — real turns-only transcript when this machine holds the session, an explicit notice page when it does not — and the JSON receipt (total/exported/notice/kept) is quoted in the report-back. `Test-DailyReport.ps1` fails any report whose cited session lacks its `sessions/<slug>.html`, and the exported `*.html` files are git-ignored.",
       "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "from my home-repo, generate today's report across all my watched repos",
+      "expected_output": "Resolves `reports/daily/daily-report.manifest.json` with `Get-ReportManifest.ps1 -Optional`: the manifest's mode `multi` dictates the run — git proof and session evidence collected once per manifest repo with `exists:true` (a path missing on this machine is named as a grounding gap, never dropped), the rows merged into one report, and the report plus glossary and transcripts written under the tower home-repo's `reports/daily/<git user>/`. The report-back states the active mode and the tower path.",
+      "files": []
+    },
+    {
+      "id": 15,
+      "prompt": "I keep several checkouts on this machine, but for this run only report this repository",
+      "expected_output": "The manifest's `mode` dictates the active mode: `mode: \"single\"` grounds only the invoking checkout against `repo_names` and ignores `repos`, writing to the invoking checkout's `reports/daily/`; with no manifest present the run defaults to single mode. Multi-repo grounding never happens unless the manifest says `multi`.",
+      "files": []
     }
   ]
 }

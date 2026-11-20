@@ -101,7 +101,7 @@ skills/
 | `copilot-session-telemetry` | 0.4.0 | Audit the real-session efficiency of an agent skill's execution episode in a Copilot session against four goals - minimize LLM token usage, minimize execution… |
 | `csharp-file-based-apps` | 0.2.0 | Write and run C# programs without a .csproj or solution file using .NET 10+ file-based apps, including multi-file apps with `#:include` (.NET 11+). Use when… |
 | `d2` | 1.0.0 | Author, verify, and export D2 (d2lang) diagram-as-code, and package the output as self-contained HTML for web apps. Covers declarative syntax for shapes,… |
-| `daily-report` | 1.0.0 | Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as… |
+| `daily-report` | 1.1.0 | Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as… |
 | `diataxis` | 1.0.0 | Create and evaluate documentation using the Diátaxis framework. Use when writing, organizing, or auditing documentation to ensure it serves distinct user… |
 | `diataxis-categorizer` | 1.0.0 | Classify documentation files into domain-based sub-categories within Diátaxis top-level categories (tutorials, how-to, reference, explanation). Use when… |
 | `frontend-skill` | 1.0.0 | Use when the task asks for a visually strong landing page, website, app, prototype, demo, or game UI. This skill enforces restrained composition, image-led… |

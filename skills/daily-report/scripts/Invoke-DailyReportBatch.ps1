@@ -3,7 +3,10 @@
   Batch backfill driver for the daily-report skill.
 .DESCRIPTION
   Enumerates an inclusive date range and loops the per-day path: one day
-  per iteration, same grounding, same template, same validation. Policy
+  per iteration, same grounding, same template, same validation. The
+  manifest decides the repository set: in multi mode every existing
+  watched repo gets its own evidence per day, in single mode (or with no
+  manifest) only -RepoRoot does. Policy
   for days whose report already exists: skip (default, never clobbers) or
   regenerate (-Regenerate). Isolation: a failing day is reported and the
   loop continues; the script writes no report files at all (rendering is
@@ -36,7 +39,8 @@ if (-not $ScriptsDir) { $ScriptsDir = $PSScriptRoot }
 $gitProof = Join-Path $ScriptsDir 'Get-GitProof.ps1'
 $sessionEvidence = Join-Path $ScriptsDir 'Get-SessionEvidence.ps1'
 $tester = Join-Path $ScriptsDir 'Test-DailyReport.ps1'
-foreach ($s in @($gitProof, $sessionEvidence, $tester)) {
+$manifestScript = Join-Path $ScriptsDir 'Get-ReportManifest.ps1'
+foreach ($s in @($gitProof, $sessionEvidence, $tester, $manifestScript)) {
     if (-not (Test-Path $s)) { Write-Error "missing script: $s"; exit 1 }
 }
 
@@ -62,6 +66,19 @@ if (-not $GitUser) {
     $GitUser = ($GitUser -replace '[^A-Za-z0-9._-]', '-')
 }
 
+# The manifest dictates the mode: multi collects evidence for every
+# existing watched repo; single (or no manifest) for -RepoRoot only.
+# A manifest that exists but fails validation aborts the batch loudly.
+$manifest = (& $manifestScript -RepoRoot $RepoRoot -Optional | Out-String | ConvertFrom-Json)
+$evidenceRoots = @($RepoRoot)
+if ($manifest.mode -eq 'multi') {
+    $evidenceRoots = @(@($manifest.repos) | Where-Object { $_.exists } | ForEach-Object { $_.path })
+    if ($evidenceRoots.Count -eq 0) {
+        Write-Error 'manifest: multi mode has no reachable repository on this machine (every repos path is missing).'
+        exit 1
+    }
+}
+
 $results = @()
 for ($day = $s; $day -le $e; $day = $day.AddDays(1)) {
     $dateStr = $day.ToString('yyyy-MM-dd')
@@ -81,22 +98,30 @@ for ($day = $s; $day -le $e; $day = $day.AddDays(1)) {
                 $results += $entry
                 continue
             }
-            $proof = & $gitProof -Date $dateStr -RepoRoot $RepoRoot -Author (& git -C $RepoRoot config user.email 2>$null) | Out-String
-            if ($LASTEXITCODE -ne 0) { throw "Get-GitProof failed: $proof" }
-            $sessions = & $sessionEvidence -Date $dateStr -RepoRoot $RepoRoot | Out-String
-            if ($LASTEXITCODE -ne 0) { throw "Get-SessionEvidence failed: $sessions" }
-            if ($EvidenceDir) {
-                if (-not (Test-Path $EvidenceDir)) { New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null }
-                [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd.gitproof.json"), $proof)
-                [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd.sessions.json"), $sessions)
-            }
-            else {
-                # stdout carries the summary JSON only; evidence rides the
-                # information stream so callers can parse the result cleanly.
-                Write-Information "=== evidence $dateStr (git proof) ===" -InformationAction Continue
-                Write-Information $proof -InformationAction Continue
-                Write-Information "=== evidence $dateStr (sessions) ===" -InformationAction Continue
-                Write-Information $sessions -InformationAction Continue
+            foreach ($root in $evidenceRoots) {
+                $proof = & $gitProof -Date $dateStr -RepoRoot $root -Author (& git -C $root config user.email 2>$null) | Out-String
+                if ($LASTEXITCODE -ne 0) { throw "Get-GitProof failed ($root): $proof" }
+                $sessions = & $sessionEvidence -Date $dateStr -RepoRoot $root | Out-String
+                if ($LASTEXITCODE -ne 0) { throw "Get-SessionEvidence failed ($root): $sessions" }
+                $suffix = ''
+                $scope = ''
+                if ($evidenceRoots.Count -gt 1) {
+                    $suffix = '-' + ((Split-Path $root -Leaf) -replace '[^A-Za-z0-9._-]', '-')
+                    $scope = " [$root]"
+                }
+                if ($EvidenceDir) {
+                    if (-not (Test-Path $EvidenceDir)) { New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null }
+                    [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd$suffix.gitproof.json"), $proof)
+                    [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd$suffix.sessions.json"), $sessions)
+                }
+                else {
+                    # stdout carries the summary JSON only; evidence rides the
+                    # information stream so callers can parse the result cleanly.
+                    Write-Information "=== evidence $dateStr (git proof$scope) ===" -InformationAction Continue
+                    Write-Information $proof -InformationAction Continue
+                    Write-Information "=== evidence $dateStr (sessions$scope) ===" -InformationAction Continue
+                    Write-Information $sessions -InformationAction Continue
+                }
             }
             $entry.status = 'evidence-ready'
         }
