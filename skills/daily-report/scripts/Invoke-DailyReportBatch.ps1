@@ -11,7 +11,10 @@
   regenerate (-Regenerate). Isolation: a failing day is reported and the
   loop continues; the script writes no report files at all (rendering is
   the agent's single-day work, validated by Test-DailyReport.ps1), so it
-  can never leave a half-written file. Evidence JSON goes to stdout per
+  can never leave a half-written file. A session-evidence refusal (a
+  remote the script cannot scope, a store error) records a grounding gap
+  on the day entry instead of failing the day: git proof still grounds
+  the repository, and the summary names every gapped day. Evidence JSON goes to stdout per
   day, or to -EvidenceDir when the operator opts in explicitly.
 .EXAMPLE
   .\Invoke-DailyReportBatch.ps1 -StartDate 2026-11-01 -EndDate 2026-11-07
@@ -84,7 +87,7 @@ for ($day = $s; $day -le $e; $day = $day.AddDays(1)) {
     $dateStr = $day.ToString('yyyy-MM-dd')
     $yymmdd = $day.ToString('yyMMdd')
     $reportPath = Join-Path $RepoRoot "reports/daily/$GitUser/$yymmdd.md"
-    $entry = [ordered]@{ date = $dateStr; report = "$reportPath"; status = ''; detail = '' }
+    $entry = [ordered]@{ date = $dateStr; report = "$reportPath"; status = ''; detail = ''; gaps = @() }
 
     try {
         if ($Validate) {
@@ -101,8 +104,20 @@ for ($day = $s; $day -le $e; $day = $day.AddDays(1)) {
             foreach ($root in $evidenceRoots) {
                 $proof = & $gitProof -Date $dateStr -RepoRoot $root -Author (& git -C $root config user.email 2>$null) | Out-String
                 if ($LASTEXITCODE -ne 0) { throw "Get-GitProof failed ($root): $proof" }
-                $sessions = & $sessionEvidence -Date $dateStr -RepoRoot $root | Out-String
-                if ($LASTEXITCODE -ne 0) { throw "Get-SessionEvidence failed ($root): $sessions" }
+                # Session evidence is best-effort per repo: a refusal (a
+                # non-GitHub remote cannot be scoped, a store error) becomes a
+                # named grounding gap on the day instead of a day failure.
+                $sessions = ''
+                try {
+                    $sessions = & $sessionEvidence -Date $dateStr -RepoRoot $root 2>&1 | Out-String
+                    if ($LASTEXITCODE -ne 0) { throw "Get-SessionEvidence exited $LASTEXITCODE" }
+                }
+                catch {
+                    $err = ($_.Exception.Message -replace '\s+', ' ').Trim()
+                    if ($sessions) { $err = "$err :: $(($sessions -replace '\s+', ' ').Trim())" }
+                    $entry.gaps += "session evidence gap ($root): $err"
+                    $sessions = ''
+                }
                 $suffix = ''
                 $scope = ''
                 if ($evidenceRoots.Count -gt 1) {
@@ -112,15 +127,17 @@ for ($day = $s; $day -le $e; $day = $day.AddDays(1)) {
                 if ($EvidenceDir) {
                     if (-not (Test-Path $EvidenceDir)) { New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null }
                     [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd$suffix.gitproof.json"), $proof)
-                    [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd$suffix.sessions.json"), $sessions)
+                    if ($sessions) { [IO.File]::WriteAllText((Join-Path $EvidenceDir "$yymmdd$suffix.sessions.json"), $sessions) }
                 }
                 else {
                     # stdout carries the summary JSON only; evidence rides the
                     # information stream so callers can parse the result cleanly.
                     Write-Information "=== evidence $dateStr (git proof$scope) ===" -InformationAction Continue
                     Write-Information $proof -InformationAction Continue
-                    Write-Information "=== evidence $dateStr (sessions$scope) ===" -InformationAction Continue
-                    Write-Information $sessions -InformationAction Continue
+                    if ($sessions) {
+                        Write-Information "=== evidence $dateStr (sessions$scope) ===" -InformationAction Continue
+                        Write-Information $sessions -InformationAction Continue
+                    }
                 }
             }
             $entry.status = 'evidence-ready'
@@ -139,6 +156,7 @@ for ($day = $s; $day -le $e; $day = $day.AddDays(1)) {
     mode    = if ($Validate) { 'validate' } else { 'collect' }
     days    = $results
     failed  = @($results | Where-Object { $_.status -eq 'failed' }).Count
+    gapped  = @($results | Where-Object { $_.gaps.Count -gt 0 }).Count
 } | ConvertTo-Json -Depth 5
 
 if (@($results | Where-Object { $_.status -eq 'failed' }).Count -gt 0) { exit 1 }

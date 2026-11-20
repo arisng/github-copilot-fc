@@ -161,7 +161,9 @@ grounding loop and is named as a grounding gap.
    matching that checkout — the script refuses unfiltered queries. For the
    cloud store, export the same day and repo scope through the harness
    session-store query and merge with `-CloudJson <file>`; out-of-scope rows are
-   refused. Each session carries `windowTurns` — every turn inside the window
+   refused. Confirm the export's newest row reaches the target day before
+   merging — a stale cloud store merges nothing and is named as a grounding
+   gap. Each session carries `windowTurns` — every turn inside the window
    with truncated text. **Scan all of them**: the first and last messages are
    orientation only, and action invocations, verdicts, and file writes often sit
    in middle turns; never substitute conversation memory for the queried turns.
@@ -311,6 +313,9 @@ single-day path** — no separate rendering logic:
    whose report exists (default — cheap, never clobbers) or **regenerate** with
    `-Regenerate`. Isolation: a failing day is reported and the loop continues;
    the batch writes no report files, so it can never leave a half-written file.
+   A session-evidence refusal (a remote the script cannot scope, a store error)
+   records a grounding gap on that day's entry instead of failing the day: git
+   proof still collects, and the summary's `gapped` count names the days.
 2. For each day with evidence, render the single-day report (this procedure,
    which includes its session-transcript export), then `Merge-Glossary`, then
    `Test-DailyReport`.

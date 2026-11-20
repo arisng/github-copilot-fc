@@ -19,6 +19,7 @@ if ($Date -eq '2026-11-02') { Write-Error 'boom'; exit 1 }
         Set-Content (Join-Path $stub 'Get-SessionEvidence.ps1') @'
 param([string]$Date, [string]$Start, [string]$End, [string]$RepoRoot, [string]$SessionDbPath, [string]$CloudJson, [int]$UtcOffsetHours)
 Add-Content -Path (Join-Path $env:TEMP 'batch-calls.log') -Value "sessions:${RepoRoot}:$Date"
+if ($Date -eq '2026-11-06') { Write-Error 'repo scope: cannot resolve owner/name from remote. Refusing an unfiltered query.'; exit 1 }
 '{"sessions":[],"sessionCount":0}'
 '@
         Set-Content (Join-Path $stub 'Get-ReportManifest.ps1') @'
@@ -51,6 +52,21 @@ exit 0
         $j.days[1].status | Should -Be 'failed'
         $j.days[2].status | Should -Be 'evidence-ready' -Because "detail: $($j.days[2].detail)"
         $j.failed | Should -Be 1
+    }
+
+    It 'records a session-evidence refusal as a grounding gap, not a day failure' {
+        $out = & $batch -StartDate '2026-11-06' -EndDate '2026-11-06' -RepoRoot $repo -GitUser 'alice' -ScriptsDir $stub | Out-String
+        $j = $out | ConvertFrom-Json
+        $j.days[0].status | Should -Be 'evidence-ready'
+        @($j.days[0].gaps).Count | Should -Be 1
+        $j.days[0].gaps[0] | Should -Match 'session evidence gap'
+        $j.days[0].gaps[0] | Should -Match 'Refusing an unfiltered query'
+        $j.failed | Should -Be 0
+        $j.gapped | Should -Be 1
+        $LASTEXITCODE | Should -Be 0
+        # git proof still collected for the gapped repo
+        $log = Get-Content (Join-Path $env:TEMP 'batch-calls.log') -Raw
+        $log | Should -Match 'proof:.*2026-11-06'
     }
 
     It 'skips days whose report exists unless -Regenerate' {
