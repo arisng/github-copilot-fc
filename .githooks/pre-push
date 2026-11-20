@@ -1,0 +1,8 @@
+#!/bin/sh
+# Pre-push: full lint suite (scripts/workspace/workspace-check.ps1).
+# Blocks the push on any FAIL; skips cleanly when pwsh is missing.
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "pre-push: pwsh not found on PATH - skipping checks" >&2
+  exit 0
+fi
+exec pwsh -NoProfile -File scripts/workspace/workspace-check.ps1

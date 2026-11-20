@@ -1,0 +1,9 @@
+#!/bin/sh
+# Pre-commit: quick lint gate (changed markdown + schema/consistency engine).
+# Blocks the commit on lint violations; skips cleanly when pwsh is missing so
+# a clone without PowerShell is never bricked by the hook.
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "pre-commit: pwsh not found on PATH - skipping lint" >&2
+  exit 0
+fi
+exec pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -Quick
