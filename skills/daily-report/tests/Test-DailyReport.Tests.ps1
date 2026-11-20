@@ -64,6 +64,18 @@ updated: $stamp
         "$out" | Should -Match 'PASS'
     }
 
+    It 'breaks a word-budget failure down by section' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $filler = ('signal outcome decision proof session report glossary refs active review blocker priority evidence anchor ladder pointer cache load ' * 40).Trim()
+        $c = [IO.File]::ReadAllText($r) -replace '## Glossary', "1. $filler`n`n## Glossary"
+        [IO.File]::WriteAllText($r, $c)
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'budget: \d+ words \(max 600\)'
+        "$out" | Should -Match 'words by section'
+        "$out" | Should -Match 'Next Up=\d+'
+    }
+
     It 'fails on a covers field or Covers line' {
         $r = New-Fixture '2026-11-10 13:57 +07:00'
         $c = [IO.File]::ReadAllText($r) -replace 'created:', 'covers: x`ncreated:'

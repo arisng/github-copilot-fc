@@ -132,10 +132,22 @@ foreach ($r in $refLines) {
     }
 
 # ---- budget (frontmatter + body) ----
+# A budget failure must localize the cut: words per section, heaviest first.
+function Get-SectionWords([string]$Text) {
+    $chunks = @([regex]::Split($Text, '(?m)(?=^## )'))
+    $rows = @()
+    for ($i = 0; $i -lt $chunks.Count; $i++) {
+        $first = ($chunks[$i] -split "`n")[0]
+        $name = if ($i -eq 0) { 'frontmatter+title' } else { ($first -replace '^##\s+', '').Trim() }
+        $w = @(($chunks[$i] -split '\s+') | Where-Object { $_ }).Count
+        if ($w -gt 0) { $rows += [pscustomobject]@{ n = $name; w = $w } }
+    }
+    (($rows | Sort-Object w -Descending | ForEach-Object { "$($_.n)=$($_.w)" }) -join ', ')
+}
 $totalLines = $lines.Count
-if ($totalLines -gt 56) { Fail "budget: $totalLines lines (max 56)" }
+if ($totalLines -gt 56) { Fail "budget: $totalLines lines (max 56) — words by section: $(Get-SectionWords $content)" }
 $totalWords = @(($content -split '\s+') | Where-Object { $_ }).Count
-if ($totalWords -gt 600) { Fail "budget: $totalWords words (max 600)" }
+if ($totalWords -gt 600) { Fail "budget: $totalWords words (max 600) — words by section: $(Get-SectionWords $content)" }
 
 # ---- glossary: schema + report-to-canonical consistency ----
 if (-not $GlossaryPath) { $GlossaryPath = Join-Path (Split-Path $ReportPath -Parent) 'glossary.md' }
