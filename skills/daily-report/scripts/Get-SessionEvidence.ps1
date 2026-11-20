@@ -63,13 +63,21 @@ if (-not $RepoRoot) {
 }
 
 # Repo-scope guardrail: session evidence must match the current repository.
+# The store keys GitHub checkouts as owner/name and Azure DevOps checkouts as
+# org/project/repo; any other remote shape refuses rather than query unfiltered.
 $remoteUrl = (& git -C $RepoRoot remote get-url origin 2>$null)
 $repoFilter = ''
 if ($remoteUrl -and $remoteUrl -match '(?:github\.com[/:])([^/]+)/([^/]+?)(?:\.git)?$') {
     $repoFilter = "$($matches[1])/$($matches[2])"
 }
+elseif ($remoteUrl -and $remoteUrl -match '(?:dev\.azure\.com[/:])v3/([^/]+)/([^/]+)/([^/]+?)(?:\.git)?$') {
+    $repoFilter = "$($matches[1])/$($matches[2])/$($matches[3])"
+}
+elseif ($remoteUrl -and $remoteUrl -match '(?:dev\.azure\.com[/:])([^/]+)/([^/]+)/_git/([^/]+?)(?:\.git)?$') {
+    $repoFilter = "$($matches[1])/$($matches[2])/$($matches[3])"
+}
 if (-not $repoFilter) {
-    Write-Error "repo scope: cannot resolve owner/name from remote '$remoteUrl'. Refusing an unfiltered query."
+    Write-Error "repo scope: cannot resolve owner/name (GitHub) or org/project/repo (Azure DevOps) from remote '$remoteUrl'. Refusing an unfiltered query."
     exit 1
 }
 

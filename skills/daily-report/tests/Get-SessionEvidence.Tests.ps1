@@ -13,8 +13,10 @@ CREATE TABLE session_files (session_id TEXT, file_path TEXT, tool_name TEXT, tur
 CREATE TABLE session_refs (session_id TEXT, ref_type TEXT, ref_value TEXT, created_at TEXT);
 INSERT INTO sessions VALUES ('s1','main','work','o/r','2026-11-10','2026-11-10');
 INSERT INTO sessions VALUES ('s2','main','other repo','x/y','2026-11-10','2026-11-10');
+INSERT INTO sessions VALUES ('s3','main','azure work','contoso/Proj/App','2026-11-10','2026-11-10');
 INSERT INTO turns VALUES ('s1',0,'do things','done','2026-11-10T02:00:00');
 INSERT INTO turns VALUES ('s2',0,'other','other','2026-11-10T02:00:00');
+INSERT INTO turns VALUES ('s3',0,'azure','done','2026-11-10T02:00:00');
 INSERT INTO turns VALUES ('s1',1,'yesterday','old','2026-11-09T02:00:00');
 INSERT INTO session_files VALUES ('s1','a.txt','edit',0);
 INSERT INTO session_files VALUES ('s1','b.txt','edit',1);
@@ -48,6 +50,30 @@ INSERT INTO session_files VALUES ('s1','c.txt','create',2);
         $bare = Join-Path $TestDrive 'bare'; New-Item -ItemType Directory -Force -Path $bare | Out-Null
         git -C $bare init -q
         { & (Join-Path $scriptDir 'Get-SessionEvidence.ps1') -Date '2026-11-10' -RepoRoot $bare -SessionDbPath $db } | Should -Throw
+    }
+
+    It 'scopes an Azure DevOps HTTPS remote as org/project/repo' {
+        $az = Join-Path $TestDrive 'az-https'; New-Item -ItemType Directory -Force -Path $az | Out-Null
+        git -C $az init -q
+        git -C $az remote add origin 'https://contoso@dev.azure.com/contoso/Proj/_git/App'
+        $out = & (Join-Path $scriptDir 'Get-SessionEvidence.ps1') -Date '2026-11-10' -RepoRoot $az -SessionDbPath $db -UtcOffsetHours 7 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $j = $out | ConvertFrom-Json
+        $j.repository | Should -Be 'contoso/Proj/App'
+        $j.sessionCount | Should -Be 1
+        $j.sessions[0].id | Should -Be 's3'
+    }
+
+    It 'scopes an Azure DevOps SSH remote (v3) as org/project/repo' {
+        $az = Join-Path $TestDrive 'az-ssh'; New-Item -ItemType Directory -Force -Path $az | Out-Null
+        git -C $az init -q
+        git -C $az remote add origin 'git@ssh.dev.azure.com:v3/contoso/Proj/App'
+        $out = & (Join-Path $scriptDir 'Get-SessionEvidence.ps1') -Date '2026-11-10' -RepoRoot $az -SessionDbPath $db -UtcOffsetHours 7 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $j = $out | ConvertFrom-Json
+        $j.repository | Should -Be 'contoso/Proj/App'
+        $j.sessionCount | Should -Be 1
+        $j.sessions[0].id | Should -Be 's3'
     }
 
     It 'rejects a window outside the day' {
