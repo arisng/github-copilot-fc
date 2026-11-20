@@ -4,18 +4,25 @@
 .DESCRIPTION
     Runs the repo's lint checks in one command. Two modes:
 
-    -Quick : fast checks only - markdown lint over changed .md files plus the
-             cross-file consistency/schema engine. Wired to .githooks/pre-commit
-             and `task lint`.
+    -Quick : fast checks only - markdown lint (full scan vs debt baseline)
+             plus the cross-file consistency/schema engine. Wired to
+             .githooks/pre-commit and `task lint`.
+
+    -UpdateMarkdownBaseline : rewrite scripts/workspace/markdown-debt-baseline.txt
+             from the current scan. Run only to accept a reviewed change (or to
+             shrink the ratchet after fixing debt); the diff shows every entry.
 
     (full) : everything -Quick runs, plus the waza advisory report, the
              supply-chain scan, and offline eval preflight. Wired to
              .githooks/pre-push and `task check`.
 
     Checks (full suite):
-    1. Markdown lint - markdownlint-cli2 over the .md files changed in the
-       working tree or pending on the branch (a ratchet: touch it, fix it).
-       An npx that cannot bootstrap (offline first run) downgrades to a warning.
+    1. Markdown lint - full-repo markdownlint-cli2 scan compared against the
+       frozen-debt baseline (scripts/workspace/markdown-debt-baseline.txt):
+       debt files pass at their recorded per-file count, and any new file or
+       count increase FAILs (so legacy debt never drags a touched file, and no
+       file - changed, renamed, or new - can slip in unlinted). An npx that
+       cannot bootstrap (offline first run) downgrades to a warning.
     2. Consistency - scripts/workspace/check-consistency.ps1: jsonschema
        validation of plugin/skill/marketplace/instruction frontmatter against
        schemas/ (validate-manifests.py), cross-file rules (skill dir<->name,
@@ -43,7 +50,10 @@
 [CmdletBinding()]
 param(
     # Fast subset for pre-commit: markdown lint + consistency engine only.
-    [switch]$Quick
+    [switch]$Quick,
+    # Rewrite the markdown debt baseline from the current scan output; run
+    # only to accept a reviewed change (the diff then shows every entry).
+    [switch]$UpdateMarkdownBaseline
 )
 
 Set-StrictMode -Version Latest
@@ -71,67 +81,102 @@ function Test-MarkdownLint {
     if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
         return @{ Status = 'FAIL'; Detail = 'npx not found on PATH (required for markdown lint)' }
     }
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        return @{ Status = 'FAIL'; Detail = 'git not found on PATH (needed to find changed .md files)' }
-    }
-
-    $changed = [System.Collections.Generic.List[string]]::new()
-    Push-Location $repoRoot
-    try {
-        # Working tree (staged + unstaged), untracked files, and branch commits
-        # not yet on the upstream - the set a push would carry.
-        foreach ($line in @(& git diff --name-only --diff-filter=ACM HEAD -- '*.md')) {
-            if ($line) { $changed.Add($line.Trim()) }
-        }
-        foreach ($line in @(& git ls-files --others --exclude-standard -- '*.md')) {
-            if ($line) { $changed.Add($line.Trim()) }
-        }
-        $null = & git rev-parse --abbrev-ref '--symbolic-full-name' '@{upstream}' 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            foreach ($line in @(& git diff --name-only --diff-filter=ACM '@{upstream}...HEAD' -- '*.md')) {
-                if ($line) { $changed.Add($line.Trim()) }
-            }
-        }
-    }
-    finally {
-        Pop-Location
-    }
-
-    # Defense in depth: drop paths the markdownlint config ignores, so they are
-    # never handed to the linter as explicit inputs.
-    $denyPattern = '(^|/)(node_modules|\.archived|\.build|\.playwright-cli|\.issues|workshops)(/|$)|^evals/[^/]+/(fixtures|results)/|^docs/blazor-agui/'
-    $files = @($changed | Sort-Object -Unique | Where-Object { $_ -notmatch $denyPattern } | Where-Object { Test-Path -LiteralPath (Join-Path $repoRoot $_) })
-    if ($files.Count -eq 0) {
-        return @{ Status = 'SKIP'; Detail = 'no changed .md files' }
-    }
+    # Pin the linter: a gate result must not depend on registry drift
+    # (retro candidate 5; version drifted mid-session once already).
+    $linter = 'markdownlint-cli2@0.24.2'
+    $baselinePath = Join-Path $repoRoot 'scripts/workspace' 'markdown-debt-baseline.txt'
 
     # Probe first: markdownlint-cli2 bootstraps through npx on first use, so an
     # offline environment downgrades to a warning instead of blocking the hook.
-    & npx --yes markdownlint-cli2 --version *> $null
+    & npx --yes $linter --version *> $null
     if ($LASTEXITCODE -ne 0) {
         return @{ Status = 'WARN'; Detail = 'markdownlint-cli2 unavailable via npx (offline first run?) - markdown lint skipped this run' }
     }
 
-    # Wrap in @(): a pipeline yielding one path returns a scalar string, and
-    # splatting a string enumerates its characters as separate arguments.
-    $rel = @($files | ForEach-Object { $_ -replace '\\', '/' })
+    # Full-repo scan against the committed debt baseline (retro candidates 1+5):
+    # every .md the config does not ignore is linted on every run, so rename
+    # targets, brand-new files, and untouched files are all covered - the old
+    # changed-file enumeration (git diff --diff-filter=ACM, which silently
+    # drops R-status renames) is gone entirely. Legacy debt is frozen at a
+    # per-file issue count: it never blocks (no touch-it-fix-it drag), while
+    # any count increase or any file missing from the baseline FAILs.
     Push-Location $repoRoot
     try {
-        $lintOutput = & npx --yes markdownlint-cli2 @rel 2>&1
+        $lintOutput = @(& npx --yes $linter "**/*.md" 2>&1)
         $code = $LASTEXITCODE
     }
     finally {
         Pop-Location
     }
-    # Native stdout is part of the function's return stream - echo it via the
-    # host so the returned value stays a single hashtable.
-    if ($lintOutput) {
-        Write-Host (($lintOutput | Out-String).TrimEnd())
+    if ($code -notin 0, 1) {
+        return @{ Status = 'FAIL'; Detail = "markdownlint-cli2 crashed (exit $code) - run manually: npx $linter '**/*.md'" }
     }
-    if ($code -eq 0) {
-        return @{ Status = 'PASS'; Detail = "$($files.Count) changed .md file(s) lint clean" }
+
+    # Aggregate `path:line[:col] error RULE/...` output lines to per-file counts.
+    $violations = @{}
+    $unparsed = 0
+    foreach ($line in $lintOutput) {
+        $text = "$line"
+        if ($text -notmatch ' error ') { continue }
+        if ($text -match '^(?<file>[^:]+\.md):\d+(?::\d+)? error ') {
+            $file = $Matches.file -replace '\\', '/'
+            $violations[$file] = [int]$violations[$file] + 1
+        }
+        else { $unparsed++ }
     }
-    return @{ Status = 'FAIL'; Detail = "markdownlint violations in changed .md files (exit $code) - run 'npx --yes markdownlint-cli2 <file>' for details" }
+
+    if ($UpdateMarkdownBaseline) {
+        $newLines = @(
+            '# Markdownlint debt baseline - one "<path>\t<issue-count>" per line: frozen'
+            '# legacy debt that workspace-check allows at exactly this count. Any file'
+            '# missing from this list must be violation-free; any count increase fails.'
+            '# Regenerate only to accept a reviewed change (the diff shows every entry):'
+            '#   pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -UpdateMarkdownBaseline'
+        )
+        foreach ($path in ($violations.Keys | Sort-Object)) {
+            $newLines += "$path`t$($violations[$path])"
+        }
+        Set-Content -Path $baselinePath -Value $newLines -Encoding utf8NoBOM
+        $total = [int]($violations.Values | Measure-Object -Sum).Sum
+        return @{ Status = 'PASS'; Detail = "baseline rewritten: $total issue(s) across $($violations.Count) file(s)" }
+    }
+
+    if (-not (Test-Path -LiteralPath $baselinePath)) {
+        return @{ Status = 'FAIL'; Detail = 'markdown debt baseline missing - run: pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -UpdateMarkdownBaseline' }
+    }
+    $baseline = @{}
+    foreach ($line in @(Get-Content -LiteralPath $baselinePath)) {
+        if ($line -match '^(#|$)') { continue }
+        $parts = $line -split "`t"
+        if ($parts.Count -eq 2 -and $parts[1] -match '^\d+$') { $baseline[$parts[0]] = [int]$parts[1] }
+    }
+
+    $offenders = [System.Collections.Generic.List[string]]::new()
+    foreach ($path in $violations.Keys) {
+        $count = $violations[$path]
+        if (-not $baseline.ContainsKey($path)) {
+            $offenders.Add("$path (+$count, new)")
+        }
+        elseif ($count -gt $baseline[$path]) {
+            $offenders.Add("$path ($count > $($baseline[$path]))")
+        }
+    }
+    if ($unparsed -gt 0) {
+        $offenders.Add("$unparsed unattributed lint output line(s)")
+    }
+
+    $stale = 0
+    foreach ($path in $baseline.Keys) {
+        if (-not $violations.ContainsKey($path)) { $stale++ }
+    }
+
+    $total = if ($violations.Count -gt 0) { [int]($violations.Values | Measure-Object -Sum).Sum } else { 0 }
+    if ($offenders.Count -gt 0) {
+        $shown = (@($offenders | Select-Object -First 3) -join '; ')
+        return @{ Status = 'FAIL'; Detail = "new markdown debt: $shown - fix it (npx $linter <file>), or regenerate the baseline explicitly if the change is intentional" }
+    }
+    $shrinkHint = if ($stale -gt 0) { "; $stale stale baseline entrie(s) - regenerate to shrink" } else { '' }
+    return @{ Status = 'PASS'; Detail = "baseline clean: $total frozen issue(s) across $($violations.Count) debt file(s), 0 new$shrinkHint" }
 }
 
 function Test-Consistency {
