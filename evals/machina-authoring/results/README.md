@@ -73,7 +73,7 @@ accuracy **improved** from 77.8% → 88.9% (FP 0 this run) and stays inside the 
 flags the expanded SKILL.md density as the main cost of the compliance-boundary additions.
 
 Mutation note (recurred): the case-06 agent again wrote into the **real repo** during the run —
-`copilot-extensions/machina-simulator/simulator/app.html` + `simulator/docs/architecture.md`
+`canvas/machina-simulator/simulator/app.html` + `simulator/docs/architecture.md`
 (23:31) and the published `%USERPROFILE%\.copilot\extensions\machina-simulator\test\qa-handlers.mjs`
 (23:37, v2→v3 test expectations). All three were restored after the run (repo via `git checkout --`,
 live copy re-synced from the tracked repo file; hash-verified). Skill sources were untouched
@@ -151,7 +151,7 @@ and could drop `graded-machine.json` into the repo root). The temp file is remov
    single run's FP/FN set as indicative, not decisive.
 3. **Eval-harness side effect (important):** during copilot-sdk runs, the simulator-UI negative case
    (case-06) agent can write into the **real repo** (it modified
-   `copilot-extensions/machina-simulator/simulator/app.html` twice; one run also touched
+   `canvas/machina-simulator/simulator/app.html` twice; one run also touched
    `machine-validator.py`). Restore those files after any eval run
    (`git checkout -- <path>`), or run waza from a clean clone/scratch checkout.
 

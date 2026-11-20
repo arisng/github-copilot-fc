@@ -14,9 +14,9 @@ config:
   timeout_seconds: 600
   executor: copilot-sdk
   model: mimo-v2.5
-  # machina-driving depends on machina-authoring: machine-driver.py imports the
-  # shared engine (machine-validator.py) from the authoring skill. Both must be
-  # mounted so the driver can run inside the eval workspace.
+  # machina-driving is self-contained (bundled engine copy); machina-authoring
+  # is mounted alongside it because these scenarios also exercise
+  # authoring-surface prompts (neg/multi-skill tasks).
   skill_directories:
     - ../../skills/machina-driving
     - ../../skills/machina-authoring

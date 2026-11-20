@@ -109,7 +109,7 @@ same trust signal the conductor sees in the UI.
 
 - Under the `mock` executor the positive drive cases fail by design (mock emits canned text,
   nothing drives a real run); `waza run` failures under mock are wiring-only status.
-- The extension engine (`copilot-extensions/machina-simulator/**`) is never modified by this
+- The extension engine (`canvas/machina-simulator/**`) is never modified by this
   suite; the eval measures its replay contract, including the documented v1/v2 specRank
   divergence that does not affect `replayRunLedger`.
 - Machine tool `cmd` strings must use `py`/`python` (the host lacks `python3` on PATH); the

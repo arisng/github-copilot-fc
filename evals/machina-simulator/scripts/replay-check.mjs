@@ -1,7 +1,7 @@
 // replay-check.mjs — eval-side harness: replay ONE machina run dir through the
 // ACTUAL machina-simulator engine and print the trust verdicts as strict JSON.
 //
-// The engine at copilot-extensions/machina-simulator/machine-simulator.mjs is
+// The engine at canvas/machina-simulator/machine-simulator.mjs is
 // imported by absolute repo path (never modified by this suite). This is the
 // same replay computation the `/machina-simulator` canvas renders as its
 // ✓ verified / TAMPERED badge, terminal disposition, blocked records, nested
@@ -24,13 +24,13 @@ import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// scripts/ -> repo root (../../../copilot-extensions/...)
+// scripts/ -> repo root (../../../canvas/...)
 const ENGINE = path.resolve(
   __dirname,
   "..",
   "..",
   "..",
-  "copilot-extensions",
+  "canvas",
   "machina-simulator",
   "machine-simulator.mjs",
 );

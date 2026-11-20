@@ -31,7 +31,7 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $corpusRoot = if ($OutRoot) { $OutRoot } else { Join-Path $repoRoot "evals\machina-simulator\results\corpus" }
-$replayAll = Join-Path $repoRoot "copilot-extensions\machina-simulator\scripts\replay-all.mjs"
+$replayAll = Join-Path $repoRoot "canvas\machina-simulator\scripts\replay-all.mjs"
 
 if (-not $Workspace) {
     Write-Host "No -Workspace paths provided. Add each kept waza task workspace:" -ForegroundColor Yellow
