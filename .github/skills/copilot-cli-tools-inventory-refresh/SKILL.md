@@ -1,6 +1,6 @@
 ---
 name: copilot-cli-tools-inventory-refresh
-description: '**REFRESH SKILL** — Keep `tools/inventory.yaml` (the workspace cross-runtime tools inventory) accurate and up to date, grounded in the latest GitHub Copilot CLI. USE FOR: refreshing/updating the tools inventory after CLI updates; validating the inventory YAML schema; checking that CLI, VS Code, and GitHub Copilot tool spellings are current; detecting drift between the inventory and the live CLI surface (--available-tools/--excluded-tools, agent tools: aliases, built-in MCP servers); recording cli_version and last_verified metadata. DO NOT USE FOR: authoring new Copilot CLI customization files (use copilot-cli-agent-customization instead); general coding; VS Code toolset authoring (use the workspace publish-toolsets flow).'
+description: '**REFRESH SKILL** — Keep `tools/inventory.yaml` (the workspace cross-runtime tools inventory) accurate and up to date, grounded in the latest GitHub Copilot CLI. USE FOR: refreshing/updating the tools inventory after CLI updates; validating the inventory YAML schema; checking that CLI, VS Code, and GitHub Copilot tool spellings are current; detecting drift between the inventory and the live CLI surface (--available-tools/--excluded-tools, agent tools: aliases, built-in MCP servers); recording cli_version and last_verified metadata. DO NOT USE FOR: authoring new Copilot CLI customization files (use copilot-cli-agent-customization instead); general coding.'
 metadata:
   author: arisng
   version: 0.1.0
@@ -44,7 +44,7 @@ Record these; they become `cli_version` and `last_verified` in the inventory met
 
 - Run `copilot --help` and `copilot plugins list` (local).
 - Fetch the official CLI command reference page and custom-agents-configuration page (docs).
-- Review the workspace corpus: `.docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md`, `.docs/reference/copilot/cli/copilot-cli-customization-matrix.md`, and `.docs/reference/copilot/cli/copilot-cli-help.md`.
+- Workspace corpus: the former `.docs/reference/copilot/cli/` files were removed in the 2026-11 cleanup — rely on the official CLI docs, the live `copilot --help` output, and this skill's `references/` instead.
 
 ### 3. Drift Diff
 
@@ -71,11 +71,11 @@ The script `scripts/refresh-inventory.ps1` automates steps 1–3 and emits a dri
 python3 .github/skills/copilot-cli-tools-inventory-refresh/scripts/validate-inventory.py
 ```
 
-The validator enforces the schema (required keys, unique ids, category membership, `default` enum, non-empty sources, accepted encodings for `runtime-dependent`/`(closest)`/`runtime-specific`) and cross-checks that referenced `tools/vscode/toolsets/*.jsonc` and `.docs/...` paths exist.
+The validator enforces the schema (required keys, unique ids, category membership, `default` enum, non-empty sources, accepted encodings for `runtime-dependent`/`(closest)`/`runtime-specific`) and cross-checks that referenced workspace-relative `sources` paths exist.
 
 ### 6. Cross-check VS Code Toolsets
 
-If a VS Code spelling changed, verify `tools/vscode/toolsets/*.toolsets.jsonc` and update them per the workspace `tools/README.md` authoring rules.
+If a runtime spelling changed, update `tools/inventory.yaml` per the workspace `tools/README.md` authoring rules.
 
 ## Value Encoding Rules
 
@@ -102,7 +102,7 @@ These rules keep the YAML parseable and lossless (enforced by the validator):
 
 **The inventory counts 31 entries across 7 categories.** Verify after conversion/refresh that the category taxonomy is intact: `core-built-in`, `limited-applicability`, `builtin-mcp`, `custom-mcp`, `cli-surface`, `vscode-surface`, `agent-host`. In particular, no `cli-surface` family (`cli-shell-session-family`, `cli-file-write-family`, `cli-agent-management-family`, `cli-search-and-fetch-family`, `cli-orchestration-and-state-family`) or `vscode-surface` family (`vscode-terminal-family`, `vscode-memory`, `vscode-user-interaction`, `vscode-editor-control-family`) was dropped. Do not reintroduce a catch-all bucket such as the old `runtime-only` category; a runtime's concrete tool inventory belongs in that runtime's `*-surface` category, and an MCP tool set belongs in `custom-mcp`.
 
-**`create` is a valid concrete CLI built-in but NOT a valid agent `tools:` alias.** Both facts must survive in the inventory (see `cli-file-write-family` entry vs. `.docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md`).
+**`create` is a valid concrete CLI built-in but NOT a valid agent `tools:` alias.** Both facts must survive in the inventory (see the `cli-file-write-family` entry).
 
 ## References
 

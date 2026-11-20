@@ -1,15 +1,13 @@
 # Command Code — Provider Overview (shared)
 
-This index links the two harness-specific files for the **Command Code** provider. Read only the file matching the harness you are configuring:
+This index links the CLI reference for the **Command Code** provider:
 
 - **Copilot CLI** → [`cli.md`](cli.md) — env vars, base URL, available models, token overrides, CLI profiles, multiple accounts
-- **VS Code Chat** → [`vs-code.md`](vs-code.md) — `chatLanguageModels.json` provider entries per model, per-agent model pinning
 
-Shared facts that apply to both harnesses (and every provider) live in [`../../shared/`](../../shared/):
+Shared facts that apply to every provider live in [`../../shared/`](../../shared/):
 
 - [`../shared/environment-variables.md`](../../shared/environment-variables.md) — `COPILOT_PROVIDER_*` env-var semantics and wire-format rules
 - [`../shared/api-key-storage.md`](../../shared/api-key-storage.md) — storing keys at User scope, `${ENV_VAR}` placeholders
-- [`../shared/chat-language-models-json.md`](../../shared/chat-language-models-json.md) — `chatLanguageModels.json` mechanism, per-agent pinning
 - [`../shared/reasoning-effort-lookup.md`](../../shared/reasoning-effort-lookup.md) — per-model `--reasoning-effort` support
 - [`../shared/copilot-cli-accounts.md`](../../shared/copilot-cli-accounts.md) — multiple accounts for one provider (CLI registry)
 

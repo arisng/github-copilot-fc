@@ -24,6 +24,7 @@ Commit messages follow `type(scope): subject`:
 ## Repository Storage Convention
 
 **Scopes Inventory:** `.github/git-scope-inventory.md`
+
 - **Purpose**: Machine-readable inventory of all scopes extracted from git history
 - **Content**: Simple structured list of scopes actually used in commits, organized by commit type
 - **Maintenance**: Updated automatically by running `extract_scopes.py`
@@ -31,6 +32,7 @@ Commit messages follow `type(scope): subject`:
 - **Format**: Structured markdown with summary statistics and scope lists
 
 **Constitution Document:** `.github/git-scope-constitution.md`
+
 - **Purpose**: Human-readable constitution defining approved scopes and usage rules
 - **Content**: Authoritative definitions, naming conventions, selection guidelines, and amendment process
 - **Maintenance**: Manually maintained with regular updates (weekly recommended)
@@ -110,31 +112,35 @@ This generates an inventory of all scopes currently used in the repository's git
 **CRITICAL:** Scopes should align with the actual project structure, not just historical commits. Analyze the repository to understand:
 
 **Folder Structure Analysis:**
+
 - List top-level directories and their purpose
 - Identify module boundaries (e.g., `services/`, `components/`, `tools/`)
 - Note domain-specific folders (e.g., `auth/`, `billing/`, `dashboard/`)
-- Recognize documentation areas (e.g., `.docs/`, `docs/`, `README.md`)
+- Recognize documentation areas (e.g., `docs/`, `README.md`)
 
 **Project Architecture:**
+
 - Identify bounded contexts or domains
 - Note technology-specific directories (e.g., `scripts/`, `tests/`, `config/`)
 - Recognize artifact types (e.g., `agents/`, `skills/`, `prompts/`)
 
 **Key Questions:**
+
 - What are the major functional areas of this project?
 - How is the code organized (by feature, layer, domain)?
 - What are the natural scope boundaries based on the structure?
 - Are there emerging patterns in folder naming?
 
 **Example Analysis:**
-```
+
+```text
 Repository: github-copilot-fc
-Top-level: agents/, instructions/, prompts/, skills/, scripts/, tools/, .docs/
+Top-level: agents/, instructions/, skills/, scripts/, tools/, docs/
 
 Derived scope patterns:
 - Artifact-based: agent, instruction, prompt, skill, toolset
 - Function-based: script (for automation)
-- Domain-based: issue, changelog (from .docs/ subfolders)
+- Domain-based: issue, changelog (from docs/ subfolders)
 ```
 
 ### 2. Synthesize Scope Landscape
@@ -142,11 +148,13 @@ Derived scope patterns:
 Combine insights from git history and repository structure:
 
 **Merge Historical and Structural Scopes:**
+
 - Historical scopes show what has been used
 - Structural analysis shows what should be used
 - Gaps indicate either unused structure or undocumented scopes
 
 **Identify Patterns:**
+
 - Do historical scopes align with folder structure?
 - Are there folders without corresponding scopes?
 - Are there scopes used for non-existent structures?
@@ -154,6 +162,7 @@ Combine insights from git history and repository structure:
 ### 3. Review Existing Constitution
 
 Check if a constitution already exists:
+
 - Read `.github/git-scope-constitution.md` if present
 - Compare with extracted historical scopes
 - Compare with repository structure analysis
@@ -164,6 +173,7 @@ Check if a constitution already exists:
 Evaluate the current scope landscape:
 
 **Quality Checks:**
+
 - [ ] Are scope names consistent in format (kebab-case, singular vs plural)?
 - [ ] Are scopes granular enough to be meaningful but not overly specific?
 - [ ] Do scope definitions clearly distinguish between related scopes?
@@ -171,6 +181,7 @@ Evaluate the current scope landscape:
 - [ ] Are scopes aligned with the codebase's module/domain structure?
 
 **Pattern Recognition:**
+
 - Identify naming patterns (e.g., module-based feature-based, domain-based, file-path-based)
 - Detect inconsistencies (same concept with different names)
 - Find under-scoped types (types with no or too few scopes)
@@ -182,6 +193,7 @@ Evaluate the current scope landscape:
 Based on analysis, create or update the constitution:
 
 **For New Constitutions:**
+
 1. Define scope naming conventions
 2. Organize scopes by commit type (align with repository structure)
 3. Provide clear definitions for each scope (reference folder/module names)
@@ -190,6 +202,7 @@ Based on analysis, create or update the constitution:
 6. Document the repository structure that informed scope decisions
 
 **For Constitution Updates:**
+
 1. Document new scopes discovered in recent commits
 2. Add scopes for new project structures (folders, modules, domains)
 3. Consolidate redundant or similar scopes (with migration notes)
@@ -199,6 +212,7 @@ Based on analysis, create or update the constitution:
 7. Align with any structural refactoring in the repository
 
 **Key Principles:**
+
 - **Stability**: Minimize breaking changes to existing scopes
 - **Clarity**: Each scope should have a clear, non-overlapping definition
 - **Discoverability**: Organize scopes logically for easy lookup
@@ -209,12 +223,14 @@ Based on analysis, create or update the constitution:
 Validate the updated constitution:
 
 **Completeness Checks:**
+
 - [ ] All commit types used in repository are documented
 - [ ] All active scopes (from recent commits) are included
 - [ ] Each scope has a clear definition
 - [ ] Naming conventions are documented and examples provided
 
 **Consistency Checks:**
+
 - [ ] Scope names follow established conventions
 - [ ] No duplicate or near-duplicate scopes
 - [ ] Definitions are mutually exclusive
@@ -225,6 +241,7 @@ Validate the updated constitution:
 Record constitutional amendments:
 
 **Amendment Log Format:**
+
 ```markdown
 ## Amendment History
 
@@ -252,6 +269,7 @@ Save the finalized constitution and inventory:
 4. Commit both files with a descriptive commit message
 
 **Recommended Commit Message:**
+
 ```txt
 docs(constitution): update scope inventory with Q1 2026 scopes
 
@@ -299,11 +317,13 @@ When uncertain about scope naming:
 ### Template Files (Skill Resources)
 
 **`references/scope-constitution.md`**
+
 - Template for creating new constitutions
 - Not used at runtime (reference only)
 - Copy to `.github/git-scope-constitution.md` in target repository
 
 **`references/scope-inventory-template.md`**
+
 - Example of structured inventory format
 - Shows expected output structure
 - Used as reference for manual inventory creation
@@ -330,26 +350,31 @@ For extended types (`agent`, `copilot`, `devtool`, `codex`), scopes must be **ar
 **General Granularity (All Types):**
 
 **Too Broad:**
+
 - `feat(code): add feature` → What part of the code?
 - `fix(app): fix bug` → Which component?
 
 **Too Narrow:**
+
 - `feat(src/components/forms/UserForm.tsx): add validation` → File-specific
 - `fix(line-42-in-utils): fix typo` → Too granular
 
 **Just Right:**
+
 - `feat(user-form): add email validation`
 - `fix(auth): correct token expiration logic`
 
 ### Naming Conventions
 
 **Recommended Patterns:**
+
 - Kebab-case: `user-profile`, `api-client`
 - Singular form: `skill`, `agent`, `instruction`
 - Domain/module-based: `auth`, `billing`, `dashboard`
 - Avoid verbs: Use `api-client` not `calling-api`
 
 **Anti-Patterns:**
+
 - Camel case: `userProfile`
 - Snake case: `user_profile`
 - Spaces: `user profile`
@@ -358,11 +383,13 @@ For extended types (`agent`, `copilot`, `devtool`, `codex`), scopes must be **ar
 ### Constitutional Amendments
 
 **Good Reasons to Add Scope:**
+
 - New module or domain added to codebase
 - Existing scope is too broad and needs splitting
 - Consistent pattern of commits without clear scope
 
 **Bad Reasons to Add Scope:**
+
 - One-off change that doesn't justify a scope
 - Avoiding learning existing scopes
 - Personal preference for different naming
@@ -386,18 +413,21 @@ git-atomic-commit assigns each file its type and groups the commits; it reaches 
 ## Error Handling
 
 **Scope Not Found in Constitution:**
+
 1. Search historical usage with `extract_scopes.py`
 2. Check if similar scope exists with different name
 3. If genuinely new, draft amendment proposal
 4. Get approval before using in commit
 
 **Constitution Conflicts:**
+
 1. Multiple scopes seem valid for the change
 2. Review scope definitions for clarity
 3. Choose the most specific applicable scope
 4. If ambiguity persists, refine constitution
 
 **Scope Naming Violations:**
+
 1. Flag non-conforming scope name
 2. Check constitution for correct format
 3. Propose rename if scope is valuable

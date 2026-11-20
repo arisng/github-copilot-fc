@@ -26,21 +26,13 @@ copilot plugins list     # discovered MCP servers, skills, plugins, LSPs
 
 Optionally, inside an interactive session: `/env` lists loaded instructions, MCP servers, skills, agents, hooks, plugins, LSPs, and extensions — useful for cross-checking discovered namespaces.
 
-## 3. Workspace Corpus (`.docs/reference/copilot/cli/`)
+## 3. Workspace Corpus (removed 2026-11)
 
-These workspace reference pages are cross-checked during a refresh:
-
-| File | Role |
-|------|------|
-| `.docs/reference/copilot/cli/cli-agent-valid-tool-aliases.md` | **Canonical CLI-frontmatter alias set** (`bash`, `view`, `edit`, `search`, `mcp_SERVERNAME_TOOLNAME`). Distinct from the inventory's conceptual `official_alias`. |
-| `.docs/reference/copilot/cli/copilot-cli-customization-matrix.md` | Runtime-by-runtime tool namespace remapping and tool restriction mechanisms |
-| `.docs/reference/copilot/cli/copilot-cli-help.md` | **Historical `--help` snapshot.** Predates v1.0.77 (still lists `--config-dir`, `--disable-parallel-tools-execution`). Regenerating it is OUT of scope for this skill; the drift report may flag it as stale. |
-| `.docs/reference/copilot/shared/copilot-cli-programmatic-cheatsheet.md` | Programmatic invocation flags (`-p`, `--agent`, `--model`, env vars) |
-| `tools/vscode/toolsets/*.toolsets.jsonc` | Concrete VS Code runtime spellings that must stay in sync with the inventory |
+The former `.docs/reference/copilot/cli/` corpus was removed in the 2026-11 workspace cleanup, and `tools/vscode/toolsets/` went with it. Grounding now comes from section 1 (official CLI docs), section 2 (live CLI output), and this skill's `references/`.
 
 ## 4. Known Deliberate Nuances (do not "fix" these away)
 
-- **Alias vs concrete built-in split**: `official_alias` in the YAML is the *conceptual* cross-runtime alias (e.g. `execute`, `read`, `agent`), which differs from the CLI-frontmatter alias set (`bash`, `view`, `edit`, `search`) documented in `cli-agent-valid-tool-aliases.md`. Preserve both.
+- **Alias vs concrete built-in split**: `official_alias` in the YAML is the *conceptual* cross-runtime alias (e.g. `execute`, `read`, `agent`), which differs from the CLI-frontmatter alias set (`bash`, `view`, `edit`, `search`). Preserve both.
 - **`create`**: valid as a concrete CLI built-in (`cli-file-write-family`), NOT valid as an agent `tools:` alias.
 - **`runtime-dependent` / `(closest)` / `runtime-specific`** encodings: see the "Value Encoding Rules" in `SKILL.md`.
 - **Curation over adoption**: the inventory lists *important* tools, not the entire live tool surface. The drift report proposes additions; the author decides.

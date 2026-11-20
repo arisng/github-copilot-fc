@@ -14,7 +14,7 @@ Checks:
   - "agent_host" is optional; when present it is validated as a list
   - official_alias, when present, is a non-empty list of strings
   - sources: non-empty list, each entry non-empty; file-like sources exist
-    (tools/vscode/toolsets/*.jsonc and .docs/... paths) unless --strict is off
+    (workspace-relative tools/, scripts/, skills/ paths) unless --strict is off
   - notes, when present, is a string
   - accepted encodings for runtime-specific / (closest) / runtime-dependent
     (recorded in notes per the SKILL value-encoding rules)
@@ -84,13 +84,13 @@ def check_string_list(errors, value, where, allow_sentinel=False):
 def check_existing_file(errors, source, where):
     """Resolve a workspace-relative source path and flag if it does not exist.
 
-    Only checks paths that look workspace-relative (start with tools/, .docs/,
-    or scripts/). URLs and plain doc references are ignored.
+    Only checks paths that look workspace-relative (start with tools/,
+    scripts/, or skills/). URLs and plain doc references are ignored.
     """
     if not isinstance(source, str) or not source.strip():
         fail(errors, f"{where}: empty source string")
         return
-    if source.startswith(("tools/", ".docs/", "scripts/", "skills/")):
+    if source.startswith(("tools/", "scripts/", "skills/")):
         p = REPO_ROOT / source
         if not p.exists():
             fail(errors, f"{where}: referenced path does not exist: {source}")

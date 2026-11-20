@@ -1,9 +1,7 @@
 # Event Schema Reference
 
 Ground truth for parsing a Copilot session's `events.jsonl` (the primary data source).
-Verified empirically against CLI 1.0.95 session dirs; cross-check against
-`.docs/reference/copilot/cli/copilot-cli-session-state-schema.md` (note: its
-`tool.execution_complete` field list is outdated — the live shape is documented below).
+Verified empirically against CLI 1.0.95 session dirs; the live shape is documented below.
 
 Each line is one JSON object with at least: `type`, `id`, `timestamp` (ISO-8601 UTC, `Z`
 suffix), `parentId`, and `data`. Only `data`-level fields listed here matter.

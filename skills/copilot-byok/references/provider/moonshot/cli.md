@@ -1,6 +1,6 @@
 # Moonshot — Copilot CLI
 
-Configuring the Moonshot (Kimi AI) provider for **GitHub Copilot CLI**. For VS Code Chat, see [`vs-code.md`](vs-code.md). Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
+Configuring the Moonshot (Kimi AI) provider for **GitHub Copilot CLI**. Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ Configuring the Moonshot (Kimi AI) provider for **GitHub Copilot CLI**. For VS C
 [Environment]::SetEnvironmentVariable("MOONSHOT_API_KEY", "<your-moonshot-api-key>", "User")
 ```
 
-3. **One-time setup: configure DNS + cert for the `top_p` proxy.** Moonshot models only accept `top_p=0.95`, but Copilot CLI sends `top_p=1.0` by default. A local proxy strips `top_p` before forwarding. Run once as admin:
+1. **One-time setup: configure DNS + cert for the `top_p` proxy.** Moonshot models only accept `top_p=0.95`, but Copilot CLI sends `top_p=1.0` by default. A local proxy strips `top_p` before forwarding. Run once as admin:
 
 ```powershell
 .\scripts\setup-dns.ps1
@@ -21,7 +21,7 @@ This adds `127.0.0.1 moonshot.local` to your hosts file and trusts the SSL certi
 
 ## Base URL
 
-```
+```text
 https://api.moonshot.ai/v1
 ```
 

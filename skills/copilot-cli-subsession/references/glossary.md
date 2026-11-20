@@ -43,7 +43,7 @@ so the skill never depends on files outside its own directory.
 | **Polarity-fixed** | A case that hard-codes the expected sign of the outcome (e.g. the 400 *must not* happen). Reserved for regression locks after root cause is confirmed. | Not yet present |
 | **Exit codes** | `0` all pass (known-gap rows count as pass), `1` one or more failures, `2` harness/preflight error. | `tests:subsession-audit` → 0 |
 | **Evidence** | Per-case captured artifacts (child stdout/stderr, shim log, session events) saved under the run's `evidence/` dir and linked from the report. | `evidence/l8-t1.out.txt` |
-| **Run artifacts** | The per-run output bundle: `report.md` (human checklist), `summary.json` (machine state), `test-cases.json` (checkpoint list), `inputs.json` (effective inputs), `evidence/`. | under `scripts/test/.artifacts/copilot-cli-subsession-args-audit/run-<ts>-<pid>/` when run from the repo |
+| **Run artifacts** | The per-run output bundle: `report.md` (human checklist), `summary.json` (machine state), `test-cases.json` (checkpoint list), `inputs.json` (effective inputs), `evidence/`. | under `skills/copilot-cli-subsession/tests/.artifacts/copilot-cli-subsession-args-audit/run-<ts>-<pid>/` when run from the repo |
 
 ## Model switching (live cases)
 

@@ -195,7 +195,7 @@ spec.loader.exec_module(cm)
 
 cases = [
     # repo helper invocations -> deterministic (pre-authored .ps1 / task / gh)
-    ("./scripts/git/Get-WorktreeContent.ps1 -Action Search -Pattern 'SessionInlineFileViewer' -Path src", "deterministic"),
+    ("./scripts/workspace/workspace-check.ps1 -Quick", "deterministic"),
     ("pwsh scripts/testing/Invoke-BrowserQaProbe.ps1 -Url https://localhost:62021/sessions -Steps @('wait:4000','shot:a.png')", "deterministic"),
     ("./scripts/workflow/Get-SessionRunState.ps1 -Action RunState -RunId 4cbfda30812d", "deterministic"),
     ("./scripts/dev/Inspect-PackageAsset.ps1 -Package blazorblueprint.components -Action Match -Pattern '\\.fixed\\{'", "deterministic"),

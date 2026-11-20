@@ -55,7 +55,7 @@ This redirects both eval session data and the embedded CLI extraction. Your main
 
 waza performs a **background version check** after every command and prints an update notice if a new version is available (e.g., "A newer version of waza is available: v0.39.1 → v0.40.1"). The check runs in a goroutine but `Result()` blocks up to **100ms** synchronously, and the GitHub API call is cached for **24h**. This is low-overhead but not zero — no additional LLM tokens, but a small network call and sync wait on each invocation. **Do not add a separate update-check mechanism** to the skill; rely on the built-in notice.
 
-For skill updates: re-run the workspace publish flow from the source (`scripts/publish/`, or the skills CLI). No runtime check is needed.
+For skill updates: re-run the Skills CLI flow from the source (`npx skills update`). No runtime check is needed.
 
 ### BYOK mode (no Copilot subscription)
 
@@ -66,13 +66,16 @@ This workspace uses **BYOK** (Bring Your Own Key) by default — no Copilot subs
 **Two selection paths:**
 
 1. **Interactive wizard** (recommended for terminal use) — dot-source with `-i` to launch the account-first picker. The wizard handles account scoping, disabled profiles, and `--account` auto-addition. Env vars are set in the current shell:
+
    ```powershell
    . skills/copilot-byok/scripts/byok-profile.ps1 set-env -i
    # → pick account (or skip) → pick profile → env vars applied to current shell
    ```
+
    **Note:** The wizard uses `Read-Host` for input and requires a real terminal. It will **not** work from the powershell tool (which doesn't support interactive input). Use the `ask_user` path below when running from a Copilot session.
 
 2. **Copilot `ask_user`** (for automated selection) — list profiles, present them via `ask_user`, then apply:
+
    ```powershell
    $profiles = & skills/copilot-byok/scripts/byok-profile.ps1 list
    # → ask_user with the profile list as enum options
@@ -86,6 +89,7 @@ This workspace uses **BYOK** (Bring Your Own Key) by default — no Copilot subs
 **Critical ordering:** Select the profile **before** switching `COPILOT_HOME` to the isolated dir. BYOK profiles are stored in `$COPILOT_HOME/byok-profiles.json` — if `COPILOT_HOME` is already set to the isolated dir, the wizard/list will find zero profiles.
 
 Both paths converge on:
+
 ```powershell
 # 1. Apply profile (COPILOT_HOME still points to main .copilot)
 . skills/copilot-byok/scripts/byok-profile.ps1 set-env <profile>
@@ -98,6 +102,7 @@ waza run skills/<name>/eval.yaml
 ```
 
 Key BYOK env vars (see [copilot-byok environment-variables](../copilot-byok/references/shared/environment-variables.md) for full reference):
+
 - `COPILOT_PROVIDER_BASE_URL` — provider endpoint
 - `COPILOT_MODEL` — model identifier
 - `COPILOT_PROVIDER_TYPE` — `openai` (default), `azure`, or `anthropic`
@@ -132,6 +137,7 @@ Run the zero-cost commands first — `waza check`, `waza tokens check`, and `waz
 Related skills: **real-session efficiency telemetry** (tokens/time/steps a finished run actually burned, plus waza-ready evidence for eval refinement) → the `copilot-session-telemetry` skill (formerly `agentic-workflow-benchmark`). `skill-eval` is deprecated — do not use it.
 
 Read references when needed:
+
 - [Eval format and graders](references/waza-eval-format.md) — authoring eval.yaml, task YAML, trigger tests
 - [Full command surface](references/waza-commands.md) — flags/subcommands not covered above
 - [CI integration](references/waza-ci.md) — wiring `waza gate`/`waza run` into GitHub Actions

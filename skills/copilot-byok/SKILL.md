@@ -1,52 +1,48 @@
 ---
 name: copilot-byok
-description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for both GitHub Copilot CLI and VS Code Chat. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI (including the account-first interactive -i wizard with scope filtering and enable/disable); switching between multiple accounts (API keys) for the same provider; configuring chatLanguageModels.json for VS Code; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE, and VS Code language model settings.
+description: Configure and switch between BYOK (Bring Your Own Key) LLM providers for GitHub Copilot CLI. Use when setting up OpenAI, Azure OpenAI, Anthropic, Ollama, Moonshot, OpenCode Go, OpenRouter, or other OpenAI-compatible endpoints; creating or switching reusable provider profiles for CLI (including the account-first interactive -i wizard with scope filtering and enable/disable); switching between multiple accounts (API keys) for the same provider; calculating max prompt or output token overrides; configuring wire API and reasoning effort; or troubleshooting COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_TYPE, COPILOT_PROVIDER_API_KEY, COPILOT_MODEL, COPILOT_PROVIDER_WIRE_API, COPILOT_PROVIDER_MAX_PROMPT_TOKENS, COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, COPILOT_OFFLINE.
 metadata:
   author: arisng
-  version: 0.21.2
+  version: 0.22.0
   lastVerified: 2026-09-23
 ---
 
 # Copilot BYOK Provider Configuration
 
-Use this skill to configure BYOK (Bring Your Own Key) LLM providers for **both GitHub Copilot CLI and VS Code Chat**. Manage repeatable CLI provider profiles and VS Code `chatLanguageModels.json` from a single source of truth.
+Use this skill to configure BYOK (Bring Your Own Key) LLM providers for **GitHub Copilot CLI**. Manage repeatable CLI provider profiles from a single source of truth.
 
 ## Follow this workflow
 
-1. Determine the **provider** (OpenCode Go, OpenRouter, …) and the **harness** (Copilot CLI or VS Code Chat) the user needs.
+1. Determine the **provider** (OpenCode Go, OpenRouter, …) the user needs.
 2. Read the reference file that matches the current need:
-   - Provider-specific content is grouped by LLM provider under `references/provider/<provider>/` (each provider has harness-specific files).
-   - Universal/shared mechanisms (env vars, API-key storage, VS Code file rules, reasoning-effort lookup, CLI account switching) live under `references/shared/`.
-3. For CLI, prefer `scripts/byok-profile.ps1` for repeated use or quick switching between providers.
-4. For VS Code, use the **Chat: Manage Language Models** UI command (see the provider's `vs-code.md`).
-5. Keep secrets out of files. Prefer `${ENV_VAR}` placeholders and user-scoped environment variables.
+   - Provider-specific content is grouped by LLM provider under `references/provider/<provider>/` (`cli.md`, plus a `README.md` index).
+   - Universal/shared mechanisms (env vars, API-key storage, reasoning-effort lookup, CLI account switching) live under `references/shared/`.
+3. Prefer `scripts/byok-profile.ps1` for repeated use or quick switching between providers.
+4. Keep secrets out of files. Prefer `${ENV_VAR}` placeholders and user-scoped environment variables.
 
 ## Choose the path
 
-### Provider + harness matrix
+### Provider matrix
 
-Read the provider file first, then the harness file:
+Read the provider file first:
 
-| Provider | Copilot CLI | VS Code Chat |
-|----------|-------------|--------------|
-| OpenCode Go | [`references/provider/opencode-go/cli.md`](references/provider/opencode-go/cli.md) | [`references/provider/opencode-go/vs-code.md`](references/provider/opencode-go/vs-code.md) |
-| OpenRouter | [`references/provider/openrouter/cli.md`](references/provider/openrouter/cli.md) | [`references/provider/openrouter/vs-code.md`](references/provider/openrouter/vs-code.md) |
-| Command Code | [`references/provider/commandcode/cli.md`](references/provider/commandcode/cli.md) | [`references/provider/commandcode/vs-code.md`](references/provider/commandcode/vs-code.md) |
-| Moonshot | [`references/provider/moonshot/cli.md`](references/provider/moonshot/cli.md) | [`references/provider/moonshot/vs-code.md`](references/provider/moonshot/vs-code.md) |
+| Provider | Copilot CLI |
+|----------|-------------|
+| OpenCode Go | [`references/provider/opencode-go/cli.md`](references/provider/opencode-go/cli.md) |
+| OpenRouter | [`references/provider/openrouter/cli.md`](references/provider/openrouter/cli.md) |
+| Command Code | [`references/provider/commandcode/cli.md`](references/provider/commandcode/cli.md) |
+| Moonshot | [`references/provider/moonshot/cli.md`](references/provider/moonshot/cli.md) |
 
-### Shared references (any provider, any harness)
+### Shared references (any provider)
 
 - **Env-var semantics / provider types / wire-format rules**: `references/shared/environment-variables.md` — read for manual one-off CLI setup or token-limit sizing.
 - **API key storage or rotation**: `references/shared/api-key-storage.md`.
-- **`chatLanguageModels.json` mechanism** (secret storage, per-agent model pinning, quick start, troubleshooting): `references/shared/chat-language-models-json.md` — read for VS Code BYOK setup.
-- **Reasoning-level configuration**: read the grounded per-model lookup `references/shared/reasoning-effort-lookup.md`, then apply `--reasoning-effort` per invocation. Cross-surface mapping (CLI flag ↔ env var ↔ SDK API ↔ VS Code) lives in the `copilot-cli-subsession` skill's [`copilot-sdk-parity-matrix.md`](../copilot-cli-subsession/references/copilot-sdk-parity-matrix.md).
+- **Reasoning-level configuration**: read the grounded per-model lookup `references/shared/reasoning-effort-lookup.md`, then apply `--reasoning-effort` per invocation. Cross-surface mapping (CLI flag ↔ env var ↔ SDK API) lives in the `copilot-cli-subsession` skill's [`copilot-sdk-parity-matrix.md`](../copilot-cli-subsession/references/copilot-sdk-parity-matrix.md).
 - **Multiple accounts for one provider (CLI)**: `references/shared/copilot-cli-accounts.md`.
-
-> VS Code uses `chatLanguageModels.json` and **ignores** `COPILOT_PROVIDER_*` env vars.
 
 ### Other scenarios
 
-- **New provider not yet documented**: create `references/provider/<provider>/` with `cli.md` + `vs-code.md` (mirroring `opencode-go/`), reuse `references/shared/*`, and register it in the matrix above. Keep the provider's model/reasoning-effort rows in the provider file, not in `shared/reasoning-effort-lookup.md`.
+- **New provider not yet documented**: create `references/provider/<provider>/` with `cli.md` (mirroring `opencode-go/`), reuse `references/shared/*`, and register it in the matrix above. Keep the provider's model/reasoning-effort rows in the provider file, not in `shared/reasoning-effort-lookup.md`.
 
 ## Use the profile manager first
 
@@ -135,22 +131,7 @@ Add `"accountGroup": "opencode"` to each profile that should use the registry (t
 .\scripts\byok-profile.ps1 run opencode-go-deepseek-v4-flash --account opencode-go-work
 ```
 
-Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves **or the account's `scope` differs from the profile's**, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-go-work` to `Invoke-CopilotCliSubSession.ps1`.
-
-### 4. Add the second account in VS Code Chat
-
-VS Code ignores the CLI `accounts` registry — each account is a **separate provider entry** with its own key in secret storage. To add the second account:
-
-1. **Chat: Manage Language Models → Add Models → Custom Endpoint**, name it `OpenCode Go (Work, OpenAI)`, paste the work key, API Type *Chat Completions*. This stores the key and writes a `${input:chat.lm.secret.*}` reference.
-2. Run the helper from the skill's `scripts/` folder — it renames the existing `OpenCode Go (OpenAI|Responses|Anthropic)` providers to `(Home, …)` and clones them as `(Work, …)` using the new secret reference:
-
-```powershell
-.\scripts\opencode-vscode-add-work-account.ps1
-```
-
-3. Reload the window (**Developer: Reload Window**); both accounts appear in the model picker.
-
-See `references/provider/opencode-go/vs-code.md` for the full manual table when you need more than two accounts, and `references/shared/copilot-cli-accounts.md` for the CLI registry semantics.
+Resolution order: `--account` flag → profile `account` pin → `activeAccount`. If nothing resolves **or the account's `scope` differs from the profile's**, the profile falls back to its legacy `apiKey` with a warning. For sub-sessions, pass `-ByokAccount opencode-go-work` to `Invoke-CopilotCliSubSession.ps1`. For the full registry semantics, see `references/shared/copilot-cli-accounts.md`.
 
 ## Reference index
 
@@ -158,32 +139,22 @@ References are grouped by **provider** (under `references/provider/`) and by **u
 
 - `references/provider/opencode-go/cli.md`
   - Read when configuring **OpenCode Go** for **Copilot CLI**: prerequisites and keys, base URL + endpoint per family, available-models table with reasoning-effort support, manual env-var examples, GPT-5.6 Luna wire-format matrix + grounded token overrides, profile-based setup.
-- `references/provider/opencode-go/vs-code.md`
-  - Read when configuring **OpenCode Go** for **VS Code Chat** (`chatLanguageModels.json`): full provider JSON per model family (chat-completions / responses / messages), multiple OpenCode Zen accounts (Home/Work) incl. the `opencode-vscode-add-work-account.ps1` helper.
 - `references/provider/openrouter/cli.md`
   - Read when configuring **OpenRouter** for **Copilot CLI**. Covers environment variables, `:floor` / `:nitro` routing suffixes, CLI profile, manual env-var setup, and the empirical per-model audit.
-- `references/provider/openrouter/vs-code.md`
-  - Read when configuring **OpenRouter** for **VS Code Chat** (`chatLanguageModels.json`). Covers the UI quick-add path and the ready-to-use provider JSON.
 - `references/provider/openrouter/README.md`
   - OpenRouter provider index: harness router + key provider facts.
 - `references/provider/commandcode/cli.md`
   - Read when configuring **Command Code** for **Copilot CLI**: prerequisites and keys, base URL, available models with token overrides, manual env-var examples, CLI profiles, multiple accounts.
-- `references/provider/commandcode/vs-code.md`
-  - Read when configuring **Command Code** for **VS Code Chat** (`chatLanguageModels.json`): UI quick-add and the full 9-model provider JSON.
 - `references/provider/commandcode/README.md`
   - Command Code provider index: harness router + key provider facts.
 - `references/provider/moonshot/cli.md`
   - Read when configuring **Moonshot (Kimi AI)** for **Copilot CLI**: prerequisites, base URL, available models, proxy setup for `top_p` workaround, profile examples, troubleshooting.
-- `references/provider/moonshot/vs-code.md`
-  - Read when configuring **Moonshot (Kimi AI)** for **VS Code Chat** (`chatLanguageModels.json`): UI quick-add, full provider JSON with proxy support, VS Code tasks configuration.
 - `references/provider/moonshot/README.md`
   - Moonshot provider index: key facts, model list, special requirements (`top_p` proxy).
 - `references/shared/environment-variables.md`
   - Read when you need CLI env-var semantics, provider types, wire-format rules, model requirements, token-override calculation, or offline-mode notes (any provider).
 - `references/shared/api-key-storage.md`
   - Read when the user needs secure key storage, persistent Windows environment variables, key rotation, or `${ENV_VAR}` placeholder guidance.
-- `references/shared/chat-language-models-json.md`
-  - Read when the user wants to configure BYOK models in **VS Code Chat**. Covers the config file, secret storage, shared model-configuration rules, per-agent model pinning via `.agent.md` frontmatter, agent-specific model settings, quick start, and troubleshooting.
 - `references/shared/reasoning-effort-lookup.md`
   - Read when you need the per-model `--reasoning-effort` support lookup and verification workflow (the authoritative source that `copilot-cli-subsession` defers to).
 - `references/shared/copilot-cli-accounts.md`
@@ -222,7 +193,7 @@ For OpenAI models, you may also enable summaries:
 
 Not all models support Copilot CLI's `--reasoning-effort` levels. If you get an error like:
 
-```
+```text
 Model "glm-5.2" does not support reasoning effort configuration (requested: "high").
 ```
 
@@ -241,8 +212,9 @@ When answering questions in this domain, always separate grounded facts from inf
 1. Cite authoritative evidence used (for example, `copilot --help`, `copilot help environment`, provider model docs).
 2. State what is directly evidenced versus inferred operational guidance.
 3. End with an explicit conclusion:
-  - `Grounding status: evidence-backed` when all key claims are directly supported.
-  - `Grounding status: mixed (evidence + inference)` when any recommendation is inferred.
+
+- `Grounding status: evidence-backed` when all key claims are directly supported.
+- `Grounding status: mixed (evidence + inference)` when any recommendation is inferred.
 
 Do not present inferred workarounds (for example wrapper aliases for sticky defaults) as first-class documented product features.
 
@@ -265,11 +237,12 @@ Some gateway providers (notably **OpenCode Go**) enforce per-request token limit
 
 **Empirical approach**: Test compaction at increasing context-usage levels. When compaction fails, derive the provider's effective limit:
 
-```
+```text
 maxPromptTokens = successfulCompactionTokens / 0.78
 ```
 
 For OpenCode Go's DeepSeek V4 models, the empirically validated safe values are:
+
 - `maxPromptTokens`: 325,000
 - `maxOutputTokens`: 64,000
 

@@ -64,8 +64,8 @@ See [framework.md](references/framework.md) for detailed principles, language pa
 
 Create documentation in this structure:
 
-```
-.docs/
+```text
+docs/
 ├── tutorials/          # Learning-oriented lessons
 │   └── [topic]/
 ├── how-to/             # Task-oriented guides
@@ -78,6 +78,7 @@ Create documentation in this structure:
 ```
 
 **Naming conventions:**
+
 - Use `kebab-case` for all files and folders
 - Tutorials: `getting-started-with-x.md`, `your-first-y.md`
 - How-to: `how-to-configure-x.md`, `how-to-deploy-y.md`
@@ -92,7 +93,7 @@ Use the Python script to automatically generate the `index.md` file:
 python skills/diataxis/scripts/generate_index.py
 ```
 
-This script scans the `.docs/` subfolders, extracts titles from `.md` files, and creates links organized by category. Run it whenever you add or remove documentation files to keep the index up-to-date.
+This script scans the `docs/` subfolders, extracts titles from `.md` files, and creates links organized by category. Run it whenever you add or remove documentation files to keep the index up-to-date.
 
 ## Common Workflows
 
@@ -129,9 +130,9 @@ This script scans the `.docs/` subfolders, extracts titles from `.md` files, and
 
 To keep the documentation index consistent and up-to-date:
 
-1. Ensure all documentation files are placed in the appropriate `.docs/` subfolders (`tutorials/`, `how-to/`, `reference/`, `explanation/`).
+1. Ensure all documentation files are placed in the appropriate `docs/` subfolders (`tutorials/`, `how-to/`, `reference/`, `explanation/`).
 2. Run the generation script: `python skills/diataxis/scripts/generate_index.py`
-3. The script will automatically scan for `.md` files, extract their titles, and update `.docs/index.md` with organized links.
+3. The script will automatically scan for `.md` files, extract their titles, and update `docs/index.md` with organized links.
 
 This workflow should be used after adding new documents or restructuring existing ones.
 

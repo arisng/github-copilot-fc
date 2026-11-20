@@ -25,7 +25,7 @@ The mapping below is an **example** from the author's workspace. Each repository
 | File Path Pattern | Type (Tier 2) | Scope (Tier 3) | Rationale |
 |-------------------|---------------|----------------|-----------|
 | `.issues/*` | `docs` | `issue` | Issue documentation and tracking |
-| `.docs/changelogs/*` | `docs` | `changelog` | Changelog files |
+| `docs/changelogs/*` | `docs` | `changelog` | Changelog files |
 | `.github/git-scope-constitution.md` | `docs` | `constitution` | Scope constitution governance |
 | `instructions/*.md` | `copilot` | `instruction` | Repository-level Copilot instructions |
 | `skills/*` | `agent` | `skill` | Agent skill definitions and implementations |

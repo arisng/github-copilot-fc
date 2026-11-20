@@ -2,8 +2,8 @@
 """
 Script to generate index.md for Diátaxis-organized documentation.
 
-Scans the specified docs root (default .docs) for subfolders: tutorials, how-to, reference, explanation.
-Recursively renders nested sub-category folders (e.g., reference/ralph/, how-to/copilot/cli/).
+Scans the specified docs root (default docs) for subfolders: tutorials, how-to, reference, explanation.
+Recursively renders nested sub-category folders (e.g., reference/blazor-agui/, how-to/copilot/cli/).
 Extracts titles from .md files and generates an index.md file with links organized by category
 and sub-category.
 """
@@ -75,7 +75,7 @@ def render_directory(directory, docs_root, heading_level):
     return content
 
 
-def main(docs_root='.docs'):
+def main(docs_root='docs'):
     """Generate the index.md file."""
     categories = {
         'tutorials': 'Tutorials',
@@ -135,5 +135,5 @@ This index links Diátaxis-organized documentation for the workspace.
     print(f"Generated {index_path}")
 
 if __name__ == '__main__':
-    docs_root = sys.argv[1] if len(sys.argv) > 1 else '.docs'
+    docs_root = sys.argv[1] if len(sys.argv) > 1 else 'docs'
     main(docs_root)

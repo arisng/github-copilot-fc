@@ -1,15 +1,13 @@
 # OpenRouter — Provider Overview (shared)
 
-This index links the two harness-specific files for the **OpenRouter** provider. Read only the file matching the harness you are configuring:
+This index links the CLI reference for the **OpenRouter** provider:
 
 - **Copilot CLI** → [`cli.md`](cli.md) — env vars, `:floor` / `:nitro` routing suffixes, CLI profiles, per-model audit
-- **VS Code Chat** → [`vs-code.md`](vs-code.md) — `chatLanguageModels.json` provider entries, per-agent model pinning
 
-Shared facts that apply to both harnesses (and every provider) live in [`../../shared/`](../../shared/):
+Shared facts that apply to every provider live in [`../../shared/`](../../shared/):
 
 - [`../shared/environment-variables.md`](../../shared/environment-variables.md) — `COPILOT_PROVIDER_*` env-var semantics and wire-format rules
 - [`../shared/api-key-storage.md`](../../shared/api-key-storage.md) — storing keys at User scope, `${ENV_VAR}` placeholders
-- [`../shared/chat-language-models-json.md`](../../shared/chat-language-models-json.md) — `chatLanguageModels.json` mechanism, per-agent pinning, quick start, troubleshooting
 - [`../shared/reasoning-effort-lookup.md`](../../shared/reasoning-effort-lookup.md) — per-model `--reasoning-effort` support
 
 ## Key provider facts (OpenRouter)

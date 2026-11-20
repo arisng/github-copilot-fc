@@ -1,6 +1,6 @@
 # OpenRouter — Copilot CLI
 
-Configuring the OpenRouter provider for **GitHub Copilot CLI**. For VS Code Chat, see [`vs-code.md`](vs-code.md). Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
+Configuring the OpenRouter provider for **GitHub Copilot CLI**. Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
 
 OpenRouter is an OpenAI-compatible endpoint that provides access to various models.
 
@@ -28,6 +28,7 @@ OpenRouter supports routing-mode suffixes that work universally across **all** m
 - **No suffix** — Default load-balanced routing: balances availability, throughput, and pricing across eligible providers.
 
 Works for any model slug:
+
 - `deepseek/deepseek-v4-pro:floor` / `deepseek/deepseek-v4-pro:nitro`
 - `deepseek/deepseek-v4-flash:floor` / `deepseek/deepseek-v4-flash:nitro`
 - `deepseek/deepseek-v4-flash-0731:floor` / `deepseek/deepseek-v4-flash-0731:nitro`
@@ -43,6 +44,7 @@ Add a profile using the byok-profile script:
 ```powershell
 .\scripts\byok-profile.ps1 add
 ```
+
 Then follow the prompts, or manually create a profile in `~/.copilot/byok-profiles.json`:
 
 ```json
@@ -167,6 +169,7 @@ When using OpenRouter as the gateway, it passes the reasoning effort parameter t
 ### Routing Suffixes on OpenRouter
 
 The `:floor` and `:nitro` suffixes are universal shortcuts documented by OpenRouter:
+
 - **`:floor`** → `provider.sort: "price"` — cheapest provider, typically uses FP4/INT4 quantization
 - **`:nitro`** → `provider.sort: "throughput"` — fastest provider (highest tokens/sec)
 - **No suffix** → OpenRouter's default load-balanced routing (price × speed × availability)

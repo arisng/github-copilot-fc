@@ -2,8 +2,6 @@
 
 Shared Copilot CLI mechanism, usable with any provider. When you hold multiple subscriptions for one provider (for example, **two OpenCode Zen accounts** with separate API keys), register them in the config and switch per session without editing profiles.
 
-> VS Code does **not** read this registry — see [`shared/chat-language-models-json.md`](chat-language-models-json.md) for the VS Code equivalent (one provider entry per account).
-
 ## Config shape
 
 `~/.copilot/byok-profiles.json`:

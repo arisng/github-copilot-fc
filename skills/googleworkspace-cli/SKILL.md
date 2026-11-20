@@ -730,6 +730,7 @@ gws auth revoke
 ```
 
 Common scopes:
+
 - `gmail.readonly` — Read emails only
 - `gmail.send` — Send emails
 - `gmail.modify` — Modify labels, archive, etc.
@@ -820,7 +821,8 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 **Error**: `403 Forbidden: The user has not granted the application the required scopes.`
 
 **Solution**:
-1. Go to Google Cloud Console: https://console.cloud.google.com
+
+1. Go to Google Cloud Console: <https://console.cloud.google.com>
 2. Enable the required APIs:
    - Gmail API
    - Google Drive API
@@ -830,6 +832,7 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
    - Google Chat API
    - Admin SDK
 3. Re-authenticate with gws:
+
    ```powershell
    gws auth revoke
    gws auth setup
@@ -840,15 +843,20 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 **Error**: `403 Forbidden: Permission denied. User must have appropriate permissions in the Google Cloud project.`
 
 **Solution**:
+
 - OAuth scopes may be too restrictive. Check current scopes:
+
   ```powershell
   gws auth status
   ```
+
 - Re-authenticate with broader scopes:
+
   ```powershell
   gws auth revoke
   gws auth setup --scopes "gmail.modify,drive.file,calendar.events,sheets,docs,chat,admin.directory.user"
   ```
+
 - Contact workspace admin to grant API access at domain level
 
 ### Issue 3: "Rate limited" (429 Too Many Requests)
@@ -856,19 +864,25 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 **Error**: `429 Too Many Requests: Quota exceeded for quota metric 'Gmail API Queries' and limit 'USER_100sec'.`
 
 **Solution**:
+
 - Reduce request rate:
+
   ```powershell
   # Add delay between batch operations
   gws gmail batch-modify --ids $ids --page-delay 1000 `
     --output json
   ```
+
 - Reduce page size:
+
   ```powershell
   # Fetch smaller batches
   gws gmail search --query $query --limit 10 --page-limit 5 `
     --output json
   ```
+
 - Wait and retry with exponential backoff:
+
   ```powershell
   $retryCount = 0
   while ($retryCount -lt 3) {
@@ -889,11 +903,15 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 **Error**: `401 Unauthorized: OAuth token has expired.`
 
 **Solution**:
+
 - Refresh token automatically:
+
   ```powershell
   gws auth login --refresh
   ```
+
 - Or re-authenticate completely:
+
   ```powershell
   gws auth revoke
   gws auth setup
@@ -904,16 +922,22 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 **Error**: `404 Not Found: File not found: invalid file ID.`
 
 **Solution**:
+
 - Verify file ID format (should be alphanumeric, ~30 characters):
+
   ```powershell
   # Get file ID from Drive UI or list:
   gws drive list --query "name='myfile.txt'" --output json
   ```
+
 - Check if file is in trash:
+
   ```powershell
   gws drive list --query "name='myfile.txt' and trashed=true" --output json
   ```
+
 - Share the file with your account (if owned by another user):
+
   ```powershell
   gws drive share --file-id $fileId --role reader --emails "your@example.com"
   ```
@@ -923,18 +947,24 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 **Error**: `408 Request Timeout: The request timed out.`
 
 **Solution**:
+
 - Increase timeout:
+
   ```powershell
   gws --timeout 120 sheets get --spreadsheet-id $id --range "Sheet1!A:Z" `
     --output json
   ```
+
 - Use pagination for large datasets:
+
   ```powershell
   gws sheets get --spreadsheet-id $id --range "Sheet1!A1:D1000" `
     --paginate --page-size 500 `
     --output json
   ```
+
 - Split operation into smaller chunks:
+
   ```powershell
   # Process 1000 rows at a time
   for ($i = 1; $i -le 100000; $i += 1000) {
@@ -950,24 +980,27 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 ## References
 
 ### Official Resources
-- **GitHub Repository**: https://github.com/googleworkspace/cli
-- **gws Documentation**: https://github.com/googleworkspace/cli/tree/main/docs
-- **Google Workspace APIs**: https://developers.google.com/workspace/apis
-- **Google Discovery Service**: https://developers.google.com/discovery/v1/reference
-- **OAuth2 Setup Guide**: https://developers.google.com/workspace/guides/create-credentials#oauth2_authorization
+
+- **GitHub Repository**: <https://github.com/googleworkspace/cli>
+- **gws Documentation**: <https://github.com/googleworkspace/cli/tree/main/docs>
+- **Google Workspace APIs**: <https://developers.google.com/workspace/apis>
+- **Google Discovery Service**: <https://developers.google.com/discovery/v1/reference>
+- **OAuth2 Setup Guide**: <https://developers.google.com/workspace/guides/create-credentials#oauth2_authorization>
 
 ### Related Skills and Agents
+
 - **Google Calendar CLI**: For calendar-specific operations and event management
-- **Ralph v2 Orchestration**: For coordinating multi-step workflows across services
 - **Issue Writer Skill**: Template for creating documentation and structured metadata
 
 ### Dependencies
-- **gws CLI** (Rust binary): https://github.com/googleworkspace/cli/releases
+
+- **gws CLI** (Rust binary): <https://github.com/googleworkspace/cli/releases>
 - **Google Workspace Account**: With appropriate admin/user permissions
 - **OAuth2 Credentials**: Created in Google Cloud Console
 - **Copilot CLI**: v1.0+ (for skill discovery and invocation)
 
 ### API Reference Quick Links
+
 - [Gmail API](https://developers.google.com/gmail/api/reference/rest)
 - [Drive API](https://developers.google.com/drive/api/reference/rest/v3)
 - [Calendar API](https://developers.google.com/calendar/api/reference/rest/v1)
@@ -987,6 +1020,7 @@ gws logs export --format csv --since "7 days ago" > audit-log.csv
 ## Support
 
 For issues, questions, or feature requests:
+
 1. Check the troubleshooting section above
 2. Review the [gws GitHub issues](https://github.com/googleworkspace/cli/issues)
 3. Consult [Google Workspace API docs](https://developers.google.com/workspace)

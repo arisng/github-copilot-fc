@@ -83,5 +83,4 @@ running it.
 - [agent-host-session-tools.md](agent-host-session-tools.md) — the Agent Host session tool surface, shared by the agent-host scenarios.
 
 This skill travels with its own directory, so it must not depend on files
-outside it. The workspace reference for the full Agent Host tool surface
-lives at `.docs/reference/copilot/vscode/copilot-vscode-agent-host-tools.md`.
+outside it. The full Agent Host tool surface is maintained in the workspace tools inventory (`tools/inventory.yaml`).

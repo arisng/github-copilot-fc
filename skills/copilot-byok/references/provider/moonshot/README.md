@@ -23,9 +23,8 @@ All Kimi models use the same base URL and authentication:
 
 ## Special Requirements
 
-**`top_p` parameter:** Kimi models only accept `top_p=0.95`, but VS Code Copilot BYOK always sends `top_p=1.0`. A local HTTPS proxy is required to strip `top_p` before forwarding.
+**`top_p` parameter:** Kimi models only accept `top_p=0.95`; when the harness sends `top_p=1.0`, a local HTTPS proxy strips it before forwarding (see the CLI guide).
 
 ## Harness-specific Documentation
 
 - [Copilot CLI](cli.md) — Profile setup, proxy configuration, credentials
-- [VS Code Chat](vs-code.md) — `chatLanguageModels.json` configuration with proxy

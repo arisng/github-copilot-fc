@@ -51,7 +51,6 @@ Single source of truth for **which surface exposes which sub-session capability*
 - [copilot-byok reasoning-effort lookup](../../copilot-byok/references/shared/reasoning-effort-lookup.md) — per-model reasoning-effort support (authoritative).
 - [copilot-byok CLI env vars](../../copilot-byok/references/shared/environment-variables.md) — BYOK env vars and provider examples.
 - [copilot-sdk-dotnet API reference](../../copilot-sdk-dotnet/references/api-reference.md) — SDK API surface.
-- [.docs customization matrix](../../../.docs/reference/copilot/cli/copilot-cli-customization-matrix.md) — cross-runtime compatibility of agent/hook/prompt artifacts (different concern: artifact formats, not capability parity).
 
 ## Grounding
 

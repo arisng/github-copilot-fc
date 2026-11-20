@@ -18,7 +18,7 @@ Use this file to tune the `description` field only. Model classifier is harness-
 | neg-02 | create a custom copilot agent file | no | no | pass | Routes to: copilot-cli-agent-customization — agent authoring |
 | neg-03 | build a copilot CLI extension | no | no | pass | Routes to: copilot-extension-builder |
 | neg-04 | run dotnet test in a copilot session | no | no | pass | Routes to: default agent — generic task, not sub-session orchestration |
-| neg-05 | publish my copilot skills to ~/.copilot | no | no | pass | Routes to: publishing workflow (publish-skills) |
+| neg-05 | publish my copilot skills to ~/.copilot | no | no | pass | Routes to: publishing workflow (skills CLI) |
 | neg-06 | set up MCP servers for copilot | no | no | pass | Routes to: MCP configuration |
 | neg-07 | run the byok profile script with flash model | no | no | pass | Routes to: copilot-byok — **overlap test** for removed trigger "copilot byok profile script" (pre-step fix verified) |
 | neg-08 | create an agent.md for copilot cli | no | no | pass | Routes to: copilot-cli-agent-customization — agent file authoring boundary |

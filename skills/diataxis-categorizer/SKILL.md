@@ -1,6 +1,6 @@
 ---
 name: diataxis-categorizer
-description: Classify documentation files into domain-based sub-categories within Diátaxis top-level categories (tutorials, how-to, reference, explanation). Use when organizing wiki files into sub-folders like ralph/, copilot/, sdk/ within a Diátaxis category, determining where a file belongs using the three-rule heuristic (keyword extraction → reuse check → create check → fallback), reclassifying research/ staging files into standard categories, or performing batch wiki reorganization. Supplements the `diataxis` skill which handles top-level classification — this skill adds sub-category depth.
+description: Classify documentation files into domain-based sub-categories within Diátaxis top-level categories (tutorials, how-to, reference, explanation). Use when organizing wiki files into sub-folders like blazor-agui/, copilot/, sdk/ within a Diátaxis category, determining where a file belongs using the three-rule heuristic (keyword extraction → reuse check → create check → fallback), reclassifying research/ staging files into standard categories, or performing batch wiki reorganization. Supplements the `diataxis` skill which handles top-level classification — this skill adds sub-category depth.
 metadata: 
   version: 1.0.0
   author: arisng
@@ -24,26 +24,26 @@ This skill adds **sub-category classification** to the Diátaxis framework. Whil
 
 Sub-categories are **domain-based folders** inside each Diátaxis top-level category:
 
-```
-.docs/
+```text
+docs/
 ├── tutorials/
-│   └── ralph/               # ≥3 ralph-related tutorials
+│   └── blazor-agui/          # ≥3 blazor-agui-related tutorials
 ├── how-to/
-│   ├── ralph/               # ≥3 ralph-related how-to guides
-│   └── copilot/             # ≥3 copilot-related how-to guides
+│   ├── blazor-agui/          # ≥3 blazor-agui-related how-to guides
+│   └── copilot/              # ≥3 copilot-related how-to guides
 ├── reference/
-│   ├── ralph/               # ≥3 ralph-related reference docs
-│   └── copilot/             # ≥3 copilot-related reference docs
+│   ├── blazor-agui/          # ≥3 blazor-agui-related reference docs
+│   └── copilot/              # ≥3 copilot-related reference docs
 ├── explanation/
-│   ├── ralph/               # ≥3 ralph-related explanations
-│   └── copilot/             # ≥3 copilot-related explanations
+│   ├── blazor-agui/          # ≥3 blazor-agui-related explanations
+│   └── copilot/              # ≥3 copilot-related explanations
 └── index.md
 ```
 
 **Naming convention**: `<category>/<domain>/filename.md`
 
-- Domain folder names: lowercase kebab-case (e.g., `ralph`, `copilot`, `blazor-agui`)
-- Each domain sub-folder is independent per category — `reference/ralph/` can exist without `tutorials/ralph/`
+- Domain folder names: lowercase kebab-case (e.g., `blazor-agui`, `copilot`, `sdk`)
+- Each domain sub-folder is independent per category — `reference/blazor-agui/` can exist without `tutorials/blazor-agui/`
 - Cross-domain files (spanning multiple domains) remain at the category root
 
 ### Known Domains
@@ -52,10 +52,9 @@ Primary domains for this workspace:
 
 | Domain | Keyword patterns | Description |
 |--------|-----------------|-------------|
-| `ralph` | ralph, session, orchestrator, executor, reviewer, librarian, subagent | Ralph v2 orchestration system |
-| `copilot` | copilot, copilot-fc, vscode, extension, agent, custom instruction | GitHub Copilot customization |
+| `blazor-agui` | blazor, ag-ui, blueprint, razor, agentic | Blazor AG-UI / agentic UI framework |
+| `copilot` | copilot, copilot-fc, extension, agent, custom instruction | GitHub Copilot customization |
 | `sdk` | sdk, copilot-sdk, acp, client | Copilot SDK / Agent Communication Protocol |
-| `blazor` | blazor, ag-ui, blueprint, razor | Blazor UI framework |
 
 Domains are extensible — new domains emerge when files naturally cluster around a keyword.
 
@@ -67,9 +66,9 @@ Given a file path and its content, determine the target sub-category:
 
 Extract the primary domain keyword from the file using this priority chain:
 
-1. **Filename prefix**: `ralph-subagent-contracts.md` → `ralph`
+1. **Filename prefix**: `copilot-cli-help.md` → `copilot`
 2. **Frontmatter `category` field**: `category: copilot` → `copilot`
-3. **H1 title scan**: `# Ralph v2 State Machine` → `ralph`
+3. **H1 title scan**: `# Copilot CLI Session Topology` → `copilot`
 4. **Content body scan**: Count domain keyword occurrences; dominant domain wins (must be >2× runner-up)
 
 If no single domain dominates, the file is **cross-domain** → stays at category root.
@@ -77,12 +76,14 @@ If no single domain dominates, the file is **cross-domain** → stays at categor
 ### Rule 2 — Reuse Check
 
 If an existing sub-category folder matches the extracted domain keyword:
+
 - **Recommend placing the file there**
-- Example: `reference/ralph/` exists and file domain is `ralph` → target is `reference/ralph/filename.md`
+- Example: `reference/blazor-agui/` exists and file domain is `blazor-agui` → target is `reference/blazor-agui/filename.md`
 
 ### Rule 3 — Create Check (≥3 Threshold)
 
 If no matching sub-category folder exists:
+
 - Count files at the category root (and in the current batch) that share the same domain keyword
 - If **≥3 files** share the domain → **recommend creating the sub-category** and moving all matching files
 - If **<3 files** → **fallback**: leave at category root (flat)
@@ -92,13 +93,14 @@ The ≥3 threshold prevents premature sub-folder creation for one-off files.
 ### Fallback
 
 File stays at the category root when:
+
 - No single domain keyword dominates (cross-domain)
 - Fewer than 3 peers share the domain and no existing sub-folder matches
 - Domain extraction yields no confident result
 
 ### Decision Flowchart
 
-```
+```text
 Input: file path + metadata
          │
     ┌────▼────┐
@@ -149,44 +151,14 @@ The `research/` folder is a **staging area**, not a permanent 5th Diátaxis cate
 ### Maturity Signals
 
 A research file is ready for reclassification when:
+
 - It has a clear single-purpose alignment (tutorial, how-to, reference, or explanation)
 - It no longer references in-progress investigation or speculative content
 - It can stand alone without session-specific context
 
-## Integration Point: Librarian PROMOTE Step 6.75
-
-This skill is designed to be invoked **inline** by the Librarian's PROMOTE workflow at **Step 6.75 — Sub-Category Resolution**, after top-level Diátaxis classification (Step 6) and content transformation (Step 6.5).
-
-### Contract
-
-**Input**:
-```
-file_path: string       # e.g., "reference/ralph-subagent-contracts.md"
-metadata:
-  title: string          # H1 or frontmatter title
-  category: string       # Already determined by diataxis skill (Step 6)
-  frontmatter: object    # Full frontmatter if available
-  body_preview: string   # First 500 chars of body (for keyword scan)
-```
-
-**Output**:
-```
-target_path: string      # e.g., "reference/ralph/ralph-subagent-contracts.md"
-action: "place" | "create_and_place" | "stay"
-domain: string | null    # Extracted domain keyword, null if cross-domain
-reason: string           # Human-readable explanation
-peers: string[]          # Other files that share the domain (for create_and_place)
-```
-
-### Behavior
-
-- **Pure classification function**: returns a recommendation, no side effects
-- The **caller** (Librarian) executes the actual file move
-- If `action` is `create_and_place`, the caller should also move the listed `peers`
-
 ## Batch Reorganization Workflow
 
-For retroactive reorganization of an existing `.docs/` wiki:
+For retroactive reorganization of an existing `docs/` wiki:
 
 ### Steps
 
@@ -200,11 +172,11 @@ For retroactive reorganization of an existing `.docs/` wiki:
   "scan_date": "2026-03-01",
   "proposed_moves": [
     {
-      "source": "reference/ralph-subagent-contracts.md",
-      "target": "reference/ralph/ralph-subagent-contracts.md",
-      "domain": "ralph",
+      "source": "reference/agentic-ux-spec-research.md",
+      "target": "reference/blazor-agui/agentic-ux-spec-research.md",
+      "domain": "blazor-agui",
       "action": "create_and_place",
-      "reason": "5 files share domain 'ralph' — creating sub-folder"
+      "reason": "5 files share domain 'blazor-agui' — creating sub-folder"
     },
     {
       "source": "reference/copilot-cli-help.md",
@@ -224,13 +196,13 @@ For retroactive reorganization of an existing `.docs/` wiki:
 }
 ```
 
-4. **Review**: Human reviews the manifest and approves/rejects individual moves
-5. **Execute**: Script executes approved moves (create folders, `mv` files)
-6. **Regenerate**: Run `python skills/diataxis/scripts/generate_index.py` to update `index.md`
+1. **Review**: Human reviews the manifest and approves/rejects individual moves
+2. **Execute**: Script executes approved moves (create folders, `mv` files)
+3. **Regenerate**: Run `python skills/diataxis/scripts/generate_index.py` to update `index.md`
 
 ### Batch Scan Command (Pseudocode)
 
-```
+```text
 For each category in [tutorials, how-to, reference, explanation]:
   files = list .md files at category root (not in sub-folders)
   domain_counts = {}

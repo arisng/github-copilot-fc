@@ -122,7 +122,7 @@ Verified present: `/help /model /init /diff /pr /review /plan /research /delegat
 | DeepSeek V4 Flash/Pro reasoning "only `low`, `medium`, `high`" | Partially | Grounded in the skill's own VS Code `supportsReasoningEffort` list + API error signatures. The provider catalog exposes **only** `id/object/created/owned_by` — no reasoning-effort metadata — so the level range cannot be confirmed from the API. Requires a live probe (`--reasoning-effort xhigh` on deepseek) for full confirmation. |
 | GPT-5.6 Luna "full range incl. `max`" | Partially | Same catalog limitation; grounded in models.dev + VS Code picker list. |
 | OpenCode Go path appending (`/chat/completions`, `/responses`, anthropic no `/v1`) | Partially | Base URL reachable (catalog fetch worked). Path-appending behavior is SDK/provider-doc sourced, not CLI-verifiable. |
-| `copilot plugin install <local path>` | Partially | `plugin --help` lists marketplaces/GitHub repos/subdirectories/git URLs, not explicit local paths. Verified operationally by `scripts/test/ralph-v2-cli-smoke.ps1`. |
+| `copilot plugin install <local path>` | Partially | `plugin --help` lists marketplaces/GitHub repos/subdirectories/git URLs, not explicit local paths. Verified operationally with a local marketplace install smoke test. |
 
 ---
 

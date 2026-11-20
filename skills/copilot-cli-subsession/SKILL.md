@@ -339,19 +339,16 @@ To isolate the sub-session, pass `-DisableBuiltInMcps` and/or `-NoCustomInstruct
 **Tight feedback loop** (develop the skill safely):
 
 1. **Edit** the artifact under test — e.g. `scripts/Invoke-CopilotCliSubSession.ps1`, this `SKILL.md`, or a referenced skill/agent.
-2. **Stage it** — repo-level skills/agents/hooks are picked up from the working directory (`.github/skills/`, `.github/agents/`, `.github/hooks/`) with **no extra step** (discovery is workspace-relative, independent of `COPILOT_HOME`). Personal-level artifacts can be staged with the publish scripts' `-CopilotHome` override:
+2. **Stage it** — repo-level skills/agents/hooks are picked up from the working directory (`.github/skills/`, `.github/agents/`, `.github/hooks/`) with **no extra step** (discovery is workspace-relative, independent of `COPILOT_HOME`). Personal-level artifacts are staged by copying them into the staging tree:
 
    ```powershell
-   # Agents → <CopilotHome>/agents (skips WSL mirroring)
-   pwsh -NoProfile -File scripts/publish/publish-agents.ps1 -CopilotHome "$HOME\.copilot-dojo" -Force
+   # Agents → <CopilotHome>/agents
+   Copy-Item -Recurse "$PWD\agents\*" "$HOME\.copilot-dojo\agents\"
 
-   # Instructions → <CopilotHome>\Code\{Stable|Insiders}\User\prompts (skips WSL)
-   pwsh -NoProfile -File scripts/publish/publish-instructions.ps1 -CopilotHome "$HOME\.copilot-dojo" -Force
+   # User-level hooks → <CopilotHome>/hooks
+   Copy-Item -Recurse "$PWD\hooks\*" "$HOME\.copilot-dojo\hooks\"
 
-   # User-level hooks → <CopilotHome>/hooks (skips WSL + VS Code settings mutation)
-   pwsh -NoProfile -File scripts/publish/publish-hooks.ps1 -Scope user-level -CopilotHome "$HOME\.copilot-dojo" -Force
-
-   # Or direct copy for anything else
+   # The skill under test → <CopilotHome>/skills
    Copy-Item -Recurse "$PWD\skills\copilot-cli-subsession" "$HOME\.copilot-dojo\skills\"
    ```
 
@@ -459,14 +456,11 @@ model hot-switching and cold-switch resume (`l8`: luna→flash across an exit+re
 pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1
 # Shim matrix + live probes (real keys; needs OPENCODE_API_KEY_WORK in this process)
 pwsh -NoProfile -File skills/copilot-cli-subsession/tests/Invoke-CopilotCliSubSession-args-audit.ps1 -Live
-# Dispatcher equivalents
-pwsh -NoProfile -File scripts/workspace/run-command.ps1 -Command tests:subsession-audit
-pwsh -NoProfile -File scripts/workspace/run-command.ps1 -Command tests:subsession-audit-live
 ```
 
 Exit codes: `0` all passed, `1` any failed, `2` harness/preflight error. Known-gap locks (s4-3, s5-4, s9-4,
 s11-2, l2, ...) report as PASS with a gap label so the harness stays green while documenting behavior.
-Reports land in `scripts/test/.artifacts/copilot-cli-subsession-args-audit/run-<ts>-<pid>/report.md`.
+Reports land in `skills/copilot-cli-subsession/tests/.artifacts/copilot-cli-subsession-args-audit/run-<ts>-<pid>/report.md`.
 Evolve cases in `tests/` and re-run on demand; the fixture (`tests/fixtures/byok-profiles.fixture.json`)
 drives throwaway-home cases so production and the dojo are never mutated (verified by isolation gates).
 

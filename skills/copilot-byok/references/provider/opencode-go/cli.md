@@ -1,6 +1,6 @@
 # OpenCode Go — Copilot CLI
 
-Configuring the OpenCode Go provider for **GitHub Copilot CLI**. For VS Code Chat, see [`vs-code.md`](vs-code.md). Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
+Configuring the OpenCode Go provider for **GitHub Copilot CLI**. Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ Configuring the OpenCode Go provider for **GitHub Copilot CLI**. For VS Code Cha
 [Environment]::SetEnvironmentVariable("OPENCODE_API_KEY_WORK", "<your-work-opencode-api-key>", "User")
 ```
 
-4. **One-time setup: configure DNS + cert for the session-header proxy.** OpenCode Go requires an `x-opencode-session` header on all requests (enforced since 2026-09-06). Copilot CLI does not natively support custom headers ([github/copilot-cli#3399](https://github.com/github/copilot-cli/issues/3399)), so a local proxy injects this header. Run once as admin:
+1. **One-time setup: configure DNS + cert for the session-header proxy.** OpenCode Go requires an `x-opencode-session` header on all requests (enforced since 2026-09-06). Copilot CLI does not natively support custom headers ([github/copilot-cli#3399](https://github.com/github/copilot-cli/issues/3399)), so a local proxy injects this header. Run once as admin:
 
 ```powershell
 .\scripts\setup-opencode-proxy-dns.ps1
@@ -30,6 +30,7 @@ OpenCode Go requires an `x-opencode-session` header (one stable UUID per convers
 **Workaround:** A local HTTPS proxy (`scripts/opencode-proxy.js`) intercepts requests, injects the `x-opencode-session` header, and forwards to `https://opencode.ai`. The proxy runs on `https://opencode-go.local:3001` (or `https://opencode-go.local` if elevated for port 443). It generates a UUID v4 at startup and reuses it for the proxy's lifetime.
 
 **How it works with profiles:**
+
 - Profiles with `"opencodeSessionHeader": true` automatically start the proxy and rewrite `baseUrl` to `https://opencode-go.local/v1` when you run `byok-profile.ps1 run` or `set-env`.
 - Existing profiles pointing to `https://opencode.ai/zen/go/v1` are **auto-migrated** on first access — the flag and rewritten URL are saved automatically.
 - The proxy is shared with the Moonshot proxy's cert infrastructure (`~/.copilot/moonshot-proxy/`).
@@ -38,13 +39,14 @@ OpenCode Go requires an `x-opencode-session` header (one stable UUID per convers
 
 ## Base URL
 
-```
+```text
 https://opencode.ai/zen/go/v1
 ```
 
 This single base URL serves every model. Copilot CLI appends the correct path based on `COPILOT_PROVIDER_TYPE` / `COPILOT_PROVIDER_WIRE_API`.
 
 **Endpoint per family (per [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints)):**
+
 - `COPILOT_PROVIDER_TYPE=openai` + wire API `completions` (default) → `https://opencode.ai/zen/go/v1/chat/completions` — DeepSeek, GLM, Kimi, MiMo (also verified working for the models probed 2026-08-03)
 - `COPILOT_PROVIDER_TYPE=openai` + wire API `responses` → `https://opencode.ai/zen/go/v1/responses` — GPT-5.6 Luna
 - `COPILOT_PROVIDER_TYPE=anthropic` → `https://opencode.ai/zen/go/v1/messages` — MiniMax (M3/M2.7/M2.5), Qwen (3.8 Flash/3.8 Max/3.7 Max/3.7 Plus/3.6 Plus). Note: the Messages API authenticates with `x-api-key` (not `Authorization: Bearer`); an early 2026-08-03 Bearer probe returned 401, which was an auth-header artifact, not an unsupported endpoint.
@@ -169,7 +171,8 @@ Use the bare model ID for `COPILOT_MODEL` (e.g., `deepseek-v4-flash`). The `open
 > **Endpoint note (2026-08-05)**: per the [OpenCode Go docs](https://opencode.ai/docs/go/#endpoints), Qwen3.x and MiniMax are listed at `/v1/messages` with `@ai-sdk/anthropic` (provider type `anthropic`, wire `messages`). A 2026-08-03 probe found these models also respond on `openai` / `chat/completions` (gateway tolerates both), but the documented path is `messages`. An early "401 on `/v1/messages`" observation used `Authorization: Bearer` — the Anthropic Messages API requires `x-api-key`, so that 401 was an auth-header artifact.
 
 > The model list may change over time. Fetch the current list at any time:
-> ```
+>
+> ```bash
 > curl https://opencode.ai/zen/go/v1/models
 > ```
 

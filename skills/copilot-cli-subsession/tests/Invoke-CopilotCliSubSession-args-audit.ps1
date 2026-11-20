@@ -83,7 +83,7 @@ if (-not (Test-Path $FixturePath -PathType Leaf)) { throw "Fixture not found: $F
 
 # --- Artifacts ---------------------------------------------------------------
 $reportTimestamp = (Get-Date).ToUniversalTime().ToString('yyMMdd-HHmmss')
-$script:reportDir = Join-Path $repoRoot ("scripts\test\.artifacts\copilot-cli-subsession-args-audit\run-{0}-{1}" -f $reportTimestamp, $PID)
+$script:reportDir = Join-Path $repoRoot ("skills\copilot-cli-subsession\tests\.artifacts\copilot-cli-subsession-args-audit\run-{0}-{1}" -f $reportTimestamp, $PID)
 $script:evidenceDir = Join-Path $script:reportDir 'evidence'
 $script:testCases = [ordered]@{}
 $script:harnessError = $null

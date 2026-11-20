@@ -1,6 +1,6 @@
 # Command Code — Copilot CLI
 
-Configuring the Command Code provider for **GitHub Copilot CLI**. For VS Code Chat, see [`vs-code.md`](vs-code.md). Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
+Configuring the Command Code provider for **GitHub Copilot CLI**. Provider-independent env-var semantics: [`../shared/environment-variables.md`](../../shared/environment-variables.md).
 
 ## Prerequisites
 
@@ -16,13 +16,14 @@ Restart your terminal after setting the variable.
 
 ## Base URL
 
-```
+```text
 https://api.commandcode.ai/provider/v1
 ```
 
 This single base URL serves every model. Copilot CLI appends the correct path based on `COPILOT_PROVIDER_TYPE` / `COPILOT_PROVIDER_WIRE_API`.
 
 **Endpoints:**
+
 - `COPILOT_PROVIDER_TYPE=openai` + wire API `completions` (default) → `https://api.commandcode.ai/provider/v1/chat/completions`
 - All models use OpenAI-compatible format.
 

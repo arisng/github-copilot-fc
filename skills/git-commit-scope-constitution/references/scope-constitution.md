@@ -28,18 +28,21 @@ This constitution defines the **Tier 3 (Workspace-Specific)** scopes for atomic 
 
 **Domain-Based Scopes:**
 Use when the change affects a specific domain or bounded context:
+
 - `auth`: Authentication and authorization
 - `billing`: Payment and subscription logic
 - `dashboard`: Dashboard UI and logic
 
 **Module-Based Scopes:**
 Use when the change affects a specific module or component:
+
 - `api-client`: API client library
 - `user-form`: User form component
 - `email-service`: Email service module
 
 **Feature-Based Scopes:**
 Use when the change is feature-specific:
+
 - `search`: Search functionality
 - `notifications`: Notification system
 - `export`: Export functionality
@@ -47,6 +50,7 @@ Use when the change is feature-specific:
 ### Anti-Patterns
 
 **Avoid These:**
+
 - ❌ Generic names: `misc`, `other`, `utils`, `common`, `stuff`
 - ❌ Action verbs: `adding`, `fixing`, `updating`
 - ❌ File extensions: `ts`, `md`, `json`
@@ -92,7 +96,7 @@ Documentation changes.
 | Scope          | Description                        | File Patterns                       |
 | -------------- | ---------------------------------- | ----------------------------------- |
 | `issue`        | Issue documentation and tracking   | `.issues/*`                    |
-| `changelog`    | Changelog files                    | `.docs/changelogs/*`                |
+| `changelog`    | Changelog files                    | `docs/changelogs/*`                 |
 | `constitution` | Scope constitution governance docs | `.github/git-scope-constitution.md` |
 | `[add-others]` | [Description]                      | [Patterns]                          |
 
@@ -139,6 +143,7 @@ For files without extended type mappings, use custom scopes based on the affecte
 ### Selection Criteria
 
 **Choose a scope that:**
+
 - ✅ Clearly identifies the affected component/domain
 - ✅ Is specific enough to be meaningful
 - ✅ Is general enough to be reusable
@@ -146,6 +151,7 @@ For files without extended type mappings, use custom scopes based on the affecte
 - ✅ Matches existing scope naming patterns
 
 **Avoid scopes that:**
+
 - ❌ Are too broad (e.g., `code`, `app`, `project`)
 - ❌ Are too narrow (e.g., specific file names or line numbers)
 - ❌ Overlap significantly with existing scopes
@@ -155,7 +161,8 @@ For files without extended type mappings, use custom scopes based on the affecte
 ### Examples
 
 **Good Scope Selection:**
-```
+
+```text
 File: skills/pdf/SKILL.md
 Type: agent
 Scope: skill ✅
@@ -163,7 +170,8 @@ Commit: agent(skill): add table extraction to pdf
 ```
 
 **Bad Scope Selection:**
-```
+
+```text
 File: skills/pdf/SKILL.md
 Type: agent
 Scope: pdf ❌ (instance-level — use category `skill`; put "pdf" in the subject)
@@ -176,12 +184,14 @@ Scope: SKILL ❌ (wrong case)
 ### Proposing New Scopes
 
 **When to Propose:**
+
 - New module/domain added to codebase
 - Existing scope is too broad and needs splitting
 - Consistent pattern of commits without clear scope
 - Change doesn't fit any existing scope
 
 **How to Propose:**
+
 1. Extract current scopes: `python3 skills/git-commit-scope-constitution/scripts/extract_scopes.py`
 2. Check if similar scope exists
 3. Draft scope definition following naming conventions
@@ -208,12 +218,14 @@ Scope: SKILL ❌ (wrong case)
 ### Approval Process
 
 **For Individual Contributors:**
+
 1. Propose amendment in pull request or issue
 2. Discuss with team
 3. Update constitution once approved
 4. Commit amendment with `docs(constitution)` type
 
 **For Weekly Refinements:**
+
 1. Extract scopes from past week
 2. Identify new scopes or anomalies
 3. Update constitution if patterns warrant
@@ -231,17 +243,20 @@ Scope: SKILL ❌ (wrong case)
 ### Lifecycle Management
 
 **Deprecation Criteria:**
+
 - Scope no longer relevant due to codebase changes
 - Scope consolidation (merging similar scopes)
 - Better scope naming identified
 
 **Deprecation Process:**
+
 1. Mark scope as deprecated in constitution
 2. Specify replacement scope
 3. Update documentation and examples
 4. After grace period (e.g., 1 quarter), retire scope
 
 **Example:**
+
 ```markdown
 ### Type: `ai` - DEPRECATED SCOPES
 
@@ -253,6 +268,7 @@ Scope: SKILL ❌ (wrong case)
 ### [DATE] - Amendment #1
 
 **Changes:**
+
 - Initial constitution created
 - Defined naming conventions
 - Documented scopes from git history analysis
@@ -268,6 +284,7 @@ None - initial version.
 ## Usage Notes
 
 This constitution should be:
+
 - **Version controlled**: Track changes in git
 - **Regularly updated**: Weekly or monthly reviews
 - **Referenced frequently**: Check before committing
