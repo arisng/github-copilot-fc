@@ -1,0 +1,38 @@
+# Task runner entry points for the Copilot FC workspace (taskfile.dev).
+#
+# The automated lint suite lives in scripts/workspace/ and is wired to git
+# hooks via core.hooksPath=.githooks:
+#   - .githooks/pre-commit -> task lint  (fast: changed markdown + schema/consistency)
+#   - .githooks/pre-push   -> task check (full suite)
+version: '3'
+
+tasks:
+  default:
+    desc: Run the full lint suite (alias of check)
+    cmds:
+      - task: check
+
+  lint:
+    desc: Quick lint - changed markdown + schema/consistency engine (pre-commit gate)
+    cmds:
+      - pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -Quick
+
+  check:
+    desc: Full lint suite - all workspace checks (pre-push gate)
+    cmds:
+      - pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
+
+  test:
+    desc: Run skill test suites (pytest over skills/)
+    cmds:
+      - python3 -m pytest skills -q
+
+  issues:index:
+    desc: Regenerate .issues/index.md from issue frontmatter
+    cmds:
+      - python3 skills/issue-md-writer/scripts/extract_issue_metadata.py
+
+  skills:catalog:
+    desc: Regenerate the skills catalog table in skills/README.md
+    cmds:
+      - python3 scripts/workspace/generate-skills-catalog.py
