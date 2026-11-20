@@ -76,7 +76,7 @@
     {
       "id": 13,
       "prompt": "generate today's report and make sure I can open the transcripts of every session it cites",
-      "expected_output": "After writing `reports/daily/<git user>/yymmdd.md`, runs `scripts/Export-SessionTranscripts.ps1 -ReportPath <path>`: every session mentioned in the body (short or full id, grill sessions excluded) lands as `sessions/<session-slug>.html` beside the report — real turns-only transcript when this machine holds the session, an explicit notice page when it does not — and the JSON receipt (total/exported/notice/kept) is quoted in the report-back. `Test-DailyReport.ps1` fails any report whose cited session lacks its `sessions/<slug>.html`, and the exported `*.html` files are git-ignored.",
+      "expected_output": "After writing `reports/daily/<git user>/yymmdd.md`, runs `scripts/Export-SessionTranscripts.ps1 -ReportPath <path> -CoverageJson <receipt>`: every session mentioned in the body (short or full id, grill sessions excluded) plus every in-scope session of that day's coverage receipt lands as `sessions/<session-slug>.html` beside the report — real turns-only transcript when this machine holds the session, an explicit notice page when it does not — and the JSON receipt (total/exported/notice/kept) is quoted in the report-back. `Test-DailyReport.ps1 -CoverageJson <receipt>` fails any report whose cited session lacks its `sessions/<slug>.html`, whose coverage receipt is missing or unverified, or whose in-scope session has no export; the exported `*.html` files and the receipt are git-ignored.",
       "files": []
     },
     {
@@ -89,6 +89,12 @@
       "id": 15,
       "prompt": "I keep several checkouts on this machine, but for this run only report this repository",
       "expected_output": "The manifest's `mode` dictates the active mode: `mode: \"single\"` grounds only the invoking checkout against `repo_names` and ignores `repos`, writing to the invoking checkout's `reports/daily/`; with no manifest present the run defaults to single mode. Multi-repo grounding never happens unless the manifest says `multi`.",
+      "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "before you save yesterday's report, prove that no local Copilot session from that day is missing",
+      "expected_output": "Runs `Get-SessionCoverage.ps1 -Date <day> -RepoRoot <root> -EvidenceJson <every per-repo evidence file>` and writes `sessions/<yymmdd>.coverage.json`: every session the store held that day is classified inScope / outOfScope / unattributed (nothing silently dropped), the in-scope ids are diffed against what evidence returned (`verified: true`, `missed` empty, `complete: true`), out-of-scope and unattributed sessions are named as grounding gaps in the report-back, and `Test-DailyReport.ps1 -CoverageJson <receipt>` passes only on that complete receipt.",
       "files": []
     }
   ]

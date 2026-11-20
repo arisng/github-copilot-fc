@@ -83,7 +83,7 @@ function Get-GlossaryRows([string]$Content, [string]$ExpectedOwner) {
             if ($term -eq '') { Fail 'empty term' ($i + 1) }
             if ($term.Length -gt 100) { Fail "term exceeds 100 characters ($($term.Length))" ($i + 1) }
             if ($meaning -eq '') { Fail 'empty meaning' ($i + 1) }
-            if (($meaning -split '\s+' | Where-Object { $_ }).Count -gt 25) { Fail 'meaning exceeds 25 words' ($i + 1) }
+            if (@($meaning -split '\s+' | Where-Object { $_ }).Count -gt 25) { Fail 'meaning exceeds 25 words' ($i + 1) }
             $rows += [ordered]@{ term = $term; meaning = $meaning; line = ($i + 1) }
             continue
         }
@@ -160,7 +160,7 @@ foreach ($t in $terms) {
     if ($term -eq '') { Fail 'term in TermsJson is empty' }
     if ($term.Length -gt 100) { Fail "term '$term' exceeds 100 characters" }
     if ($meaning -eq '') { Fail "meaning for '$term' is empty" }
-    if (($meaning -split '\s+' | Where-Object { $_ }).Count -gt 25) { Fail "meaning for '$term' exceeds 25 words" }
+    if (@($meaning -split '\s+' | Where-Object { $_ }).Count -gt 25) { Fail "meaning for '$term' exceeds 25 words" }
     if ($op -notin @('insert', 'refresh', 'keep')) { Fail "unknown op '$op' for '$term'" }
 
     $idx = -1
