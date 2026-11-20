@@ -35,9 +35,23 @@ meaning, not by raw match count.
 - **Markdown link to `~` or an absolute path** → inline code (link-checkers reject it):
   - before: `see the [d2 skill](~/.agents/skills/d2/SKILL.md)`
   - after: `see the \`d2\` skill (installed at \`~/.agents/skills/d2\`)`
+- **Angle brackets in `description`** → brace or plain-word placeholders:
+  skill-creator's `quick_validate.py` rejects `<` or `>` anywhere in the
+  description value while the factory schema allows them, so a placeholder
+  clears lint and dies at validate:
+  - before: `` rendered as `reports/daily/<git user>/yymmdd.md` ``
+  - after: `` rendered as `reports/daily/{git user}/yymmdd.md` ``
 
 Do not touch: CLI syntax, version pins, cross-platform commands, or anything already
 repo-agnostic. After rewriting, re-run the grep — only known false positives may remain.
+
+## Validate the candidate before the factory commit
+
+Run `python ~/.agents/skills/skill-creator/scripts/quick_validate.py <candidate-dir>`.
+It gates frontmatter shape the factory lint never looks at: required `name` /
+`description` / `metadata`, kebab name, description length, and the angle-bracket
+ban above. Green lint plus red validate is the cheap outcome; discovering the
+failure after the push is the expensive one.
 
 ## Frontmatter versioning (public skills only)
 

@@ -2,7 +2,7 @@
 name: join-copilot-fc
 description: "Extract (promote) a repo-level agent skill from the current repository into the github-copilot-fc skills factory and publish it as a user-level skill — the join-copilot-fc flow: locate the repo skill, strip repo-specific references, add metadata.version, commit and push inside the factory, then remove the skill from the source repo and repoint its references. Use when the user asks to 'promote this repo skill', 'extract the repo-level skill', 'move a skill into github-copilot-fc', 'make this repo skill public/user-level', 'install this repo skill globally', or says 'join-copilot-fc'. Not for updating or version-bumping an already-extracted skill, authoring a brand-new skill, or publishing skills that did not originate in a repo."
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   author: arisng
 ---
 
@@ -34,6 +34,12 @@ patterns and before/after rewrites. Rules of thumb:
   the published path `~/.agents/skills/<name>/…` or generic wording.
 - Keep behavior byte-identical: touch wording and paths only.
 - A link-checker rejects markdown links to `~` paths: reference them as inline code.
+- Validate the candidate copy before it reaches the factory: run skill-creator's
+  `~/.agents/skills/skill-creator/scripts/quick_validate.py <candidate-dir>` and
+  fix what it reports. The factory lint checks markdown; this checks frontmatter
+  shape (including the angle-bracket ban in `references/agnostic-checklist.md`).
+  A failure found here costs one edit — after the push it costs a follow-up
+  commit, a re-push, and a reinstall.
 
 ## 3. Land the skill in the factory
 
@@ -52,11 +58,16 @@ Factory clone: `C:\Workplace\Agents\github-copilot-fc` (branch `main`, remote
 
 3. Lint what you changed: `npx --yes markdownlint-cli2 skills/<name>/**/*.md`. TOC
    fragments must match heading anchors exactly (punctuation drops, spaces become `-`).
-4. Commit with the factory's style — `agent(skill): add <name> skill`. The post-commit
-   hook publishes the skill to `~/.agents/skills/` automatically.
+4. Commit with the factory's style — `agent(skill): add <name> skill`. The
+   pre-commit hook runs `workspace-check` in quick mode and prints the fix for
+   whatever failed.
 5. Push `origin main`. The pre-push hook runs `workspace-check` (markdownlint on changed
    `.md`, TOC freshness, skill pytest). Fix failures and re-push — the push landing is
-   what you report as installed.
+   the publish gate.
+6. Install what you pushed: `npx skills add arisng/github-copilot-fc -g -s <name> -y`
+   the first time, `npx skills update <name> -g -y` on a refresh. This clone ships
+   only `pre-commit` and `pre-push` hooks — the skills CLI is the install path, and
+   `~/.agents/.skill-lock.json` records it. Step 5 verifies the install.
 
 ## 4. Clean up the source repo
 
@@ -87,3 +98,6 @@ Factory clone: `C:\Workplace\Agents\github-copilot-fc` (branch `main`, remote
 3. **Correct with follow-up commits** in both repos; published history stays as is.
 4. **Leave the source repo's gate green** — your reference edits ship in the same
    commit as the skill deletion.
+5. **After a failed pre-commit hook, re-read `git status` before staging the
+   correction.** The failed attempt's files are still staged and ride into the
+   next commit under the wrong message.
