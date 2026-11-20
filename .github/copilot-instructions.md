@@ -21,7 +21,7 @@ Key facts:
 | `instructions/` | Custom instruction files (`meta.instructions.md`, `waza-eval.instructions.md`, `powershell.instructions.md`, `csharp-14.instructions.md`, `aspnetcore-10.instructions.md`); `.archived/` holds retired ones |
 | `hooks/` | Authored hook folders (`hooks/<name>/<name>.json` + `scripts/`) plus `hooks/README.md` |
 | `canvas/` | Canvas/extension sources: `machina-simulator/` and `session-md-reader/` (each has `extension.mjs`, `package.json`, README) |
-| `plugins/` | **Intentionally empty** (zero live plugins); reserved for a from-scratch rebuild |
+| `plugins/` | **Empty by design** — rebuild per purpose 1 |
 | `schemas/` | `plugin.schema.json`, `marketplace.schema.json`, `skill.schema.json` (JSON Schema draft 2020-12) |
 | `scripts/workspace/` | The whole lint suite: `workspace-check.ps1`, `check-consistency.ps1`, `validate-manifests.py`, `check-supply-chain.py`, `generate-skills-catalog.py`, `known-domains.txt` |
 | `evals/` | waza evaluations, one folder per evaluated skill |
@@ -31,7 +31,7 @@ Key facts:
 | `tools/` | Cross-runtime tools inventory (`tools/inventory.yaml`, drift report) |
 | `workshops/` | Workshop material (ignored by markdownlint) |
 | `.githooks/` | `pre-commit` and `pre-push` hooks |
-| `.archived/` | Retired material at repo root; leave it alone |
+| `.archived/` | Retired material (repo root and per-tree `.archived/` folders); never edit |
 | root | `Taskfile.yml`, `.markdownlint-cli2.jsonc`, `.waza.yaml` |
 
 ## The six purposes
@@ -115,7 +115,7 @@ pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -Quick # pre-commit 
 
 Full-suite checks, in order:
 
-1. **Markdown lint** — markdownlint-cli2 over `.md` files changed in the working tree or pending on the branch (a ratchet: touch it, fix it).
+1. **Markdown lint** — full-repo markdownlint-cli2 scan compared with the frozen-debt baseline `scripts/workspace/markdown-debt-baseline.txt`: legacy debt passes at its recorded per-file count, and any new file or count increase FAILs (regenerate the baseline with `workspace-check.ps1 -UpdateMarkdownBaseline` only to accept a reviewed change).
 2. **Consistency** — `scripts/workspace/check-consistency.ps1`: jsonschema validation via `validate-manifests.py` (plugin/skill/marketplace schemas + instruction frontmatter), cross-file rules (skill dir ↔ name, 500-line body budget, agent name uniqueness, EMBED marker resolution, no `-beta` identity in source), skills-catalog freshness, issues index freshness, and marketplace parity via the shipped verifier when a marketplace index exists.
 3. **waza check** — advisory skill-quality report; never blocking.
 4. **Supply chain** — `scripts/workspace/check-supply-chain.py`: flags shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags, and link domains outside `scripts/workspace/known-domains.txt` (warn-first; `--strict` is the future ratchet target, `--update-allowlist` regenerates the list).
@@ -137,7 +137,7 @@ task skills:catalog  # regenerate the skills catalog in skills/README.md
 
 ### Git hooks
 
-`core.hooksPath` is `.githooks` — **never repoint it**. `.githooks/pre-commit` runs the quick mode (`workspace-check.ps1 -Quick`); `.githooks/pre-push` runs the full suite. Both skip cleanly when `pwsh` is missing so a clone without PowerShell is never bricked.
+`core.hooksPath` is `.githooks` — **never repoint it**. Wire each fresh clone or worktree once with `task hooks:install`. `.githooks/pre-commit` runs the quick mode (`workspace-check.ps1 -Quick`); `.githooks/pre-push` runs the full suite. Both skip cleanly when `pwsh` is missing so a clone without PowerShell is never bricked.
 
 ### Schemas
 
@@ -148,7 +148,7 @@ task skills:catalog  # regenerate the skills catalog in skills/README.md
 `.markdownlint-cli2.jsonc` disables MD013 (line length), MD024 with `siblings_only` (repeated section names across different parents), MD033, MD036, MD028, and MD060. It has no globs on purpose — inputs come from the caller so a bare config can never fan out to a whole-repo lint of legacy docs. To lint one file manually:
 
 ```bash
-npx --yes markdownlint-cli2 .github/copilot-instructions.md
+npx --yes markdownlint-cli2@0.24.2 .github/copilot-instructions.md
 ```
 
 ## Docs & issues conventions
@@ -163,20 +163,7 @@ npx --yes markdownlint-cli2 .github/copilot-instructions.md
 - **PowerShell 7+ only**: invoke scripts as `pwsh -NoProfile -File <path>`. Never Windows PowerShell 5.1 — the suite uses `Set-StrictMode -Version Latest` and modern syntax.
 - **`python3`, never `python`**: every Taskfile command and doc example uses `python3` (for example `python3 scripts/workspace/generate-skills-catalog.py`).
 - **Forward slashes** in all markdown links and doc snippets, even on Windows.
-- **Kebab-case file names** for every new file and folder.
+- **Kebab-case directory names** in every authored tree — FAIL-checked by the consistency engine; file names are kebab-case too except where a toolchain owns the name (pytest `test_*.py`, waza `trigger_tests.yaml`).
 - **`&&` only for native commands** (e.g. `npm test && git status`); in PowerShell scripts use `;` and explicit `if` blocks instead.
 - `task` (go-task v3) is installed and is the supported entry point for lint/test/index commands; `git` and `npx` are required by the lint suite.
-
-## Common pitfalls
-
-1. Adding or renaming a skill without `task skills:catalog` → catalog freshness finding.
-2. Editing an instruction file without `applyTo` or a 1–500 char `description` → `validate-manifests.py` FAIL.
-3. Growing a SKILL.md past 500 lines → WARN ratchet; move detail into `references/`.
-4. Creating `skills/<dir>` whose frontmatter `name` differs → consistency FAIL.
-5. Adding an `.issues/*.md` file without `task issues:index` → stale index finding.
-6. Touching `.githooks/` contents or `core.hooksPath` → forbidden; hooks are the gate.
-7. Putting anything into `plugins/` outside a deliberate plugin-builder rebuild → the directory is reserved and empty by design.
-8. Re-running scripts with `powershell` (5.1) or `python` → intermittent failures; use `pwsh` and `python3`.
-9. Duplicating waza policy prose that `instructions/waza-eval.instructions.md` already owns (it is the single source of truth), or wiring `waza run`/`waza gate` into CI → both violate recorded policy.
-10. Editing material under `.archived/`, `agents/.archived/`, `instructions/.archived/`, or `skills/.archived/` → retired content stays retired.
-11. Introducing a new lint WARN "just this once" → the ratchet only shrinks; fix the violation instead.
+- **Tool-quirk sharp edges**: pass filesystem paths to search/listing tools as plain strings (never JSON-array-shaped strings), and hand grep-style tools a **directory** plus a glob — a file path or array fails with "Search paths do not exist". Address the shell tool by its lowercase name `powershell`. `Select-String -Context` needs the space (`-Context 1,1`, never `-Context1,1`). Wrap one-item pipelines in `@()` before splatting (`& cmd @scalar` otherwise passes one character per argument), and write `${var}:` when a variable meets a colon inside a double-quoted string.
