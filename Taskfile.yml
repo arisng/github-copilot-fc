@@ -25,6 +25,11 @@ tasks:
     cmds:
       - pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
 
+  check:linux:
+    desc: Skill Pester suites in a Linux container (ubuntu-latest parity; requires Docker)
+    cmds:
+      - pwsh -NoProfile -File scripts/workspace/linux-pester.ps1
+
   test:
     desc: Run skill test suites (pytest over skills/)
     cmds:
