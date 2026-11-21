@@ -99,7 +99,7 @@ $timeClause
 ORDER BY s.created_at DESC
 "@
 
-$sessions = Convert-SqliteJson (sqlite3.exe -json $SessionDbPath $sessionsQuery 2>$null)
+$sessions = Convert-SqliteJson (sqlite3 -json $SessionDbPath $sessionsQuery 2>$null)
 
 $hasSessions = $sessions -and $sessions.Count -gt 0
 
@@ -130,7 +130,7 @@ WHERE t.session_id IN ($sessionIds)
   AND t.turn_index = 0
 ORDER BY t.session_id
 "@
-$firstTurns = Convert-SqliteJson (sqlite3.exe -json $SessionDbPath $firstTurnsQuery 2>$null)
+$firstTurns = Convert-SqliteJson (sqlite3 -json $SessionDbPath $firstTurnsQuery 2>$null)
 
 # 3. Query last turn (user_message + assistant_response) per session for status
 $lastTurnsQuery = @"
@@ -144,7 +144,7 @@ INNER JOIN (
 ) t2 ON t1.session_id = t2.session_id AND t1.turn_index = t2.max_turn
 ORDER BY t1.session_id
 "@
-$lastTurns = Convert-SqliteJson (sqlite3.exe -json $SessionDbPath $lastTurnsQuery 2>$null)
+$lastTurns = Convert-SqliteJson (sqlite3 -json $SessionDbPath $lastTurnsQuery 2>$null)
 
 # 4. Query session files (modified/created files)
 $filesQuery = @"
@@ -153,7 +153,7 @@ FROM session_files
 WHERE session_id IN ($sessionIds)
 ORDER BY session_id, turn_index
 "@
-$sessionFiles = Convert-SqliteJson (sqlite3.exe -json $SessionDbPath $filesQuery 2>$null)
+$sessionFiles = Convert-SqliteJson (sqlite3 -json $SessionDbPath $filesQuery 2>$null)
 
 # 5. Query session refs (PRs, issues, commits)
 $refsQuery = @"
@@ -162,7 +162,7 @@ FROM session_refs
 WHERE session_id IN ($sessionIds)
 ORDER BY session_id, ref_type
 "@
-$sessionRefs = Convert-SqliteJson (sqlite3.exe -json $SessionDbPath $refsQuery 2>$null)
+$sessionRefs = Convert-SqliteJson (sqlite3 -json $SessionDbPath $refsQuery 2>$null)
 
 # 6. Get recent git commits (only when in a git repo)
 $gitLog = @()

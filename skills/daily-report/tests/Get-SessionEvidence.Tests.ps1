@@ -6,7 +6,7 @@ Describe 'Get-SessionEvidence.ps1' {
         git -C $repo init -q
         git -C $repo remote add origin 'https://github.com/o/r.git'
         $db = Join-Path $TestDrive 'store.db'
-        sqlite3.exe $db @'
+        sqlite3 $db @'
 CREATE TABLE sessions (id TEXT, branch TEXT, summary TEXT, repository TEXT, created_at TEXT, updated_at TEXT, cwd TEXT);
 CREATE TABLE turns (session_id TEXT, turn_index INT, user_message TEXT, assistant_response TEXT, timestamp TEXT);
 CREATE TABLE session_files (session_id TEXT, file_path TEXT, tool_name TEXT, turn_index INT);
@@ -24,7 +24,7 @@ INSERT INTO session_files VALUES ('s1','b.txt','edit',1);
 INSERT INTO session_files VALUES ('s1','c.txt','create',2);
 '@
         # s4: repository never recorded - grounds only by cwd under the checkout.
-        sqlite3.exe $db "INSERT INTO sessions VALUES ('s4',NULL,'cwd fallback only','','2026-11-09','2026-11-09','$repo\sub');"
+        sqlite3 $db "INSERT INTO sessions VALUES ('s4',NULL,'cwd fallback only','','2026-11-09','2026-11-09','$repo\sub');"
         if ($LASTEXITCODE -ne 0) { throw 'fixture db creation failed' }
     }
 

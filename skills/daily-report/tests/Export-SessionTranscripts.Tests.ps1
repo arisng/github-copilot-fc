@@ -15,7 +15,7 @@ Describe 'Export-SessionTranscripts.ps1' {
 '@
         Set-Content -Path (Join-Path $evDir 'events.jsonl') -Value $events -Encoding utf8
         $db = Join-Path $fxHome 'session-store.db'
-        sqlite3.exe $db @'
+        sqlite3 $db @'
 CREATE TABLE sessions (id TEXT, summary TEXT, cwd TEXT, repository TEXT, branch TEXT, created_at TEXT);
 CREATE TABLE turns (session_id TEXT, turn_index INT, user_message TEXT, assistant_response TEXT, timestamp TEXT);
 INSERT INTO sessions VALUES ('ccccdddd-0000-4000-8000-000000000001','fixture db session','C:/fixture','o/r','main','2026-11-17T08:00:00');

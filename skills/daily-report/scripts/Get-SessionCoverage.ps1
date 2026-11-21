@@ -119,7 +119,9 @@ INNER JOIN turns t ON t.session_id = s.id
 WHERE t.timestamp >= '$utcStartStr' AND t.timestamp < '$utcEndStr'
 ORDER BY s.id
 "@
-$raw = ((sqlite3.exe -json $SessionDbPath $query 2>$null) -join "`n").Trim()
+# Bare `sqlite3`: resolves sqlite3.exe via PATHEXT on Windows and the CLI on
+# Linux/macOS (CI runners ship the plain name only).
+$raw = ((sqlite3 -json $SessionDbPath $query 2>$null) -join "`n").Trim()
 $rows = @()
 if ($raw) { $rows = @($raw | ConvertFrom-Json) }
 

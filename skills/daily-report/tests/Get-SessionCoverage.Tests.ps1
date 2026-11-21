@@ -10,7 +10,7 @@ Describe 'Get-SessionCoverage.ps1' {
 
         $db = Join-Path $TestDrive 'store.db'
         $sub = Join-Path $tower 'deep'
-        sqlite3.exe $db @"
+        sqlite3 $db @"
 CREATE TABLE sessions (id TEXT, cwd TEXT, repository TEXT, summary TEXT, created_at TEXT, updated_at TEXT);
 CREATE TABLE turns (session_id TEXT, turn_index INT, user_message, assistant_response TEXT, timestamp TEXT);
 INSERT INTO sessions VALUES ('k1', 'C:/elsewhere', 'o/r', 'key matched', '2026-11-10', '2026-11-10');
@@ -29,7 +29,7 @@ INSERT INTO turns VALUES ('u1', 0, 'q', 'a', '2026-11-10T05:00:00');
         $fullX1 = 'cccccccc-1111-4222-8333-444444444444'
         $fullU1 = 'dddddddd-1111-4222-8333-444444444444'
         # Re-key the fixture rows to full uuids the receipt carries verbatim.
-        sqlite3.exe $db @"
+        sqlite3 $db @"
 UPDATE sessions SET id = '$fullK1' WHERE id = 'k1';
 UPDATE sessions SET id = '$fullC1' WHERE id = 'c1';
 UPDATE sessions SET id = '$fullX1' WHERE id = 'x1';

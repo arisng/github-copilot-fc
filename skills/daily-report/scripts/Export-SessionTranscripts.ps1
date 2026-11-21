@@ -132,7 +132,8 @@ function Resolve-Session([string]$Id) {
     }
     $dbIds = @()
     if (Test-Path -LiteralPath $storeDb) {
-        $raw = ((sqlite3.exe -json $storeDb "SELECT DISTINCT session_id FROM turns WHERE session_id LIKE '$Id%';" 2>$null) -join "`n").Trim()
+        # Bare `sqlite3`: PATHEXT resolves it on Windows, plain name on Linux/macOS.
+        $raw = ((sqlite3 -json $storeDb "SELECT DISTINCT session_id FROM turns WHERE session_id LIKE '$Id%';" 2>$null) -join "`n").Trim()
         if ($raw) { foreach ($row in @($raw | ConvertFrom-Json)) { $dbIds += ([string]$row.session_id).ToLowerInvariant() } }
     }
     foreach ($x in $dbIds) { $candidates[$x] = $true }

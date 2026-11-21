@@ -1,5 +1,8 @@
 Describe 'Invoke-DailyReportBatch.ps1' {
     BeforeAll {
+        # Linux has no TEMP env var (Windows-only); the stubs and assertions
+        # below log through it, so point it at the platform temp dir when unset.
+        if (-not $env:TEMP) { $env:TEMP = [System.IO.Path]::GetTempPath() }
         $batch = Join-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts') 'Invoke-DailyReportBatch.ps1'
         $repo = Join-Path $TestDrive 'repo'
         New-Item -ItemType Directory -Force -Path $repo | Out-Null
@@ -89,6 +92,10 @@ exit 0
         $watched = Join-Path $TestDrive 'watched-batch'
         New-Item -ItemType Directory -Force -Path $watched | Out-Null
         git -C $watched init -q
+        # Hermetic fixture: CI runners have no global git identity, and the
+        # batch resolves -Author per repo via `git config user.email`.
+        git -C $watched config user.name 'alice'
+        git -C $watched config user.email 'alice@example.com'
         $env:BATCH_STUB_MANIFEST_MODE = 'multi'
         $env:BATCH_STUB_WATCHED = $watched
         try {

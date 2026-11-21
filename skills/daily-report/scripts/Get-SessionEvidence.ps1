@@ -118,7 +118,9 @@ ORDER BY s.updated_at DESC
 # sqlite3 -json pretty-prints multi-row results across lines; join before
 # parsing or ConvertFrom-Json chokes on the row separators.
 function Invoke-SqliteJson([string]$Query) {
-    $raw = ((sqlite3.exe -json $SessionDbPath $Query 2>$null) -join "`n").Trim()
+    # Bare `sqlite3`: resolves sqlite3.exe via PATHEXT on Windows and the
+    # CLI on Linux/macOS (CI runners ship the plain name only).
+    $raw = ((sqlite3 -json $SessionDbPath $Query 2>$null) -join "`n").Trim()
     if (-not $raw) { return @() }
     return @($raw | ConvertFrom-Json)
 }
