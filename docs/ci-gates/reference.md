@@ -23,7 +23,7 @@ the exact command (`task check`) that defines the full local gate.
 
 | Mode | Switch | Invoked by | Checks run |
 |---|---|---|---|
-| Quick | `-Quick` | `task lint`, `.githooks/pre-commit` | Markdown lint, Consistency |
+| Quick | `-Quick` | `task lint`, `.githooks/pre-commit` | Markdown lint, Consistency, PowerShell lint |
 | Push | `-SkipAdvisoryWaza` | `.githooks/pre-push` (prints a banner first, then runs) | full suite minus advisory `waza check` |
 | Full | (none) | `task check` (and `task` with no args), CI | full suite |
 
@@ -33,6 +33,8 @@ the exact command (`task check`) that defines the full local gate.
 |---|---|---|---|
 | Markdown lint | yes | yes | yes |
 | Consistency | yes | yes | yes |
+| PowerShell lint | yes | yes | yes |
+| waza pin parity | — | yes | yes |
 | waza check (advisory) | — | — | yes |
 | Supply chain | — | yes | yes |
 | Eval preflight | — | yes | yes |
@@ -61,6 +63,7 @@ updated together when a check is added, moved between modes, or retired.
 | `.githooks/pre-push` | `git push` (banner prints first) | Push | the push |
 | `task lint` | manual | Quick | nothing (exit code only) |
 | `task check` | manual; default task | Full | nothing (exit code only); this is also the CI command |
+| `task check:linux` | manual | Pester suites in a Linux container | nothing (exit code only); see Coverage constraints |
 
 Hooks are wired by `core.hooksPath=.githooks`, set once per clone via
 `task hooks:install`. `core.hooksPath` is never repointed.
@@ -75,7 +78,7 @@ Go + waza (pinned `v0.40.1`), Python 3.12 with `jsonschema`, `PyYAML`, and
 | Tool | Pinned by |
 |---|---|
 | markdownlint-cli2 `0.24.2` | `workspace-check.ps1` (same pin in both lanes) |
-| waza `v0.40.1` | CI install step; the local lane uses whatever version is installed (0.39.0 on the 2026-11-21 machine) |
+| waza `v0.40.1` | CI install step (`cmd/waza@v0.40.1`); the `waza pin parity` check fails a stamped local release that differs (a `dev` build passes - its content comes from the pin) |
 
 ## Coverage constraints
 
@@ -83,6 +86,11 @@ Facts that bound what each lane guarantees:
 
 - A clone that never ran `task hooks:install` has no local gates; CI is then
   the only lane, and only for pushes to `main` and PRs.
+- The local lane runs on Windows while CI runs ubuntu-latest. Most checks are
+  platform-independent, but Pester suites are not (32/145 failed in CI while
+  green locally, retro 2026-11-21); `task check:linux` runs them in a Linux
+  container for parity. It needs docker plus a network fetch on first run
+  (image pull, Pester, apt packages) and fails loudly when docker is absent.
 - `pwsh` missing from `PATH` makes each hook skip (exit 0) rather than block.
 - `git commit --no-verify` / `git push --no-verify` bypasses the local lane.
 - A direct push to a non-`main` branch with no PR, from an unwired clone, runs

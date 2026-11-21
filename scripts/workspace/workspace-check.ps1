@@ -5,9 +5,9 @@
 .DESCRIPTION
     Runs the repo's lint checks in one command. Three modes:
 
-    -Quick : fast checks only - markdown lint (full scan vs debt baseline)
-             plus the cross-file consistency/schema engine. Wired to
-             .githooks/pre-commit and `task lint`.
+    -Quick : fast checks only - markdown lint (full scan vs debt baseline),
+             the cross-file consistency/schema engine, and the PowerShell
+             lint. Wired to .githooks/pre-commit and `task lint`.
 
     -SkipAdvisoryWaza : full suite minus the advisory waza check (~21 s,
              never blocks). Wired to .githooks/pre-push so pushes stay fast;
@@ -17,10 +17,11 @@
              from the current scan. Run only to accept a reviewed change (or to
              shrink the ratchet after fixing debt); the diff shows every entry.
 
-    (full) : everything -Quick runs, plus the waza advisory report, the
-             supply-chain scan, and offline eval preflight. Wired to
-             `task check` and .github/workflows/ci.yml. Every result line
-             carries the check's elapsed seconds.
+    (full) : everything -Quick runs, plus waza pin parity, the waza advisory
+             report, the supply-chain scan, offline eval preflight, and both
+             skill test suites (pytest + Pester). Wired to `task check` and
+             .github/workflows/ci.yml. Every result line carries the check's
+             elapsed seconds.
 
     Checks (full suite):
     1. Markdown lint - full-repo markdownlint-cli2 scan compared against the
@@ -35,21 +36,35 @@
        body budgets, agent name uniqueness, EMBED marker resolution, no -beta
        identity in source), skills-catalog freshness, issues-index freshness,
        and marketplace parity via the shipped verifier once an index exists.
-    3. waza check (advisory) - skill-quality report (exit 2 = known pre-existing
+    3. PowerShell lint - scripts/workspace/check-powershell.ps1 over every
+       shipped .ps1: parse failures, the param-clobber pattern (an argument
+       overwritten before its first read), and cross-platform portability
+       rules (command-position .exe invocations; $env:TEMP in *.Tests.ps1) -
+       the Windows-only spellings that passed the local lane while failing
+       ubuntu-latest (retro 2026-11-21).
+    4. waza pin parity - a stamped local waza release must equal the exact
+       pin in .github/workflows/ci.yml: preflight classification is
+       version-sensitive (0.39.0 passed an eval 0.40.1 rejects), so drift
+       between lanes silently changes the verdict. A 'dev' build (go
+       install at the pin - what CI itself runs) passes.
+    5. waza check (advisory) - skill-quality report (exit 2 = known pre-existing
        backlog; reported as WARN, never blocking: waza gate/run CI gating stays
        deferred per instructions/waza-eval.instructions.md). A missing or
        crashing waza CLI fails the check.
-    4. Supply chain - scripts/workspace/check-supply-chain.py: flags
+    6. Supply chain - scripts/workspace/check-supply-chain.py: flags
        shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags,
        and link domains outside scripts/workspace/known-domains.txt
        (warn-first; --strict is the future ratchet target).
-    5. Eval preflight - `waza preflight` over every evals/*/eval.yaml: offline
+    7. Eval preflight - `waza preflight` over every evals/*/eval.yaml: offline
        schema/inventory validation against waza's embedded authoritative schema
        (no execution - waza gate/run stays deferred). Schema/configuration
        errors FAIL; resource.file fixture debt WARNs.
-    6. Skill tests - `python3 -m pytest skills -q`: the pytest suites under
+    8. Skill tests - `python3 -m pytest skills -q`: the pytest suites under
        skills/*/tests (regression tests for skill scripts). Wired here so a red
        suite blocks the push instead of sitting unwired behind `task test`.
+    9. Skill tests (Pester) - Invoke-Pester over skills/ and scripts/
+       (*.Tests.ps1). A FAIL detail names the failing test paths, because a
+       count alone hid that the failures were one suite (retro 2026-11-21).
 
     Exits non-zero when any check FAILs. Used by .githooks/pre-commit (-Quick),
     .githooks/pre-push (-SkipAdvisoryWaza), and task check / CI (full).
@@ -263,6 +278,35 @@ function Invoke-WazaCheck {
     }
 }
 
+function Test-WazaPin {
+    [CmdletBinding()]
+    param()
+
+    # Version parity with the cloud lane (retro 2026-11-21): preflight
+    # classification is version-sensitive - release 0.39.0 passed an eval
+    # that 0.40.1 rejects - so a stamped local release must equal the exact
+    # pin CI installs. A 'dev' build (go install @ the pin, which is what CI
+    # itself runs) carries the pin's content without a stamped version and
+    # passes; only a stamped mismatch means drift.
+    if (-not (Get-Command waza -ErrorAction SilentlyContinue)) {
+        return @{ Status = 'FAIL'; Detail = 'waza CLI not found on PATH - install the release pinned in .github/workflows/ci.yml (see instructions/waza-eval.instructions.md)' }
+    }
+    $ciText = Get-Content -Raw -LiteralPath (Join-Path $repoRoot '.github' 'workflows' 'ci.yml') -ErrorAction SilentlyContinue
+    if ($ciText -notmatch 'microsoft/waza/cmd/waza@(v\d+\.\d+\.\d+)') {
+        return @{ Status = 'FAIL'; Detail = 'waza pin not found in .github/workflows/ci.yml (expected: go install github.com/microsoft/waza/cmd/waza@vX.Y.Z)' }
+    }
+    $pin = $Matches[1]
+    $versionText = ((& waza --version 2>&1) | Out-String).Trim()
+    if ($versionText -notmatch '(\d+\.\d+\.\d+)') {
+        return @{ Status = 'PASS'; Detail = "waza dev build - content from go install @ $pin (no stamped version)" }
+    }
+    $local = "v$($Matches[1])"
+    if ($local -ne $pin) {
+        return @{ Status = 'FAIL'; Detail = "waza version drift: local $local vs CI pin $pin - install the pinned release (microsoft/waza releases)" }
+    }
+    return @{ Status = 'PASS'; Detail = "waza $local matches the CI pin" }
+}
+
 function Test-SupplyChain {
     [CmdletBinding()]
     param()
@@ -381,7 +425,11 @@ function Test-SkillPester {
         return @{ Status = 'FAIL'; Detail = "Invoke-Pester failed: $($_.Exception.Message)" }
     }
     if ($result.FailedCount -gt 0) {
-        return @{ Status = 'FAIL'; Detail = "$($result.FailedCount) failed / $($result.TotalCount) Pester tests ($($testFiles.Count) file(s) in $($dirs.Count) dir(s))" }
+        # Name the failures: a count alone hid that they were all one suite
+        # and cost a Linux container round-trip to localize (retro 2026-11-21).
+        $names = @($result.Failed | Select-Object -First 4 | ForEach-Object { $_.ExpandedPath })
+        $more = if ($result.FailedCount -gt 4) { "; +$($result.FailedCount - 4) more" } else { '' }
+        return @{ Status = 'FAIL'; Detail = "$($result.FailedCount) failed / $($result.TotalCount) Pester tests ($($testFiles.Count) file(s) in $($dirs.Count) dir(s)): $($names -join '; ')$more" }
     }
     return @{ Status = 'PASS'; Detail = "$($result.PassedCount) Pester tests green ($($testFiles.Count) file(s) in $($dirs.Count) dir(s))" }
 }
@@ -456,6 +504,7 @@ $checks = @(
     @{ Name = 'PowerShell lint'; Action = { Test-PowerShellLint } }
 )
 if (-not $Quick) {
+    $checks += @{ Name = 'waza pin parity'; Action = { Test-WazaPin } }
     if (-not $SkipAdvisoryWaza) {
         $checks += @{ Name = 'waza check (advisory)'; Action = { Invoke-WazaCheck } }
     }
