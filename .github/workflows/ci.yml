@@ -1,0 +1,45 @@
+# Lint CI: the same full gate as `task check` (scripts/workspace/workspace-check.ps1).
+# Local git hooks are opt-in per clone (task hooks:install), so this is the
+# backstop that stops an unhooked clone from pushing unlinted (retro 2026-11-21).
+# Scope: offline structural checks only - waza run / waza gate execution stays
+# deferred per instructions/waza-eval.instructions.md.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pin waza like markdownlint: a gate result must not depend on registry
+      # drift (same rule as the pinned linter in workspace-check.ps1).
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Install waza
+        run: |
+          go install github.com/microsoft/waza@v0.40.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python gate dependencies
+        run: python3 -m pip install --quiet jsonschema PyYAML pytest
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run full check suite
+        run: task check

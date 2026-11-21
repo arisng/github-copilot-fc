@@ -6,7 +6,7 @@ This repository (`arisng/github-copilot-fc`, origin of this clone) is a **GitHub
 
 Key facts:
 
-- There is **no cloud CI**. The gate is local: the lint suite in `scripts/workspace/`, run through `task check` and the git hooks.
+- The gate is the lint suite in `scripts/workspace/`, run through `task check`, the git hooks, and the `ci` GitHub Actions workflow (`.github/workflows/ci.yml` — the backstop for clones that never ran `task hooks:install`). **`git push` runs that suite via `.githooks/pre-push` — expect ~90 s of quiet before output appears; slow is the gate working, not a hang or failure.**
 - Severity policy everywhere: **WARN = ratchet-pending** (legacy backlog, does not block) and **FAIL = structural rule that is green today**. Never introduce a new FAIL, and do not add new WARNs either — the ratchet is shrink-only.
 - Skills are distributed with the Skills CLI: `npx skills add arisng/github-copilot-fc`.
 - Artifacts are authored in their source folders (`agents/`, `instructions/`, `hooks/`, `skills/`, `canvas/`) and discovered from `.github/` or copied deliberately.
@@ -25,7 +25,7 @@ Key facts:
 | `schemas/` | `plugin.schema.json`, `marketplace.schema.json`, `skill.schema.json` (JSON Schema draft 2020-12) |
 | `scripts/workspace/` | The whole lint suite: `workspace-check.ps1`, `check-consistency.ps1`, `validate-manifests.py`, `check-supply-chain.py`, `generate-skills-catalog.py`, `known-domains.txt` |
 | `evals/` | waza evaluations, one folder per evaluated skill |
-| `docs/` | Diátaxis-style documentation; currently only `docs/blazor-agui/` |
+| `docs/` | Diátaxis-style documentation; `docs/blazor-agui/` and `docs/ci-gates/` |
 | `.issues/` | Markdown issue documents plus the generated `.issues/index.md` |
 | `.github/` | Workspace-discovered artifacts: this file, `.github/skills/copilot-cli-tools-inventory-refresh/`, `git-scope-constitution.md`, `git-scope-inventory.md`, `copilot-memories.jsonl` |
 | `tools/` | Cross-runtime tools inventory (`tools/inventory.yaml`, drift report) |
@@ -104,6 +104,8 @@ See purpose 1: empty by design; rebuild only via `skills/copilot-plugin-builder`
 
 ## Guardrails & automation
 
+The exact local-vs-cloud gate boundary (which mode runs which check, what blocks, what is deliberately unwired) is documented in [docs/ci-gates/reference.md](../docs/ci-gates/reference.md) — consult it before changing hooks, workflows, or the check list.
+
 ### Lint suite
 
 Single entry point:
@@ -129,7 +131,7 @@ Full-suite checks, in order:
 
 ```text
 task lint            # quick lint (pre-commit gate)
-task check           # full suite (pre-push gate); `task` with no args = check
+task check           # full suite (the CI gate); `task` with no args = check
 task test            # python3 -m pytest skills -q
 task issues:index    # regenerate .issues/index.md
 task skills:catalog  # regenerate the skills catalog in skills/README.md
@@ -137,7 +139,7 @@ task skills:catalog  # regenerate the skills catalog in skills/README.md
 
 ### Git hooks
 
-`core.hooksPath` is `.githooks` — **never repoint it**. Wire each fresh clone or worktree once with `task hooks:install`. `.githooks/pre-commit` runs the quick mode (`workspace-check.ps1 -Quick`); `.githooks/pre-push` runs the full suite. Both skip cleanly when `pwsh` is missing so a clone without PowerShell is never bricked.
+`core.hooksPath` is `.githooks` — **never repoint it**. Wire each fresh clone or worktree once with `task hooks:install`. `.githooks/pre-commit` runs the quick mode (`workspace-check.ps1 -Quick`); `.githooks/pre-push` runs `workspace-check.ps1 -SkipAdvisoryWaza` (banner first, ~90 s — slow is the gate working, not a hang) and `.github/workflows/ci.yml` runs the complete `task check` on every push/PR. Both hooks skip cleanly when `pwsh` is missing so a clone without PowerShell is never bricked.
 
 ### Schemas
 

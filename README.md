@@ -36,7 +36,7 @@ This repository exists to:
 | `Taskfile.yml` | go-task v3 entry points: `lint`, `check`, `test`, `issues:index`, `skills:catalog`, `hooks:install`. |
 | `agents/` | Custom agent definitions (`*.agent.md`). |
 | `canvas/` | Copilot canvas/extension sources: `machina-simulator`, `session-md-reader`. |
-| `docs/` | Repository documentation; currently `docs/blazor-agui/` with four explanation pages. |
+| `docs/` | Repository documentation: `docs/blazor-agui/` (four explanation pages) and `docs/ci-gates/` (gate boundary reference). |
 | `evals/` | waza evaluation suites — one directory per skill, each with `eval.yaml` and task YAML. |
 | `hooks/` | Agent hook configurations: one directory per hook with manifest and companion scripts. |
 | `instructions/` | Reusable instruction files (`*.instructions.md`). |
@@ -54,7 +54,7 @@ automation:
 | Command | What it does |
 | ------- | ------------ |
 | `task lint` | Quick lint — changed markdown plus schema/consistency engine (the pre-commit gate). |
-| `task check` | Full lint suite — all workspace checks (the pre-push gate; also the default task). |
+| `task check` | Full lint suite — all workspace checks (the CI gate; also the default task). |
 | `task test` | Run skill test suites — pytest over `skills/`. |
 | `task issues:index` | Regenerate `.issues/index.md` from issue frontmatter. |
 | `task skills:catalog` | Regenerate the skills catalog table in `skills/README.md`. |
@@ -67,15 +67,18 @@ hooks once per clone; after that they run automatically:
 
 - `.githooks/pre-commit` runs the quick lint mode (equivalent to `task lint`) and blocks the
   commit on lint violations.
-- `.githooks/pre-push` runs the full suite (equivalent to `task check`) and blocks the push on
-  any failure.
+- `.githooks/pre-push` runs the suite minus the advisory `waza check` (a banner
+  prints first; expect ~90 s — slow is the gate, not a hang) and blocks the push on
+  any failure. `task check` and the `ci` workflow run the complete suite.
 
 Both hooks skip cleanly when `pwsh` is missing from `PATH`, so a clone without PowerShell is
 never bricked.
 
 ### The lint suite
 
-`scripts/workspace/workspace-check.ps1` orchestrates the checks:
+`scripts/workspace/workspace-check.ps1` orchestrates the checks; the local-vs-cloud
+gate boundary (what each hook and CI runs, and what never gates) is documented in
+[docs/ci-gates/reference.md](docs/ci-gates/reference.md).
 
 - `check-consistency.ps1` — cross-file consistency checks.
 - `validate-manifests.py` — JSON Schema validation (jsonschema engine against `schemas/`).

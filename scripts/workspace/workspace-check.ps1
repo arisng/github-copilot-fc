@@ -1,12 +1,17 @@
 <#
 .SYNOPSIS
-    Automated lint suite for the Copilot FC workspace (local CI - no cloud workflows).
+    Automated lint suite for the Copilot FC workspace (the gate for the local
+    git hooks and for the ci workflow).
 .DESCRIPTION
-    Runs the repo's lint checks in one command. Two modes:
+    Runs the repo's lint checks in one command. Three modes:
 
     -Quick : fast checks only - markdown lint (full scan vs debt baseline)
              plus the cross-file consistency/schema engine. Wired to
              .githooks/pre-commit and `task lint`.
+
+    -SkipAdvisoryWaza : full suite minus the advisory waza check (~21 s,
+             never blocks). Wired to .githooks/pre-push so pushes stay fast;
+             `task check` and CI keep it for full coverage.
 
     -UpdateMarkdownBaseline : rewrite scripts/workspace/markdown-debt-baseline.txt
              from the current scan. Run only to accept a reviewed change (or to
@@ -14,7 +19,8 @@
 
     (full) : everything -Quick runs, plus the waza advisory report, the
              supply-chain scan, and offline eval preflight. Wired to
-             .githooks/pre-push and `task check`.
+             `task check` and .github/workflows/ci.yml. Every result line
+             carries the check's elapsed seconds.
 
     Checks (full suite):
     1. Markdown lint - full-repo markdownlint-cli2 scan compared against the
@@ -45,8 +51,8 @@
        skills/*/tests (regression tests for skill scripts). Wired here so a red
        suite blocks the push instead of sitting unwired behind `task test`.
 
-    Exits non-zero when any check FAILs. Used by .githooks/pre-commit (-Quick)
-    and .githooks/pre-push (full).
+    Exits non-zero when any check FAILs. Used by .githooks/pre-commit (-Quick),
+    .githooks/pre-push (-SkipAdvisoryWaza), and task check / CI (full).
 .EXAMPLE
     pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -Quick
 #>
@@ -54,6 +60,10 @@
 param(
     # Fast subset for pre-commit: markdown lint + consistency engine only.
     [switch]$Quick,
+    # Skip the advisory waza check only (~21 s, exit 2 is a tolerated WARN):
+    # pre-push passes this so the push gate keeps enforcement minus the
+    # slowest non-blocking check; task check / CI still run it.
+    [switch]$SkipAdvisoryWaza,
     # Rewrite the markdown debt baseline from the current scan output; run
     # only to accept a reviewed change (the diff then shows every entry).
     [switch]$UpdateMarkdownBaseline
@@ -70,11 +80,14 @@ function Write-CheckResult {
     param(
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][ValidateSet('PASS', 'WARN', 'FAIL', 'SKIP')][string]$Status,
-        [Parameter(Mandatory)][string]$Detail
+        [Parameter(Mandatory)][string]$Detail,
+        # Elapsed seconds for this check; negative omits the timing suffix.
+        [double]$Seconds = -1
     )
     $icon = @{ PASS = '[PASS]'; WARN = '[WARN]'; FAIL = '[FAIL]'; SKIP = '[SKIP]' }[$Status]
     $color = @{ PASS = 'Green'; WARN = 'Yellow'; FAIL = 'Red'; SKIP = 'Gray' }[$Status]
-    Write-Host "$icon $Name - $Detail" -ForegroundColor $color
+    $elapsed = if ($Seconds -ge 0) { ' ({0:N1}s)' -f $Seconds } else { '' }
+    Write-Host "$icon $Name$elapsed - $Detail" -ForegroundColor $color
 }
 
 function Test-MarkdownLint {
@@ -354,7 +367,11 @@ function Test-SkillPester {
     }
     $dirs = @($testFiles | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique)
     try {
-        $result = Invoke-Pester -Path $dirs -PassThru -Output None
+        # Redirect warning (3) and information (6) streams: test code under
+        # test writes Write-Information/Write-Warning noise (daily-report
+        # evidence blocks, stale-COPILOT_CLI_PATH warnings) that otherwise
+        # leaks into git-hook output and reads as push failure (retro 2026-11-21).
+        $result = Invoke-Pester -Path $dirs -PassThru -Output None 3>$null 6>$null
     }
     catch {
         return @{ Status = 'FAIL'; Detail = "Invoke-Pester failed: $($_.Exception.Message)" }
@@ -402,32 +419,42 @@ function Invoke-SkillTests {
 }
 
 # --- Run -------------------------------------------------------------------
+# Checks are scriptblocks so each can be timed as it runs (retro 2026-11-21:
+# the gate reported verdicts but never durations, hiding that the advisory
+# waza check alone cost ~21 s of every push).
 $checks = @(
-    @{ Name = 'Markdown lint'; Result = Test-MarkdownLint },
-    @{ Name = 'Consistency'; Result = Test-Consistency }
+    @{ Name = 'Markdown lint'; Action = { Test-MarkdownLint } },
+    @{ Name = 'Consistency'; Action = { Test-Consistency } }
 )
 if (-not $Quick) {
+    if (-not $SkipAdvisoryWaza) {
+        $checks += @{ Name = 'waza check (advisory)'; Action = { Invoke-WazaCheck } }
+    }
     $checks += @(
-        @{ Name = 'waza check (advisory)'; Result = Invoke-WazaCheck },
-        @{ Name = 'Supply chain'; Result = Test-SupplyChain },
-        @{ Name = 'Eval preflight'; Result = Test-EvalPreflight },
-        @{ Name = 'Skill tests'; Result = Invoke-SkillTests },
-        @{ Name = 'Skill tests (Pester)'; Result = Test-SkillPester }
+        @{ Name = 'Supply chain'; Action = { Test-SupplyChain } },
+        @{ Name = 'Eval preflight'; Action = { Test-EvalPreflight } },
+        @{ Name = 'Skill tests'; Action = { Invoke-SkillTests } },
+        @{ Name = 'Skill tests (Pester)'; Action = { Test-SkillPester } }
     )
 }
 
+$gateTimer = [System.Diagnostics.Stopwatch]::StartNew()
 foreach ($check in $checks) {
-    Write-CheckResult -Name $check.Name -Status $check.Result.Status -Detail $check.Result.Detail
-    if ($check.Result.Status -eq 'FAIL') {
+    $checkTimer = [System.Diagnostics.Stopwatch]::StartNew()
+    $result = & $check.Action
+    $checkTimer.Stop()
+    Write-CheckResult -Name $check.Name -Status $result.Status -Detail $result.Detail -Seconds $checkTimer.Elapsed.TotalSeconds
+    if ($result.Status -eq 'FAIL') {
         $failures.Add($check.Name)
     }
 }
+$gateTimer.Stop()
 
 if ($failures.Count -gt 0) {
-    Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ')" -ForegroundColor Red
+    Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ') ($([math]::Round($gateTimer.Elapsed.TotalSeconds,1))s)" -ForegroundColor Red
     exit 1
 }
 
-$mode = if ($Quick) { ' (quick)' } else { '' }
-Write-Host "workspace-check$mode : all checks passed" -ForegroundColor Green
+$mode = if ($Quick) { ' (quick)' } elseif ($SkipAdvisoryWaza) { ' (push)' } else { '' }
+Write-Host "workspace-check$mode : all checks passed in $([math]::Round($gateTimer.Elapsed.TotalSeconds,1))s" -ForegroundColor Green
 exit 0

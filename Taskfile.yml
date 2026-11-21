@@ -4,7 +4,9 @@
 # hooks via core.hooksPath=.githooks:
 #   - task hooks:install        -> wire .githooks once per clone
 #   - .githooks/pre-commit -> task lint  (fast: markdown baseline + schema/consistency)
-#   - .githooks/pre-push   -> task check (full suite)
+#   - .githooks/pre-push   -> workspace-check.ps1 -SkipAdvisoryWaza
+#                             (banner first; the ~21s advisory waza check is
+#                             left to `task check` / CI, which run everything)
 version: '3'
 
 tasks:

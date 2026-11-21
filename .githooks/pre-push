@@ -1,8 +1,11 @@
 #!/bin/sh
-# Pre-push: full lint suite (scripts/workspace/workspace-check.ps1).
+# Pre-push: lint suite (scripts/workspace/workspace-check.ps1 -SkipAdvisoryWaza).
 # Blocks the push on any FAIL; skips cleanly when pwsh is missing.
 if ! command -v pwsh >/dev/null 2>&1; then
   echo "pre-push: pwsh not found on PATH - skipping checks" >&2
   exit 0
 fi
-exec pwsh -NoProfile -File scripts/workspace/workspace-check.ps1
+# Banner first: the gate takes over a minute, and a silent wait reads as a
+# failed/hung push (retro 2026-11-21).
+echo "pre-push: running workspace check (~90s expected; slow is normal, [FAIL] below is the real error)" >&2
+exec pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -SkipAdvisoryWaza

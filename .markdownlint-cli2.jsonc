@@ -20,6 +20,9 @@
     "**/.playwright-cli/**",
     "workshops/**",
     ".issues/**",
+    // Scratch dirs from issue-tree sync sessions (untracked, generated):
+    // never lint, never committed as debt.
+    ".sync-*/**",
     // Preserved third-party research essays (moved from .docs as-is) — kept,
     // not ratchet-managed, same rationale as .issues/workshops above.
     "docs/blazor-agui/**",
