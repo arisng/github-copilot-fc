@@ -213,7 +213,8 @@ function New-ValidationReport {
 
         $report += @"
 
-| **$($task.Id)**<br/>$($task.Title) | $status | $evidence | $gaps | $nextStep |"
+| **$($task.Id)**<br/>$($task.Title) | $status | $evidence | $gaps | $nextStep |
+"@
     }
 
     $report += @"

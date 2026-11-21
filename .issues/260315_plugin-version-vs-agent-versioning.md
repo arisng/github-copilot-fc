@@ -3,9 +3,17 @@ date: 2026-03-15
 type: Task
 severity: Medium
 status: Completed
+out-of-tree-commands: true
 ---
 
 # Task: Separate plugin version from bundled custom agent version
+
+> **Out of tree (2026-11-21).** The paths cited below (`scripts/publish/…`,
+> `scripts/test/…`, `plugins/<runtime>/ralph-v2/…`, `agents/ralph-v2/`) are
+> not present in this repository — the work landed in the Ralph workspace.
+> Do not attempt to run them here; the frontmatter declares
+> `out-of-tree-commands: true` for the command-existence consistency gate.
+
 
 ## Objective
 Establish a clear versioning policy and implementation for Copilot plugins (e.g., `ralph-v2`) that decouples the plugin bundle version from the internal version(s) of the custom agents it contains.

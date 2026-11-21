@@ -135,7 +135,7 @@ function Get-PhaseStats {
     # Determine status based on phase thresholds
     $approvalPercent = ($approved / $total) * 100
 
-    $status = switch {
+    $status = switch ($true) {
         ($PhaseName -eq "Setup" -and $approvalPercent -ge 90) { "🟢 Mostly Documented" }
         ($PhaseName -eq "Foundation" -and $approvalPercent -ge 80) { "🟢 Mostly Documented" }
         ($PhaseName -eq "Features" -and $approvalPercent -ge 70) { "🟢 Mostly Documented" }
@@ -143,7 +143,7 @@ function Get-PhaseStats {
         default { "🔴 Poorly Grounded" }
     }
 
-    $action = switch {
+    $action = switch ($true) {
         ($status -match "🟢") { "Ready to proceed" }
         ($status -match "🟡") { "Needs clarification" }
         default { "Blocked - requires specification" }
@@ -212,7 +212,7 @@ function New-AggregatedReport {
 "@
 
     foreach ($task in $tasks) {
-        $status = switch {
+        $status = switch ($true) {
             ($task.GroundingLevel -ge 80) { "🟢 **Documented**<br/>(Fully Grounded)" }
             ($task.GroundingLevel -ge 50) { "🟡 **Inferred**<br/>(Partially Grounded)" }
             default { "🔴 **Missing**<br/>(Ungrounded)" }
@@ -230,7 +230,7 @@ function New-AggregatedReport {
             "None"
         }
 
-        $nextStep = switch {
+        $nextStep = switch ($true) {
             ($task.GroundingLevel -ge 80) { "Ready to implement" }
             ($task.GroundingLevel -ge 50) { "**BLOCKED**: Needs clarification" }
             default { "**BLOCKED**: Requires specification" }
@@ -238,7 +238,8 @@ function New-AggregatedReport {
 
         $report += @"
 
-| **$($task.Id)**<br/>$($task.Title) | $status | $evidence | $gaps | $nextStep |"
+| **$($task.Id)**<br/>$($task.Title) | $status | $evidence | $gaps | $nextStep |
+"@
     }
 
     # Aggregate all gaps

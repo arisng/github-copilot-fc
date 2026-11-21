@@ -14,7 +14,7 @@ Self-reflection on the process of creating skills, identifying successes, failur
 ## What Went Well
 - Successful Outcome: The skill was fully created, packaged, and integrated. It includes a functional Python script (create_issue.py) that generates issue documents in the correct format, references to templates, and proper documentation. The skills index was updated, and the skill is now available for use.
 - Adherence to Process: I followed the skill-creator guidelines closely, including understanding the skill's purpose, planning reusable contents (scripts, references, assets), initializing the structure, editing for specificity, packaging, and iterating.
-- Integration with Existing Agent: The skill accurately reflected the issue-writer.agent.md, incorporating its templates, naming conventions, and workflow (e.g., folder detection for _docs/issues or .docs/issues, YAML frontmatter, and metadata extraction).
+- Integration with Existing Agent: The skill accurately reflected the issue-writer.agent.md, incorporating its templates, naming conventions, and workflow (e.g., folder detection for legacy `_docs`/`.docs` issue folders, YAML frontmatter, and metadata extraction).
 - Tool Usage: I effectively used available tools like run_in_terminal for scripting, create_file for content, and replace_string_in_file for edits, ensuring the workspace was modified correctly.
 
 ## What Didn't Go Well

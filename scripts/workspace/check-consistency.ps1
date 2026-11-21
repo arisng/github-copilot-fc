@@ -27,6 +27,12 @@
         repo paths that do not exist (FAIL; wildcard paths checked at their
         directory part, documented-conditional paths excepted - retro
         2026-11-20)
+      - shipped-claim issue docs (.issues, status Completed/Implemented/
+        Done/resolved) must cite repo paths that exist; planned docs may
+        name future paths and out-of-tree deliveries declare
+        out-of-tree-commands: true (FAIL - retro 2026-11-21: a "Completed"
+        issue doc sent an agent to run the never-existent
+        scripts/workspace/run-command.ps1)
 
     Severity policy (plan Sequencing "day-one red guard"): structural rules
     FAIL and are green on today's tree; content budgets WARN-first until the
@@ -354,6 +360,53 @@ if ($steeringMissing.Count -gt 0) {
 else {
     $steeringSuffix = $steeringOptionalHits -gt 0 ? "; $steeringOptionalHits documented-conditional" : ''
     Add-Finding -Level 'PASS' -Area 'steering' -Detail "$($steeringSeen.Count) path reference(s) across $($steeringFiles.Count) steering file(s) resolve$steeringSuffix ($steeringGlobs wildcard-checked)"
+}
+
+# --- Issue-doc shipped-claim path citations (retro 2026-11-21) --------------
+# .issues/*.md reads like instructions to a subagent: one ran the
+# never-existent scripts/workspace/run-command.ps1 because a "Completed"
+# issue doc still advertised it. Same mechanical rule as steering, scoped by
+# claim - statuses that assert delivery must cite repo paths that exist;
+# planned docs may name future paths, and work delivered outside this tree
+# declares `out-of-tree-commands: true` in frontmatter.
+$shippedStatuses = @('Completed', 'Implemented', 'Done', 'resolved')
+$issueDocs = @(Get-ChildItem -Path (Join-Path $repoRoot '.issues') -Filter '*.md' -File -ErrorAction SilentlyContinue)
+$issueMissing = [System.Collections.Generic.List[string]]::new()
+$issueScanned = 0
+$issueExempt = 0
+$issueSeen = @{}
+foreach ($doc in $issueDocs) {
+    $text = [System.IO.File]::ReadAllText($doc.FullName)
+    $status = ''
+    if ($text -match '(?m)^status:[ \t]*(\S+)') { $status = $Matches[1] }
+    if ($shippedStatuses -notcontains $status) { continue }
+    if ($text -match '(?m)^out-of-tree-commands:[ \t]*true[ \t]*\r?$') { $issueExempt++; continue }
+    $issueScanned++
+    foreach ($m in [regex]::Matches($text, $steeringRx)) {
+        $nextChar = if ($m.Index + $m.Length -lt $text.Length) { $text[$m.Index + $m.Length] } else { ' ' }
+        $isGlob = ($nextChar -eq '*' -or $nextChar -eq '?')
+        if ($isGlob) {
+            $check = $m.Value.Substring(0, $m.Value.LastIndexOf('/'))
+        }
+        else {
+            $check = $m.Value.TrimEnd('/').TrimEnd('.', '-')
+        }
+        if ([string]::IsNullOrEmpty($check)) { continue }
+        $seenKey = "$($doc.Name)|$check"
+        if ($issueSeen.ContainsKey($seenKey)) { continue }
+        $issueSeen[$seenKey] = $true
+        if (-not (Test-Path -LiteralPath (Join-Path $repoRoot $check))) {
+            $issueMissing.Add("$($doc.Name) -> $check")
+        }
+    }
+}
+if ($issueMissing.Count -gt 0) {
+    foreach ($bad in $issueMissing) {
+        Add-Finding -Level 'FAIL' -Area 'issues' -Detail "shipped-claim doc cites missing path: $bad (fix the doc, ship the path, or declare out-of-tree-commands: true)"
+    }
+}
+else {
+    Add-Finding -Level 'PASS' -Area 'issues' -Detail "$($issueSeen.Count) path reference(s) across $issueScanned shipped-claim issue doc(s) resolve ($issueExempt out-of-tree)"
 }
 
 # --- Marketplace parity (absorb shipped verifier, B3) -----------------------

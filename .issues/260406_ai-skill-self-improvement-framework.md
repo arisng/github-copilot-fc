@@ -29,7 +29,7 @@ The strategic shift: move human effort from *writing prompts* to *writing strict
 ### Components
 
 - **`skill.md`** — Instructions and constraints for the AI output
-- **`evals/eval.json`** — Test cases and ~25 binary assertions (True/False structural checks)
+- **`evals/<skill-name>/eval.json`** — Test cases and ~25 binary assertions (True/False structural checks)
 - **Context files** — Reference materials (e.g., `tone_of_voice.md`, `brand_guidelines.md`)
 - **Execution script** — Orchestrates the hill-climbing loop
 
@@ -49,7 +49,7 @@ Read skill.md → Make one rule change → Run eval.json tests
 ### Setting Up the Loop (Playbook)
 
 1. **Draft baseline `skill.md`** and provide reference context files
-2. **Generate `evals/eval.json`** — ask Claude Code to write ~25 binary assertions based on desired output
+2. **Generate `evals/<skill-name>/eval.json`** — ask Claude Code to write ~25 binary assertions based on desired output
 3. **Assertions must be binary**: "Word count < 300" ✓ | "Is it engaging?" ✗ — Remove all subjective metrics
 4. **Run the loop**: instruct Claude to apply hill-climbing against the score (commit if improved, revert if worse)
 5. **Human review pass**: use qualitative dashboard for tone/creativity checks the binary loop cannot catch

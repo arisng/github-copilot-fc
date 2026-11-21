@@ -7,110 +7,76 @@ status: Completed
 
 # GitHub Copilot Workspace - Automation Solutions
 
+> **Superseded (2026-11-21).** The unified command dispatcher and the
+> publish scripts described in this record are **not present in this tree**;
+> nothing below is runnable as written. Current entry points:
+> `task lint` / `task check` (wrappers over `scripts/workspace/workspace-check.ps1`),
+> `task skills:catalog`, `task issues:index`, and
+> `npx skills add arisng/github-copilot-fc` for distribution.
+> The consistency gate now fails any shipped-claim issue doc that cites a
+> missing repo path, so this trap cannot ship again.
+
 ## Summary
 
-This repository now includes a comprehensive automation system for managing GitHub Copilot customizations: Claude Skills, Custom Agents, Instructions, and Prompts. Here are the implemented solutions:
+This record documents the automation system that was scoped for managing
+GitHub Copilot customizations: skills, agents, instructions, and prompts. The
+described solutions were delivered and later removed; the document is kept
+for its decision history only.
 
-## 🚀 Available Solutions
+## What was described at the time
 
-### 1. PowerShell Scripts
+### 1. PowerShell scripts
 
-- **`publish-skills.ps1`**: Main publishing script with Copy/Link/Sync methods
-- **`update-personal-skills.ps1`**: Update management for existing skills
-- **`run-command.ps1`**: Unified command interface for all workspace operations
+- `publish-skills.ps1` — publishing with Copy/Link/Sync methods (not in this tree)
+- `update-personal-skills.ps1` — update management for installed skills (not in this tree)
+- `run-command.ps1` — a unified command dispatcher for all workspace operations (never retained)
 
-### 2. Workspace Configuration System
+### 2. Workspace configuration system
 
-- **Built-in command mapping**: Centralized command definitions in `scripts/workspace/run-command.ps1`.
-- **Unified Commands**: Single interface for all workspace operations (skills, agents, issues, etc.)
-- **Extensible**: Easy to add new commands and components
+A centralized command mapping lived behind the dispatcher. Its equivalent
+today is the Taskfile: `task lint`, `task check`, `task test`,
+`task issues:index`, `task skills:catalog`.
 
-### 3. VS Code Integration
+### 3. VS Code integration
 
-- **Tasks**: 6 new tasks in Command Palette for easy access
-- **Quick Access**: Publish skills, check updates, workspace status, and more directly from VS Code
+Six Command Palette tasks for publishing and status checks (historical).
 
-### 4. Git Integration
+### 4. Git integration
 
-- **Post-commit Hook**: Automatic publishing when skills are committed
-- **Version Control**: All components tracked alongside your code
+A post-commit publishing hook (historical). Current hooks live in
+`.githooks/` — `pre-commit` runs the quick gate, `pre-push` the full gate.
 
 ### 5. Documentation
 
-- **README**: Comprehensive guide in `skills/README.md`
-- **Workflow**: Complete development and publishing workflow
-- **Issue Tracking**: Structured documentation in `.docs/issues/`
+`skills/README.md` remains the distribution guide; issue tracking now lives
+in `.issues/`.
 
-## 🎯 Recommended Usage
-
-### For Development
+## Current usage
 
 ```powershell
-# During development, use link method for automatic updates
-.\run-command.ps1 -Command skills:publish-link
+# Quick gate (pre-commit) and full gate (pre-push)
+task lint
+task check
 ```
 
-### For Production
+Distribution and updates:
 
 ```powershell
-# For stable releases, use copy method
-.\run-command.ps1 -Command skills:publish-copy
+npx skills add arisng/github-copilot-fc
+npx skills update
 ```
 
-### For Maintenance
+## Method comparison (historical)
 
-```powershell
-# Check for updates regularly
-.\run-command.ps1 -Command skills:update-check
+- Copy: cross-platform, no auto-update, best for production.
+- Link: Windows-only, auto-update, best for development.
+- Sync: Windows-only, auto-update, best for large collections.
 
-# Apply updates when ready
-.\run-command.ps1 -Command skills:update-apply
-```
+## Why it still matters
 
-## 🔧 Quick Start
-
-1. **Enable VS Code Skills**: Set `chat.useClaudeSkills` to `true`
-2. **List Available Commands**: Run `.\run-command.ps1 -Command list`
-3. **Publish Skills**: Run `.\run-command.ps1 -Command skills:publish-copy`
-4. **Verify**: Ask "What skills do you have?" in VS Code chat
-5. **Check Status**: Run `.\run-command.ps1 -Command workspace:status`
-
-## 📊 Method Comparison
-
-- **Copy**: Cross-platform ✅, auto-updates ❌, admin required ❌, best for production.
-- **Link**: Cross-platform ⚠️ Windows, auto-updates ✅, admin required ✅ Windows, best for development.
-- **Sync**: Cross-platform ❌ Windows, auto-updates ✅, admin required ❌, best for large collections.
-
-## 🔄 Automation Levels
-
-1. **Manual**: Run commands when needed via `run-command.ps1`
-2. **Semi-Automatic**: Git hooks for post-commit publishing
-3. **Fully Automatic**: CI/CD pipeline (future enhancement)
-
-## 🛠️ Customization
-
-The scripts support:
-
-- **Selective Publishing**: Publish specific skills only
-- **Force Updates**: Overwrite without prompts
-- **Update Checks**: Check what would be updated
-- **Error Handling**: Robust error reporting and recovery
-
-## 📈 Benefits
-
-- **Consistency**: Same customizations across all your projects
-- **Version Control**: All components evolve with your codebase
-- **Team Sharing**: Publish customizations for team use
-- **Backup**: Components safely stored in your repository
-- **Testing**: Test locally before global publishing
-
-## 🎉 Next Steps
-
-1. Try the unified command interface: `.\run-command.ps1 -Command list`
-2. Publish skills using: `.\run-command.ps1 -Command skills:publish-copy`
-3. Check workspace status: `.\run-command.ps1 -Command workspace:status`
-4. Modify the scripts for your specific workflow
-5. Set up the git hook for automatic publishing
-6. Create new skills and publish them globally
-
-The workspace is now fully automated for managing GitHub Copilot customizations! 🎯
+- The workspace automation described here was folded into the Taskfile and
+  the workspace gate that now runs on every commit.
+- The document is a worked example of the check added on 2026-11-21:
+  a "Completed" issue doc advertising commands that no longer exist reads as
+  live instruction to an agent, and cost one failed command run before the
+  citation rule caught it.

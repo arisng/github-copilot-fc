@@ -353,11 +353,15 @@ function Test-SkillPester {
     [CmdletBinding()]
     param()
 
-    # Skill Pester suites (skills/**/*.Tests.ps1) are the skill scripts' own
-    # guardrail; without this check they never run in any repo gate
+    # Skill Pester suites (skills/**/*.Tests.ps1) plus the gate's own suites
+    # (scripts/**/*.Tests.ps1) are the scripts' own guardrail; without this
+    # check they never run in any repo gate
     # (task test is pytest-only). Full mode only — the quick pre-commit
     # gate stays fast.
-    $testFiles = @(Get-ChildItem -Path (Join-Path $repoRoot 'skills') -Recurse -Filter '*.Tests.ps1' -File -ErrorAction SilentlyContinue |
+    $scanRoots = @((Join-Path $repoRoot 'skills'), (Join-Path $repoRoot 'scripts'))
+    $testFiles = @($scanRoots | ForEach-Object {
+            Get-ChildItem -Path $_ -Recurse -Filter '*.Tests.ps1' -File -ErrorAction SilentlyContinue
+        } |
         Where-Object { $_.FullName -notmatch '\\\.archived\\' })
     if ($testFiles.Count -eq 0) {
         return @{ Status = 'SKIP'; Detail = 'no skills/**/*.Tests.ps1 found' }
@@ -418,13 +422,38 @@ function Invoke-SkillTests {
     return @{ Status = 'PASS'; Detail = "skill tests pass - $summary" }
 }
 
+function Test-PowerShellLint {
+    [CmdletBinding()]
+    param()
+
+    # Static analysis over every *.ps1 the repo ships (retro 2026-11-21):
+    # parse failures plus the param-clobber pattern (an argument overwritten
+    # before its first read) - two speckit scripts had shipped unparseable
+    # and two clobbers reached main, both without any gate catching them.
+    $lintScript = Join-Path $repoRoot 'scripts' 'workspace' 'check-powershell.ps1'
+    if (-not (Test-Path $lintScript)) {
+        return @{ Status = 'FAIL'; Detail = 'missing scripts/workspace/check-powershell.ps1' }
+    }
+    # Subprocess: the linter exits with a code, which would take this host down.
+    $psExe = (Get-Process -Id $PID).Path
+    $out = @(& $psExe -NoProfile -File $lintScript 2>&1 | ForEach-Object { "$_" })
+    if ($LASTEXITCODE -eq 0) {
+        $detail = ($out | Select-Object -Last 1) -replace '^\[PASS\] pshlint: ', ''
+        return @{ Status = 'PASS'; Detail = $detail }
+    }
+    $first = @($out | Where-Object { $_ -match '^\[FAIL\]' } | Select-Object -First 2) -join ' | '
+    if (-not $first) { $first = ($out -join ' | ') }
+    return @{ Status = 'FAIL'; Detail = "$first - run: pwsh scripts/workspace/check-powershell.ps1" }
+}
+
 # --- Run -------------------------------------------------------------------
 # Checks are scriptblocks so each can be timed as it runs (retro 2026-11-21:
 # the gate reported verdicts but never durations, hiding that the advisory
 # waza check alone cost ~21 s of every push).
 $checks = @(
     @{ Name = 'Markdown lint'; Action = { Test-MarkdownLint } },
-    @{ Name = 'Consistency'; Action = { Test-Consistency } }
+    @{ Name = 'Consistency'; Action = { Test-Consistency } },
+    @{ Name = 'PowerShell lint'; Action = { Test-PowerShellLint } }
 )
 if (-not $Quick) {
     if (-not $SkipAdvisoryWaza) {
