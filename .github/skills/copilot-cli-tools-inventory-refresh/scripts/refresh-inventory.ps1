@@ -107,9 +107,9 @@ Write-Section "3. Official docs (web)"
 $commandRefUrl = "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference"
 $docsBody = ""
 $docsError = ""
-if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+if (Get-Command curl -ErrorAction SilentlyContinue) {
     try {
-        $docsBody = (& curl.exe -sL $commandRefUrl) -join "`n"
+        $docsBody = (& curl -sL $commandRefUrl) -join "`n"
         Write-Host "[docs] fetched $($docsBody.Length) chars from $commandRefUrl"
     }
     catch {
@@ -118,8 +118,8 @@ if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
     }
 }
 else {
-    $docsError = "curl.exe not available"
-    Write-Warning "curl.exe not available; skipping docs fetch."
+    $docsError = "curl not available"
+    Write-Warning "curl not available; skipping docs fetch."
 }
 
 # 4. Build signals object and pass to the Python diff helper

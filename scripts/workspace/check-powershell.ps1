@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
-    Static lint for this repo's PowerShell: parse failures and the
-    parameter-clobber pattern (a parameter assigned before its first read).
+    Static lint for this repo's PowerShell: parse failures, the
+    parameter-clobber pattern (a parameter assigned before its first read),
+    and cross-platform portability patterns.
 
 .DESCRIPTION
     Retro 2026-11-21: the gate linted markdown, JSON and ran test suites, but
@@ -18,6 +19,20 @@
     its own RHS (`$Repo = Resolve-Thing -Repo $Repo ...`).
 
     Nested functions are analyzed against their own parameters only.
+
+    Portability rules (retro 2026-11-21: the gate lints on the Windows host
+    while CI runs ubuntu-latest, so Windows-only spellings passed locally and
+    failed 32/145 Pester tests in CI):
+      exe:  a native command invoked with a literal .exe suffix never
+            resolves on Linux; the bare name resolves via PATHEXT on Windows
+            and is the name every platform ships. Arguments, strings and
+            Get-Command guards naming an .exe are not invocations - only a
+            command in command position is flagged.
+      temp: $env:TEMP is unset on Linux, so Join-Path throws; test code
+            reads the platform directory via [IO.Path]::GetTempPath().
+            Scoped to *.Tests.ps1 (what the Linux gate runs); .exe embedded
+            in string literals (stub bodies) is not parsed, so those remain
+            review-time, not lint-time.
 
     Run as a subprocess (the script exits): pwsh -NoProfile -File <this file>
 
@@ -66,6 +81,26 @@ foreach ($file in $targets) {
         $findings.Add("parse: ${label}:$($e.Extent.StartLineNumber) - $($e.Message)")
     }
     if ($errors.Count -gt 0) { continue }
+
+    # Portability rules: command-position .exe invocations fail on the Linux
+    # runner; $env:TEMP in test code is null there.
+    foreach ($c in $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)) {
+        $cmdName = $c.GetCommandName()
+        if ($cmdName -and $cmdName.EndsWith('.exe', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $findings.Add("exe: ${label}:$($c.Extent.StartLineNumber) - '$cmdName' is a Windows-only spelling; invoke the bare name (PATHEXT resolves .exe on Windows)")
+        }
+    }
+    if ($file.Name -like '*.Tests.ps1') {
+        $tempVars = $ast.FindAll({
+                param($n)
+                $n -is [System.Management.Automation.Language.VariableExpressionAst] -and
+                $n.VariablePath -and $n.VariablePath.DriveName -eq 'env' -and
+                $n.VariablePath.UserPath -match '(^|:)(TEMP|TMP)$'
+            }, $true)
+        foreach ($v in $tempVars) {
+            $findings.Add("temp: ${label}:$($v.Extent.StartLineNumber) - `$env:TEMP is unset on Linux; use [IO.Path]::GetTempPath() (tests run on ubuntu-latest)")
+        }
+    }
 
     # Scopes: the script itself plus every function with a param block.
     $scopes = New-Object System.Collections.Generic.List[object]
@@ -145,7 +180,7 @@ foreach ($file in $targets) {
 }
 
 if ($findings.Count -eq 0) {
-    Write-Output "[PASS] pshlint: $($targets.Count) file(s) parsed, no param-clobber findings"
+    Write-Output "[PASS] pshlint: $($targets.Count) file(s) parsed, no findings"
     exit 0
 }
 foreach ($f in $findings) { Write-Output "[FAIL] pshlint: $f" }

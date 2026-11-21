@@ -8,11 +8,15 @@ BeforeAll {
     $script:fixtures = [System.Collections.Generic.List[string]]::new()
 
     function Invoke-Lint {
-        param([Parameter(Mandatory)][string]$Content)
+        param(
+            [Parameter(Mandatory)][string]$Content,
+            # Fixture file name; the temp rule scopes by *.Tests.ps1.
+            [string]$Name = 'fixture.ps1'
+        )
 
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('pshlint-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $dir | Out-Null
-        $file = Join-Path $dir 'fixture.ps1'
+        $file = Join-Path $dir $Name
         Set-Content -Path $file -Value $Content -Encoding UTF8
         $script:fixtures.Add($dir)
         $out = @(& $script:pwsh -NoProfile -File $script:linter -Path $file 2>&1 | ForEach-Object { "$_" })
@@ -132,5 +136,41 @@ Describe 'check-powershell.ps1' {
         $out = @(& $script:pwsh -NoProfile -File $script:linter -Path $dir 2>&1 | ForEach-Object { "$_" })
         $LASTEXITCODE | Should -Be 1
         ($out -join ' ') | Should -Match 'clobber:'
+    }
+
+    Context 'portability rules (exe and temp)' {
+        It 'flags a command-position .exe invocation' {
+            $r = Invoke-Lint -Content "sqlite3.exe `$db 'SELECT 1'"
+            $r.Code | Should -Be 1
+            $r.Output | Should -Match 'exe: .*fixture\.ps1:1'
+            $r.Output | Should -Match 'invoke the bare name'
+        }
+
+        It 'allows .exe in a Get-Command guard - an argument, not an invocation' {
+            $r = Invoke-Lint -Content "if (Get-Command sqlite3.exe -ErrorAction SilentlyContinue) { Write-Output 'ok' }"
+            $r.Code | Should -Be 0
+        }
+
+        It 'allows .exe inside a string literal' {
+            $r = Invoke-Lint -Content "`$msg = 'see the sqlite3.exe docs'`nWrite-Output `$msg"
+            $r.Code | Should -Be 0
+        }
+
+        It 'flags $env:TEMP in a test file with the file and line' {
+            $r = Invoke-Lint -Name 'portable.Tests.ps1' -Content "`$log = Join-Path `$env:TEMP 'x.log'`nWrite-Output `$log"
+            $r.Code | Should -Be 1
+            $r.Output | Should -Match 'temp: .*portable\.Tests\.ps1:1'
+            $r.Output | Should -Match 'GetTempPath'
+        }
+
+        It 'allows the platform temp dir in a test file' {
+            $r = Invoke-Lint -Name 'portable.Tests.ps1' -Content "`$log = Join-Path ([IO.Path]::GetTempPath()) 'x.log'`nWrite-Output `$log"
+            $r.Code | Should -Be 0
+        }
+
+        It 'scopes the temp rule to test files' {
+            $r = Invoke-Lint -Content "`$log = Join-Path `$env:TEMP 'x.log'`nWrite-Output `$log"
+            $r.Code | Should -Be 0
+        }
     }
 }
