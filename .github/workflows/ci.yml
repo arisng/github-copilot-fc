@@ -14,18 +14,21 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: arduino/setup-task@v2
+      - uses: arduino/setup-task@v3
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Pin waza like markdownlint: a gate result must not depend on registry
       # drift (same rule as the pinned linter in workspace-check.ps1).
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: 'stable'
+          # No go.mod/go.sum in this repo - waza is installed, not built here,
+          # so dependency caching only produced a standing restore warning.
+          cache: false
       - name: Install waza
         run: |
           # Main package lives in cmd/ - the module root is a library package,
@@ -33,7 +36,7 @@ jobs:
           go install github.com/microsoft/waza/cmd/waza@v0.40.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install Python gate dependencies
