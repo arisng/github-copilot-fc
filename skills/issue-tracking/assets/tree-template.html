@@ -103,6 +103,12 @@ button.ghost {
 }
 button.ghost:hover { border-color: var(--accent); color: var(--text); }
 .count { color: var(--muted); font-size: 12px; margin: 2px 2px 10px; }
+.banner {
+  background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+  border-radius: 8px; padding: 8px 14px; margin-bottom: 14px; box-shadow: var(--shadow);
+  color: var(--muted); font-size: 12px;
+}
+button.ghost[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 section.theme {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   margin-bottom: 12px; box-shadow: var(--shadow); overflow: hidden;
@@ -193,6 +199,8 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
     <div class="src" id="src"></div>
   </header>
 
+  <div class="banner" id="banner" hidden></div>
+
   <div class="next" id="next" hidden>
     <span class="label">Next up</span>
     <span class="pid" id="next-id" style="cursor:pointer"></span>
@@ -205,6 +213,8 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
     <input id="q" type="search" placeholder="Search id or title…  (press /)" autocomplete="off">
     <div class="chips" id="status-chips" aria-label="Filter by status"></div>
     <div class="chips" id="prio-chips" aria-label="Filter by priority"></div>
+    <button class="ghost" id="hide-closed" type="button" aria-pressed="false"
+            title="hide closed (parents of matches shown as context)">Hide closed</button>
     <button class="ghost" id="expand" type="button">Expand all</button>
     <button class="ghost" id="collapse" type="button">Collapse all</button>
     <button class="ghost" id="clear" type="button">Clear</button>
@@ -215,8 +225,8 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
   <div class="empty" id="empty" hidden>No issues match the current filters.</div>
 
   <footer>
-    Generated from <code id="foot-src"></code> — edit issues, not this file.<br>
-    Regenerate: <code>pwsh &lt;skill-folder&gt;/scripts/render-issue-tree.ps1</code>
+    <span id="foot-gen">Generated from <code id="foot-src"></code> — edit issues, not this file.</span><span id="foot-sep"><br>
+    Regenerate: <code>pwsh &lt;skill-folder&gt;/scripts/render-issue-tree.ps1</code></span>
     — template v<code>__TREE_TEMPLATE_VERSION__</code>
   </footer>
 </div>
@@ -230,7 +240,7 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
 
   var STATUSES = ["open", "in-progress", "blocked", "done", "dropped"];
   var PRIOS = ["P0", "P1", "P2", "P3"];
-  var state = { q: "", status: new Set(), prio: new Set(), collapsed: new Set() };
+  var state = { q: "", status: new Set(), prio: new Set(), collapsed: new Set(), hideClosed: false };
   var nodesById = {};          // id -> {row, section?} for deep links
   var sections = [];           // {el, theme, rows: [{el, node}]}
 
@@ -242,21 +252,105 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
   }
   function cssStatus(s) { return "--st: var(--st-" + s.replace(/[^a-z-]/g, "") + ")"; }
   function cssPrio(p) { return "--pc: var(--" + p.toLowerCase() + ")"; }
+  // Short UTC date (YYYY-MM-DD) for the as-of badge/banner - derived from the
+  // stored epoch only; formatting, never a wall-clock comparison.
+  function fmtDate(epochSec) {
+    var t = Number(epochSec);
+    if (!isFinite(t)) return "";
+    var d = new Date(t * 1000);
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  }
+  // Closed rows in the data (issue rows with status done/dropped; theme rows
+  // excluded - #count counts issue rows). Drives the banner's conditional
+  // "closed: K shown" clause and whether the hide-closed toggle is offered:
+  // with K = 0 (cap crowd-out) the toggle would be a no-op, so - same
+  // data-driven rule as the banner clause - it stays hidden.
+  var closedRowCount = 0;
+  (function countClosedRows(nodes) {
+    (nodes || []).forEach(function (n) {
+      if (n.status === "done" || n.status === "dropped") closedRowCount++;
+      countClosedRows(n.children);
+    });
+  })((DATA.themes || []).map(function (t) { return t.children || []; })
+      .reduce(function (acc, rows) { return acc.concat(rows); }, []));
 
   // ---- summary + next -------------------------------------------------------
   (function renderSummary() {
     var box = document.getElementById("summary");
-    var order = ["themes", "issues", "P0", "P1", "P2", "P3", "blocked"];
+    var order = ["themes", "issues", "P0", "P1", "P2", "P3", "blocked", "total", "asOfEpoch"];
     order.forEach(function (k) {
       if (!(k in DATA.summary)) return;
+      var value = String(DATA.summary[k]);
+      var label = k === "themes" ? "themes" : k === "issues" ? "issues" : k === "blocked" ? "blocked" : k;
+      if (k === "asOfEpoch") {
+        value = fmtDate(DATA.summary[k]);
+        if (!value) return;          // non-numeric epoch: skip the badge
+        label = "as of";
+      }
       var b = el("span", "badge");
-      b.appendChild(el("b", null, String(DATA.summary[k])));
-      b.appendChild(document.createTextNode(" " + (k === "themes" ? "themes" : k === "issues" ? "issues" : k === "blocked" ? "blocked" : k)));
+      b.appendChild(el("b", null, value));
+      b.appendChild(document.createTextNode(" " + label));
       box.appendChild(b);
     });
     var src = DATA.source || "";
     document.getElementById("src").textContent = src;
     document.getElementById("foot-src").textContent = src;
+  })();
+
+  // Snapshot banner (sketch §1.6): frozen bounds of the data - shown-count
+  // with total floor, cap, lookback window, as-of date, draft caveat + query
+  // echo. Every segment is read only from keys that are present; the extra
+  // K>0 segment is appended by the clause below this builder. Wording is
+  // deliberately apart from the live #count counter ("showing N of M issues
+  // (filtered)").
+  (function renderBanner() {
+    var banner = document.getElementById("banner");
+    var summary = DATA.summary || {};
+    var issues = "issues" in summary && isFinite(Number(summary.issues)) ? Number(summary.issues) : null;
+    var total = "total" in summary && isFinite(Number(summary.total)) ? Number(summary.total) : null;
+    var cap = "cap" in summary && isFinite(Number(summary.cap)) ? Number(summary.cap) : null;
+    var lookback = "lookback" in summary && isFinite(Number(summary.lookback)) ? Number(summary.lookback) : null;
+    var asOf = "asOfEpoch" in summary ? fmtDate(summary.asOfEpoch) : "";
+    // Query echo (may carry quotes/backslashes/< > and an @me->identity
+    // suffix appended by the sync): render as text, never markup.
+    var filter = typeof DATA.filter === "string" ? DATA.filter : "";
+    // Snapshot inputs only: a bare local summary never unhides the banner -
+    // local mode stays exactly as before.
+    if (total === null && cap === null && lookback === null && !asOf && !filter) return;
+    var parts = [];
+    if (issues !== null && total !== null) parts.push(issues + " of ≥" + total + " issues");
+    else if (issues !== null) parts.push(issues + " issues");
+    else if (total !== null) parts.push("of ≥" + total + " issues");
+    if (cap !== null) parts.push("cap " + cap);
+    if (lookback !== null) parts.push("created within " + lookback + " days");
+    if (asOf) parts.push("as of " + asOf);
+    if (filter) {
+      parts.push("excludes drafts");
+      parts.push("filter: " + filter);
+    }
+    banner.hidden = false;
+    banner.textContent = parts.join(" · ");
+  })();
+
+  // Conditional K>0 segment (§1.6, appended outside the builder): shown only
+  // when the shipped data contains rows with status done/dropped; at K = 0
+  // (cap crowd-out) the clause stays absent so the banner never promises a
+  // control the view does not offer.
+  (function appendClosedClause() {
+    if (closedRowCount <= 0) return;
+    var banner = document.getElementById("banner");
+    if (banner.hidden) return;
+    banner.textContent += " · closed: " + closedRowCount + " shown";
+  })();
+
+  // Footer hint: local trees keep "edit issues, not this file"; github-style
+  // data (non-empty filter) points at the sync + render pair instead.
+  (function renderFooter() {
+    if (!(typeof DATA.filter === "string" && DATA.filter)) return;
+    document.getElementById("foot-gen").textContent =
+      "edit issues in the repo — regenerate: sync-github-tree.ps1 first, then render-issue-tree.ps1";
+    document.getElementById("foot-sep").textContent = "";
   })();
 
   (function renderNext() {
@@ -419,6 +513,10 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
     return (node.id + " " + node.title).toLowerCase().indexOf(q) !== -1;
   }
   function dimHit(node) {
+    // Exclusive hide-closed: closed rows (done/dropped) fail here, but a
+    // closed parent of visible open children still shows as context because
+    // "show = ownMatch || childAny" below keeps it on screen.
+    if (state.hideClosed && (node.status === "done" || node.status === "dropped")) return false;
     if (state.status.size && !state.status.has(node.status)) return false;
     if (state.prio.size && !state.prio.has(node.priority)) return false;
     return true;
@@ -463,7 +561,7 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
       var visibleRows = s.rows.filter(function (e) { return !e.el.classList.contains("hidden"); }).length;
       // The row counter only matters while filtering - at rest it would just
       // read N/N and invite confusion with the completion percentage beside it.
-      var filtered = !!q || state.status.size > 0 || state.prio.size > 0;
+      var filtered = !!q || state.status.size > 0 || state.prio.size > 0 || state.hideClosed;
       s.countEl.hidden = !filtered;
       s.countEl.textContent = visibleRows + "/" + s.rows.length;
       s.countEl.title = "rows matching the current filters: " + visibleRows +
@@ -473,7 +571,7 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
 
     document.getElementById("count").textContent =
       "showing " + shown + " of " + total + " issues" +
-      (q || state.status.size || state.prio.size ? " (filtered)" : "");
+      (q || state.status.size || state.prio.size || state.hideClosed ? " (filtered)" : "");
     document.getElementById("empty").hidden = shown > 0 || anySection;
   }
 
@@ -507,6 +605,18 @@ footer code { background: var(--panel); border: 1px solid var(--border); border-
   });
   makeChips("status-chips", presentStatuses, state.status, function (v) { return cssStatus(v); });
   makeChips("prio-chips", PRIOS, state.prio, function (v) { return cssPrio(v); });
+
+  // Exclusive hide-closed toggle (default off: closed rows shown). Not a
+  // status chip - it hides rather than selects, so no mirrored chip row.
+  // Offered only when closed rows exist: at K = 0 it would be a no-op, so -
+  // like the banner's "closed: K shown" clause - it stays absent.
+  var hideClosedBtn = document.getElementById("hide-closed");
+  hideClosedBtn.hidden = closedRowCount === 0;
+  hideClosedBtn.addEventListener("click", function () {
+    state.hideClosed = !state.hideClosed;
+    hideClosedBtn.setAttribute("aria-pressed", state.hideClosed ? "true" : "false");
+    applyFilters();
+  });
 
   // ---- toolbar actions --------------------------------------------------------
   var qInput = document.getElementById("q");

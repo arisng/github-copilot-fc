@@ -1,9 +1,9 @@
 ---
 name: issue-tracking
 description: >
-  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive Q&A or auto-inferred in autopilot; the manifest schema is owned by this skill), then triages incoming issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated issue tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Use when asked to triage, groom, refine, prioritize, or audit issues, decide what to work on next by theme, file or link a new issue, refresh .issues/tree.md, render or view the issue tree HTML, verify issue claims against git history, or set up a repo's issue tracker manifest. Routes GitHub issues to triage-backlog; Azure DevOps via az boards.
+  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive Q&A or auto-inferred in autopilot; the manifest schema is owned by this skill), then triages incoming issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated issue tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Use when asked to triage, groom, refine, prioritize, or audit issues, decide what to work on next by theme, file or link a new issue, refresh .issues/tree.md, render or view the issue tree HTML, verify issue claims against git history, or set up a repo's issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced local tree view when treeSource is github); Azure DevOps via az boards.
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   author: arisng
 ---
 
@@ -15,6 +15,9 @@ the next run starts clean. Parsing, sorting, id arithmetic and validation belong
 the script; the LLM only does evidence judgment and decisions. The primary
 human-facing surface is the rendered `.issues/tree.html` — a deterministic,
 self-contained page (search, filters, deep links) that opens over `file://`.
+With `tracker: github` + `treeSource: github` the same run works over a synced
+snapshot: triage routes to `triage-backlog`, and steps 1, 4 and 5 operate on
+the committed `treeFile` instead of a local store.
 
 ## 0. Resolve the tracker (mandatory first step)
 
@@ -32,7 +35,7 @@ Commands below use `<skill-folder>` = the folder holding this SKILL.md.
 | `tracker` value | Store | Route |
 |---|---|---|
 | `local-markdown` | files under `issuesDir` (default `.issues`) | workflow below |
-| `github` | GitHub Issues in `repo` | label-based triage — the user-level `triage-backlog` skill |
+| `github` | GitHub Issues in `repo` | label-based triage — the user-level `triage-backlog` skill; **plus** the local tree view (steps 1, 4, 5 below) when `treeSource: github` |
 | `azure-devops` | Azure Boards in `org`/`project` | `az boards` work items |
 | anything else | — | stop and ask; extend this skill before running |
 
@@ -51,9 +54,18 @@ Commands below use `<skill-folder>` = the folder holding this SKILL.md.
 4. Write it: `pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Tracker <t> ...`
    — the script validates against the schema and refuses to overwrite an existing
    manifest (`-Force` replaces). Report what was created or inferred.
+   For `tracker: github` the writer emits `treeSource: github` (the local tree
+   view over a synced snapshot) by default — pass `-NoTree` to opt out — and
+   accepts `-TreeFile <path>` (committed snapshot path) plus `-IssueQuery '<search>'`
+   (membership query, validated by the single reject list in
+   `query-composition-lib.ps1`); the limit knobs (`-TreeMaxIssues`,
+   `-TreeLookbackDays`, `-TreeIncludeClosed`, `-TreeMinPriority`,
+   `-TreeFreshnessHours`) are optional. See
+   [references/manifest-schema.md](references/manifest-schema.md).
 
-**Done:** manifest present and a tracker route chosen. For any `tracker` other than
-`local-markdown`, the workflow below does not apply until adapted — route per the table.
+**Done:** manifest present and a tracker route chosen. For `azure-devops` (and
+any tracker other than `local-markdown` / `github`-with-`treeSource: github`),
+the workflow below does not apply until adapted — route per the table.
 
 ## 1. Inventory — run the script, read its rows
 
@@ -62,8 +74,13 @@ where `<skill-folder>` is the folder holding this SKILL.md (`~/.agents/skills/is
 installed; the manifest's `treeScript` names the same file). Always invoke it by that
 path **from the repo root**: the issue store resolves from the current directory, never
 relative to the script. The script itself reads the manifest for `issuesDir` /
-`treeFile` / `archiveDir` (falling back to `.issues`), refuses a non-local-markdown
-tracker, and fails fast when the store directory does not exist.
+`treeFile` / `archiveDir` (falling back to `.issues`), enforces the compound guard —
+it runs for `local-markdown`, or for `github` **with** `treeSource: github`
+(`azure-devops` and a `github` manifest without `treeSource` are refused; a missing
+key behaves as `local-markdown`, so old manifests fail closed), and fails fast when a
+local store directory does not exist.
+
+**Local-markdown mode** (default path, unchanged):
 
 ```powershell
 pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory
@@ -79,6 +96,22 @@ pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory
 - Conventions live in `.issues/README.md` when the repo ships one — status/priority/type
   enums, theme rules, the cited-probe rule for package claims (the script enforces the
   enums either way).
+
+**Github mode** (`tracker: github` + `treeSource: github`) — the committed `treeFile`
+is the source of truth; there is no local store to validate:
+
+- **Refresh first (network):** `pwsh <skill-folder>/scripts/sync-github-tree.ps1`
+  reads the manifest (`repo`, `treeFile`, limits, `issueQuery`), composes the
+  membership query, fetches via `gh`, and rewrites `treeFile` — see step 4's
+  github-mode block for the full refresh order and what to read in its summary.
+  A plain `issue-tree.ps1` run here is a **no-op with a pointer**
+  (`github tree source: run sync-github-tree.ps1 to regenerate`, exit 0) — it
+  never writes an empty tree.
+- **Inventory** — `pwsh <skill-folder>/scripts/issue-tree.ps1 -Inventory` parses the
+  committed `treeFile` with the same grammar and prints its data rows (no
+  `NEXT_ID` — GitHub assigns issue numbers). `-Check` is structural
+  self-consistency of `treeFile` only (parser + count cross-checks, offline).
+  After a sync, regenerate the view: `pwsh <skill-folder>/scripts/render-issue-tree.ps1`.
 
 **Done:** `-Inventory` exits 0 and its rows have been read.
 
@@ -122,12 +155,51 @@ recording what could not be checked.
 
 ## 4. Refresh the tree, the view, and go green
 
+**Local-markdown mode:**
+
 ```powershell
 pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1         # regenerate the tree file
 pwsh ~/.agents/skills/issue-tracking/scripts/render-issue-tree.ps1  # hydrate the human view .issues/tree.html
 pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Check         # gate (wire into your repo's issue lint)
 pwsh ~/.agents/skills/issue-tracking/scripts/render-issue-tree.ps1 -Check  # same gate, HTML half
 ```
+
+**Github mode** (`treeSource: github`) — refresh order is **sync → check → render**
+(the sync is the only step that touches the network; `issue-tree.ps1` plain run is
+a no-op here, so never put it in a gate):
+
+```powershell
+pwsh <skill-folder>/scripts/sync-github-tree.ps1           # network: fetch + rewrite treeFile
+pwsh <skill-folder>/scripts/issue-tree.ps1 -Check          # structural self-consistency of treeFile (offline)
+pwsh <skill-folder>/scripts/render-issue-tree.ps1          # hydrate .issues/tree.html from treeFile
+pwsh <skill-folder>/scripts/render-issue-tree.ps1 -Check   # byte-compare HTML <-> treeFile + template fingerprint
+```
+
+- `lint:issues` in github mode = `issue-tree.ps1 -Check` + `render-issue-tree.ps1
+  -Check` — **never a plain `issue-tree.ps1` run**: it no-ops by design (pointer
+  exit 0) and would gate nothing. `-Repo owner/name` overrides the manifest's
+  `repo`; `-FromJson <file>` is the offline fixture mode used by the tests.
+- **Read the sync summary before moving on:** `query:` (the composed membership
+  query), `skipped knobs:` (fixed knobs suppressed because `issueQuery` already
+  carries that qualifier class — logged, never silently dropped), and
+  `fetched= shown= truncated= total=(exact|floor) asOf=`. `truncated=true` means
+  the post-filter cap was hit (fetch probed cap+1 rows — more issues exist than
+  shown); `total` is an exact GraphQL `ISSUE_ADVANCED` count only when
+  `issueQuery` is set, otherwise an honest fetched floor. Every
+  `sync-github-tree: warning:` line (sub-issue shortfall, fallback theme bucket,
+  unresolved `@me`, count fallback…) must be read and, if it affects the view,
+  reported in step 5.
+- **`@me`/`@team` in `issueQuery`** is resolved once per sync and recorded in the
+  artifact's `FILTER|` line as `@me→<login>` (echoed into the page banner via the
+  `filter` dataJson field) — the snapshot discloses whose view it is; that is the
+  one deliberate cross-machine non-reproducibility.
+- **Freshness is advisory by design:** the `asOf` epoch is baked into `SUMMARY`
+  and the lookback window anchors to it, so a committed snapshot is a frozen,
+  offline-verifiable artifact — `render -Check` byte-compares unchanged in both
+  modes. There is **no `-MaxAgeHours` switch and no enforcement of
+  `treeFreshnessHours`** (the manifest key is stored for future use only); the
+  freshness policy that exists is *run the sync* (step 1's refresh) when the
+  snapshot may be old.
 
 The HTML is rendered from `assets/tree-template.html` + the parsed tree — never
 edited by hand; `-Check` fails when either the template or the tree moved without a
@@ -142,7 +214,10 @@ so every generated `.issues/tree.html` states which template built it.
   `pwsh <skill-folder>/scripts/bump-tree-template-version.ps1 -Version <new>` (it
   re-fingerprints the template and refuses downgrades). Until you do, every render and
   `-Check` fails with `changed without a version bump`, so an un-bumped template cannot
-  ship.
+  ship. Current template is **v1.1.0** (snapshot banner, hide-closed toggle,
+  github-variant footer) — consumer drift detection covers those changes too: a
+  page generated before the upgrade reports `version drift` and the patch is the
+  same re-render.
 - **Consumer repos detect drift at `-Check`**, before data staleness: the embedded version
   is compared against the installed template's recorded one —
   `version drift: generated with template vX, current template is vY` means a skill
@@ -155,14 +230,25 @@ invalid store is refused *before* anything is written) — then `git add` the tw
 artifacts and run both `-Check`s. An issue mutation can then never land with a
 stale tree or view, while corrupt data still fails the commit.
 
+Note the limit for **github mode**: a staged-file hook cannot observe *remote*
+issue changes — nothing staged moves when someone files an issue on GitHub. A
+`gh`-backed refresh hook is possible but must stay optional and auth/offline
+aware (pre-commit itself stays fully offline: it runs the two `-Check`s against
+the committed artifacts). The freshness path there is the explicit sync in step 1,
+or a scheduled/manual refresh — not a gate. In this repo the gates are
+`scripts/workspace/workspace-check.ps1` (via `task lint` / `task check` in
+`Taskfile.yml`); wire `lint:issues` to the two `-Check` commands above for either
+mode.
+
 **Done:** both `-Check`s exit 0. A stale tree or view exits 1 here; a repo wired
 with the pattern above regenerates and stages the artifacts itself, and still
 refuses an invalid store (store files live under `.issues/` by default).
 
 ## 5. Report and land
 
-- Report from the tree file (`.issues/tree.md` here) — it is generated from the store,
-  so quote its `SUMMARY`/`NEXT` lines and `## THEME` sections instead of recomputing
+- Report from the tree file (`.issues/tree.md` here) — it is generated from the store
+  (or, in github mode, the synced snapshot), so quote its `SUMMARY`/`NEXT` lines and
+  `## THEME` sections instead of recomputing
   counts or order; `git diff` on it shows what moved since the last run. The
   human-facing view of the same data is `.issues/tree.html` — open it (or hand its
   path to the user) when the conversation benefits from the interactive surface.

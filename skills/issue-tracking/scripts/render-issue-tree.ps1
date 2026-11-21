@@ -12,6 +12,12 @@
     Determinism: same tree file + same template -> byte-identical HTML
     (no timestamps; stable key order; platform line endings only).
 
+    Validation (both trackers): SUMMARY keys must match [A-Za-z0-9_], values
+    must fit a 64-bit integer, row ids must be unique, a nested row must name
+    a parent row earlier in its section, and the embedded JSON is parse-checked
+    before hydration. The manifest guard runs only for tracker local-markdown
+    or tracker github + treeSource github (missing treeSource = local-markdown).
+
     Template versioning: assets/tree-template.version.json records the current
     template version + sha256 fingerprint. The fingerprint is verified before
     hydrating (an edit to assets/tree-template.html without a version bump via
@@ -45,16 +51,28 @@ $ErrorActionPreference = 'Stop'
 
 $manifestPath = Join-Path -Path '.github' -ChildPath 'issue-tracker.json'
 $treePath = '.issues/tree.md'
-$tracker = $null
+$tracker = 'local-markdown'
 if (Test-Path -LiteralPath $manifestPath) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $names = @($manifest.PSObject.Properties.Name)
+    $treeSource = 'local-markdown'
+    if ($names -contains 'treeSource' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.treeSource)) {
+        $treeSource = [string]$manifest.treeSource
+    }
     if ($names -contains 'tracker' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.tracker)) {
         $tracker = [string]$manifest.tracker
-        if ($tracker -ne 'local-markdown') {
-            "render-tree: tracker '$tracker' is not local-markdown - HTML rendering only handles the local file store"
-            exit 1
+    }
+    # Compound guard (sketch v6 section 1.2): render the local store or a
+    # github tree file only. azure-devops (and any other tracker) stays
+    # refused by the explicit tracker clause; a missing treeSource behaves
+    # as local-markdown, so old github manifests fail closed.
+    if ($tracker -ne 'local-markdown' -and
+        -not ($tracker -eq 'github' -and $treeSource -eq 'github')) {
+        "render-tree: tracker '$tracker' is not local-markdown - HTML rendering only handles the local file store"
+        if ($tracker -eq 'github') {
+            "render-tree: treeSource is '$treeSource' - set treeSource: 'github' in .github/issue-tracker.json to render the synced github tree"
         }
+        exit 1
     }
     if ($names -contains 'treeFile' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.treeFile)) {
         $treePath = [string]$manifest.treeFile
@@ -96,7 +114,9 @@ $nextNode = $null
 $themes = New-Object System.Collections.Generic.List[object]
 $allIds = @{}
 $rowTotal = 0
+$filterPayload = ''
 $currentTheme = $null
+$sectionIds = @{}
 $stack = New-Object System.Collections.Stack
 $fail = $null
 
@@ -124,11 +144,33 @@ function New-RowNode {
 
 foreach ($line in [System.IO.File]::ReadAllLines((Join-Path (Get-Location).Path $treePath))) {
     if ($fail) { break }
+    # Optional FILTER line (sync-github-tree.ps1 writes it before SUMMARY):
+    # its payload rides dataJson.filter for the snapshot banner. Absent ->
+    # "" keeps local-markdown output byte-identical.
+    if ($line -match '^FILTER\|(.*)$') {
+        $filterPayload = $Matches[1]
+        continue
+    }
     if ($line -match '^SUMMARY\|') {
         foreach ($seg in (($line -split '\|') | Select-Object -Skip 1)) {
             if ($seg -match '^([^=]+)=(\d+)$') {
-                $summaryList.Add(('"{0}":{1}' -f $Matches[1], $Matches[2]))
-                $summaryCount[$Matches[1]] = [int]$Matches[2]
+                $key = $Matches[1]
+                $rawValue = $Matches[2]
+                # Audit C2: a hostile key interpolates raw into the embedded
+                # JSON - reject it before anything is built or hydrated.
+                if ($key -notmatch '^[A-Za-z0-9_]+$') {
+                    $fail = "SUMMARY key '$key' is invalid (allowed: A-Z a-z 0-9 _)"
+                    break
+                }
+                # Digits are the grammar; long range keeps asOfEpoch-style
+                # epoch values (and any oversized count) from crashing parse.
+                $value = 0L
+                if (-not [long]::TryParse($rawValue, [ref]$value)) {
+                    $fail = "SUMMARY segment '$seg' value is out of range"
+                    break
+                }
+                $summaryList.Add(('"{0}":{1}' -f $key, $rawValue))
+                $summaryCount[$key] = $value
             }
             else {
                 $fail = "malformed SUMMARY segment '$seg'"
@@ -153,6 +195,7 @@ foreach ($line in [System.IO.File]::ReadAllLines((Join-Path (Get-Location).Path 
             Children = New-Object System.Collections.Generic.List[object]
         }
         $themes.Add($currentTheme)
+        $sectionIds = @{}
         $stack.Clear()
         $stack.Push(@{ Node = $currentTheme; Depth = -1 })
         continue
@@ -166,6 +209,16 @@ foreach ($line in [System.IO.File]::ReadAllLines((Join-Path (Get-Location).Path 
         if ($f.Count -lt 6) { $fail = "malformed row '$line'"; continue }
         if ($null -eq $currentTheme) { $fail = "row '$($f[0])' appears before any THEME section"; continue }
         if ($f[1] -ne $currentTheme.Id) { $fail = "row '$($f[0])' theme '$($f[1])' != section '$($currentTheme.Id)'"; continue }
+        if ($allIds.ContainsKey($f[0])) { $fail = "duplicate row id '$($f[0])'"; continue }
+        # Non-root = nested row naming a parent: it must resolve to an earlier
+        # row of this section (audit F.3's dead "no visible parent" branch).
+        # Root rows (depth 0, or parent "-" / empty) may keep a foreign parent
+        # as a retained hint - promoted rows are legal and stay green.
+        if ($depth -gt 0 -and -not [string]::IsNullOrWhiteSpace($f[2]) -and $f[2] -ne '-' -and
+            -not $sectionIds.ContainsKey($f[2])) {
+            $fail = "row '$($f[0])' parent '$($f[2])' does not exist earlier in section '$($currentTheme.Id)'"
+            continue
+        }
         $node = New-RowNode -Id $f[0] -Theme $f[1] -Parent $f[2] -Priority $f[3] -Status $f[4] -Title $f[5]
         while ($stack.Count -gt 0 -and $stack.Peek().Depth -ge $depth) { [void]$stack.Pop() }
         if ($stack.Count -eq 0) {
@@ -175,6 +228,7 @@ foreach ($line in [System.IO.File]::ReadAllLines((Join-Path (Get-Location).Path 
         [void]$stack.Peek().Node.Children.Add($node)
         $stack.Push(@{ Node = $node; Depth = $depth })
         $allIds[$node.Id] = $true
+        $sectionIds[$node.Id] = $true
         $rowTotal++
         continue
     }
@@ -199,6 +253,12 @@ if ($summaryCount.ContainsKey('themes') -and $summaryCount['themes'] -ne $themes
 }
 if ($summaryCount.ContainsKey('issues') -and $summaryCount['issues'] -ne $rowTotal) {
     "render-tree: SUMMARY issues=$($summaryCount['issues']) but parsed $rowTotal rows"
+    exit 1
+}
+# Optional github-mode keys: total is a floor (>= the rows actually shown);
+# asOfEpoch rides the digits-only grammar and the long parse above.
+if ($summaryCount.ContainsKey('total') -and $summaryCount['total'] -lt $rowTotal) {
+    "render-tree: SUMMARY total=$($summaryCount['total']) is below issues=$rowTotal"
     exit 1
 }
 if ($null -ne $nextNode -and -not $allIds.ContainsKey($nextNode.Id)) {
@@ -232,8 +292,23 @@ if ($null -ne $nextNode) {
         (ConvertTo-JsString $nextNode.Priority), (ConvertTo-JsString $nextNode.Status),
         (ConvertTo-JsString $nextNode.Title))
 }
-$dataJson = '{{"source":{0},"summary":{1},"next":{2},"themes":[{3}]}}' -f
-    (ConvertTo-JsString $treeLabel), $summaryJson, $nextJson, $themeJson
+# Contract (sketch v6 section 3): {source, summary, next, filter, themes}.
+# filter is always a string: the optional FILTER line's payload, or "" when
+# the line is absent (local-markdown trees). It never rides SUMMARY - that
+# grammar stays digits-only.
+$dataJson = '{{"source":{0},"summary":{1},"next":{2},"filter":{3},"themes":[{4}]}}' -f
+    (ConvertTo-JsString $treeLabel), $summaryJson, $nextJson,
+    (ConvertTo-JsString $filterPayload), $themeJson
+
+# Audit C2/E2: a payload that fails JSON.parse blanks the hydrated page while
+# -Check stays green - fail here, before hydrating anything.
+try {
+    $null = $dataJson | ConvertFrom-Json
+}
+catch {
+    "render-tree: embedded data JSON failed to parse: $($_.Exception.Message)"
+    exit 1
+}
 
 # --- Hydrate the template -------------------------------------------------------
 $template = [System.IO.File]::ReadAllText($templatePath)

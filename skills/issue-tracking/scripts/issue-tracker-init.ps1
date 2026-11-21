@@ -17,7 +17,10 @@
                stripped) before printing - credentials never reach the manifest.
       -Apply   validate the supplied fields against the schema and write
                .github/issue-tracker.json; refuses to overwrite an existing
-               manifest unless -Force is given.
+               manifest unless -Force is given. The github-only tree fields
+               (treeSource, limits, issueQuery) are checked per
+               references/manifest-schema.md; issueQuery runs through
+               scripts/query-composition-lib.ps1 (the single reject list).
 
     Schema ownership and the bootstrap flow (interactive vs autopilot inference)
     live in this skill's SKILL.md step 0 and references/manifest-schema.md.
@@ -28,6 +31,8 @@
     pwsh ~/.agents/skills/issue-tracking/scripts/issue-tracker-init.ps1 -Apply -Tracker local-markdown
 .EXAMPLE
     pwsh ~/.agents/skills/issue-tracking/scripts/issue-tracker-init.ps1 -Apply -Tracker github -Repo owner/name -Force
+.EXAMPLE
+    pwsh ~/.agents/skills/issue-tracking/scripts/issue-tracker-init.ps1 -Apply -Tracker github -Repo owner/name -TreeFile .issues/tree.md -IssueQuery 'label:area/*' -Force
 #>
 param(
     [switch]$Probe,
@@ -41,6 +46,14 @@ param(
     [string]$Repo,
     [string]$Org,
     [string]$Project,
+    [string]$TreeSource,
+    [switch]$NoTree,
+    [int]$TreeMaxIssues,
+    [int]$TreeLookbackDays,
+    [bool]$TreeIncludeClosed = $true,
+    [string]$TreeMinPriority,
+    [int]$TreeFreshnessHours,
+    [string]$IssueQuery,
     [switch]$Force
 )
 
@@ -49,7 +62,21 @@ $ErrorActionPreference = 'Stop'
 $validTrackers = @('local-markdown', 'github', 'azure-devops')
 $manifestRel = '.github/issue-tracker.json'
 $defaultTreeScript = '~/.agents/skills/issue-tracking/scripts/issue-tree.ps1'
-$storeKeys = @('issuesDir', 'archiveDir', 'treeFile')
+# treeFile is no longer local-markdown-only: github accepts it too
+# (manifest-schema.md); issuesDir/archiveDir stay store-only.
+$storeKeys = @('issuesDir', 'archiveDir')
+$repoRelativeKeys = @('issuesDir', 'archiveDir', 'treeFile')
+$validTreeSources = @('local-markdown', 'github')
+$githubParams = [ordered]@{
+    TreeSource         = 'treeSource'
+    NoTree             = '-NoTree'
+    TreeMaxIssues      = 'treeMaxIssues'
+    TreeLookbackDays   = 'treeLookbackDays'
+    TreeIncludeClosed  = 'treeIncludeClosed'
+    TreeMinPriority    = 'treeMinPriority'
+    TreeFreshnessHours = 'treeFreshnessHours'
+    IssueQuery         = 'issueQuery'
+}
 
 if ($Probe -eq $Apply) {
     "issue-tracker-init: pass exactly one of -Probe or -Apply (schema: references/manifest-schema.md in this skill)"
@@ -189,6 +216,45 @@ if ($Tracker -eq 'azure-devops') {
     if ([string]::IsNullOrWhiteSpace($Project)) { $errors += 'azure-devops requires -Project' }
 }
 
+# GitHub tree fields (references/manifest-schema.md): github-only, additive to
+# schema v1. The issueQuery reject list lives in query-composition-lib.ps1 -
+# dot-sourced below, never reimplemented here.
+if ($Tracker -eq 'github') {
+    if ($PSBoundParameters.ContainsKey('TreeSource')) {
+        if ($validTreeSources -notcontains $TreeSource) {
+            $errors += "treeSource '$TreeSource' is not one of: $($validTreeSources -join ', ')"
+        }
+        if ($NoTree) {
+            $errors += 'pass either -NoTree or -TreeSource, not both'
+        }
+    }
+    foreach ($name in @('TreeMaxIssues', 'TreeLookbackDays', 'TreeFreshnessHours')) {
+        if ($PSBoundParameters.ContainsKey($name) -and (Get-Variable -Name $name -ValueOnly) -le 0) {
+            $errors += "$($githubParams[$name]) must be a positive integer"
+        }
+    }
+    if ($PSBoundParameters.ContainsKey('IssueQuery')) {
+        $libPath = Join-Path -Path $PSScriptRoot -ChildPath 'query-composition-lib.ps1'
+        if (-not (Test-Path -LiteralPath $libPath)) {
+            $errors += "issueQuery validation library not found: $libPath"
+        }
+        else {
+            . $libPath
+            $queryCheck = Test-GithubIssueQuery -Query $IssueQuery
+            if (-not $queryCheck.IsValid) {
+                foreach ($queryError in $queryCheck.Errors) { $errors += $queryError }
+            }
+        }
+    }
+}
+elseif (-not [string]::IsNullOrWhiteSpace($Tracker)) {
+    foreach ($name in $githubParams.Keys) {
+        if ($PSBoundParameters.ContainsKey($name)) {
+            $errors += "$($githubParams[$name]) only applies to tracker github"
+        }
+    }
+}
+
 if ($Tracker -ne 'local-markdown' -and -not [string]::IsNullOrWhiteSpace($Tracker)) {
     foreach ($key in $storeKeys) {
         $value = Get-Variable -Name $key -ValueOnly -ErrorAction SilentlyContinue
@@ -197,7 +263,10 @@ if ($Tracker -ne 'local-markdown' -and -not [string]::IsNullOrWhiteSpace($Tracke
         }
     }
 }
-foreach ($key in $storeKeys) {
+if ($Tracker -eq 'azure-devops' -and $PSBoundParameters.ContainsKey('TreeFile')) {
+    $errors += 'treeFile only applies to tracker local-markdown or github'
+}
+foreach ($key in $repoRelativeKeys) {
     $value = Get-Variable -Name $key -ValueOnly -ErrorAction SilentlyContinue
     if (-not [string]::IsNullOrWhiteSpace($value) -and -not (Test-RepoRelative -Value $value)) {
         $errors += "$key '$value' must be repo-relative (no root, no ..)"
@@ -216,9 +285,12 @@ if ($errors.Count -gt 0) {
 # Canonical key order and defaults (references/manifest-schema.md).
 $jsonPairs = New-Object System.Collections.Generic.List[string]
 function Add-JsonPair {
-    param([string]$Key, $Value, [bool]$AsNumber = $false)
+    param([string]$Key, $Value, [bool]$AsNumber = $false, [bool]$AsBool = $false)
     if ($AsNumber) {
         $script:jsonPairs.Add(('  "{0}": {1}' -f $Key, $Value))
+    }
+    elseif ($AsBool) {
+        $script:jsonPairs.Add(('  "{0}": {1}' -f $Key, $(if ($Value) { 'true' } else { 'false' })))
     }
     else {
         $escaped = ([string]$Value).Replace('\', '\\').Replace('"', '\"')
@@ -238,6 +310,19 @@ if ($Tracker -eq 'local-markdown') {
     Add-JsonPair -Key 'treeFile' -Value ($TreeFile -replace '\\', '/')
 }
 
+if ($Tracker -eq 'github') {
+    # Sketch 1.1: treeSource defaults to github (-NoTree opts out); treeFile is
+    # optional for github and written only when supplied.
+    if (-not $NoTree) {
+        $treeSourceValue = 'github'
+        if ($PSBoundParameters.ContainsKey('TreeSource')) { $treeSourceValue = $TreeSource.ToLowerInvariant() }
+        Add-JsonPair -Key 'treeSource' -Value $treeSourceValue
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TreeFile)) {
+        Add-JsonPair -Key 'treeFile' -Value ($TreeFile -replace '\\', '/')
+    }
+}
+
 if (-not [string]::IsNullOrWhiteSpace($TreeScript)) {
     Add-JsonPair -Key 'treeScript' -Value ($TreeScript -replace '\\', '/')
 }
@@ -247,6 +332,29 @@ elseif (Test-Path -LiteralPath ($defaultTreeScript -replace '^~', $HOME)) {
 
 if (-not [string]::IsNullOrWhiteSpace($LintTask)) {
     Add-JsonPair -Key 'lintTask' -Value $LintTask
+}
+
+if ($Tracker -eq 'github') {
+    # Limits always carry their schema defaults; optional knobs only when given.
+    # The writer must know every key so -Force cannot strip them (critique A5).
+    # Accumulators must not share a name with the params (PS names are
+    # case-insensitive - $treeMaxIssues would clobber $TreeMaxIssues).
+    $treeMaxIssuesValue = 300
+    if ($PSBoundParameters.ContainsKey('TreeMaxIssues')) { $treeMaxIssuesValue = $TreeMaxIssues }
+    $treeLookbackDaysValue = 365
+    if ($PSBoundParameters.ContainsKey('TreeLookbackDays')) { $treeLookbackDaysValue = $TreeLookbackDays }
+    Add-JsonPair -Key 'treeMaxIssues' -Value $treeMaxIssuesValue -AsNumber $true
+    Add-JsonPair -Key 'treeLookbackDays' -Value $treeLookbackDaysValue -AsNumber $true
+    Add-JsonPair -Key 'treeIncludeClosed' -Value $TreeIncludeClosed -AsBool $true
+    if (-not [string]::IsNullOrWhiteSpace($TreeMinPriority)) {
+        Add-JsonPair -Key 'treeMinPriority' -Value $TreeMinPriority
+    }
+    if ($PSBoundParameters.ContainsKey('TreeFreshnessHours')) {
+        Add-JsonPair -Key 'treeFreshnessHours' -Value $TreeFreshnessHours -AsNumber $true
+    }
+    if ($PSBoundParameters.ContainsKey('IssueQuery')) {
+        Add-JsonPair -Key 'issueQuery' -Value $IssueQuery
+    }
 }
 
 if ($Tracker -eq 'github') {

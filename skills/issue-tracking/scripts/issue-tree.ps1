@@ -16,12 +16,25 @@
       3. -Check also fails when the tree file is missing or stale.
 
     Store resolution (repo-agnostic): .github/issue-tracker.json, read relative to
-    the current directory, supplies tracker / issuesDir / treeFile / archiveDir;
-    falls back to .issues, .issues/tree.md and .issues/archived when the manifest
-    is absent, and refuses to run when the manifest declares a non-local-markdown
-    tracker (issue-tracking skill, step 0).
+    the current directory, supplies tracker / treeSource / issuesDir / treeFile /
+    archiveDir; falls back to .issues, .issues/tree.md and .issues/archived when
+    the manifest is absent. The compound guard runs only for
+    (tracker == 'local-markdown') OR (tracker == 'github' AND treeSource == 'github');
+    azure-devops and every other tracker stay refused, and a missing treeSource
+    behaves as local-markdown so old github manifests fail closed
+    (issue-tracking skill, step 0).
 
-    Modes (all validate first; errors print as THEME lines and exit 1):
+    Github tree source (tracker: github + treeSource: github) - the committed
+    treeFile is the source of truth; this script never regenerates it:
+      default     no-op: prints "github tree source: run sync-github-tree.ps1
+                  to regenerate" (exit 0, never writes)
+      -Check      structural self-consistency of treeFile only (parser +
+                  count cross-checks; no store dir, no byte-compare)
+      -Inventory  parse treeFile and print its data rows (no NEXT_ID - GitHub
+                  assigns issue numbers)
+
+    Modes (local-markdown: all validate first; errors print as THEME lines and
+    exit 1):
       default     regenerate the tree file (exits before writing when invalid)
       -Check      validate only + tree freshness (repo issue lint, pre-commit gate)
       -Inventory  print one pipe row per issue, then the next free id:
@@ -61,15 +74,34 @@ $issuesDir = '.issues'
 $treePath = Join-Path -Path $issuesDir -ChildPath 'tree.md'
 $archiveDir = Join-Path -Path $issuesDir -ChildPath 'archived'
 $manifestPath = Join-Path -Path '.github' -ChildPath 'issue-tracker.json'
+$tracker = 'local-markdown'
+$treeSource = 'local-markdown'
+$githubMode = $false
 if (Test-Path -LiteralPath $manifestPath) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $names = @($manifest.PSObject.Properties.Name)
     if ($names -contains 'tracker' -and
-        -not [string]::IsNullOrWhiteSpace([string]$manifest.tracker) -and
-        $manifest.tracker -ne 'local-markdown') {
-        "issue-tree: tracker '$($manifest.tracker)' is not local-markdown - this script only handles the local file store (issue-tracking skill, step 0)"
+        -not [string]::IsNullOrWhiteSpace([string]$manifest.tracker)) {
+        $tracker = [string]$manifest.tracker
+    }
+    if ($names -contains 'treeSource' -and
+        -not [string]::IsNullOrWhiteSpace([string]$manifest.treeSource)) {
+        $treeSource = [string]$manifest.treeSource
+    }
+    # Compound guard (sketch v6 section 1.2): run for the local store or for a
+    # github tree source only. azure-devops (and any other tracker) stays
+    # refused by the explicit tracker clause; a missing treeSource behaves as
+    # local-markdown, so old github manifests fail closed until the manifest
+    # declares treeSource: github.
+    if ($tracker -ne 'local-markdown' -and
+        -not ($tracker -eq 'github' -and $treeSource -eq 'github')) {
+        "issue-tree: tracker '$tracker' is not local-markdown - this script only handles the local file store (issue-tracking skill, step 0)"
+        if ($tracker -eq 'github') {
+            "issue-tree: treeSource is '$treeSource' - set treeSource: 'github' in .github/issue-tracker.json to use the synced github tree"
+        }
         exit 1
     }
+    $githubMode = ($tracker -eq 'github' -and $treeSource -eq 'github')
     if ($names -contains 'issuesDir' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.issuesDir)) {
         $issuesDir = [string]$manifest.issuesDir
     }
@@ -88,6 +120,148 @@ if (Test-Path -LiteralPath $manifestPath) {
 }
 $issuesLabel = $issuesDir -replace '\\', '/'
 $treeLabel = $treePath -replace '\\', '/'
+
+# --- Github tree source: parse-only semantics (sketch v6 section 1.3) --------
+# treeSource: github means the committed treeFile is the source of truth.
+# Never regenerate it here, never require the local store: -Inventory echoes
+# the parsed data rows, -Check is structural self-consistency (parser +
+# count cross-checks, no byte-compare against a regeneration), and a plain
+# run is a no-op pointer to the sync script.
+function Read-GithubTreeFile {
+    param([string]$Path)
+    $state = [pscustomobject]@{
+        Fail       = $null
+        DataLines  = New-Object System.Collections.Generic.List[string]
+        Summary    = @{}
+        RowIds     = @{}
+        ThemeTotal = 0
+        RowTotal   = 0
+    }
+    $summarySeen = $false
+    $nextId = $null
+    $currentThemeId = $null
+    $sectionIds = @{}
+    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
+        if ($state.Fail) { break }
+        if ($line -match '^SUMMARY\|') {
+            $summarySeen = $true
+            $state.DataLines.Add($line)
+            foreach ($seg in (($line -split '\|') | Select-Object -Skip 1)) {
+                if ($seg -match '^([^=]+)=(\d+)$') {
+                    $key = $Matches[1]
+                    $rawValue = $Matches[2]
+                    if ($key -notmatch '^[A-Za-z0-9_]+$') {
+                        $state.Fail = "SUMMARY key '$key' is invalid (allowed: A-Z a-z 0-9 _)"
+                        break
+                    }
+                    $value = 0L
+                    if (-not [long]::TryParse($rawValue, [ref]$value)) {
+                        $state.Fail = "SUMMARY segment '$seg' value is out of range"
+                        break
+                    }
+                    $state.Summary[$key] = $value
+                }
+                else {
+                    $state.Fail = "malformed SUMMARY segment '$seg'"
+                    break
+                }
+            }
+            continue
+        }
+        if ($line -match '^NEXT\|') {
+            $f = $line -split '\|', 6
+            if ($f.Count -lt 6) { $state.Fail = 'malformed NEXT line'; continue }
+            $nextId = $f[1]
+            $state.DataLines.Add($line)
+            continue
+        }
+        if ($line -match '^## THEME\|') {
+            $f = $line -split '\|', 5
+            if ($f.Count -lt 5) { $state.Fail = 'malformed THEME line'; continue }
+            $currentThemeId = $f[1]
+            $sectionIds = @{}
+            $state.ThemeTotal++
+            $state.DataLines.Add($line)
+            continue
+        }
+        if ($line -match '^( *)- \|') { $state.Fail = 'malformed row line'; continue }
+        if ($line -match '^( *)- ') {
+            $indent = $Matches[1].Length
+            if ($indent % 3 -ne 0) { $state.Fail = "row indent $indent is not a multiple of 3"; continue }
+            $f = ($line -replace '^( *)- ', '') -split '\|', 6
+            if ($f.Count -lt 6) { $state.Fail = "malformed row '$line'"; continue }
+            if ($null -eq $currentThemeId) { $state.Fail = "row '$($f[0])' appears before any THEME section"; continue }
+            if ($f[1] -ne $currentThemeId) { $state.Fail = "row '$($f[0])' theme '$($f[1])' != section '$currentThemeId'"; continue }
+            if ($state.RowIds.ContainsKey($f[0])) { $state.Fail = "duplicate row id '$($f[0])'"; continue }
+            # Non-root = nested row that names a parent: it must resolve to an
+            # earlier row of this section (dead "no visible parent" branch,
+            # audit F.3). Root rows (depth 0, or parent "-" / empty) keep a
+            # foreign parent as a retained hint - promotion severing is legal.
+            $depth = [int]($indent / 3)
+            $parentId = $f[2]
+            if ($depth -gt 0 -and -not [string]::IsNullOrWhiteSpace($parentId) -and
+                $parentId -ne '-' -and -not $sectionIds.ContainsKey($parentId)) {
+                $state.Fail = "row '$($f[0])' parent '$parentId' does not exist earlier in section '$currentThemeId'"
+                continue
+            }
+            $state.RowIds[$f[0]] = $true
+            $sectionIds[$f[0]] = $true
+            $state.RowTotal++
+            $state.DataLines.Add($line)
+            continue
+        }
+        # blank, comment and heading lines are not data
+    }
+    if ($state.Fail) { return $state }
+    if (-not $summarySeen) { $state.Fail = 'no SUMMARY line'; return $state }
+    if ($state.ThemeTotal -eq 0) { $state.Fail = 'no THEME sections'; return $state }
+    if ($state.Summary.ContainsKey('themes') -and $state.Summary['themes'] -ne $state.ThemeTotal) {
+        $state.Fail = "SUMMARY themes=$($state.Summary['themes']) but parsed $($state.ThemeTotal) sections"
+        return $state
+    }
+    if ($state.Summary.ContainsKey('issues') -and $state.Summary['issues'] -ne $state.RowTotal) {
+        $state.Fail = "SUMMARY issues=$($state.Summary['issues']) but parsed $($state.RowTotal) rows"
+        return $state
+    }
+    if ($state.Summary.ContainsKey('total') -and $state.Summary['total'] -lt $state.RowTotal) {
+        $state.Fail = "SUMMARY total=$($state.Summary['total']) is below issues=$($state.RowTotal)"
+        return $state
+    }
+    if ($null -ne $nextId -and -not $state.RowIds.ContainsKey($nextId)) {
+        $state.Fail = "NEXT id '$nextId' does not exist in the tree"
+        return $state
+    }
+    return $state
+}
+
+if ($githubMode) {
+    if ($Check -and $Inventory) {
+        "issue-tree: pass either -Check or -Inventory, not both"
+        exit 1
+    }
+    if (-not $Check -and -not $Inventory) {
+        "github tree source: run sync-github-tree.ps1 to regenerate"
+        exit 0
+    }
+    $absGithubTree = Join-Path -Path (Get-Location).Path -ChildPath $treePath
+    if (-not (Test-Path -LiteralPath $absGithubTree)) {
+        "TREE    $treeLabel is missing - run: pwsh <skill-folder>/scripts/sync-github-tree.ps1"
+        exit 1
+    }
+    $parsed = Read-GithubTreeFile -Path $absGithubTree
+    if ($parsed.Fail) {
+        "TREE    ${treeLabel}: $($parsed.Fail)"
+        "issue-tree: FAILED - fix the TREE errors above, then re-run"
+        exit 1
+    }
+    if ($Inventory) {
+        foreach ($dataLine in $parsed.DataLines) { $dataLine }
+        exit 0
+    }
+    "issue-tree: OK ($($parsed.ThemeTotal) themes, $($parsed.RowTotal) issues, tree.md structurally consistent)"
+    exit 0
+}
+
 if (-not (Test-Path -LiteralPath $issuesDir)) {
     "issue-tree: issue store '$issuesLabel' not found - create it, or point .github/issue-tracker.json issuesDir at it"
     exit 1
