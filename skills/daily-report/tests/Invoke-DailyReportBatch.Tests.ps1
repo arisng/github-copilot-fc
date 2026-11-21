@@ -1,8 +1,5 @@
 Describe 'Invoke-DailyReportBatch.ps1' {
     BeforeAll {
-        # Linux has no TEMP env var (Windows-only); the stubs and assertions
-        # below log through it, so point it at the platform temp dir when unset.
-        if (-not $env:TEMP) { $env:TEMP = [System.IO.Path]::GetTempPath() }
         $batch = Join-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts') 'Invoke-DailyReportBatch.ps1'
         $repo = Join-Path $TestDrive 'repo'
         New-Item -ItemType Directory -Force -Path $repo | Out-Null
@@ -15,13 +12,13 @@ Describe 'Invoke-DailyReportBatch.ps1' {
         New-Item -ItemType Directory -Force -Path $stub | Out-Null
         Set-Content (Join-Path $stub 'Get-GitProof.ps1') @'
 param([string]$Date, [string]$Start, [string]$End, [string]$Author, [string]$RepoRoot)
-Add-Content -Path (Join-Path $env:TEMP 'batch-calls.log') -Value "proof:${RepoRoot}:$Date"
+Add-Content -Path (Join-Path ([System.IO.Path]::GetTempPath()) 'batch-calls.log') -Value "proof:${RepoRoot}:$Date"
 if ($Date -eq '2026-11-02') { Write-Error 'boom'; exit 1 }
 '{"commits":[],"commitCount":0}'
 '@
         Set-Content (Join-Path $stub 'Get-SessionEvidence.ps1') @'
 param([string]$Date, [string]$Start, [string]$End, [string]$RepoRoot, [string]$SessionDbPath, [string]$CloudJson, [int]$UtcOffsetHours)
-Add-Content -Path (Join-Path $env:TEMP 'batch-calls.log') -Value "sessions:${RepoRoot}:$Date"
+Add-Content -Path (Join-Path ([System.IO.Path]::GetTempPath()) 'batch-calls.log') -Value "sessions:${RepoRoot}:$Date"
 if ($Date -eq '2026-11-06') { Write-Error 'repo scope: cannot resolve owner/name from remote. Refusing an unfiltered query.'; exit 1 }
 '{"sessions":[],"sessionCount":0}'
 '@
@@ -45,7 +42,7 @@ exit 0
 '@
     }
 
-    BeforeEach { Remove-Item (Join-Path $env:TEMP 'batch-calls.log') -ErrorAction SilentlyContinue }
+    BeforeEach { Remove-Item (Join-Path ([System.IO.Path]::GetTempPath()) 'batch-calls.log') -ErrorAction SilentlyContinue }
 
     It 'loops one day per iteration and isolates a failing day' {
         $out = & $batch -StartDate '2026-11-01' -EndDate '2026-11-03' -RepoRoot $repo -GitUser 'alice' -ScriptsDir $stub | Out-String
@@ -68,7 +65,7 @@ exit 0
         $j.gapped | Should -Be 1
         $LASTEXITCODE | Should -Be 0
         # git proof still collected for the gapped repo
-        $log = Get-Content (Join-Path $env:TEMP 'batch-calls.log') -Raw
+        $log = Get-Content (Join-Path ([System.IO.Path]::GetTempPath()) 'batch-calls.log') -Raw
         $log | Should -Match 'proof:.*2026-11-06'
     }
 
@@ -107,7 +104,7 @@ exit 0
         }
         $days = ($out | ConvertFrom-Json).days
         $days[0].status | Should -Be 'evidence-ready' -Because "detail: $($days[0].detail)"
-        $log = Get-Content (Join-Path $env:TEMP 'batch-calls.log') -Raw
+        $log = Get-Content (Join-Path ([System.IO.Path]::GetTempPath()) 'batch-calls.log') -Raw
         $log | Should -Match ([regex]::Escape($repo))
         $log | Should -Match ([regex]::Escape($watched))
     }
@@ -125,7 +122,7 @@ exit 0
         }
         $days = ($out | ConvertFrom-Json).days
         $days[0].status | Should -Be 'evidence-ready' -Because "detail: $($days[0].detail)"
-        $log = Get-Content (Join-Path $env:TEMP 'batch-calls.log') -Raw
+        $log = Get-Content (Join-Path ([System.IO.Path]::GetTempPath()) 'batch-calls.log') -Raw
         $log | Should -Match ([regex]::Escape($repo))
         $log | Should -Not -Match 'watched-missing'
     }
