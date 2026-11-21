@@ -28,7 +28,9 @@ jobs:
           go-version: 'stable'
       - name: Install waza
         run: |
-          go install github.com/microsoft/waza@v0.40.1
+          # Main package lives in cmd/ - the module root is a library package,
+          # and `go install <module root>` fails with "not a main package".
+          go install github.com/microsoft/waza/cmd/waza@v0.40.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - uses: actions/setup-python@v5
