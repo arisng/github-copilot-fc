@@ -54,12 +54,17 @@ if (-not $Path) { $Path = $repoRoot }
 
 $rootItem = Get-Item -LiteralPath $Path -ErrorAction Stop
 $targets = if ($rootItem.PSIsContainer) {
-    @(Get-ChildItem -LiteralPath $rootItem.FullName -Recurse -File -Filter '*.ps1' -ErrorAction SilentlyContinue)
+    # -Force is required for parity: on Linux Get-ChildItem skips
+    # dot-directories (.github!) without it, so CI linted 79 of 80 files
+    # while the Windows lane linted all 80 (retro 2026-11-21).
+    @(Get-ChildItem -LiteralPath $rootItem.FullName -Recurse -Force -File -Filter '*.ps1' -ErrorAction SilentlyContinue)
 }
 else {
     @($rootItem)
 }
-$targets = @($targets | Where-Object { $_.FullName -notmatch '\\node_modules\\|\\\.git\\|\\\.archived\\' })
+# Separator-agnostic: the old backslash-only pattern excluded nothing on
+# Linux, letting node_modules scripts into a Linux scan.
+$targets = @($targets | Where-Object { $_.FullName -notmatch '[/\\](node_modules|\.git|\.archived)[/\\]' })
 
 function Get-RelativeLabel {
     param([string]$FullName)

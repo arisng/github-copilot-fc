@@ -75,8 +75,11 @@ if ($IsLinux) {
 
     Push-Location $repoRoot
     try {
-        $testFiles = @(Get-ChildItem -Path 'skills', 'scripts' -Recurse -Filter '*.Tests.ps1' -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '/\.archived/' })
+        # -Force + separator-agnostic exclude: mirrors what the gate's linter
+        # and the Windows lane see (dot-directories are skipped on Linux
+        # without -Force), so both lanes scan the same test set.
+        $testFiles = @(Get-ChildItem -Path 'skills', 'scripts' -Recurse -Force -Filter '*.Tests.ps1' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '[/\\]\.archived[/\\]' })
         $dirs = @($testFiles | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique)
         Write-Output "[....] linux-pester: $($testFiles.Count) test file(s) in $($dirs.Count) dir(s), Linux container"
         $result = Invoke-Pester -Path $dirs -PassThru -Output Normal 3>$null 6>$null
