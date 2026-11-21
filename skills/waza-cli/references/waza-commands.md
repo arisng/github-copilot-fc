@@ -81,4 +81,4 @@ Flags: `--baseline`, `--current`, `--max-regression-pct N`, `--golden-must-pass`
 
 ## Update path
 
-Install or update with the release binary (`install.ps1` on Windows, `install.sh` on macOS/Linux) or `go install github.com/microsoft/waza@latest`; in-place: `waza update [--yes]`. The built-in background version check prints an update notice automatically.
+Install or update with the release binary (`install.ps1` on Windows, `install.sh` on macOS/Linux) or `go install github.com/microsoft/waza/cmd/waza@latest` (the module root is not a main package); in-place: `waza update [--yes]`. The built-in background version check prints an update notice automatically.

@@ -7,7 +7,7 @@ metadata:
 
 # Waza CLI Evaluation
 
-Run [waza](https://github.com/microsoft/waza) commands against a skill dir. Install via [release binary](https://github.com/microsoft/waza) (`install.ps1` / `install.sh`) or `go install github.com/microsoft/waza@latest`; update in place with `waza update`. Verified against **waza v0.40.1** (Nov 2026). The [docs site](https://microsoft.github.io/waza/reference/cli/) tracks `main` and moves ahead of releases; where a capability is newer than a released baseline, its intro version (e.g. v0.39.0, v0.40.0) is noted — confirm availability with `waza <cmd> --help` before use.
+Run [waza](https://github.com/microsoft/waza) commands against a skill dir. Install via [release binary](https://github.com/microsoft/waza) (`install.ps1` / `install.sh`) or `go install github.com/microsoft/waza/cmd/waza@latest` (the module root is not a main package); update in place with `waza update`. Verified against **waza v0.40.1** (Nov 2026). The [docs site](https://microsoft.github.io/waza/reference/cli/) tracks `main` and moves ahead of releases; where a capability is newer than a released baseline, its intro version (e.g. v0.39.0, v0.40.0) is noted — confirm availability with `waza <cmd> --help` before use.
 
 USE FOR: check my skill, run my evals, compare models, gate CI regressions, score skill quality, find eval coverage gaps. DO NOT USE FOR: first-draft authoring (use skill-creator); **real-session efficiency telemetry** (use the `copilot-session-telemetry` skill).
 

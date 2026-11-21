@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
-      - run: go install github.com/microsoft/waza@latest
+      - run: go install github.com/microsoft/waza/cmd/waza@latest
       - run: waza run skills/my-skill/eval.yaml -o results.json --reporter junit:results.xml
         env:
           # Copilot auth for the copilot-sdk executor
