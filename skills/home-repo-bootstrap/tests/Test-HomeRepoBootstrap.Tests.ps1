@@ -117,6 +117,44 @@ Describe 'Test-HomeRepoBootstrap.ps1' {
         (@($r.checks | Where-Object { $_.name -eq 'pointers' })[0].detail) | Should -Match 'without a local path'
     }
 
+    It 'fails when the gate is red and reports the drift check only on request' {
+        $target = New-HomeRepo 'drift-default'
+        $r = Invoke-Verify -Path $target
+        $names = @($r.checks | ForEach-Object { $_.name })
+        $names | Should -Not -Contain 'drift'
+    }
+
+    It 'reports matching seeded files as pass when a seed source is given' {
+        $target = New-HomeRepo 'drift-match'
+        $skillAssets = Join-Path (Split-Path $PSScriptRoot -Parent) 'assets'
+        $json = & $verifier -Path $target -SeedSource $skillAssets 2>$null | Out-String
+        $r = $json | ConvertFrom-Json
+        $drift = @($r.checks | Where-Object { $_.name -eq 'drift' })[0]
+        $drift.status | Should -Be 'pass'
+    }
+
+    It 'fails when a seeded file drifts from the published asset' {
+        $target = New-HomeRepo 'drift-mismatch'
+        $ciPath = Join-Path $target 'scripts/local-ci.ps1'
+        Add-Content -LiteralPath $ciPath -Value '# local-only edit'
+        $skillAssets = Join-Path (Split-Path $PSScriptRoot -Parent) 'assets'
+
+        $json = & $verifier -Path $target -SeedSource $skillAssets 2>$null | Out-String
+        $r = $json | ConvertFrom-Json
+        $r.passed | Should -BeFalse
+        $drift = @($r.checks | Where-Object { $_.name -eq 'drift' })[0]
+        $drift.status | Should -Be 'fail'
+        $drift.detail | Should -Match 'scripts/local-ci.ps1'
+        $drift.detail | Should -Match 'home-repo-bootstrap/assets'
+    }
+
+    It 'fails the drift check when the seed source does not exist' {
+        $target = New-HomeRepo 'drift-missing-source'
+        $json = & $verifier -Path $target -SeedSource (Join-Path $TestDrive 'no-assets') 2>$null | Out-String
+        $r = $json | ConvertFrom-Json
+        @($r.checks | Where-Object { $_.name -eq 'drift' })[0].status | Should -Be 'fail'
+    }
+
     It 'fails when the local CI gate fails' {
         $target = New-HomeRepo 'red-gate'
         $agentsPath = Join-Path $target 'AGENTS.md'

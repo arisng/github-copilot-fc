@@ -94,6 +94,20 @@ named skill and re-run rather than treating it as a bootstrap failure.
 `-SkipGate` omits the CI run when `pwsh` is unavailable, but then the hook cannot run
 either; say so instead of claiming the gate is green.
 
+**Keeping the seed honest.** A home repo that repairs a seeded file locally must port the same
+repair into the skill's `assets/`, or the reference machine ends up gating differently from the
+copy every teammate receives. Pass `-SeedSource` to the verifier to catch that:
+
+```powershell
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Test-HomeRepoBootstrap.ps1 `
+  -Path 'C:\Work\home-repo' `
+  -SeedSource ~/.agents/skills/home-repo-bootstrap/assets
+```
+
+It compares `scripts/local-ci.ps1` and `.githooks/pre-commit` byte-for-byte (line endings
+normalized) and reports a `drift` failure naming the diverged file. Run it after any change to
+those two files, on the machine that seeds.
+
 ### 3. Commit
 
 The seeded gate is the acceptance test. Stage everything the initializer reported under
@@ -180,13 +194,14 @@ pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Test-HomeRepo
 | `malformed clone URL` | Use `https://`, `git@`, `ssh://`, or `git://`. |
 | `pointer paths absent on this machine` (WARN) | Expected on another machine; clone the repo if the work needs it. |
 | `core.hooksPath is ''` | Run `git config core.hooksPath .githooks`; `Test-HomeRepoBootstrap.ps1` reports this as a failure. |
+| `drifted from the published seed` | The home repo edited a seeded file without the same edit reaching `skills/home-repo-bootstrap/assets/`. Port the fix to the asset, re-sync the local copy, and re-run with `-SeedSource`. |
 | `daily-report skill is missing` | A report is staged but the validator is absent: install the skill or set `DAILY_REPORT_SKILL_DIR`. |
 | `pwsh not found` | Install PowerShell 7+. The hook skips rather than failing, so the gate is simply inactive. |
 
 ## Files
 
 - `scripts/Initialize-HomeRepo.ps1` — seeds a home repo, wires hooks, writes the manifest.
-- `scripts/Test-HomeRepoBootstrap.ps1` — the acceptance check; prints JSON, exits non-zero on failure.
+- `scripts/Test-HomeRepoBootstrap.ps1` — the acceptance check; prints JSON, exits non-zero on failure. `-SeedSource` adds the drift check.
 - `assets/` — the seeded content: `AGENTS.md.template`, `coding-standards.md`,
   `glossary.md`, `local-ci.ps1`, `pre-commit.template`, `gitignore.template`.
 - `references/design-notes.md` — [why the skeleton has this shape](references/design-notes.md),

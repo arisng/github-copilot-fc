@@ -14,6 +14,11 @@
     6. skills   - the shared skills the tower depends on resolve on this machine
                   (WARN only: a fresh machine installs them after bootstrapping)
 
+  Anti-drift: the seeded files that must stay byte-identical (scripts/local-ci.ps1,
+  .githooks/pre-commit) are compared against a published assets/ folder when
+  -SeedSource points at one, so the reference machine never gates differently
+  from the copy a teammate bootstraps.
+
   Emits one JSON object on stdout: {path, passed, checks:[{name,status,detail}],
   warnings}. Exit 0 when no check fails; exit 1 otherwise. -SkipGate omits the
   local-CI run, for machines without pwsh.
@@ -21,15 +26,24 @@
   Home-repo root to verify.
 .PARAMETER SkipGate
   Do not run scripts/local-ci.ps1.
+.PARAMETER SeedSource
+  Path to a home-repo-bootstrap skill's assets/ folder. When supplied, the
+  seeded files that must stay byte-identical (scripts/local-ci.ps1,
+  .githooks/pre-commit) are compared against it and a mismatch is reported as
+  drift. Omit it and the drift check is skipped.
 .EXAMPLE
   ./Test-HomeRepoBootstrap.ps1 -Path C:\Work\home-repo
+.EXAMPLE
+  ./Test-HomeRepoBootstrap.ps1 -Path C:\Work\home-repo -SeedSource ~/.agents/skills/home-repo-bootstrap/assets
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$Path,
 
-    [switch]$SkipGate
+    [switch]$SkipGate,
+
+    [string]$SeedSource
 )
 
 $ErrorActionPreference = 'Stop'
@@ -213,8 +227,43 @@ else {
     Add-Check 'skills' 'warn' "not installed yet in ${skillStore}: $($absent -join ', ') - run: npx skills add arisng/github-copilot-fc -s $($absent[0]) -g -y"
 }
 
-$failed = @($checks | Where-Object { $_.status -eq 'fail' })
+# --- 7. seed drift --------------------------------------------------------
+# A home repo that fixes a seeded file without the factory's asset learning the
+# same fix diverges silently: the reference machine gates worse than the copy
+# every teammate receives. Compare the files that must stay identical.
+if ($SeedSource) {
+    $pinned = [ordered]@{
+        'scripts/local-ci.ps1' = 'local-ci.ps1'
+        '.githooks/pre-commit' = 'pre-commit.template'
+    }
+    if (-not (Test-Path -LiteralPath $SeedSource -PathType Container)) {
+        Add-Check 'drift' 'fail' "SeedSource '$SeedSource' does not exist"
+    }
+    else {
+        $drifted = [System.Collections.Generic.List[string]]::new()
+        $compared = 0
+        foreach ($localRel in $pinned.Keys) {
+            $assetPath = Join-Path $SeedSource $pinned[$localRel]
+            $localPath = Join-Path $root ($localRel -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+            if (-not (Test-Path -LiteralPath $assetPath) -or -not (Test-Path -LiteralPath $localPath)) { continue }
+            $compared++
+            $a = (Get-Content -LiteralPath $localPath -Raw) -replace "`r`n", "`n"
+            $b = (Get-Content -LiteralPath $assetPath -Raw) -replace "`r`n", "`n"
+            if ($a.TrimEnd() -ne $b.TrimEnd()) { $drifted.Add($localRel) }
+        }
+        if ($compared -eq 0) {
+            Add-Check 'drift' 'skip' 'no comparable seeded file found on both sides'
+        }
+        elseif ($drifted.Count -eq 0) {
+            Add-Check 'drift' 'pass' "$compared seeded file(s) match the published assets"
+        }
+        else {
+            Add-Check 'drift' 'fail' "drifted from the published seed: $($drifted -join ', ') - port the fix to skills/home-repo-bootstrap/assets/ and re-sync, so every bootstrapped machine gets it too"
+        }
+    }
+}
 
+$failed = @($checks | Where-Object { $_.status -eq 'fail' })
 [ordered]@{
     path     = $root
     passed   = ($failed.Count -eq 0)
