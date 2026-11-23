@@ -57,7 +57,7 @@ Ask only for what cannot be derived. Resolve the rest from the machine:
 | Watched repos | None — the manifest stays in `single` mode |
 
 ```powershell
-pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 `
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Initialize-HomeRepo.ps1 `
   -Path 'C:\Work\home-repo' `
   -Repo 'copilot-fc|C:\Work\Agents\github-copilot-fc|https://github.com/arisng/github-copilot-fc.git' `
   -WatchedRepo 'C:\Work\Agents\github-copilot-fc' `
@@ -83,7 +83,7 @@ Rules the script enforces, and why:
 ### 2. Verify
 
 ```powershell
-pwsh -NoProfile -File scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
 ```
 
 It emits JSON with `passed`, `checks[]`, and `warnings[]`, and exits non-zero when a check
@@ -139,8 +139,8 @@ The same three commands work on every machine, and each run is independent:
 
 ```powershell
 npx skills add arisng/github-copilot-fc -g -y                     # shared skills, incl. this one
-pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 -Path <target>
-pwsh -NoProfile -File scripts/Test-HomeRepoBootstrap.ps1 -Path <target>
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Initialize-HomeRepo.ps1 -Path <target>
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Test-HomeRepoBootstrap.ps1 -Path <target>
 ```
 
 Pointers are the only machine-specific content in a committed file, and CI tolerates a
@@ -152,14 +152,14 @@ belong in the gitignored manifest.
 Fresh machine, no repos cloned yet — seed with a placeholder pointer, then finish it by hand:
 
 ```powershell
-pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo'
-pwsh -NoProfile -File scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo'
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
 ```
 
 Teammate onboarding with the tower wired to two checkouts:
 
 ```powershell
-pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo' `
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo' `
   -Repo 'copilot-fc|C:\Work\Agents\github-copilot-fc|https://github.com/arisng/github-copilot-fc.git' `
   -Repo 'widgets|C:\Work\widgets|https://github.com/acme/widgets.git' `
   -WatchedRepo 'C:\Work\Agents\github-copilot-fc','C:\Work\widgets'
@@ -168,7 +168,7 @@ pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo' 
 Repairing a home repo whose gate is red — verify first, because it names the failing check:
 
 ```powershell
-pwsh -NoProfile -File scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
+pwsh -NoProfile -File ~/.agents/skills/home-repo-bootstrap/scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
 ```
 
 ## Troubleshooting
