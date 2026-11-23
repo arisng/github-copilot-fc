@@ -24,7 +24,9 @@ validates every file against its template and fails closed.
 
 Containment order: **theme ⊃ epic ⊃ task/bug/chore**. Model one workstream as a
 theme, not an epic; add an epic only when a theme's work needs an intermediate
-grouping.
+grouping. Only the theme root is gated — a mis-nested epic (parented by a task or
+chore) passes `-Check`, so the order below `theme` is a convention to honour, not
+an enforced rule.
 
 ### A theme closes with its work
 

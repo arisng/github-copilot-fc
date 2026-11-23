@@ -116,7 +116,7 @@ skills/
 | `handoff` | 1.0.0 | Compact the current conversation into a handoff document for another agent to pick up. |
 | `issue-md-writer` | 2.2.0 | Create and draft markdown-based issue documents (bug reports, feature plans, RFCs, ADRs, tasks, retrospectives) in the top-level `.issues/` folder. Use this… |
 | `issue-relevance-check` | 0.1.0 | Slash command to evaluate whether an issue or pull request is still relevant, actionable, and worth keeping open |
-| `issue-tracking` | 1.5.0 | Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the… |
+| `issue-tracking` | 1.5.1 | Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the… |
 | `join-copilot-fc` | 1.1.0 | Extract (promote) a repo-level agent skill from the current repository into the github-copilot-fc skills factory and publish it as a user-level skill — the… |
 | `machina-authoring` | 0.4.0 | Author valid, high-scoring state machines in Machina machine JSON format (spec v3.0.0 / v2.0.0 / v1.0.0). USE WHEN: writing or generating a machine definition… |
 | `machina-driving` | 0.5.2 | Drive a Machina state machine to a deterministic outcome on behalf of an AI agent. USE WHEN: a task is governed by a state machine (a machine definition JSON… |

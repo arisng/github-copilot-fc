@@ -3,7 +3,7 @@ name: issue-tracking
 description: >
   Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the manifest schema), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional defaults; consumers register their own in the manifest to override per type on demand), and closes themes whose children are all done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.5.0
+  version: 1.5.1
   author: arisng
 ---
 
@@ -201,6 +201,7 @@ layer, and `epic` sits *inside* it:
 | relation | must not declare `theme:` or `parent:` | is a non-theme type, so it **must** resolve to a theme (`theme:` or a `parent:` chain) |
 | resolvable by `theme:`? | yes — the only type a `theme:` ref may point at | no — `theme:` pointing at an epic is a validation error |
 | may have children | yes (issues, epics, tasks) | yes (tasks, bugs, chores, other epics) |
+| containment enforced? | yes — theme root is required | no — nesting order is convention (see below) |
 | must have active children | required (a childless theme is clutter) | not required |
 | status vs completion | **enforced** — 100% must be `done`/`dropped`, `done` must be 100% | no rule (an epic is not a status boundary) |
 | count | one or more | zero or more (optional depth) |
@@ -212,6 +213,13 @@ theme's work. "Theme ⊃ epic ⊃ task/bug/chore" is the containment order; two 
 may sit side by side in one theme, and an epic may nest under another epic. Never
 model a theme as a child of an epic, and never use `epic` when one workstream is
 intended — the gate requires the theme root either way.
+
+**Only the theme root is gated.** `issue-tree.ps1` proves that a theme is not a
+child and that every non-theme issue reaches a theme; it does **not** compare a
+child's `type` against its parent's, so a mis-nested epic (parented by a task or
+chore) passes. The containment order below `theme` is a modelling convention you
+are expected to honour, not a gate. Cross-tracker availability:
+[references/tracker-matrix.md](references/tracker-matrix.md).
 
 - A new cluster of related work with no home → create a theme file: id from
   `issue-new-id.ps1` (step 2's allocator — never hand-picked), `type: theme`,

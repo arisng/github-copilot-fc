@@ -141,7 +141,15 @@ def test_table_document_exists() -> None:
     doc = (SKILL_DIR / "references" / "tracker-matrix.md").read_text(encoding="utf-8")
     # One row per tracker in the rules table, and the legend must explain the
     # marks actually used there.
-    for mark in ("**yes**", "**derive**", "**n/a**", "**route**", "**refused**"):
+    for mark in (
+        "**yes**",
+        "**partial**",
+        "**derive**",
+        "**n/a**",
+        "**route**",
+        "**refused**",
+        "**ignored**",
+    ):
         assert mark in doc, mark
 
 
@@ -260,3 +268,139 @@ def test_manifest_writer_is_the_only_azure_capable_entry_point(
     # Store-only and github-only keys must not leak into an azure manifest.
     for key in ("issuesDir", "issueTemplatesDir", "treeFile", "treeMaxIssues", "treeSource"):
         assert key not in written, key
+
+# --------------------------------------------------------------------------
+# Corrected claims: each of these guards a statement the matrix makes that a
+# plausible implementation would get wrong (and that an audit caught).
+# --------------------------------------------------------------------------
+
+
+def test_github_without_tree_source_is_refused_like_azure(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # The matrix's github column is `github (+ treeSource: github)`; a github
+    # manifest WITHOUT treeSource behaves like azure-devops, not like github.
+    repo = tmp_path / "github-no-tree"
+    (repo / ".github").mkdir(parents=True)
+    (repo / ".issues").mkdir()
+    (repo / ".issues" / "tree.md").write_text(TREE, encoding="utf-8")
+    (repo / ".github" / "issue-tracker.json").write_text(
+        json.dumps({"schemaVersion": 1, "tracker": "github", "repo": "acme/widgets"}),
+        encoding="utf-8",
+    )
+    for script, args in (
+        ("issue-tree.ps1", ()),
+        ("issue-tree.ps1", ("-Check",)),
+        ("render-issue-tree.ps1", ()),
+        ("render-issue-tree.ps1", ("-Check",)),
+    ):
+        code, first = probe(pwsh_exe, skill, repo, script, *args)
+        assert code == 1, f"{script} {' '.join(args)}: {first}"
+        assert "is not local-markdown" in first, first
+
+
+def test_check_and_inventory_are_mutually_exclusive_in_both_modes(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # A gate invoking both checks nothing; the matrix states this explicitly.
+    for tracker in ("local-markdown", "github"):
+        repo = make_repo(tmp_path, tracker)
+        code, first = probe(pwsh_exe, skill, repo, "issue-tree.ps1", "-Check", "-Inventory")
+        assert code == 1, f"{tracker}: {first}"
+        assert "not both" in first, first
+
+
+def test_epic_containment_is_convention_not_a_gate(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # The matrix marks epic containment `partial` because the gate checks only
+    # the theme root. This pins that: an epic parented by a task passes.
+    repo = make_repo(tmp_path, "local-markdown")
+    (repo / ".issues" / "0003-task.md").write_text(
+        "---\nid: \"0003\"\ntitle: \"Task\"\nstatus: open\npriority: P2\n"
+        "type: task\ntheme: 0001\ncreated: 2026-01-01\n---\n\n## Summary\n\nB.\n\n## Notes\n\nN.\n",
+        encoding="utf-8",
+    )
+    (repo / ".issues" / "0004-epic.md").write_text(
+        "---\nid: \"0004\"\ntitle: \"Epic\"\nstatus: open\npriority: P2\n"
+        "type: epic\ntheme: 0001\nparent: 0003\ncreated: 2026-01-01\n---\n\n"
+        "## Summary\n\nB.\n\n## Notes\n\nN.\n",
+        encoding="utf-8",
+    )
+    code, first = probe(pwsh_exe, skill, repo, "issue-tree.ps1")
+    assert code == 0, first
+
+
+def test_missing_manifest_falls_back_for_tree_but_not_for_id_or_sync(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # A never-bootstrapped repo gets green tree gates; only the allocator and
+    # the sync refuse. The matrix states this explicitly.
+    repo = tmp_path / "no-manifest"
+    (repo / ".issues").mkdir(parents=True)
+    (repo / ".issues" / "0001-one.md").write_text(
+        "---\nid: \"0001\"\ntitle: \"One\"\nstatus: open\npriority: P2\n"
+        "type: theme\ncreated: 2026-01-01\n---\n\n## Summary\n\nB.\n\n## Notes\n\nN.\n",
+        encoding="utf-8",
+    )
+    (repo / ".issues" / "0002-two.md").write_text(
+        "---\nid: \"0002\"\ntitle: \"Two\"\nstatus: open\npriority: P2\n"
+        "type: task\ntheme: 0001\ncreated: 2026-01-01\n---\n\n## Summary\n\nB.\n\n## Notes\n\nN.\n",
+        encoding="utf-8",
+    )
+    assert probe(pwsh_exe, skill, repo, "issue-tree.ps1")[0] == 0
+    assert probe(pwsh_exe, skill, repo, "render-issue-tree.ps1")[0] == 0
+    assert probe(pwsh_exe, skill, repo, "issue-template.ps1", "-Validate")[0] == 0
+    code, first = probe(pwsh_exe, skill, repo, "issue-new-id.ps1")
+    assert code == 1
+    assert "bootstrap the manifest first" in first, first
+    assert probe(pwsh_exe, skill, repo, "sync-github-tree.ps1")[0] == 1
+
+
+def test_tree_min_priority_is_validated_only_at_sync(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # -Apply accepts any string; the sync is the guard. The matrix calls this
+    # out because a bootstrap can commit an unusable manifest.
+    repo = tmp_path / "minpri"
+    repo.mkdir()
+    out = subprocess.run(
+        [
+            pwsh_exe, "-NoProfile", "-File",
+            str(skill / "scripts" / "issue-tracker-init.ps1"),
+            "-Apply", "-Tracker", "github", "-Repo", "acme/widgets",
+            "-TreeMinPriority", "P9",
+        ],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=180,
+    )
+    assert out.returncode == 0, out.stdout + out.stderr
+    written = json.loads((repo / ".github" / "issue-tracker.json").read_text(encoding="utf-8"))
+    assert written["treeMinPriority"] == "P9"
+
+
+def test_template_show_is_refused_for_non_local_trackers(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    for tracker in ("github", "azure-devops"):
+        repo = make_repo(tmp_path, tracker)
+        code, first = probe(pwsh_exe, skill, repo, "issue-template.ps1", "-Show", "task")
+        assert code == 1, f"{tracker}: {first}"
+        assert "is not local-markdown" in first, first
+
+
+def test_github_plain_tree_run_never_writes_the_tree(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # The no-op pointer must not rewrite the committed snapshot: a gate wired to
+    # a plain run would otherwise look like it regenerated.
+    repo = make_repo(tmp_path, "github")
+    tree = repo / ".issues" / "tree.md"
+    before = tree.read_bytes()
+    code, _ = probe(pwsh_exe, skill, repo, "issue-tree.ps1")
+    assert code == 0
+    assert tree.read_bytes() == before, "github plain run must not touch tree.md"
