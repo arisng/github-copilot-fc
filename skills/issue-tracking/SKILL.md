@@ -3,7 +3,7 @@ name: issue-tracking
 description: >
   Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the manifest schema), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional defaults; consumers register their own in the manifest to override per type on demand), and closes themes whose children are all done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.4.1
+  version: 1.5.0
   author: arisng
 ---
 
@@ -38,6 +38,12 @@ Commands below use `<skill-folder>` = the folder holding this SKILL.md.
 | `github` | GitHub Issues in `repo` | label-based triage — the user-level `triage-backlog` skill; **plus** the local tree view (steps 1, 4, 5 below) when `treeSource: github` |
 | `azure-devops` | Azure Boards in `org`/`project` | `az boards` work items |
 | anything else | — | stop and ask; extend this skill before running |
+
+The three trackers are **not** symmetric: only `local-markdown` has templates,
+ids, and the theme-closure gate; only `github` has a tree pipeline (derived
+theme status); `azure-devops` is bootstrap-and-route only. The per-rule
+availability table is [references/tracker-matrix.md](references/tracker-matrix.md)
+— read it before assuming a script works for the tracker in front of you.
 
 **Manifest missing** → bootstrap it now (first use in any repo):
 

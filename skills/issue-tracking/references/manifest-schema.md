@@ -100,6 +100,9 @@ writes it after validating against this document. The companion renderer
 | `github` | GitHub Issues in `repo` | label-based triage — user-level `triage-backlog` skill; local tree view when `treeSource: github` |
 | `azure-devops` | Azure Boards in `org`/`project` | `az boards` work items |
 
+Per-rule availability for these routes (which gates, scripts, and manifest keys
+apply to each tracker) is tabulated in [tracker-matrix.md](tracker-matrix.md).
+
 Support for the `github` and `azure-devops` routes is incremental: the manifest
 fields above are validated today; label triage routes to the user-level
 `triage-backlog` skill, while the github tree view is refreshed by this skill's

@@ -47,7 +47,8 @@ closed parent is promoted into the section's open region. So the contradiction
 this rule forbids cannot be produced, and `issue-tree.ps1 -Check` correctly stays
 a structural check that accepts a header disagreeing with the rows the cap
 happened to render. Do not "fix" that by porting the rule: a github-mode header
-may legitimately disagree with its visible rows.
+may legitimately disagree with its visible rows. The full cross-tracker picture
+is [tracker-matrix.md](tracker-matrix.md).
 
 ## Where templates live
 
