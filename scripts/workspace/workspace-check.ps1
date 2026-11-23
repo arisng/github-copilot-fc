@@ -449,7 +449,11 @@ function Invoke-SkillTests {
     try {
         Push-Location $repoRoot
         try {
-            & python3 -m pytest skills -q *> $tempOut
+            # --tb=line puts the assertion message on the failure's own line.
+            # Without it the gate printed only the node id, so a flake and a
+            # real regression looked identical and the only safe response was a
+            # full re-run (retro 2026-11-23).
+            & python3 -m pytest skills -q --tb=line *> $tempOut
             $code = $LASTEXITCODE
         }
         finally {
@@ -463,9 +467,13 @@ function Invoke-SkillTests {
 
     $summary = if ($lines.Count -gt 0) { $lines[$lines.Count - 1] } else { 'pytest produced no output' }
     if ($code -ne 0) {
-        $failures = @($lines | Where-Object { $_ -match '^(FAILED|ERROR)' } | Select-Object -First 3) -join ' | '
-        if (-not $failures) { $failures = $summary }
-        return @{ Status = 'FAIL'; Detail = "skill tests failed - run: python3 -m pytest skills -q ($failures); install with python3 -m pip install pytest if the module is missing" }
+        # Name the failing test AND why: the traceback line carries the
+        # assertion text that separates a flake from a regression.
+        $failedNames = @($lines | Where-Object { $_ -match '^FAILED|^ERROR' } | Select-Object -First 3)
+        $traceLines = @($lines | Where-Object { $_ -match '^[A-Za-z]:[\\/].*:\d+:' } | Select-Object -First 3)
+        $detail = (@($failedNames) + @($traceLines) | Where-Object { $_ }) -join ' | '
+        if (-not $detail) { $detail = $summary }
+        return @{ Status = 'FAIL'; Detail = "skill tests failed - run: python3 -m pytest skills -q ($detail); install with python3 -m pip install pytest if the module is missing" }
     }
     return @{ Status = 'PASS'; Detail = "skill tests pass - $summary" }
 }
