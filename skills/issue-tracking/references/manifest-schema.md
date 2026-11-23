@@ -40,6 +40,8 @@ writes it after validating against this document. The companion renderer
 | `treeFile` | no | `local-markdown`: `<issuesDir>/tree.md`; `github`: none | generated tree file; accepted for `github` too (committed snapshot path — written only when supplied) |
 | `treeScript` | no | bundled `issue-tree.ps1` path when the skill copy lives in-repo | script that validates the store and regenerates the tree |
 | `lintTask` | no | — | repo task running the gate (e.g. `lint:issues`) |
+| `issueTemplatesDir` | no | `.github/ISSUE_TEMPLATE` | `local-markdown` only: consumer dir holding custom issue templates (industry-conventional GitHub template location) |
+| `issueTemplateOverrides` | no | — | `local-markdown` only: map of issue type → template filename inside `issueTemplatesDir`; registers consumer templates that override the skill defaults per type ([issue-templates.md](issue-templates.md)) |
 | `treeMaxIssues` | `github`: no (always written) | `300` | cap applied after sorting |
 | `treeLookbackDays` | `github`: no (always written) | `365` | `createdAt` lookback in days, evaluated against the stored `asOf` — never the wall clock |
 | `treeIncludeClosed` | `github`: no (always written) | `true` | closed issues ship in the data; hiding them is a view toggle (JSON boolean) |
@@ -57,7 +59,8 @@ writes it after validating against this document. The companion renderer
 - `tracker` must be one of the three enum values.
 - Per-tracker required fields must be present (`repo` for `github`; `org` + `project`
   for `azure-devops`); `repo` must look like `owner/name`.
-- Store fields (`issuesDir`/`archiveDir`) apply to `local-markdown` only; `treeFile`
+- Store fields (`issuesDir`/`archiveDir`/`issueTemplatesDir`) apply to
+  `local-markdown` only; `treeFile`
   applies to `local-markdown` and `github` (still rejected for `azure-devops`).
   Paths must be repo-relative — no rooted paths, no `..`.
 - The GitHub tree fields (`treeSource`, `treeMaxIssues`, `treeLookbackDays`,

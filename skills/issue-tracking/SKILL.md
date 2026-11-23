@@ -1,9 +1,9 @@
 ---
 name: issue-tracking
 description: >
-  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive Q&A or auto-inferred in autopilot; the manifest schema is owned by this skill), then triages incoming issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated issue tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Use when asked to triage, groom, refine, prioritize, or audit issues, decide what to work on next by theme, file or link a new issue, refresh .issues/tree.md, render or view the issue tree HTML, verify issue claims against git history, or set up a repo's issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced local tree view when treeSource is github); Azure DevOps via az boards.
+  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive Q&A or auto-inferred in autopilot; the manifest schema is owned by this skill), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional markdown templates shipped as defaults; consumers register their own in the manifest to override per type on demand). Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   author: arisng
 ---
 
@@ -67,6 +67,43 @@ Commands below use `<skill-folder>` = the folder holding this SKILL.md.
 any tracker other than `local-markdown` / `github`-with-`treeSource: github`),
 the workflow below does not apply until adapted — route per the table.
 
+## 0.5 Templates — the file shape is gated, not advisory
+
+Every issue file conforms to an **issue template** for its `type`
+([references/issue-templates.md](references/issue-templates.md)). Skill
+defaults ship in `assets/issue-templates/<type>.md` — GitHub-conventional
+markdown templates (`name`/`about`/`title`/`labels`/`assignees` frontmatter +
+body) extended with the `type`/`status`/`priority` stamps, the field lists, and
+one required section per body heading. A consumer repo overrides any type by
+registering its own template in the manifest:
+
+```json
+{
+  "issueTemplatesDir": ".github/ISSUE_TEMPLATE",
+  "issueTemplateOverrides": { "bug": "bug-report.md" }
+}
+```
+
+Register (validated: the file must exist and declare the same `type`; a
+`-Force` rewrite carries the persisted registry over and merges new entries):
+
+```powershell
+pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Force -IssueTemplateOverride bug=bug-report.md
+```
+
+| Need | Command |
+|---|---|
+| see the effective registry | `pwsh <skill-folder>/scripts/issue-template.ps1 -List` |
+| validate the set + registration | `pwsh <skill-folder>/scripts/issue-template.ps1 -Validate` |
+| print a template to file from | `pwsh <skill-folder>/scripts/issue-template.ps1 -Show <type>` |
+
+Unregistered files in `issueTemplatesDir` are ignored — they may be native
+GitHub.com templates. Templates describe the local store, so the registry is
+`tracker: local-markdown` only.
+
+**Done:** every type resolves to a valid template (the gate in step 1 proves
+it; `-Validate` reports it standalone).
+
 ## 1. Inventory — run the script, read its rows
 
 The script is bundled next to this SKILL.md — `<skill-folder>/scripts/issue-tree.ps1`,
@@ -89,13 +126,15 @@ pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory
 - One row per issue — `id|type|status|priority|theme|parent|order|file|title` —
   followed by `NEXT_ID|NNNN` (next free id across active + archived, skipping ids
   reserved by outstanding allocator leases — advisory; the allocator is the source
-  of truth). Validation runs first: schema or theme errors print as
-  `THEME .issues/<file>: <reason>` and exit 1; fix them before doing anything else.
+  of truth). Validation runs first: core/relations errors print as
+  `THEME .issues/<file>: <reason>`, template conformance errors as
+  `TEMPLATE .issues/<file>: <reason>`, and the run exits 1; fix them before doing
+  anything else.
 - The dump is the working set for the run — open an issue body only where step 2 needs
   its evidence. Never hand-parse frontmatter or hand-count ids.
 - Conventions live in `.issues/README.md` when the repo ships one — status/priority/type
   enums, theme rules, the cited-probe rule for package claims (the script enforces the
-  enums either way).
+  enums either way). File shape is enforced by the templates (step 0.5), not by prose.
 
 **Github mode** (`tracker: github` + `treeSource: github`) — the committed `treeFile`
 is the source of truth; there is no local store to validate:
@@ -144,10 +183,34 @@ recording what could not be checked.
 
 - Every non-theme issue resolves to exactly one active theme: direct `theme: NNNN`, or
   a `parent:` chain ending at a theme. Step 4's `-Check` proves it — never by eye.
+
+### Types: theme vs epic (which contains which)
+
+The two grouping types are **not** peers. The tree has exactly one mandatory root
+layer, and `epic` sits *inside* it:
+
+| | `theme` | `epic` |
+|---|---|---|
+| role | **root grouping** — the workstream every issue must belong to | **intermediate grouping** — a sub-bundle of one theme's work |
+| relation | must not declare `theme:` or `parent:` | is a non-theme type, so it **must** resolve to a theme (`theme:` or a `parent:` chain) |
+| resolvable by `theme:`? | yes — the only type a `theme:` ref may point at | no — `theme:` pointing at an epic is a validation error |
+| may have children | yes (issues, epics, tasks) | yes (tasks, bugs, chores, other epics) |
+| must have active children | required (a childless theme is clutter) | not required |
+| count | one or more | zero or more (optional depth) |
+
+So **a theme is the superset**: it is the boundary of the tree, and every epic,
+task, bug and chore lives under exactly one theme. An epic is a *narrower* container
+than a theme — an optional mid-level grouping whose members are a subset of that
+theme's work. "Theme ⊃ epic ⊃ task/bug/chore" is the containment order; two epics
+may sit side by side in one theme, and an epic may nest under another epic. Never
+model a theme as a child of an epic, and never use `epic` when one workstream is
+intended — the gate requires the theme root either way.
+
 - A new cluster of related work with no home → create a theme file: id from
   `issue-new-id.ps1` (step 2's allocator — never hand-picked), `type: theme`,
   `priority` = its most urgent open child, then link its children
-  (`theme:` / `order:` shape in the README).
+  (`theme:` / `order:` shape in the README). Reach for `epic` only when a theme's
+  work needs an intermediate grouping — it does not replace the theme.
 - Chain order is the sort key: priority → `order` → id — computed by the script, so
   set `order` only when same-priority children need an explicit sequence.
 

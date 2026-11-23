@@ -4,13 +4,21 @@
     store as machine rows (-Inventory).
 
 .DESCRIPTION
-    A theme (type: theme) is a prioritized workstream. Every active non-theme issue
-    must relate to exactly one theme - directly via `theme: NNNN`, or indirectly via
-    a `parent:` chain that ends at a theme (or at an issue carrying a theme).
+    A theme (type: theme) is a prioritized workstream - the root grouping and the
+    superset of the tree. Every active non-theme issue (epic, task, bug, chore)
+    must relate to exactly one theme - directly via `theme: NNNN`, or indirectly
+    via a `parent:` chain that ends at a theme (or at an issue carrying a theme).
+    An epic is an intermediate grouping INSIDE a theme, so it must resolve like
+    any other non-theme issue; only type: theme may be the target of `theme:`.
 
     Checks:
       1. Frontmatter: required fields, id matches filename, status/priority/type
-         enums, numeric order.
+         enums, numeric order, created as a YYYY-MM-DD date. Template
+         conformance (scripts/issue-template-lib.ps1): the resolved template
+         (skill defaults in assets/issue-templates, replaced per type by
+         manifest-registered overrides) must accept every frontmatter field,
+         get its required fields, and see its required body sections - errors
+         print as TEMPLATE lines (references/issue-templates.md).
       2. Theme relations: resolvable, no cycles, theme refs point at type: theme,
          every theme has at least one active child.
       3. -Check also fails when the tree file is missing or stale.
@@ -68,11 +76,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path -Path $PSScriptRoot -ChildPath 'issue-id-lib.ps1')
+. (Join-Path -Path $PSScriptRoot -ChildPath 'issue-template-lib.ps1')
 
 # --- Store resolution: manifest first, .issues fallback (repo-agnostic) ------
 $issuesDir = '.issues'
 $treePath = Join-Path -Path $issuesDir -ChildPath 'tree.md'
 $archiveDir = Join-Path -Path $issuesDir -ChildPath 'archived'
+$issueTemplatesDir = '.github/ISSUE_TEMPLATE'
+$issueTemplateOverrides = $null
 $manifestPath = Join-Path -Path '.github' -ChildPath 'issue-tracker.json'
 $tracker = 'local-markdown'
 $treeSource = 'local-markdown'
@@ -116,6 +127,15 @@ if (Test-Path -LiteralPath $manifestPath) {
     }
     else {
         $archiveDir = Join-Path -Path $issuesDir -ChildPath 'archived'
+    }
+    # Template registry (references/issue-templates.md): consumer overrides of
+    # the skill-default issue templates, resolved per issue type.
+    if ($names -contains 'issueTemplatesDir' -and
+        -not [string]::IsNullOrWhiteSpace([string]$manifest.issueTemplatesDir)) {
+        $issueTemplatesDir = [string]$manifest.issueTemplatesDir
+    }
+    if ($names -contains 'issueTemplateOverrides') {
+        $issueTemplateOverrides = $manifest.issueTemplateOverrides
     }
 }
 $issuesLabel = $issuesDir -replace '\\', '/'
@@ -267,11 +287,34 @@ if (-not (Test-Path -LiteralPath $issuesDir)) {
     exit 1
 }
 
-$validStatus = @('open', 'in-progress', 'blocked', 'done', 'dropped')
-$validPriority = @('P0', 'P1', 'P2', 'P3')
-$validType = @('theme', 'epic', 'task', 'bug', 'chore')
+# Enums and the frontmatter contract live in issue-template-lib.ps1 (single
+# source shared with the template CLI and the manifest writer).
+$validStatus = $issueValidStatus
+$validPriority = $issueValidPriority
+$validType = $issueValidType
 
 $fail = $false
+
+# --- Template set: skill defaults + manifest-registered overrides -----------
+# references/issue-templates.md. A broken default or a broken registration
+# fails the gate here, before any store file is looked at.
+$templatesLabel = $issueTemplatesDir -replace '\\', '/'
+$templateSet = @{ Templates = @{}; Errors = @() }
+if (-not (Test-IssueRepoRelativePath -Value $issueTemplatesDir)) {
+    $fail = $true
+    "TEMPLATE   ${templatesLabel}: issueTemplatesDir must be repo-relative (no root, no ..)"
+}
+else {
+    $templateSet = Get-IssueTemplateSet `
+        -DefaultsDir (Join-Path -Path $PSScriptRoot -ChildPath '..\assets\issue-templates') `
+        -TemplatesDir $issueTemplatesDir `
+        -TemplatesLabel $templatesLabel `
+        -Overrides $issueTemplateOverrides
+    foreach ($templateError in $templateSet.Errors) {
+        $fail = $true
+        "TEMPLATE   $templateError"
+    }
+}
 
 function Get-PriorityRank {
     param([string]$Priority)
@@ -304,33 +347,9 @@ function Get-ChildLines {
     return $result
 }
 
-function Read-Frontmatter {
-    param([string]$Path)
-    $lines = Get-Content -LiteralPath $Path -Encoding UTF8
-    if ($lines.Count -lt 3 -or $lines[0].Trim() -ne '---') { return $null }
-    $fm = @{}
-    $closed = $false
-    foreach ($line in ($lines | Select-Object -Skip 1)) {
-        if ($line.Trim() -eq '---') { $closed = $true; break }
-        if ($line -match '^([A-Za-z_][A-Za-z0-9_]*):[ \t]*(.*)$') {
-            $key = $Matches[1]
-            $value = $Matches[2].Trim()
-            # Strip inline comments the way the README format example shows them
-            # (never for title: - a title may legitimately contain ' #').
-            if ($key -ne 'title' -and $value -match ' #') {
-                $value = ($value -split ' #', 2)[0].Trim()
-            }
-            if ($value.Length -ge 2 -and
-                ($value[0] -eq '"' -or $value[0] -eq "'") -and
-                $value[$value.Length - 1] -eq $value[0]) {
-                $value = $value.Substring(1, $value.Length - 2)
-            }
-            $fm[$key] = $value
-        }
-    }
-    if (-not $closed) { return $null }
-    return $fm
-}
+# Frontmatter parsing lives in issue-template-lib.ps1 (Read-IssueDocument) -
+# one parser for store files and templates, so comment/quote semantics cannot
+# drift between the validator and the template gate.
 
 # --- 1. Load and validate frontmatter ---------------------------------------
 $records = @()
@@ -342,7 +361,8 @@ $files = Get-ChildItem -LiteralPath $issuesDir -File -Filter '*.md' |
 
 foreach ($file in $files) {
     $fileId = $file.Name.Substring(0, 4)
-    $fm = Read-Frontmatter -Path $file.FullName
+    $doc = Read-IssueDocument -Path $file.FullName
+    $fm = $doc.Frontmatter
     if ($null -eq $fm) {
         $fail = $true
         "THEME   $issuesLabel/$($file.Name): missing or malformed YAML frontmatter"
@@ -370,6 +390,17 @@ foreach ($file in $files) {
         $fail = $true
         "THEME   $issuesLabel/$($file.Name): invalid type '$($fm['type'])' (expected theme|epic|task|bug|chore)"
     }
+    if ($fm.ContainsKey('created') -and -not [string]::IsNullOrWhiteSpace($fm['created'])) {
+        $createdDate = [datetime]::MinValue
+        if ($fm['created'] -notmatch '^\d{4}-\d{2}-\d{2}$' -or
+            -not [datetime]::TryParseExact($fm['created'], 'yyyy-MM-dd',
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::None,
+                [ref]$createdDate)) {
+            $fail = $true
+            "THEME   $issuesLabel/$($file.Name): created '$($fm['created'])' is not a YYYY-MM-DD date"
+        }
+    }
     $order = 999
     if ($fm.ContainsKey('order') -and -not [string]::IsNullOrWhiteSpace($fm['order'])) {
         $parsedOrder = 0
@@ -379,6 +410,19 @@ foreach ($file in $files) {
         else {
             $fail = $true
             "THEME   $issuesLabel/$($file.Name): order '$($fm['order'])' is not an integer"
+        }
+    }
+    # Template conformance (references/issue-templates.md): field policy and
+    # required body sections come from the resolved template. A file whose
+    # type has no usable template is already failed by the template set above.
+    if ($fm.ContainsKey('type') -and
+        $templateSet.Templates.ContainsKey([string]$fm['type'])) {
+        $fileTemplate = $templateSet.Templates[[string]$fm['type']]
+        $conformanceErrors = Test-IssueTemplateConformance -Frontmatter $fm `
+            -Headings $doc.Headings -Template $fileTemplate
+        foreach ($templateError in $conformanceErrors) {
+            $fail = $true
+            "TEMPLATE   $issuesLabel/$($file.Name): $templateError"
         }
     }
     if ($byId.ContainsKey($fileId)) {
@@ -517,7 +561,7 @@ foreach ($record in $records) {
 }
 
 if ($fail) {
-    "issue-tree: FAILED - fix the THEME errors above, then re-run"
+    "issue-tree: FAILED - fix the THEME and TEMPLATE errors above, then re-run"
     exit 1
 }
 

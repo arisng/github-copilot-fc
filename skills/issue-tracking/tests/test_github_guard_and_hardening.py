@@ -58,6 +58,14 @@ priority: P1
 type: theme
 created: 2026-01-01
 ---
+
+## Summary
+
+Sample theme body.
+
+## Notes
+
+Fixture notes.
 """
 
 ISSUE_FILE = """---
@@ -69,6 +77,14 @@ type: task
 theme: 0001
 created: 2026-01-02
 ---
+
+## Summary
+
+Sample issue body.
+
+## Notes
+
+Fixture notes.
 """
 
 

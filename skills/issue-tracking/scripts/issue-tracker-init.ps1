@@ -20,7 +20,14 @@
                manifest unless -Force is given. The github-only tree fields
                (treeSource, limits, issueQuery) are checked per
                references/manifest-schema.md; issueQuery runs through
-               scripts/query-composition-lib.ps1 (the single reject list).
+               scripts/query-composition-lib.ps1 (the reject list). The
+               template registry (-IssueTemplatesDir, -IssueTemplateOverride
+               type=file) registers consumer issue templates that override
+               the skill defaults per issue type
+               (references/issue-templates.md); every registration is
+               validated (the file must exist and its template must declare
+               the registered type), and a -Force rewrite carries the
+               persisted registration over, merging new entries into it.
 
     Schema ownership and the bootstrap flow (interactive vs autopilot inference)
     live in this skill's SKILL.md step 0 and references/manifest-schema.md.
@@ -33,6 +40,8 @@
     pwsh ~/.agents/skills/issue-tracking/scripts/issue-tracker-init.ps1 -Apply -Tracker github -Repo owner/name -Force
 .EXAMPLE
     pwsh ~/.agents/skills/issue-tracking/scripts/issue-tracker-init.ps1 -Apply -Tracker github -Repo owner/name -TreeFile .issues/tree.md -IssueQuery 'label:area/*' -Force
+.EXAMPLE
+    pwsh ~/.agents/skills/issue-tracking/scripts/issue-tracker-init.ps1 -Apply -Tracker local-markdown -Force -IssueTemplateOverride bug=bug-report.md
 #>
 param(
     [switch]$Probe,
@@ -43,6 +52,8 @@ param(
     [string]$TreeFile,
     [string]$TreeScript,
     [string]$LintTask,
+    [string]$IssueTemplatesDir,
+    [string[]]$IssueTemplateOverride,
     [string]$Repo,
     [string]$Org,
     [string]$Project,
@@ -58,14 +69,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path -Path $PSScriptRoot -ChildPath 'issue-template-lib.ps1')
 
 $validTrackers = @('local-markdown', 'github', 'azure-devops')
 $manifestRel = '.github/issue-tracker.json'
 $defaultTreeScript = '~/.agents/skills/issue-tracking/scripts/issue-tree.ps1'
 # treeFile is no longer local-markdown-only: github accepts it too
 # (manifest-schema.md); issuesDir/archiveDir stay store-only.
-$storeKeys = @('issuesDir', 'archiveDir')
-$repoRelativeKeys = @('issuesDir', 'archiveDir', 'treeFile')
+$storeKeys = @('issuesDir', 'archiveDir', 'issueTemplatesDir')
+$repoRelativeKeys = @('issuesDir', 'archiveDir', 'treeFile', 'issueTemplatesDir')
 $validTreeSources = @('local-markdown', 'github')
 $githubParams = [ordered]@{
     TreeSource         = 'treeSource'
@@ -155,12 +167,10 @@ function Get-TrackerHostHint {
 }
 
 function Test-RepoRelative {
+    # Delegates to the template library so the repo-relative rule has exactly
+    # one implementation (same pattern as query-composition-lib.ps1).
     param([string]$Value)
-    if ([System.IO.Path]::IsPathRooted($Value)) { return $false }
-    foreach ($seg in ($Value -split '[\\/]')) {
-        if ($seg -eq '..') { return $false }
-    }
-    return $true
+    return Test-IssueRepoRelativePath -Value $Value
 }
 
 # --- -Probe: evidence rows for the skill's bootstrap decision -----------------
@@ -262,6 +272,9 @@ if ($Tracker -ne 'local-markdown' -and -not [string]::IsNullOrWhiteSpace($Tracke
             $errors += "$key only applies to tracker local-markdown"
         }
     }
+    if ($PSBoundParameters.ContainsKey('IssueTemplateOverride')) {
+        $errors += 'issueTemplateOverrides only applies to tracker local-markdown'
+    }
 }
 if ($Tracker -eq 'azure-devops' -and $PSBoundParameters.ContainsKey('TreeFile')) {
     $errors += 'treeFile only applies to tracker local-markdown or github'
@@ -270,6 +283,103 @@ foreach ($key in $repoRelativeKeys) {
     $value = Get-Variable -Name $key -ValueOnly -ErrorAction SilentlyContinue
     if (-not [string]::IsNullOrWhiteSpace($value) -and -not (Test-RepoRelative -Value $value)) {
         $errors += "$key '$value' must be repo-relative (no root, no ..)"
+    }
+}
+
+# --- Template registry (references/issue-templates.md) -----------------------
+# Parse the CLI entries, then merge them over the registration persisted in an
+# existing manifest: a -Force rewrite carries the registry over and new
+# entries overwrite per type (removal stays a direct manifest edit). Every
+# entry must resolve - the registered file has to exist and its template has
+# to declare the registered type - so a manifest never carries a dead
+# registration.
+$registry = [ordered]@{}
+$carriedTemplatesDir = $null
+if ($Tracker -eq 'local-markdown') {
+    $existingManifest = $null
+    if ((Test-Path -LiteralPath $manifestRel) -and $Force) {
+        try {
+            $existingManifest = Get-Content -LiteralPath $manifestRel -Raw -Encoding UTF8 | ConvertFrom-Json
+        }
+        catch {
+            $errors += "$manifestRel is not valid JSON - fix or delete it, then re-run"
+        }
+    }
+    if ($null -ne $existingManifest) {
+        $existingNames = @($existingManifest.PSObject.Properties.Name)
+        if ($existingNames -contains 'issueTemplatesDir' -and
+            -not [string]::IsNullOrWhiteSpace([string]$existingManifest.issueTemplatesDir)) {
+            $carriedTemplatesDir = [string]$existingManifest.issueTemplatesDir
+        }
+        if ($existingNames -contains 'issueTemplateOverrides') {
+            foreach ($prop in $existingManifest.issueTemplateOverrides.PSObject.Properties) {
+                $registry[[string]$prop.Name] = [string]$prop.Value
+            }
+        }
+    }
+    if ($PSBoundParameters.ContainsKey('IssueTemplateOverride')) {
+        $entryOverrides = @{}
+        foreach ($entry in $IssueTemplateOverride) {
+            $parts = $entry -split '=', 2
+            if ($parts.Count -ne 2 -or [string]::IsNullOrWhiteSpace($parts[0]) -or [string]::IsNullOrWhiteSpace($parts[1])) {
+                $errors += "issueTemplateOverride '$entry' must look like <type>=<file.md>"
+                continue
+            }
+            $entryType = $parts[0].Trim()
+            $entryFile = $parts[1].Trim()
+            if ($issueValidType -notcontains $entryType) {
+                $errors += "issueTemplateOverride type '$entryType' is not one of: $($issueValidType -join ', ')"
+                continue
+            }
+            if ($entryFile -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*\.md$') {
+                $errors += "issueTemplateOverride file '$entryFile' must be a plain .md filename (no path separators)"
+                continue
+            }
+            if ($entryOverrides.ContainsKey($entryType)) {
+                $errors += "issueTemplateOverride type '$entryType' is registered twice"
+                continue
+            }
+            $entryOverrides[$entryType] = $entryFile
+        }
+        foreach ($entryType in $entryOverrides.Keys) {
+            $registry[$entryType] = $entryOverrides[$entryType]
+        }
+    }
+
+    $effectiveTemplatesDir = '.github/ISSUE_TEMPLATE'
+    if (-not [string]::IsNullOrWhiteSpace($IssueTemplatesDir)) {
+        $effectiveTemplatesDir = $IssueTemplatesDir
+    }
+    elseif ($null -ne $carriedTemplatesDir) {
+        $effectiveTemplatesDir = $carriedTemplatesDir
+    }
+    $templatesLabel = $effectiveTemplatesDir -replace '\\', '/'
+    if (-not (Test-RepoRelative -Value $effectiveTemplatesDir)) {
+        $errors += "issueTemplatesDir '$effectiveTemplatesDir' must be repo-relative (no root, no ..)"
+    }
+    else {
+        foreach ($entryType in @($registry.Keys)) {
+            if ($issueValidType -notcontains $entryType) {
+                $errors += "issueTemplateOverrides registers unknown type '$entryType'"
+                continue
+            }
+            $entryFile = $registry[$entryType]
+            if ($entryFile -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*\.md$') {
+                $errors += "issueTemplateOverrides entry for '$entryType' is not a plain .md filename: '$entryFile'"
+                continue
+            }
+            $entryPath = Join-Path -Path $effectiveTemplatesDir -ChildPath $entryFile
+            $entryLabel = "${templatesLabel}/$entryFile"
+            if (-not (Test-Path -LiteralPath $entryPath)) {
+                $errors += "$entryLabel`: registered template not found (issueTemplateOverrides points at it)"
+                continue
+            }
+            $parsed = ConvertTo-IssueTemplate -Path $entryPath -Label $entryLabel
+            foreach ($err in $parsed.Errors) { $errors += $err }
+            if ($null -ne $parsed.Template -and $parsed.Template.Type -ne $entryType) {
+                $errors += "$entryLabel`: template declares type '$($parsed.Template.Type)' but is registered for '$entryType'"
+            }
+        }
     }
 }
 
@@ -298,6 +408,19 @@ function Add-JsonPair {
     }
 }
 
+function Add-JsonObjectPair {
+    # JSON object value (used for issueTemplateOverrides); keys sorted for a
+    # deterministic, byte-stable manifest.
+    param([string]$Key, $Map)
+    $innerNl = [Environment]::NewLine
+    $pairs = foreach ($mapKey in @($Map.Keys | Sort-Object)) {
+        $escapedKey = ([string]$mapKey).Replace('\', '\\').Replace('"', '\"')
+        $escapedValue = ([string]$Map[$mapKey]).Replace('\', '\\').Replace('"', '\"')
+        '    "{0}": "{1}"' -f $escapedKey, $escapedValue
+    }
+    $script:jsonPairs.Add(('  "{0}": {{{1}{2}{1}  }}' -f $Key, $innerNl, ($pairs -join (',' + $innerNl))))
+}
+
 Add-JsonPair -Key 'schemaVersion' -Value 1 -AsNumber $true
 Add-JsonPair -Key 'tracker' -Value $Tracker
 
@@ -308,6 +431,16 @@ if ($Tracker -eq 'local-markdown') {
     Add-JsonPair -Key 'issuesDir' -Value ($IssuesDir -replace '\\', '/')
     Add-JsonPair -Key 'archiveDir' -Value ($ArchiveDir -replace '\\', '/')
     Add-JsonPair -Key 'treeFile' -Value ($TreeFile -replace '\\', '/')
+    # Template registry: dir whenever supplied, carried over, or implied by an
+    # override; the overrides object whenever anything is registered.
+    if (-not [string]::IsNullOrWhiteSpace($IssueTemplatesDir) -or
+        $null -ne $carriedTemplatesDir -or
+        $registry.Count -gt 0) {
+        Add-JsonPair -Key 'issueTemplatesDir' -Value ($effectiveTemplatesDir -replace '\\', '/')
+    }
+    if ($registry.Count -gt 0) {
+        Add-JsonObjectPair -Key 'issueTemplateOverrides' -Map $registry
+    }
 }
 
 if ($Tracker -eq 'github') {
