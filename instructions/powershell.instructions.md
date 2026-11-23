@@ -1,7 +1,7 @@
 ---
 name: powershell
 description: Best practices for writing maintainable PowerShell scripts with comprehensive unit testing using Pester
-applyTo: "scripts/**/*.ps1"
+applyTo: "**/*.ps1"
 ---
 
 # PowerShell Script Development with Unit Testing

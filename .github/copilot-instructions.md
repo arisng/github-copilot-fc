@@ -74,7 +74,7 @@ The lint suite in `scripts/workspace/` plus the JSON Schemas in `schemas/` form 
 
 ### 6. Maintaining local repo docs and issues
 
-`docs/` follows Diátaxis categories (tutorials, how-to guides, reference, explanation); today only `docs/blazor-agui/` exists. `.issues/*.md` documents (dated `YYMMDD_title.md` with YAML frontmatter: `date`, `type`, `severity`, `status`) are authored through the `skills/issue-md-writer` skill; `.issues/index.md` is generated — run `task issues:index` after adding or editing any issue, because index freshness is checked by the consistency engine.
+`docs/` follows Diátaxis categories (tutorials, how-to guides, reference, explanation) — see the layout table above for the current topics, alongside `docs/ci-gates/reference.md` for the local-vs-cloud gate boundary. `.issues/*.md` documents (dated `YYMMDD_title.md` with YAML frontmatter: `date`, `type`, `severity`, `status`) are authored through the `skills/issue-md-writer` skill; `.issues/index.md` is generated — run `task issues:index` after adding or editing any issue, because index freshness is checked by the consistency engine.
 
 ## Authoring standards
 
@@ -119,11 +119,20 @@ Full-suite checks, in order:
 
 1. **Markdown lint** — full-repo markdownlint-cli2 scan compared with the frozen-debt baseline `scripts/workspace/markdown-debt-baseline.txt`: legacy debt passes at its recorded per-file count, and any new file or count increase FAILs (regenerate the baseline with `workspace-check.ps1 -UpdateMarkdownBaseline` only to accept a reviewed change).
 2. **Consistency** — `scripts/workspace/check-consistency.ps1`: jsonschema validation via `validate-manifests.py` (plugin/skill/marketplace schemas + instruction frontmatter), cross-file rules (skill dir ↔ name, 500-line body budget, agent name uniqueness, EMBED marker resolution, no `-beta` identity in source), skills-catalog freshness, issues index freshness, and marketplace parity via the shipped verifier when a marketplace index exists.
-3. **waza check** — advisory skill-quality report; never blocking.
-4. **Supply chain** — `scripts/workspace/check-supply-chain.py`: flags shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags, and link domains outside `scripts/workspace/known-domains.txt` (warn-first; `--strict` is the future ratchet target, `--update-allowlist` regenerates the list).
-5. **Eval preflight** — `waza preflight` over every `evals/*/eval.yaml` (offline only).
+3. **PowerShell lint** — `scripts/workspace/check-powershell.ps1` over every `.ps1`: parse errors, the parameter-clobber pattern (a parameter assigned before its first read), and cross-platform portability (`.exe` suffixes, `$env:TEMP` in tests).
+4. **waza check** — advisory skill-quality report; never blocking.
+5. **Supply chain** — `scripts/workspace/check-supply-chain.py`: flags shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags, and link domains outside `scripts/workspace/known-domains.txt` (warn-first; `--strict` is the future ratchet target, `--update-allowlist` regenerates the list).
+6. **Eval preflight** — `waza preflight` over every `evals/*/eval.yaml` (offline only).
 
-`-Quick` runs only steps 1–2. Exit is non-zero on any FAIL.
+`-Quick` runs steps 1–3 (markdown, consistency, PowerShell lint). Exit is non-zero on any FAIL.
+
+**Parse-check a directory before iterating.** `check-powershell.ps1` takes `-Path`, parses in well under a second, and reports the line and token:
+
+```powershell
+pwsh -NoProfile -File scripts/workspace/check-powershell.ps1 -Path skills/<name>
+```
+
+Run it after editing `.ps1` files and before re-running the suite. The full suite spends minutes on test suites that a one-line parse typo (a stray `}`, a collapsed `$x = 1if (...)`) fails 80 seconds later; the scoped parse check catches the same errors in under one second.
 
 ### Taskfile
 
@@ -178,4 +187,5 @@ npx --yes markdownlint-cli2@0.24.2 .github/copilot-instructions.md
 - **Kebab-case directory names** in every authored tree — FAIL-checked by the consistency engine; file names are kebab-case too except where a toolchain owns the name (pytest `test_*.py`, waza `trigger_tests.yaml`).
 - **`&&` only for native commands** (e.g. `npm test && git status`); in PowerShell scripts use `;` and explicit `if` blocks instead.
 - `task` (go-task v3) is installed and is the supported entry point for lint/test/index commands; `git` and `npx` are required by the lint suite.
+- **`pwsh -File` passes an array parameter as one string.** `-IssueTypes task,bug,feature` arrives as a single element, not three, so any `[string[]]` parameter documented as a list must split on commas itself (`.Split(',')`, or the skill's `ConvertTo-StringList`). Accept both shapes: an array from an in-process call, and a comma-joined scalar from the CLI.
 - **Tool-quirk sharp edges**: pass filesystem paths to search/listing tools as plain strings (never JSON-array-shaped strings), and hand grep-style tools a **directory** plus a glob — a file path or array fails with "Search paths do not exist". Address the shell tool by its lowercase name `powershell`. `Select-String -Context` needs the space (`-Context 1,1`, never `-Context1,1`). Wrap one-item pipelines in `@()` before splatting (`& cmd @scalar` otherwise passes one character per argument), and write `${var}:` when a variable meets a colon inside a double-quoted string.

@@ -68,12 +68,30 @@ def rel(path: Path) -> str:
     return str(path.relative_to(REPO)).replace("\\", "/")
 
 
+def describe_error(err) -> str:
+    """A compact, actionable message for a schema violation.
+
+    jsonschema's stock message for a bounded scalar is "<the whole value> is
+    too long": it echoes a 1 KB description to say "over the ceiling" and
+    never names the actual length, so the caller has to re-measure the value
+    by hand to know how much to cut. Bounded strings get the measurement
+    instead of the echo; every other error keeps the stock wording.
+    """
+    validator = getattr(err, "validator", None)
+    value = getattr(err, "instance", None)
+    if validator in ("maxLength", "minLength") and isinstance(value, str):
+        limit = getattr(err, "validator_value", "?")
+        comparison = "max" if validator == "maxLength" else "min"
+        return f"value is {len(value)} chars ({comparison} {limit})"
+    return str(err.message)
+
+
 def report(label: str, path: Path, errors) -> None:
     errors = sorted(errors, key=lambda e: list(e.absolute_path))
     if errors:
         for err in errors[:5]:
             loc = "/".join(str(p) for p in err.absolute_path) or "<root>"
-            fail(f"{label} {rel(path)} [{loc}]: {err.message}")
+            fail(f"{label} {rel(path)} [{loc}]: {describe_error(err)}")
         if len(errors) > 5:
             fail(f"{label} {rel(path)}: ...and {len(errors) - 5} more error(s)")
     else:
