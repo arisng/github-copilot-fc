@@ -62,13 +62,13 @@ if (Test-Path -LiteralPath $manifestPath) {
     if ($names -contains 'tracker' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.tracker)) {
         $tracker = [string]$manifest.tracker
     }
-    # Compound guard (sketch v6 section 1.2): render the local store or a
-    # github tree file only. azure-devops (and any other tracker) stays
-    # refused by the explicit tracker clause; a missing treeSource behaves
-    # as local-markdown, so old github manifests fail closed.
+    # Compound guard (sketch v6 section 1.2): renders the local store OR a
+    # github tree file - both, not just the store. azure-devops (and any other
+    # tracker) stays refused by the explicit tracker clause; a missing
+    # treeSource behaves as local-markdown, so old github manifests fail closed.
     if ($tracker -ne 'local-markdown' -and
         -not ($tracker -eq 'github' -and $treeSource -eq 'github')) {
-        "render-tree: tracker '$tracker' is not local-markdown - HTML rendering only handles the local file store"
+        "render-tree: tracker '$tracker' is not supported by this script - it renders a local-markdown store or a github tree file with treeSource: github"
         if ($tracker -eq 'github') {
             "render-tree: treeSource is '$treeSource' - set treeSource: 'github' in .github/issue-tracker.json to render the synced github tree"
         }

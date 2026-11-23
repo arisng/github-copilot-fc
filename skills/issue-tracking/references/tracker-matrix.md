@@ -55,13 +55,19 @@ five of the seven scripts run without one at all (see
 | Tree freshness gate (`-Check` byte-compare) | yes | **n/a** — `-Check` is self-consistency only | **refused** |
 | Structural tree validation (`-Check`: grammar + count cross-checks) | yes | **yes** — see the reorder caveat below | **refused** |
 | Machine inventory (`-Inventory`) | yes, rows + `NEXT_ID` | yes, data rows (no `NEXT_ID`) | **refused** |
-| html view render (`render-issue-tree.ps1`) | yes | yes | **refused** |
+| html view render (`render-issue-tree.ps1`) | yes | **yes** — full feature parity, rendered from `treeFile` | **refused** |
 | html freshness + template-drift gate (`render -Check`) | yes | **yes** — the only gate that catches a hand-edited snapshot | **refused** |
 | Remote sync (`sync-github-tree.ps1`) | **refused** | yes (network; `-FromJson` offline) | **refused** |
 | Pre-commit auto-refresh wiring | regenerate → stage → both `-Check`s | both `-Check`s only (offline) | **n/a** |
 
 ### Gate-wiring caveats the table cannot show
 
+- **The HTML view is identical in both modes.** `render-issue-tree.ps1` renders
+  the same page (same template, same interactivity, same drift gate) whether the
+  data came from a local store or a synced github snapshot — the only difference
+  is the footer hint (`edit issues, not this file` vs `sync first, then render`).
+  So a github-tracker repo gets the full human view; only the *pipeline* differs
+  (sync → check → render instead of regenerate → render).
 - **`issue-tree.ps1 -Check` in github mode does not read GitHub and does not
   byte-compare.** It proves the committed tree is internally consistent, so a
   plain row **reorder** or a count-preserving text edit still exits 0 — while

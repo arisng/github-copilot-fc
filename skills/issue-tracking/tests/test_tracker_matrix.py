@@ -296,7 +296,9 @@ def test_github_without_tree_source_is_refused_like_azure(
     ):
         code, first = probe(pwsh_exe, skill, repo, script, *args)
         assert code == 1, f"{script} {' '.join(args)}: {first}"
-        assert "is not local-markdown" in first, first
+        # The message must name both supported modes, not claim local-only:
+        # both scripts DO handle github when treeSource is set.
+        assert "is not supported by this script" in first, first
 
 
 def test_check_and_inventory_are_mutually_exclusive_in_both_modes(
@@ -404,3 +406,24 @@ def test_github_plain_tree_run_never_writes_the_tree(
     code, _ = probe(pwsh_exe, skill, repo, "issue-tree.ps1")
     assert code == 0
     assert tree.read_bytes() == before, "github plain run must not touch tree.md"
+
+
+def test_github_mode_renders_the_full_html_view(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # github mode is NOT html-less: the same renderer produces the same page
+    # from the synced snapshot. A user reading the refusal wording must not
+    # conclude otherwise. Verified end to end: render + render -Check both pass.
+    repo = make_repo(tmp_path, "github")
+    html = repo / ".issues" / "tree.html"
+    assert not html.exists()
+    code, first = probe(pwsh_exe, skill, repo, "render-issue-tree.ps1")
+    assert code == 0, first
+    assert html.exists() and html.stat().st_size > 5000, "github mode must write a real page"
+    # Same template machinery as local mode: the version marker is embedded.
+    text = html.read_text(encoding="utf-8")
+    assert "tree-template-version" in text
+    assert "sync-github-tree.ps1" in text, "github footer hint distinguishes the pipeline"
+    code, first = probe(pwsh_exe, skill, repo, "render-issue-tree.ps1", "-Check")
+    assert code == 0, first
+    assert "fresh" in first, first

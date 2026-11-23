@@ -111,7 +111,7 @@ if (Test-Path -LiteralPath $manifestPath) {
     # declares treeSource: github.
     if ($tracker -ne 'local-markdown' -and
         -not ($tracker -eq 'github' -and $treeSource -eq 'github')) {
-        "issue-tree: tracker '$tracker' is not local-markdown - this script only handles the local file store (issue-tracking skill, step 0)"
+        "issue-tree: tracker '$tracker' is not supported by this script - it handles local-markdown, or github with treeSource: github (issue-tracking skill, step 0)"
         if ($tracker -eq 'github') {
             "issue-tree: treeSource is '$treeSource' - set treeSource: 'github' in .github/issue-tracker.json to use the synced github tree"
         }

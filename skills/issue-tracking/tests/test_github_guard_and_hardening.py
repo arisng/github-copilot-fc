@@ -149,12 +149,15 @@ def make_local_repo(tmp_path: Path) -> Path:
 def test_guard_trio_refuses_github_manifest_without_tree_source(
     tmp_path: Path, pwsh_exe: str, skill: Path
 ) -> None:
-    # Old github manifests carry no treeSource -> behave as local-markdown
-    # and fail closed, with the A1-quoted refusal wording (all three scripts).
+    # Old github manifests carry no treeSource -> behave as local-markdown and
+    # fail closed. The two tree scripts handle local-markdown AND github, so
+    # their refusal names both modes rather than claiming local-only support.
     repo = make_repo(tmp_path, {"schemaVersion": 1, "tracker": "github", "repo": "owner/name"})
     checks = (
-        ("issue-tree.ps1", (), "issue-tree: tracker 'github' is not local-markdown"),
-        ("render-issue-tree.ps1", (), "render-tree: tracker 'github' is not local-markdown"),
+        ("issue-tree.ps1", (),
+         "issue-tree: tracker 'github' is not supported by this script"),
+        ("render-issue-tree.ps1", (),
+         "render-tree: tracker 'github' is not supported by this script"),
         ("issue-new-id.ps1", (), "issue-id: tracker 'github' is not local-markdown"),
     )
     for script, args, needle in checks:
@@ -172,13 +175,14 @@ def test_guard_refuses_azure_devops(tmp_path: Path, pwsh_exe: str, skill: Path) 
     ):
         repo = make_repo(tmp_path / label, manifest)
         for script, needle in (
-            ("issue-tree.ps1", "issue-tree: tracker 'azure-devops' is not local-markdown"),
-            ("render-issue-tree.ps1", "render-tree: tracker 'azure-devops' is not local-markdown"),
+            ("issue-tree.ps1", "issue-tree: tracker 'azure-devops' is not supported"),
+            ("render-issue-tree.ps1", "render-tree: tracker 'azure-devops' is not supported"),
         ):
             out = run(pwsh_exe, skill, repo, script)
             assert out.returncode == 1, f"{script}: {out.stdout}{out.stderr}"
             assert needle in out.stdout, out.stdout
-            assert "treeSource" not in out.stdout, out.stdout
+            # The github-only remediation hint line must not fire for azure.
+            assert "set treeSource:" not in out.stdout, out.stdout
 
 
 def test_github_plain_run_is_noop_and_never_regenerates(

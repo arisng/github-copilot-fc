@@ -3,7 +3,7 @@ name: issue-tracking
 description: >
   Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the manifest schema), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional defaults; consumers register their own in the manifest to override per type on demand), and closes themes whose children are all done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.5.1
+  version: 1.5.2
   author: arisng
 ---
 
@@ -269,6 +269,12 @@ pwsh <skill-folder>/scripts/render-issue-tree.ps1 -Check   # byte-compare HTML <
   -Check` — **never a plain `issue-tree.ps1` run**: it no-ops by design (pointer
   exit 0) and would gate nothing. `-Repo owner/name` overrides the manifest's
   `repo`; `-FromJson <file>` is the offline fixture mode used by the tests.
+- **The HTML view is not local-markdown-only.** github mode renders the same
+  `.issues/tree.html` (same template, same interactivity, same drift gate) from
+  the synced `treeFile` — only the pipeline differs, and the footer hint names
+  `sync-github-tree.ps1` first. `render -Check` is also the stronger gate here:
+  `issue-tree.ps1 -Check` is self-consistency only, so a hand-edited or reordered
+  snapshot passes it and is caught by `render -Check`.
 - **Read the sync summary before moving on:** `query:` (the composed membership
   query), `skipped knobs:` (fixed knobs suppressed because `issueQuery` already
   carries that qualifier class — logged, never silently dropped), and
