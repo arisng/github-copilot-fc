@@ -873,3 +873,37 @@ def test_open_child_under_closed_parent_is_promoted_above_the_cap(
     assert [r["id"] for r in tree["sections"][0]["rows"]][:1] == ["0921"]
     chk = run(pwsh_exe, skill, repo, "issue-tree.ps1", "-Check")
     assert chk.returncode == 0, chk.stdout + chk.stderr
+
+
+# --- Native issue type: fetched as `issueType`, enforced against issueTypes ---
+
+def test_sync_warns_when_native_type_is_outside_the_taxonomy(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # GitHub's `type` is classification (graphql `issueType`, REST `type`), NOT a
+    # label. The row grammar has no type slot, so the sync enforces the manifest
+    # vocabulary instead of rendering the value.
+    repo = make_repo(tmp_path, manifest(issueTypes=["task", "bug", "feature"]), name="typed")
+    issue = gh_issue(1201, "Typed bug")
+    issue["issueType"] = {"id": "IT_1", "name": "Bug", "description": None, "color": "RED"}
+    spike = gh_issue(1202, "A spike")
+    spike["issueType"] = {"id": "IT_2", "name": "Spike", "description": None, "color": "GRAY"}
+    untyped = gh_issue(1203, "No type at all")
+
+    out = sync(pwsh_exe, skill, repo, [issue, spike, untyped])
+    assert out.returncode == 0, out.stdout + out.stderr
+    # Matching type (case-insensitively normalised) is silent; the unknown one warns.
+    assert "issue #1201" not in out.stdout
+    assert "issue #1203" not in out.stdout
+    assert "issue #1202: issue type 'spike' is outside the configured issueTypes" in out.stdout
+    assert "task, bug, feature" in out.stdout
+
+
+def test_sync_silent_when_no_type_is_set(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # A repo that never adopted issue types must sync without noise.
+    repo = make_repo(tmp_path, manifest(), name="untyped")
+    out = sync(pwsh_exe, skill, repo, [gh_issue(1301, "Untyped")])
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "issue type" not in out.stdout

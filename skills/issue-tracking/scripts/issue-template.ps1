@@ -57,6 +57,7 @@ $tracker = 'local-markdown'
 $templatesDir = '.github/ISSUE_TEMPLATE'
 $templatesLabel = '.github/ISSUE_TEMPLATE'
 $overrides = $null
+$issueTypesOverride = $null
 if (Test-Path -LiteralPath $manifestPath) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $names = @($manifest.PSObject.Properties.Name)
@@ -81,11 +82,24 @@ if (Test-Path -LiteralPath $manifestPath) {
     if ($names -contains 'issueTemplateOverrides') {
         $overrides = $manifest.issueTemplateOverrides
     }
+    if ($names -contains 'issueTypes') {
+        $issueTypesOverride = $manifest.issueTypes
+    }
 }
+
+# Taxonomy first: every later step validates against the configured types.
+$taxonomy = Get-IssueTypeTaxonomy -Overrides $issueTypesOverride
+if ($taxonomy.Errors.Count -gt 0) {
+    foreach ($err in $taxonomy.Errors) { "TEMPLATE   $err" }
+    "issue-template: FAILED - fix the TEMPLATE errors above, then re-run"
+    exit 1
+}
+$validTypes = @(@($taxonomy.Types) + $issueLegacyTypes | Select-Object -Unique)
+$templateTypes = @($taxonomy.Types)
 
 $defaultsDir = Join-Path -Path $PSScriptRoot -ChildPath '..\assets\issue-templates'
 $set = Get-IssueTemplateSet -DefaultsDir $defaultsDir -TemplatesDir $templatesDir `
-    -TemplatesLabel $templatesLabel -Overrides $overrides
+    -TemplatesLabel $templatesLabel -Overrides $overrides -ValidTypes $templateTypes
 
 # --- -Validate: the whole effective set + registration -----------------------
 if ($Validate) {
@@ -102,11 +116,14 @@ if ($Validate) {
 
 # --- -List: the resolved registry -------------------------------------------
 if ($List) {
-    foreach ($typeName in $issueValidType) {
+    foreach ($typeName in $templateTypes) {
         $template = $set.Templates[$typeName]
         if ($null -eq $template) { continue }
         $source = 'default'
-        $path = "skill assets/issue-templates/$typeName.md"
+        $defaultPath = Get-IssueTemplateDefaultPath -DefaultsDir $defaultsDir -Type $typeName
+        $path = 'skill assets/issue-templates/'
+        if ($issueExtensionTypes -contains $typeName) { $path += 'extensions/' }
+        $path += "$typeName.md"
         if ($null -ne $overrides -and $null -ne $overrides.PSObject.Properties[$typeName]) {
             $source = 'override'
             $path = "$templatesLabel/$($overrides.PSObject.Properties[$typeName].Value)"
@@ -122,14 +139,22 @@ if ($List) {
 }
 
 # --- -Show <type>: the filing skeleton ---------------------------------------
-if ($issueValidType -notcontains $Show) {
-    "issue-template: unknown issue type '$Show' (expected one of: $($issueValidType -join ', '))"
+$showType = ''
+if (-not [string]::IsNullOrWhiteSpace($Show)) { $showType = $Show.Trim().ToLowerInvariant() }
+if ($templateTypes -notcontains $showType) {
+    if ($issueLegacyTypes -contains $showType) {
+        "issue-template: '$showType' is a legacy type value, not a configured type - grouping belongs on the 'theme' label"
+        "issue-template: to keep filing it, add '$showType' to the manifest's issueTypes list"
+        exit 1
+    }
+    "issue-template: unknown issue type '$Show' (configured types: $($templateTypes -join ', '))"
+    "issue-template: add it to the manifest's issueTypes list, or register a template for the type you meant"
     exit 1
 }
-if (-not $set.Templates.ContainsKey($Show)) {
+if (-not $set.Templates.ContainsKey($showType)) {
     foreach ($err in $set.Errors) { "TEMPLATE   $err" }
-    "issue-template: no usable template for type '$Show' - fix the TEMPLATE errors above"
+    "issue-template: no usable template for type '$showType' - fix the TEMPLATE errors above"
     exit 1
 }
-Get-Content -LiteralPath $set.Templates[$Show].Path -Encoding UTF8 | ForEach-Object { $_ }
+Get-Content -LiteralPath $set.Templates[$showType].Path -Encoding UTF8 | ForEach-Object { $_ }
 exit 0

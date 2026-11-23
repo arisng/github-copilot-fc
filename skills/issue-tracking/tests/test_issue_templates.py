@@ -146,7 +146,8 @@ optionalFields: component
 def test_default_templates_are_valid(env: SimpleNamespace) -> None:
     out = env.run("issue-template.ps1", "-Validate")
     assert out.returncode == 0, out.stdout + out.stderr
-    assert "issue-template: OK (5 templates, 0 override(s))" in out.stdout
+    # The shipped taxonomy is GitHub's own default type vocabulary.
+    assert "issue-template: OK (3 templates, 0 override(s))" in out.stdout
 
 
 def test_conforming_store_passes_the_gate(env: SimpleNamespace) -> None:
@@ -229,9 +230,10 @@ def test_list_and_show_expose_the_resolved_registry(env: SimpleNamespace) -> Non
     listing = env.run("issue-template.ps1", "-List")
     assert listing.returncode == 0, listing.stdout + listing.stderr
     assert "TEMPLATE|task|override|.github/ISSUE_TEMPLATE/custom-task.md|Custom task" in listing.stdout
-    assert (
-        "TEMPLATE|theme|default|skill assets/issue-templates/theme.md|Theme" in listing.stdout
-    )
+    # bug keeps the skill default; the shipped set is the GitHub-aligned trio.
+    assert "TEMPLATE|bug|default|skill assets/issue-templates/bug.md|Bug" in listing.stdout
+    assert "TEMPLATE|feature|default|skill assets/issue-templates/feature.md|Feature" in listing.stdout
+    assert "TEMPLATE|theme|" not in listing.stdout, "theme is a label concept, not a default type"
 
     shown = env.run("issue-template.ps1", "-Show", "task")
     assert shown.returncode == 0, shown.stdout + shown.stderr

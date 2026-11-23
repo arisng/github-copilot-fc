@@ -18,6 +18,7 @@ writes it after validating against this document. The companion renderer
 {
   "schemaVersion": 1,
   "tracker": "local-markdown",
+  "issueTypes": ["task", "bug", "feature", "epic"],
   "issuesDir": ".issues",
   "archiveDir": ".issues/archived",
   "treeFile": ".issues/tree.md",
@@ -40,6 +41,7 @@ writes it after validating against this document. The companion renderer
 | `treeFile` | no | `local-markdown`: `<issuesDir>/tree.md`; `github`: none | generated tree file; accepted for `github` too (committed snapshot path — written only when supplied) |
 | `treeScript` | no | bundled `issue-tree.ps1` path when the skill copy lives in-repo | script that validates the store and regenerates the tree |
 | `lintTask` | no | — | repo task running the gate (e.g. `lint:issues`) |
+| `issueTypes` | no | `["task","bug","feature"]` | replaces the shipped `type` taxonomy wholesale — the classification vocabulary (GitHub's native issue type field, not a label). Lowercase kebab-case, unique, max 25 (GitHub's ceiling). **Both GitHub-shaped trackers** (`local-markdown`, `github`); rejected for `azure-devops` |
 | `issueTemplatesDir` | no | `.github/ISSUE_TEMPLATE` | `local-markdown` only: consumer dir holding custom issue templates (industry-conventional GitHub template location) |
 | `issueTemplateOverrides` | no | — | `local-markdown` only: map of issue type → template filename inside `issueTemplatesDir`; registers consumer templates that override the skill defaults per type ([issue-templates.md](issue-templates.md)) |
 | `treeMaxIssues` | `github`: no (always written) | `300` | cap applied after sorting |
@@ -59,6 +61,15 @@ writes it after validating against this document. The companion renderer
 - `tracker` must be one of the three enum values.
 - Per-tracker required fields must be present (`repo` for `github`; `org` + `project`
   for `azure-devops`); `repo` must look like `owner/name`.
+- `issueTypes` is the classification vocabulary and describes the issue model,
+  not the file store: it applies to `local-markdown` and `github` and is rejected
+  for `azure-devops` (no issue-type field exists there). Names are lowercased,
+  trimmed, must be kebab-case (`a-z`, `0-9`, `-`, ≤ 32 chars), must be unique,
+  and may not exceed **25** entries — GitHub's per-owner issue-type ceiling. A
+  comma-separated single argument (how `pwsh -File` hands an array over) is
+  accepted and split. `-Force` carries a configured list over; the key is
+  written only when the list departs from the shipped defaults, so a
+  default-taxonomy repo keeps a minimal manifest.
 - Store fields (`issuesDir`/`archiveDir`/`issueTemplatesDir`) apply to
   `local-markdown` only; `treeFile`
   applies to `local-markdown` and `github` (still rejected for `azure-devops`).
@@ -99,6 +110,14 @@ writes it after validating against this document. The companion renderer
 | `local-markdown` | files under `issuesDir` | this skill's workflow |
 | `github` | GitHub Issues in `repo` | label-based triage — user-level `triage-backlog` skill; local tree view when `treeSource: github` |
 | `azure-devops` | Azure Boards in `org`/`project` | `az boards` work items |
+
+**`type` vs labels on GitHub.** GitHub's issue `type` is a first-class
+single-select field — **not** a label — exposed as `type` in REST and
+`issueType` in GraphQL/`gh --json`. The defaults are `task`, `bug` and
+`feature`; owners may define up to 25 and rename, disable or delete them, so the
+vocabulary is repo-specific rather than fixed. `issueTypes` mirrors it. Grouping
+(the `theme` axis) stays on labels, which is where GitHub models it, and this
+skill follows: a theme root carries the `theme` label.
 
 Per-rule availability for these routes (which gates, scripts, and manifest keys
 apply to each tracker) is tabulated in [tracker-matrix.md](tracker-matrix.md).

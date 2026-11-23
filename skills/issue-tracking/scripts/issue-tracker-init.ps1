@@ -28,6 +28,12 @@
                validated (the file must exist and its template must declare
                the registered type), and a -Force rewrite carries the
                persisted registration over, merging new entries into it.
+               -IssueTypes <type,...> sets the issue `type` taxonomy, replacing
+               the shipped defaults (task, bug, feature) wholesale; a -Force
+               rewrite carries a persisted list over. Names are validated as
+               kebab-case, unique, and at most 25 (GitHub's per-owner ceiling).
+               Every configured type must resolve to a template (shipped
+               default or registered override).
 
     Schema ownership and the bootstrap flow (interactive vs autopilot inference)
     live in this skill's SKILL.md step 0 and references/manifest-schema.md.
@@ -54,6 +60,7 @@ param(
     [string]$LintTask,
     [string]$IssueTemplatesDir,
     [string[]]$IssueTemplateOverride,
+    [string[]]$IssueTypes,
     [string]$Repo,
     [string]$Org,
     [string]$Project,
@@ -276,6 +283,10 @@ if ($Tracker -ne 'local-markdown' -and -not [string]::IsNullOrWhiteSpace($Tracke
         $errors += 'issueTemplateOverrides only applies to tracker local-markdown'
     }
 }
+if ($Tracker -eq 'azure-devops' -and $PSBoundParameters.ContainsKey('IssueTypes')) {
+    # Azure Boards has no issue-type field; only the GitHub-shaped trackers do.
+    $errors += 'issueTypes only applies to tracker local-markdown or github'
+}
 if ($Tracker -eq 'azure-devops' -and $PSBoundParameters.ContainsKey('TreeFile')) {
     $errors += 'treeFile only applies to tracker local-markdown or github'
 }
@@ -295,7 +306,8 @@ foreach ($key in $repoRelativeKeys) {
 # registration.
 $registry = [ordered]@{}
 $carriedTemplatesDir = $null
-if ($Tracker -eq 'local-markdown') {
+$carriedIssueTypes = $null
+if ($Tracker -ne 'azure-devops' -and -not [string]::IsNullOrWhiteSpace($Tracker)) {
     $existingManifest = $null
     if ((Test-Path -LiteralPath $manifestRel) -and $Force) {
         try {
@@ -311,12 +323,25 @@ if ($Tracker -eq 'local-markdown') {
             -not [string]::IsNullOrWhiteSpace([string]$existingManifest.issueTemplatesDir)) {
             $carriedTemplatesDir = [string]$existingManifest.issueTemplatesDir
         }
+        if ($existingNames -contains 'issueTypes') {
+            $carriedIssueTypes = @($existingManifest.issueTypes)
+        }
         if ($existingNames -contains 'issueTemplateOverrides') {
             foreach ($prop in $existingManifest.issueTemplateOverrides.PSObject.Properties) {
                 $registry[[string]$prop.Name] = [string]$prop.Value
             }
         }
     }
+    # Taxonomy: -IssueTypes replaces the shipped defaults wholesale; otherwise a
+    # -Force rewrite carries the persisted list over (critique A5: never strip).
+    $taxonomyValues = $carriedIssueTypes
+    if ($PSBoundParameters.ContainsKey('IssueTypes')) { $taxonomyValues = @($IssueTypes) }
+    $taxonomy = Get-IssueTypeTaxonomy -Overrides $taxonomyValues
+    foreach ($taxonomyError in $taxonomy.Errors) { $errors += $taxonomyError }
+    $effectiveTypes = @($taxonomy.Types)
+}
+
+if ($Tracker -eq 'local-markdown') {
     if ($PSBoundParameters.ContainsKey('IssueTemplateOverride')) {
         $entryOverrides = @{}
         foreach ($entry in $IssueTemplateOverride) {
@@ -327,8 +352,8 @@ if ($Tracker -eq 'local-markdown') {
             }
             $entryType = $parts[0].Trim()
             $entryFile = $parts[1].Trim()
-            if ($issueValidType -notcontains $entryType) {
-                $errors += "issueTemplateOverride type '$entryType' is not one of: $($issueValidType -join ', ')"
+            if ($effectiveTypes -notcontains $entryType) {
+                $errors += "issueTemplateOverride type '$entryType' is not one of the configured types: $($effectiveTypes -join ', ')"
                 continue
             }
             if ($entryFile -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*\.md$') {
@@ -359,8 +384,8 @@ if ($Tracker -eq 'local-markdown') {
     }
     else {
         foreach ($entryType in @($registry.Keys)) {
-            if ($issueValidType -notcontains $entryType) {
-                $errors += "issueTemplateOverrides registers unknown type '$entryType'"
+            if ($effectiveTypes -notcontains $entryType) {
+                $errors += "issueTemplateOverrides registers unknown type '$entryType' (configured types: $($effectiveTypes -join ', '))"
                 continue
             }
             $entryFile = $registry[$entryType]
@@ -374,7 +399,7 @@ if ($Tracker -eq 'local-markdown') {
                 $errors += "$entryLabel`: registered template not found (issueTemplateOverrides points at it)"
                 continue
             }
-            $parsed = ConvertTo-IssueTemplate -Path $entryPath -Label $entryLabel
+            $parsed = ConvertTo-IssueTemplate -Path $entryPath -Label $entryLabel -ValidTypes $effectiveTypes
             foreach ($err in $parsed.Errors) { $errors += $err }
             if ($null -ne $parsed.Template -and $parsed.Template.Type -ne $entryType) {
                 $errors += "$entryLabel`: template declares type '$($parsed.Template.Type)' but is registered for '$entryType'"
@@ -421,8 +446,36 @@ function Add-JsonObjectPair {
     $script:jsonPairs.Add(('  "{0}": {{{1}{2}{1}  }}' -f $Key, $innerNl, ($pairs -join (',' + $innerNl))))
 }
 
+function Add-JsonStringArrayPair {
+    # JSON string-array value (used for issueTypes); one entry per line for a
+    # deterministic, byte-stable manifest.
+    param([string]$Key, [string[]]$Values)
+    $innerNl = [Environment]::NewLine
+    $entries = foreach ($value in @($Values)) {
+        $escaped = ([string]$value).Replace('\', '\\').Replace('"', '\"')
+        '    "{0}"' -f $escaped
+    }
+    $script:jsonPairs.Add(('  "{0}": [{1}{2}{1}  ]' -f $Key, $innerNl, ($entries -join (',' + $innerNl))))
+}
+
 Add-JsonPair -Key 'schemaVersion' -Value 1 -AsNumber $true
 Add-JsonPair -Key 'tracker' -Value $Tracker
+
+# Taxonomy (references/manifest-schema.md): written only when it departs from
+# the shipped defaults, so a default-taxonomy repo keeps a minimal manifest.
+# `issueTypes` describes the vocabulary, not the file store, so it applies to
+# every GitHub-shaped tracker; Azure Boards has no issue-type field.
+if ($Tracker -ne 'azure-devops' -and $null -ne $effectiveTypes -and $effectiveTypes.Count -gt 0) {
+    $taxonomyIsDefault = ($effectiveTypes.Count -eq $issueDefaultTypes.Count)
+    if ($taxonomyIsDefault) {
+        foreach ($builtIn in $issueDefaultTypes) {
+            if ($effectiveTypes -notcontains $builtIn) { $taxonomyIsDefault = $false; break }
+        }
+    }
+    if (-not $taxonomyIsDefault) {
+        Add-JsonStringArrayPair -Key 'issueTypes' -Values $effectiveTypes
+    }
+}
 
 if ($Tracker -eq 'local-markdown') {
     if ([string]::IsNullOrWhiteSpace($IssuesDir)) { $IssuesDir = '.issues' }

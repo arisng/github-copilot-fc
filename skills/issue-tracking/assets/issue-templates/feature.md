@@ -1,17 +1,17 @@
 ---
-name: Chore
-about: Maintenance work that keeps the repo healthy
+name: Feature
+about: A request, idea, or new functionality
 title: ""
 labels: []
 assignees: []
-type: chore
+type: feature
 status: open
 priority: P2
 ---
 
 ## Summary
 
-What needs maintenance and why it matters.
+The capability this feature adds, who it serves, and how completion is verified.
 
 ## Notes
 

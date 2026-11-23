@@ -317,7 +317,12 @@ def test_epic_containment_is_convention_not_a_gate(
 ) -> None:
     # The matrix marks epic containment `partial` because the gate checks only
     # the theme root. This pins that: an epic parented by a task passes.
+    # `epic` is an opt-in EXTENSION type, so the fixture opts in via issueTypes.
     repo = make_repo(tmp_path, "local-markdown")
+    (repo / ".github" / "issue-tracker.json").write_text(
+        json.dumps({**MANIFESTS["local-markdown"], "issueTypes": ["task", "bug", "feature", "epic"]}),
+        encoding="utf-8",
+    )
     (repo / ".issues" / "0003-task.md").write_text(
         "---\nid: \"0003\"\ntitle: \"Task\"\nstatus: open\npriority: P2\n"
         "type: task\ntheme: 0001\ncreated: 2026-01-01\n---\n\n## Summary\n\nB.\n\n## Notes\n\nN.\n",

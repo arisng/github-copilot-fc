@@ -1,6 +1,6 @@
 ---
 name: Epic
-about: An intermediate grouping of work inside a theme (a theme is the superset)
+about: Optional intermediate grouping inside a theme (an opt-in extension type)
 title: ""
 labels: []
 assignees: []

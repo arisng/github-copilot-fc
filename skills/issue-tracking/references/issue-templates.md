@@ -10,17 +10,59 @@ validates every file against its template and fails closed.
 
 ## Issue types and containment (theme vs epic)
 
-`type` is one of `theme`, `epic`, `task`, `bug`, `chore`. The grouping types are
-**not** peers — the tree has one mandatory root layer:
+**Two orthogonal axes, deliberately kept apart** — this mirrors GitHub, where
+issue *type* is a first-class single-select field that is **not** a label, and
+grouping is expressed with labels:
 
-- **`theme` is the root grouping and the superset.** Every non-theme issue
-  (epic, task, bug, chore) must resolve to exactly one theme, directly
-  (`theme: NNNN`) or through a `parent:` chain. A `theme:` value may only point
-  at `type: theme`. A theme must not declare `theme:` or `parent:`, and must
-  have at least one active child *and* a status that matches its completion.
+| axis | carried by | meaning |
+|---|---|---|
+| **classification** | `type:` frontmatter | *what kind of work this is* — one value from the configured taxonomy |
+| **grouping** | the `theme` label + `theme:`/`parent:` links | *which workstream it belongs to* |
+
+### The `type` taxonomy
+
+The default taxonomy is **GitHub's own default issue-type vocabulary**:
+`task`, `bug`, `feature`. A consumer repo replaces it wholesale by listing its
+own types in the manifest:
+
+```json
+{ "issueTypes": ["task", "bug", "feature", "root-cause", "spike"] }
+```
+
+Rules: lowercase kebab-case names, no duplicates, at most **25** per repo
+(GitHub's per-owner ceiling). Every configured type must resolve to a template —
+a shipped default or a registered override — so configuring a type the skill
+ships nothing for is a gate error until you register one.
+
+`epic`, `chore` and `theme` ship as **opt-in extension types** (templates under
+`assets/issue-templates/extensions/`). They are resolvable only when listed in
+`issueTypes`; they are not part of the default vocabulary because GitHub does not
+ship them.
+
+### Grouping is a label
+
+A record is a **theme root** when its labels carry the `theme` marker — the bare
+`theme` label, or a `theme:<slug>` family value:
+
+```yaml
+labels: [theme]            # or labels: [theme:payments]
+```
+
+`type: theme` is accepted **permanently as a legacy alias**, so a store filed
+under the pre-label taxonomy keeps passing the gate without being rewritten.
+New records should mark the root with the label and classify the type normally
+(`type: task` + `labels: [theme]` is a valid theme root).
+
+The rest of the tree rules are unchanged:
+
+- **`theme` is the root grouping and the superset.** Every non-root issue must
+  resolve to exactly one theme, directly (`theme: NNNN`) or through a `parent:`
+  chain. A `theme:` value may only point at a theme root. A theme root must not
+  declare `theme:` or `parent:`, and must have at least one active child *and* a
+  status that matches its completion.
 - **`epic` is an intermediate grouping inside a theme** — an optional mid-level
-  bundle of that theme's work. Because it is a non-theme type, an epic must
-  itself resolve to a theme, and epics may nest under other epics.
+  bundle of that theme's work. When `epic` is enabled, an epic must itself
+  resolve to a theme, and epics may nest under other epics.
 
 Containment order: **theme ⊃ epic ⊃ task/bug/chore**. Model one workstream as a
 theme, not an epic; add an epic only when a theme's work needs an intermediate
@@ -56,13 +98,16 @@ is [tracker-matrix.md](tracker-matrix.md).
 
 | Set | Location | Owned by |
 |---|---|---|
-| Skill defaults (one per issue type) | `assets/issue-templates/<type>.md` in this skill | this skill |
+| Skill defaults (one per default type) | `assets/issue-templates/<type>.md` in this skill | this skill |
+| Extension types (opt-in) | `assets/issue-templates/extensions/<type>.md` | this skill |
 | Consumer overrides | `issueTemplatesDir` in the consumer repo (default `.github/ISSUE_TEMPLATE/`, GitHub's conventional location) | the consumer repo |
 
-Resolution per issue type: a template registered in the manifest's
-`issueTemplateOverrides` wins; otherwise the skill default for that type is
-used. Files in `issueTemplatesDir` that are not registered are ignored (they
-may be GitHub-native templates for github.com's own issue UI).
+Resolution per configured issue type: a template registered in the manifest's
+`issueTemplateOverrides` wins; otherwise the shipped default for that type is
+used (from `assets/issue-templates/`, or `extensions/` for an extension type);
+otherwise the gate fails and asks for a registration. Files in
+`issueTemplatesDir` that are not registered are ignored (they may be
+GitHub-native templates for github.com's own issue UI).
 
 ## Template format
 
@@ -95,7 +140,7 @@ Triage findings, evidence checks, and decisions (append-only).
 |---|---|---|
 | `name` | **yes** | template display name (GitHub convention) |
 | `about` | **yes** | one-line purpose; `description` is accepted as an alias (GitHub markdown templates use `about`, issue forms use `description`) |
-| `type` | **yes** | the issue `type:` this template stamps — one of `theme`, `epic`, `task`, `bug`, `chore` |
+| `type` | **yes** | the issue `type:` this template stamps — must be one of the **configured** types (`issueTypes`, default `task`/`bug`/`feature`, plus opt-in `epic`/`chore`/`theme`) |
 | `title` | no | default title prefix for new issues (GitHub convention) |
 | `labels` | no | template metadata carried for GitHub-convention compatibility (comma list or `[a, b]`); shown by `issue-template.ps1 -List`, not written into issues |
 | `assignees` | no | same as `labels` — template metadata only |
@@ -107,8 +152,8 @@ Triage findings, evidence checks, and decisions (append-only).
 Any other frontmatter key makes the template invalid (typo protection).
 `requiredFields`/`optionalFields` entries must be field names
 (`[A-Za-z_][A-Za-z0-9_]*`), must not repeat, and cannot redeclare the core
-contract (`id`, `title`, `status`, `priority`, `type`, `created`) or the link
-fields (`theme`, `parent`, `order`).
+contract (`id`, `title`, `status`, `priority`, `type`, `created`, `labels`) or
+the link fields (`theme`, `parent`, `order`).
 
 ### Body = required sections
 
@@ -127,11 +172,18 @@ anything else):
 
 1. Core contract (template-independent): required fields `id`, `title`,
    `status`, `priority`, `type`, `created`; `id` matches the filename;
-   status/priority/type enums; `order` integer; `created` a `YYYY-MM-DD` date.
-2. Template set integrity: every skill default and every registered override
-   must exist and validate (a broken registration fails the whole gate).
+   status/priority enums; `type` is a configured taxonomy value (or the
+   permanently-accepted legacy `theme`); `order` integer; `created` a
+   `YYYY-MM-DD` date.
+2. Taxonomy + template set integrity: the effective `issueTypes` list validates
+   (kebab-case, unique, ≤ 25), every skill default and every registered override
+   exists and validates (a broken registration fails the whole gate), and every
+   configured type resolves to a template.
 3. Template conformance: no unknown frontmatter field, every template
-   `requiredFields` entry present, every required section present.
+   `requiredFields` entry present, every required section present. A legacy
+   `type: theme` record has no template in a default-taxonomy repo, so it is
+   held to the core contract only — unknown fields still fail, body sections do
+   not.
 
 Template errors print as `TEMPLATE` lines and exit 1 (`THEME` lines remain the
 core/relations errors):
@@ -148,6 +200,7 @@ The manifest (`.github/issue-tracker.json`, schema:
 
 ```json
 {
+  "issueTypes": ["task", "bug", "feature", "epic"],
   "issueTemplatesDir": ".github/ISSUE_TEMPLATE",
   "issueTemplateOverrides": {
     "bug": "bug-report.md",
@@ -160,11 +213,14 @@ Register with the manifest writer (from the repo root):
 
 ```powershell
 pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Force `
+    -IssueTypes task,bug,feature,epic `
     -IssueTemplateOverride bug=bug-report.md
 ```
 
 Rules:
 
+- `issueTypes` replaces the shipped taxonomy wholesale. Omit it to keep the
+  defaults (`task`, `bug`, `feature`); `-Force` carries a configured list over.
 - `issueTemplateOverrides` maps issue type → **plain `.md` filename** inside
   `issueTemplatesDir` (no path separators). The file must exist, and the
   template must declare that same `type` — registration validates both, at
@@ -173,8 +229,11 @@ Rules:
   `-IssueTemplateOverride type=file` entries into it (an entry replaces the
   file for its type). Removing an entry is a direct edit of the manifest — the
   CLI never silently drops registrations.
-- Both keys apply to `tracker: local-markdown` only (the template contract
-  describes the local file store).
+- `issueTemplatesDir` / `issueTemplateOverrides` apply to `tracker:
+  local-markdown` only (the template contract describes the local file store).
+  `issueTypes` describes the vocabulary, not the store, so it applies to
+  `local-markdown` and `github`; Azure Boards has no issue-type field and
+  rejects it.
 
 Verify the effective set any time:
 

@@ -36,6 +36,9 @@ five of the seven scripts run without one at all (see
 | Manifest bootstrap (`issue-tracker-init.ps1 -Apply`) | yes | yes | yes |
 | Manifest validation (schema, per-tracker required fields) | yes | yes | yes |
 | Evidence probe (`issue-tracker-init.ps1 -Probe`) | yes | yes | yes |
+| `issueTypes` taxonomy override (classification vocabulary) | yes | yes | **rejected** — no issue-type field |
+| Native issue-type enforcement against `issueTypes` | **n/a** — no remote field | yes — sync warns on an out-of-vocabulary `issueType` | **n/a** |
+| Theme root marked by the `theme` label | yes | **derive** — the sync buckets by `theme:` labels | **n/a** |
 | Triage / evidence checks (step 2) | yes | **route** — `triage-backlog` | **route** — `az boards` |
 | Issue templates (`-Validate`) + consumer override registry | yes | **refused** — describes local files | **refused** |
 | Template resolution for filing (`issue-template.ps1 -Show`) | yes | **refused** | **refused** |
@@ -47,10 +50,10 @@ five of the seven scripts run without one at all (see
 | Id lease inspection / release (`-List`, `-Release`) | yes | **n/a** | **n/a** |
 | Duplicate-id gate (gate + allocator) | yes | **n/a** | **n/a** |
 | Theme relation: every non-theme issue resolves to exactly one theme | yes | **derive** — from `theme:` labels / native parents | **n/a** |
-| Theme relation: no cycles; `theme:` points at `type: theme` | yes | **derive** — sync promotes a cross-theme child with a warning; the `-Check` gates reject a hand-nested one | **n/a** |
+| Theme relation: no cycles; `theme:` points at a theme root (the `theme` label; `type: theme` is a legacy alias) | yes | **derive** — sync promotes a cross-theme child with a warning; the `-Check` gates reject a hand-nested one | **n/a** |
 | Every theme has ≥1 active child | yes | **n/a** — a section only exists when it has members | **n/a** |
 | Theme status matches completion (100% ⇒ `done`/`dropped`; `done` ⇒ 100%) | **yes** | **derive** — sync computes the header from all members | **n/a** |
-| Epic/theme containment (`theme ⊃ epic ⊃ task/bug/chore`) | **partial** — theme is enforced as the root; the epic-inside-theme ordering is convention only | **n/a** — github rows carry no `type:` | **n/a** |
+| Epic/theme containment (`theme ⊃ epic ⊃ task/bug/chore`) | **partial** — the theme root (label-marked) is enforced; the epic-inside-theme ordering is convention only | **n/a** — github rows carry no `type:` | **n/a** |
 | Tree generation (`issue-tree.ps1`) | yes | **no-op pointer** — exit 0, never writes; run the sync | **refused** |
 | Tree freshness gate (`-Check` byte-compare) | yes | **n/a** — `-Check` is self-consistency only | **refused** |
 | Structural tree validation (`-Check`: grammar + count cross-checks) | yes | **yes** — see the reorder caveat below | **refused** |
@@ -103,6 +106,7 @@ Enforced by `issue-tracker-init.ps1`. Reference: [manifest-schema.md](manifest-s
 | `tracker` | required | required | required |
 | `treeScript`, `lintTask` | yes | yes | yes |
 | `issuesDir`, `archiveDir` | yes | rejected | rejected |
+| `issueTypes` | yes | yes | rejected |
 | `issueTemplatesDir`, `issueTemplateOverrides` | yes | rejected | rejected |
 | `treeSource` | rejected | yes (`github`) | rejected |
 | `treeFile` | yes (default) | yes (committed snapshot; default `.issues/tree.md`) | rejected |
@@ -170,9 +174,14 @@ manifest, so it is not a health check.
   rule to github mode: a header saying `open` while the cap rendered only `done`
   rows is legal there.
 - **Epic containment is convention, not a gate, even locally.** The gate enforces
-  that a theme is the root and that every non-theme issue reaches one; it does
-  **not** compare a child's `type` against its parent's. An epic parented by a
-  task or chore passes `-Check` green.
+  that a theme root (a `theme`-labelled record) is not a child and that every
+  non-root issue reaches one; it does **not** compare a child's `type` against
+  its parent's. An epic parented by a task or chore passes `-Check` green.
+- **Classification and grouping are separate axes by design.** `type` mirrors
+  GitHub's native issue type (a single-select field that is not a label); grouping
+  is expressed with the `theme` label, which is how GitHub models it. Conflating
+  them was the pre-2.0 design and forced every grouping concept to masquerade as
+  a classification value.
 - **Ids are tracker-owned remotely.** GitHub and Azure assign their own
   identifiers, so the lease-based allocator (and the duplicate-id gate that
   protects it) has nothing to protect. Leases live outside the repo

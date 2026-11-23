@@ -38,6 +38,11 @@
       - Sanitization: CR/LF/control chars are stripped from titles, label
         names, milestone text and the FILTER payload before anything is
         written (audit C3 - a newline silently truncates a row).
+      - Issue type: GitHub's native `type` field (fetched as `issueType`) is
+        classification, not grouping, and the tree row grammar has no slot for
+        it. The sync therefore ENFORCES it instead of rendering it: a fetched
+        issue whose type falls outside the manifest's `issueTypes` vocabulary
+        produces a warning the caller must read. Unset types are silent.
 
 .EXAMPLE
     pwsh <skill-folder>/scripts/sync-github-tree.ps1
@@ -63,6 +68,7 @@ if ($Check) {
 }
 
 . (Join-Path -Path $PSScriptRoot -ChildPath 'query-composition-lib.ps1')
+. (Join-Path -Path $PSScriptRoot -ChildPath 'issue-template-lib.ps1')
 
 # --- Helpers ----------------------------------------------------------------
 
@@ -202,6 +208,20 @@ if ($repoName -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
     "sync-github-tree: repo '$repoName' is not an owner/name GitHub repository (set the manifest 'repo' field or pass -Repo)"
     exit 1
 }
+
+# Taxonomy (references/manifest-schema.md): the configured `issueTypes`, used to
+# flag fetched issues whose native GitHub type falls outside the vocabulary.
+# An absent key means the shipped defaults; a broken list fails the sync loudly
+# rather than silently accepting any type.
+$taxonomyTypes = @()
+$taxonomyOverride = $null
+if ($names -contains 'issueTypes') { $taxonomyOverride = $manifest.issueTypes }
+$taxonomy = Get-IssueTypeTaxonomy -Overrides $taxonomyOverride
+if ($taxonomy.Errors.Count -gt 0) {
+    foreach ($err in $taxonomy.Errors) { "sync-github-tree: $err" }
+    exit 1
+}
+$taxonomyTypes = @($taxonomy.Types)
 $treePath = '.issues/tree.md'
 if ($names -contains 'treeFile' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.treeFile)) {
     $treePath = [string]$manifest.treeFile
@@ -286,7 +306,7 @@ $filterPayload = Get-SanitizedText $filterPayload
 # --- 6. Fetch (sketch 1.5 step 2) --------------------------------------------
 
 $limit = $treeMaxIssues + 1
-$jsonFieldList = 'number,title,state,stateReason,labels,milestone,parent,subIssues,subIssuesSummary,createdAt,updatedAt,closedAt'
+$jsonFieldList = 'number,title,state,stateReason,labels,milestone,parent,subIssues,subIssuesSummary,issueType,createdAt,updatedAt,closedAt'
 $issues = @()
 if ($fromJsonMode) {
     $rawIssues = $null
@@ -454,6 +474,28 @@ foreach ($issue in $issues) {
     # Theme (sketch 1.5 step 3): theme: label wins -> T-<slug> with
     # lowercase/trim/non-alnum-collapse normalization; multiple theme: labels
     # -> ordinal-first + warning; milestone -> M<num>; else one repo bucket.
+    # Issue type (GitHub's native single-select field, NOT a label). The tree
+    # grammar has no type slot - a row carries priority/status/theme - so the
+    # type is used for TAXONOMY ENFORCEMENT: a value outside the configured
+    # issueTypes vocabulary is a warning the caller must read. Unset types are
+    # silent (a repo that never adopted the feature has no types to check).
+    $nativeType = ''
+    if ($null -ne $issue.PSObject.Properties['issueType'] -and $null -ne $issue.issueType) {
+        $typeName = ''
+        if ($null -ne $issue.issueType.PSObject.Properties['name']) { $typeName = [string]$issue.issueType.name }
+        elseif ($issue.issueType -is [string]) { $typeName = [string]$issue.issueType }
+        if (-not [string]::IsNullOrWhiteSpace($typeName)) {
+            $nativeType = (Get-SanitizedText $typeName).ToLowerInvariant()
+            if ($nativeType -notmatch '^[a-z0-9][a-z0-9-]{0,31}$') {
+                $warnings.Add("issue #${id}: issue type '$typeName' is not a kebab-case name - ignored")
+                $nativeType = ''
+            }
+        }
+    }
+    if ($nativeType -ne '' -and $taxonomyTypes.Count -gt 0 -and $taxonomyTypes -notcontains $nativeType) {
+        $warnings.Add("issue #${id}: issue type '$nativeType' is outside the configured issueTypes ($($taxonomyTypes -join ', ')) - add it to .github/issue-tracker.json or retype the issue")
+    }
+
     $themeId = ''
     $themeTitle = ''
     $themeLabels = @($labelNames | Where-Object { $_ -like 'theme:*' })

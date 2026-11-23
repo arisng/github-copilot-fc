@@ -16,12 +16,36 @@
 # --- Store contract (template-independent; the tree grammar depends on it) ---
 $issueValidStatus = @('open', 'in-progress', 'blocked', 'done', 'dropped')
 $issueValidPriority = @('P0', 'P1', 'P2', 'P3')
-$issueValidType = @('theme', 'epic', 'task', 'bug', 'chore')
+
+# --- Taxonomy: `type` is classification, grouping is a LABEL ------------------
+# `type` mirrors GitHub's native issue type (a single-select field that is NOT a
+# label): one value per issue, drawn from an owner-scoped vocabulary. The skill
+# ships GitHub's own defaults and lets a consumer repo replace them through the
+# manifest key `issueTypes` (references/manifest-schema.md).
+#
+# Grouping is deliberately NOT a type: GitHub models it as a label, and so does
+# this skill. A theme root carries the `theme` label (or `theme:<slug>`); the
+# relation to it stays the `theme:`/`parent:` frontmatter link. `theme`, `epic`
+# and `chore` remain available as EXTENSION types - a repo opts in by listing
+# them in `issueTypes`, which also makes their shipped templates resolvable.
+$issueDefaultTypes = @('task', 'bug', 'feature')
+$issueExtensionTypes = @('theme', 'epic', 'chore')
+# `theme` was a type before grouping moved to the label axis. Its frontmatter
+# value stays accepted forever so a migrated store never has to rewrite a file;
+# a normalizing pass is `labels: [theme]`. It is NOT part of the taxonomy: the
+# type describes classification, and grouping is a label.
+$issueLegacyTypes = @('theme')
+$issueTaxonomyMaxTypes = 25   # GitHub's per-owner issue-type ceiling
+$issueThemeLabel = 'theme'
+# Kept for callers that only need the defaults (issue-template.ps1 -List/Show).
+$issueValidType = $issueDefaultTypes
 
 # Core frontmatter fields every issue must carry. Link fields are the tree
-# relations every issue may carry. Templates extend this per type via their
-# requiredFields/optionalFields lists - never by replacing the core.
-$issueCoreFields = @('id', 'title', 'status', 'priority', 'type', 'created')
+# relations every issue may carry. `labels` mirrors GitHub's label set and is
+# where grouping lives; it is optional (an unlabelled issue simply has none).
+# Templates extend this per type via their requiredFields/optionalFields lists -
+# never by replacing the core.
+$issueCoreFields = @('id', 'title', 'status', 'priority', 'type', 'created', 'labels')
 $issueLinkFields = @('theme', 'parent', 'order')
 
 # --- Template frontmatter vocabulary (references/issue-templates.md) ---------
@@ -42,6 +66,97 @@ function Test-IssueRepoRelativePath {
         if ($seg -eq '..') { return $false }
     }
     return $true
+}
+
+function Get-IssueTypeTaxonomy {
+    # Resolves the effective `type` taxonomy: the skill defaults, replaced
+    # wholesale by the manifest's `issueTypes` array when present. Returns
+    # @{ Types = string[]; IsDefault = bool; Errors = string[] }.
+    # Validation mirrors GitHub's real constraints (kebab-ish names, unique,
+    # at most 25) so a manifest cannot declare a taxonomy GitHub would reject.
+    param(
+        $Overrides,
+        [string]$Label = 'issueTypes'
+    )
+    $errors = @()
+    if ($null -eq $Overrides) {
+        return @{ Types = @($issueDefaultTypes); IsDefault = $true; Errors = @() }
+    }
+    $values = @()
+    if ($Overrides -is [string]) {
+        $values = @(ConvertTo-StringList -Value $Overrides)
+    }
+    else {
+        foreach ($entry in @($Overrides)) {
+            if ($null -eq $entry) { continue }
+            # A shell may hand the whole list over as one comma-separated
+            # string even for an array parameter (pwsh -File does).
+            foreach ($part in (ConvertTo-StringList -Value ([string]$entry))) { $values += $part }
+        }
+    }
+    if ($values.Count -eq 0) {
+        $errors += "$Label must list at least one type (omit the key to keep the defaults: $($issueDefaultTypes -join ', '))"
+        return @{ Types = @(); IsDefault = $false; Errors = $errors }
+    }
+    if ($values.Count -gt $issueTaxonomyMaxTypes) {
+        $errors += "$Label lists $($values.Count) types - GitHub allows at most $issueTaxonomyMaxTypes per owner"
+    }
+    $seen = @{}
+    $clean = @()
+    foreach ($raw in $values) {
+        $name = ([string]$raw).Trim().ToLowerInvariant()
+        if ($name -eq '') {
+            $errors += "$Label contains an empty type name"
+            continue
+        }
+        if ($name -notmatch '^[a-z0-9][a-z0-9-]{0,31}$') {
+            $errors += "$Label entry '$raw' is not a kebab-case type name (a-z, 0-9, '-', max 32 chars)"
+            continue
+        }
+        if ($seen.ContainsKey($name)) {
+            $errors += "$Label lists '$name' twice"
+            continue
+        }
+        $seen[$name] = $true
+        $clean += $name
+    }
+    return @{ Types = $clean; IsDefault = $false; Errors = $errors }
+}
+
+function Test-IssueThemeMarker {
+    # Grouping lives on the label axis. A record is a theme root when its labels
+    # carry the bare `theme` marker (canonical) or a `theme:<slug>` family value.
+    # `type: theme` is accepted as a legacy alias so stores migrated from the
+    # old taxonomy keep working once they opt into the extension type.
+    param(
+        [string]$Type,
+        [string[]]$Labels
+    )
+    foreach ($label in @($Labels)) {
+        if ([string]::IsNullOrWhiteSpace($label)) { continue }
+        $name = ([string]$label).Trim()
+        if ($name -ieq $issueThemeLabel) { return $true }
+        if ($name -like "$issueThemeLabel`:*") { return $true }
+    }
+    return ($Type -eq 'theme')
+}
+
+function Get-IssueTemplateDefaultPath {
+    # Shipped template for a type: defaults at assets/issue-templates/<type>.md,
+    # extension types one level down at assets/issue-templates/extensions/.
+    # Returns $null for a type the skill ships no template for (the repo must
+    # register an override).
+    param(
+        [string]$DefaultsDir,
+        [string]$Type
+    )
+    if ($issueDefaultTypes -contains $Type) {
+        return (Join-Path -Path $DefaultsDir -ChildPath "$Type.md")
+    }
+    if ($issueExtensionTypes -contains $Type) {
+        return (Join-Path -Path $DefaultsDir -ChildPath "extensions/$Type.md")
+    }
+    return $null
 }
 
 function Read-IssueDocument {
@@ -140,9 +255,11 @@ function ConvertTo-IssueTemplate {
     # error is '<Label>: <reason>' (Label is the caller's display path).
     param(
         [string]$Path,
-        [string]$Label
+        [string]$Label,
+        [string[]]$ValidTypes
     )
     $errors = @()
+    if ($null -eq $ValidTypes -or $ValidTypes.Count -eq 0) { $ValidTypes = @($issueDefaultTypes) }
     $doc = Read-IssueDocument -Path $Path
     if ($null -ne $doc.Error) {
         return @{ Template = $null; Errors = @("$Label`: $($doc.Error)") }
@@ -174,8 +291,8 @@ function ConvertTo-IssueTemplate {
     if ($null -eq $type) {
         $errors += "$Label`: template frontmatter field 'type' is required"
     }
-    elseif ($issueValidType -notcontains $type) {
-        $errors += "$Label`: template type '$type' is not one of: $($issueValidType -join ', ')"
+    elseif ($ValidTypes -notcontains $type) {
+        $errors += "$Label`: template type '$type' is not one of the configured types: $($ValidTypes -join ', ')"
     }
     if ($null -ne $status -and $issueValidStatus -notcontains $status) {
         $errors += "$Label`: template status default '$status' is not one of: $($issueValidStatus -join ', ')"
@@ -234,19 +351,21 @@ function ConvertTo-IssueTemplate {
 }
 
 function Get-IssueTemplateSet {
-    # Resolves the effective template set: the skill default for every issue
-    # type, replaced per type by a consumer override registered in the
-    # manifest (issueTemplatesDir + issueTemplateOverrides). Broken defaults
-    # and broken registrations fail closed.
+    # Resolves the effective template set: one template per configured issue
+    # type, replaced per type by a consumer override registered in the manifest
+    # (issueTemplatesDir + issueTemplateOverrides). Broken defaults and broken
+    # registrations fail closed.
     # Returns @{ Templates = hashtable type->template; Errors = string[] }.
     param(
         [string]$DefaultsDir,
         [string]$TemplatesDir,
         [string]$TemplatesLabel,
-        $Overrides
+        $Overrides,
+        [string[]]$ValidTypes
     )
     $templates = @{}
     $errors = @()
+    if ($null -eq $ValidTypes -or $ValidTypes.Count -eq 0) { $ValidTypes = @($issueDefaultTypes) }
     if ([string]::IsNullOrWhiteSpace($TemplatesLabel)) { $TemplatesLabel = $TemplatesDir }
 
     $overrideMap = @{}
@@ -263,12 +382,12 @@ function Get-IssueTemplateSet {
         }
     }
     foreach ($typeName in $overrideMap.Keys) {
-        if ($issueValidType -notcontains $typeName) {
-            $errors += "${TemplatesLabel}: issueTemplateOverrides registers unknown type '$typeName'"
+        if ($ValidTypes -notcontains $typeName) {
+            $errors += "${TemplatesLabel}: issueTemplateOverrides registers unknown type '$typeName' (configured types: $($ValidTypes -join ', '))"
         }
     }
 
-    foreach ($typeName in $issueValidType) {
+    foreach ($typeName in $ValidTypes) {
         $path = $null
         $label = $null
         if ($overrideMap.ContainsKey($typeName)) {
@@ -285,8 +404,13 @@ function Get-IssueTemplateSet {
             $label = "$TemplatesLabel/$fileName"
         }
         else {
-            $path = Join-Path -Path $DefaultsDir -ChildPath "$typeName.md"
-            $label = "skill assets/issue-templates/$typeName.md"
+            $path = Get-IssueTemplateDefaultPath -DefaultsDir $DefaultsDir -Type $typeName
+            if ($null -eq $path) {
+                $errors += "type '$typeName' ships no skill default template - register one in issueTemplateOverrides"
+                continue
+            }
+            $isExtension = $issueExtensionTypes -contains $typeName
+            $label = "skill assets/issue-templates/$(if ($isExtension) { 'extensions/' })$typeName.md"
         }
         if (-not (Test-Path -LiteralPath $path)) {
             if ($overrideMap.ContainsKey($typeName)) {
@@ -297,7 +421,7 @@ function Get-IssueTemplateSet {
             }
             continue
         }
-        $parsed = ConvertTo-IssueTemplate -Path $path -Label $label
+        $parsed = ConvertTo-IssueTemplate -Path $path -Label $label -ValidTypes $ValidTypes
         foreach ($err in $parsed.Errors) { $errors += $err }
         if ($null -eq $parsed.Template) { continue }
         if ($parsed.Template.Type -ne $typeName) {

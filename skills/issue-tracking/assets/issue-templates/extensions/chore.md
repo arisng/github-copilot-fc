@@ -1,17 +1,17 @@
 ---
-name: Theme
-about: A prioritized workstream that groups related issues
+name: Chore
+about: Maintenance work that keeps the repo healthy (an opt-in extension type)
 title: ""
 labels: []
 assignees: []
-type: theme
+type: chore
 status: open
 priority: P2
 ---
 
 ## Summary
 
-What this workstream covers, the outcome it drives, and its boundaries.
+What needs maintenance and why it matters.
 
 ## Notes
 

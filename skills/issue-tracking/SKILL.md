@@ -1,9 +1,9 @@
 ---
 name: issue-tracking
 description: >
-  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the manifest schema), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional defaults; consumers register their own in the manifest to override per type on demand), and closes themes whose children are all done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
+  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (this skill owns its schema), then triages issues with evidence checks, links them into a theme tree, refreshes .issues/tree.md and its HTML view, and allocates ids collision-free across parallel sessions. Classification follows GitHub's native issue type field (default task/bug/feature, overridable via manifest issueTypes); grouping is a label axis - a theme root carries the `theme` label. Gates every issue file against a per-type template (GitHub-conventional defaults; consumers register overrides) and closes themes whose children are done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh or render the tree, verify claims against git history, enforce issue templates, or set up a tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.5.2
+  version: 2.0.0
   author: arisng
 ---
 
@@ -23,7 +23,10 @@ the committed `treeFile` instead of a local store.
 
 The manifest **`.github/issue-tracker.json`** (repo root) is the tracker contract,
 and this skill owns its schema — field reference:
-[references/manifest-schema.md](references/manifest-schema.md). Never probe `gh`/`az`
+[references/manifest-schema.md](references/manifest-schema.md). The four-stage data
+flow (store → sync → gate → render), and which script owns each stage, is
+[references/pipeline.md](references/pipeline.md) — read it before opening a script
+to find out what runs. Never probe `gh`/`az`
 or trust a tracker before it speaks — a repo's git remote and its issue store often
 disagree (here: Azure DevOps remote, local file issues), and guessing wrong is how
 `gh`-based triage hard-failed before the manifest existed. Parsing the configured
@@ -43,7 +46,8 @@ The three trackers are **not** symmetric: only `local-markdown` has templates,
 ids, and the theme-closure gate; only `github` has a tree pipeline (derived
 theme status); `azure-devops` is bootstrap-and-route only. The per-rule
 availability table is [references/tracker-matrix.md](references/tracker-matrix.md)
-— read it before assuming a script works for the tracker in front of you.
+— read it before assuming a script works for the tracker in front of you, and
+[references/pipeline.md](references/pipeline.md) for which script owns each stage.
 
 **Manifest missing** → bootstrap it now (first use in any repo):
 
@@ -85,16 +89,39 @@ registering its own template in the manifest:
 
 ```json
 {
+  "issueTypes": ["task", "bug", "feature", "epic"],
   "issueTemplatesDir": ".github/ISSUE_TEMPLATE",
   "issueTemplateOverrides": { "bug": "bug-report.md" }
 }
 ```
 
+### Type vs grouping — two axes, deliberately apart
+
+`type` is **classification only**, aligned with GitHub's native issue type field
+(a single-select that is *not* a label). The shipped taxonomy is GitHub's own
+default vocabulary — `task`, `bug`, `feature` — and `issueTypes` replaces it
+wholesale. `epic`, `chore` and `theme` ship as **opt-in extension types**
+(templates under `assets/issue-templates/extensions/`), resolvable only when
+listed in `issueTypes`.
+
+**Grouping is a label.** A record is a theme root when its labels carry the
+`theme` marker — the bare `theme` label or a `theme:<slug>` value:
+
+```yaml
+labels: [theme]        # theme root; classify the type normally (type: task)
+```
+
+`type: theme` stays accepted forever as a legacy alias, so a store filed under
+the old taxonomy keeps passing without a rewrite. Never add grouping semantics
+to a new `type` value — that axis belongs to labels.
+
 Register (validated: the file must exist and declare the same `type`; a
 `-Force` rewrite carries the persisted registry over and merges new entries):
 
 ```powershell
-pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Force -IssueTemplateOverride bug=bug-report.md
+pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Force `
+    -IssueTypes task,bug,feature,epic `
+    -IssueTemplateOverride bug=bug-report.md
 ```
 
 | Need | Command |
@@ -105,10 +132,11 @@ pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Force -IssueTemplateO
 
 Unregistered files in `issueTemplatesDir` are ignored — they may be native
 GitHub.com templates. Templates describe the local store, so the registry is
-`tracker: local-markdown` only.
+`tracker: local-markdown` only; `issueTypes` describes the issue model, so it
+applies to `local-markdown` and `github` (Azure Boards has no such field).
 
-**Done:** every type resolves to a valid template (the gate in step 1 proves
-it; `-Validate` reports it standalone).
+**Done:** every configured type resolves to a valid template (the gate in step 1
+proves it; `-Validate` reports it standalone).
 
 ## 1. Inventory — run the script, read its rows
 
@@ -129,8 +157,8 @@ local store directory does not exist.
 pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory
 ```
 
-- One row per issue — `id|type|status|priority|theme|parent|order|file|title` —
-  followed by `NEXT_ID|NNNN` (next free id across active + archived, skipping ids
+- One row per issue — `id|type|status|priority|theme|parent|order|file|labels|title`
+  — followed by `NEXT_ID|NNNN` (next free id across active + archived, skipping ids
   reserved by outstanding allocator leases — advisory; the allocator is the source
   of truth). Validation runs first: core/relations errors print as
   `THEME .issues/<file>: <reason>`, template conformance errors as
@@ -192,16 +220,17 @@ recording what could not be checked.
 
 ### Types: theme vs epic (which contains which)
 
-The two grouping types are **not** peers. The tree has exactly one mandatory root
-layer, and `epic` sits *inside* it:
+Classification (`type`) and grouping (`theme` label) are separate axes, so the
+containment question is about **structure**, not about two competing type values:
 
-| | `theme` | `epic` |
+| | `theme` (a root, marked by label) | `epic` (opt-in extension type) |
 |---|---|---|
+| carried by | the `theme` label (`theme` or `theme:<slug>`); `type: theme` is a legacy alias | `type: epic` — only valid when `epic` is in `issueTypes` |
 | role | **root grouping** — the workstream every issue must belong to | **intermediate grouping** — a sub-bundle of one theme's work |
-| relation | must not declare `theme:` or `parent:` | is a non-theme type, so it **must** resolve to a theme (`theme:` or a `parent:` chain) |
-| resolvable by `theme:`? | yes — the only type a `theme:` ref may point at | no — `theme:` pointing at an epic is a validation error |
+| relation | must not declare `theme:` or `parent:` | must resolve to a theme (`theme:` or a `parent:` chain) |
+| resolvable by `theme:`? | yes — the only thing a `theme:` ref may point at | no — `theme:` pointing at an epic is a validation error |
 | may have children | yes (issues, epics, tasks) | yes (tasks, bugs, chores, other epics) |
-| containment enforced? | yes — theme root is required | no — nesting order is convention (see below) |
+| containment enforced? | yes — the theme root is required | no — nesting order is convention (see below) |
 | must have active children | required (a childless theme is clutter) | not required |
 | status vs completion | **enforced** — 100% must be `done`/`dropped`, `done` must be 100% | no rule (an epic is not a status boundary) |
 | count | one or more | zero or more (optional depth) |
@@ -214,18 +243,19 @@ may sit side by side in one theme, and an epic may nest under another epic. Neve
 model a theme as a child of an epic, and never use `epic` when one workstream is
 intended — the gate requires the theme root either way.
 
-**Only the theme root is gated.** `issue-tree.ps1` proves that a theme is not a
-child and that every non-theme issue reaches a theme; it does **not** compare a
+**Only the theme root is gated.** `issue-tree.ps1` proves that a theme root is not
+a child and that every non-root issue reaches a theme; it does **not** compare a
 child's `type` against its parent's, so a mis-nested epic (parented by a task or
 chore) passes. The containment order below `theme` is a modelling convention you
 are expected to honour, not a gate. Cross-tracker availability:
 [references/tracker-matrix.md](references/tracker-matrix.md).
 
 - A new cluster of related work with no home → create a theme file: id from
-  `issue-new-id.ps1` (step 2's allocator — never hand-picked), `type: theme`,
-  `priority` = its most urgent open child, then link its children
-  (`theme:` / `order:` shape in the README). Reach for `epic` only when a theme's
-  work needs an intermediate grouping — it does not replace the theme.
+  `issue-new-id.ps1` (step 2's allocator — never hand-picked), `labels: [theme]`,
+  `type` = an ordinary classification (e.g. `task`), `priority` = its most urgent
+  open child, then link its children (`theme:` / `order:` shape in the README).
+  Reach for `epic` only when a theme's work needs an intermediate grouping — and
+  only after adding `epic` to `issueTypes`; it does not replace the theme.
 - **Close the theme when its work is done — the gate refuses a contradiction.**
   Completion is `done / (children − dropped)`, the same formula the HTML view
   prints, so a theme at 100% must carry `status: done` (or `dropped`), and a theme
@@ -283,8 +313,13 @@ pwsh <skill-folder>/scripts/render-issue-tree.ps1 -Check   # byte-compare HTML <
   shown); `total` is an exact GraphQL `ISSUE_ADVANCED` count only when
   `issueQuery` is set, otherwise an honest fetched floor. Every
   `sync-github-tree: warning:` line (sub-issue shortfall, fallback theme bucket,
-  unresolved `@me`, count fallback…) must be read and, if it affects the view,
-  reported in step 5.
+  unresolved `@me`, count fallback, **issue type outside the configured
+  `issueTypes`**, …) must be read and, if it affects the view, reported in step 5.
+- **Issue `type` is enforced, not rendered.** The sync fetches GitHub's native
+  `issueType` field, which is classification (a single-select, not a label) and
+  has no slot in the tree row grammar. An issue whose type falls outside the
+  manifest's `issueTypes` vocabulary produces a warning naming the fix — add the
+  type to `issueTypes`, or retype the issue on GitHub. Unset types are silent.
 - **`@me`/`@team` in `issueQuery`** is resolved once per sync and recorded in the
   artifact's `FILTER|` line as `@me→<login>` (echoed into the page banner via the
   `filter` dataJson field) — the snapshot discloses whose view it is; that is the

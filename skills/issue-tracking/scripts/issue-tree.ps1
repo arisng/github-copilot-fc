@@ -4,25 +4,31 @@
     store as machine rows (-Inventory).
 
 .DESCRIPTION
-    A theme (type: theme) is a prioritized workstream - the root grouping and the
-    superset of the tree. Every active non-theme issue (epic, task, bug, chore)
-    must relate to exactly one theme - directly via `theme: NNNN`, or indirectly
-    via a `parent:` chain that ends at a theme (or at an issue carrying a theme).
-    An epic is an intermediate grouping INSIDE a theme, so it must resolve like
-    any other non-theme issue; only type: theme may be the target of `theme:`.
+    A theme is a prioritized workstream - the root grouping and the superset of
+    the tree. A record is a theme ROOT when its labels carry the `theme` marker
+    (bare `theme`, or a `theme:<slug>` value); `type: theme` is still accepted as
+    a legacy alias. Grouping is a label concern on GitHub, so it is one here too
+    (`type` is classification only - GitHub's native issue type field).
+    Every active non-root issue must relate to exactly one theme - directly via
+    `theme: NNNN`, or indirectly via a `parent:` chain that ends at a theme (or
+    at an issue carrying a theme). An epic is an intermediate grouping INSIDE a
+    theme, so it must resolve like any other non-theme issue; only a theme root
+    may be the target of `theme:`.
 
     Checks:
       1. Frontmatter: required fields, id matches filename, status/priority/type
-         enums, numeric order, created as a YYYY-MM-DD date. Template
-         conformance (scripts/issue-template-lib.ps1): the resolved template
-         (skill defaults in assets/issue-templates, replaced per type by
-         manifest-registered overrides) must accept every frontmatter field,
-         get its required fields, and see its required body sections - errors
-         print as TEMPLATE lines (references/issue-templates.md).
-      2. Theme relations: resolvable, no cycles, theme refs point at type: theme,
-         every theme has at least one active child, and a theme's status agrees
-         with its completion (100% must be 'done'/'dropped'; 'done' must be 100%).
-         Completion is the view's formula: done / (children - dropped).
+         enums, numeric order, created as a YYYY-MM-DD date. The `type` enum is
+         the configured taxonomy (skill defaults task|bug|feature, replaced
+         wholesale by the manifest's issueTypes array). Template conformance
+         (scripts/issue-template-lib.ps1): the resolved template (skill defaults
+         in assets/issue-templates, replaced per type by manifest-registered
+         overrides) must accept every frontmatter field, get its required
+         fields, and see its required body sections - errors print as TEMPLATE
+         lines (references/issue-templates.md).
+      2. Theme relations: resolvable, no cycles, theme refs point at a theme
+         root, every theme has at least one active child, and a theme's status
+         agrees with its completion (100% must be 'done'/'dropped'; 'done' must
+         be 100%). Completion is the view's formula: done / (children - dropped).
          LOCAL-MARKDOWN ONLY: in github mode the sync derives each theme
          header's status from its members, so there is no authored value to
          contradict and -Check stays a structural check by design.
@@ -51,10 +57,9 @@
       default     regenerate the tree file (exits before writing when invalid)
       -Check      validate only + tree freshness (repo issue lint, pre-commit gate)
       -Inventory  print one pipe row per issue, then the next free id:
-                    id|type|status|priority|theme|parent|order|file|title
+                    id|type|status|priority|theme|parent|order|file|labels|title
                     NEXT_ID|NNNN   (max id across active + archived, plus one,
-                    skipping ids reserved by issue-new-id leases)
-    tree grammar (blank and comment lines are not data; title is always the
+                    skipping ids reserved by issue-new-id leases)    tree grammar (blank and comment lines are not data; title is always the
     last field and may contain '|'):
                   SUMMARY|themes=N|issues=N|P0=N|P1=N|P2=N|P3=N|blocked=N
                   NEXT|id|theme|priority|status|title   (absent when nothing actionable)
@@ -89,6 +94,7 @@ $treePath = Join-Path -Path $issuesDir -ChildPath 'tree.md'
 $archiveDir = Join-Path -Path $issuesDir -ChildPath 'archived'
 $issueTemplatesDir = '.github/ISSUE_TEMPLATE'
 $issueTemplateOverrides = $null
+$issueTypesOverride = $null
 $manifestPath = Join-Path -Path '.github' -ChildPath 'issue-tracker.json'
 $tracker = 'local-markdown'
 $treeSource = 'local-markdown'
@@ -141,6 +147,11 @@ if (Test-Path -LiteralPath $manifestPath) {
     }
     if ($names -contains 'issueTemplateOverrides') {
         $issueTemplateOverrides = $manifest.issueTemplateOverrides
+    }
+    # Taxonomy (references/manifest-schema.md): `issueTypes` replaces the shipped
+    # default type vocabulary wholesale. Absent = the defaults (task/bug/feature).
+    if ($names -contains 'issueTypes') {
+        $issueTypesOverride = $manifest.issueTypes
     }
 }
 $issuesLabel = $issuesDir -replace '\\', '/'
@@ -296,7 +307,19 @@ if (-not (Test-Path -LiteralPath $issuesDir)) {
 # source shared with the template CLI and the manifest writer).
 $validStatus = $issueValidStatus
 $validPriority = $issueValidPriority
-$validType = $issueValidType
+$taxonomy = Get-IssueTypeTaxonomy -Overrides $issueTypesOverride
+# Frontmatter accepts the configured taxonomy plus the always-valid legacy
+# values (Grouping moved to labels; a `type: theme` file must not break).
+$validType = @(@($taxonomy.Types) + $issueLegacyTypes | Select-Object -Unique)
+# Templates resolve against the taxonomy only - a legacy value that was not
+# opted in gets core-contract validation without a template.
+$templateTypes = @($taxonomy.Types)
+
+$fail = $false
+foreach ($taxonomyError in $taxonomy.Errors) {
+    $fail = $true
+    "TEMPLATE   $taxonomyError"
+}
 
 $fail = $false
 
@@ -309,12 +332,13 @@ if (-not (Test-IssueRepoRelativePath -Value $issueTemplatesDir)) {
     $fail = $true
     "TEMPLATE   ${templatesLabel}: issueTemplatesDir must be repo-relative (no root, no ..)"
 }
-else {
+elseif ($templateTypes.Count -gt 0) {
     $templateSet = Get-IssueTemplateSet `
         -DefaultsDir (Join-Path -Path $PSScriptRoot -ChildPath '..\assets\issue-templates') `
         -TemplatesDir $issueTemplatesDir `
         -TemplatesLabel $templatesLabel `
-        -Overrides $issueTemplateOverrides
+        -Overrides $issueTemplateOverrides `
+        -ValidTypes $templateTypes
     foreach ($templateError in $templateSet.Errors) {
         $fail = $true
         "TEMPLATE   $templateError"
@@ -393,7 +417,7 @@ foreach ($file in $files) {
     }
     if ($fm.ContainsKey('type') -and $validType -notcontains $fm['type']) {
         $fail = $true
-        "THEME   $issuesLabel/$($file.Name): invalid type '$($fm['type'])' (expected theme|epic|task|bug|chore)"
+        "THEME   $issuesLabel/$($file.Name): invalid type '$($fm['type'])' (configured types: $($templateTypes -join ', '))"
     }
     if ($fm.ContainsKey('created') -and -not [string]::IsNullOrWhiteSpace($fm['created'])) {
         $createdDate = [datetime]::MinValue
@@ -430,6 +454,17 @@ foreach ($file in $files) {
             "TEMPLATE   $issuesLabel/$($file.Name): $templateError"
         }
     }
+    elseif ($fm.ContainsKey('type') -and $issueLegacyTypes -contains [string]$fm['type']) {
+        # Legacy value outside the configured taxonomy (e.g. `type: theme` in a
+        # store that never migrated): no template governs it, so hold it to the
+        # core contract only - unknown fields still fail, sections do not.
+        foreach ($key in $fm.Keys) {
+            if (($issueCoreFields + $issueLinkFields) -notcontains $key) {
+                $fail = $true
+                "TEMPLATE   $issuesLabel/$($file.Name): unknown frontmatter field '$key' (legacy type '$($fm['type'])' has no template)"
+            }
+        }
+    }
     if ($byId.ContainsKey($fileId)) {
         $fail = $true
         "THEME   $issuesLabel/$($file.Name): duplicate issue id $fileId"
@@ -442,11 +477,14 @@ foreach ($file in $files) {
         Status        = $(if ($fm.ContainsKey('status')) { $fm['status'] } else { '' })
         Priority      = $(if ($fm.ContainsKey('priority')) { $fm['priority'] } else { '' })
         Type          = $(if ($fm.ContainsKey('type')) { $fm['type'] } else { '' })
+        Labels        = @(ConvertTo-StringList -Value $(if ($fm.ContainsKey('labels')) { $fm['labels'] } else { '' }))
         Theme         = $(if ($fm.ContainsKey('theme')) { $fm['theme'] } else { '' })
         Parent        = $(if ($fm.ContainsKey('parent')) { $fm['parent'] } else { '' })
         Order         = $order
+        IsThemeRoot   = $false
         ResolvedTheme = ''
     }
+    $record.IsThemeRoot = Test-IssueThemeMarker -Type $record.Type -Labels $record.Labels
     $byId[$fileId] = $record
     $records += $record
 }
@@ -475,7 +513,7 @@ foreach ($record in $records) {
 
 # --- 3. Theme relations ------------------------------------------------------
 foreach ($record in $records) {
-    if ($record.Type -eq 'theme') {
+    if ($record.IsThemeRoot) {
         if (-not [string]::IsNullOrWhiteSpace($record.Theme)) {
             $fail = $true
             "THEME   $issuesLabel/$($record.File): a theme must not declare 'theme:'"
@@ -491,9 +529,9 @@ foreach ($record in $records) {
             $fail = $true
             "THEME   $issuesLabel/$($record.File): theme '$($record.Theme)' does not exist"
         }
-        elseif ($byId[$record.Theme].Type -ne 'theme') {
+        elseif (-not $byId[$record.Theme].IsThemeRoot) {
             $fail = $true
-            "THEME   $issuesLabel/$($record.File): theme '$($record.Theme)' is not a theme issue"
+            "THEME   $issuesLabel/$($record.File): theme '$($record.Theme)' is not a theme root (add the 'theme' label to it)"
         }
         else {
             $record.ResolvedTheme = $record.Theme
@@ -522,12 +560,12 @@ foreach ($record in $records) {
         }
         $seen[$cursor.Parent] = $true
         $cursor = $byId[$cursor.Parent]
-        if ($cursor.Type -eq 'theme') {
+        if ($cursor.IsThemeRoot) {
             $resolved = $cursor.Id
             break
         }
         if (-not [string]::IsNullOrWhiteSpace($cursor.Theme)) {
-            if (-not $byId.ContainsKey($cursor.Theme) -or $byId[$cursor.Theme].Type -ne 'theme') {
+            if (-not $byId.ContainsKey($cursor.Theme) -or -not $byId[$cursor.Theme].IsThemeRoot) {
                 $chainError = "parent '$($cursor.Id)' references invalid theme '$($cursor.Theme)'"
             }
             else {
@@ -556,9 +594,9 @@ foreach ($record in $records) {
 # being vacuously complete. Status stays authoritative (enforced, not derived),
 # and the two directions are mutually exclusive, so any reported state has a fix.
 foreach ($record in $records) {
-    if ($record.Type -ne 'theme') { continue }
+    if (-not $record.IsThemeRoot) { continue }
     $members = @($records | Where-Object {
-        $_.Type -ne 'theme' -and $_.ResolvedTheme -eq $record.Id
+        -not $_.IsThemeRoot -and $_.ResolvedTheme -eq $record.Id
     })
     if ($members.Count -eq 0) {
         $fail = $true
@@ -604,7 +642,7 @@ if ($Check -and $Inventory) {
 
 # --- 4. Inventory: the store as machine rows ---------------------------------
 if ($Inventory) {
-    'id|type|status|priority|theme|parent|order|file|title'
+    'id|type|status|priority|theme|parent|order|file|labels|title'
     foreach ($record in $records) {
         $themeField = '-'
         if (-not [string]::IsNullOrWhiteSpace($record.ResolvedTheme)) {
@@ -614,7 +652,11 @@ if ($Inventory) {
         if (-not [string]::IsNullOrWhiteSpace($record.Parent)) {
             $parentField = $record.Parent
         }
-        "$($record.Id)|$($record.Type)|$($record.Status)|$($record.Priority)|$themeField|$parentField|$($record.Order)|$($record.File)|$($record.Title)"
+        $labelsField = '-'
+        if ($record.Labels.Count -gt 0) {
+            $labelsField = ($record.Labels -join ',')
+        }
+        "$($record.Id)|$($record.Type)|$($record.Status)|$($record.Priority)|$themeField|$parentField|$($record.Order)|$($record.File)|$labelsField|$($record.Title)"
     }
     $maxId = 0
     foreach ($record in $records) {
@@ -648,9 +690,9 @@ if ($Inventory) {
 
 # --- 5. Render the tree ------------------------------------------------------
 $themes = @($records |
-    Where-Object { $_.Type -eq 'theme' } |
+    Where-Object { $_.IsThemeRoot } |
     Sort-Object @{ Expression = { Get-PriorityRank $_.Priority } }, @{ Expression = { $_.Id } })
-$children = @($records | Where-Object { $_.Type -ne 'theme' })
+$children = @($records | Where-Object { -not $_.IsThemeRoot })
 $sortedChildren = @($children |
     Sort-Object @{ Expression = { Get-PriorityRank $_.Priority } },
                  @{ Expression = { $_.Order } },
