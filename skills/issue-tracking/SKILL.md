@@ -1,9 +1,9 @@
 ---
 name: issue-tracking
 description: >
-  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive Q&A or auto-inferred in autopilot; the manifest schema is owned by this skill), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional markdown templates shipped as defaults; consumers register their own in the manifest to override per type on demand). Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
+  Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the manifest schema), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional defaults; consumers register their own in the manifest to override per type on demand), and closes themes whose children are all done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   author: arisng
 ---
 
@@ -196,6 +196,7 @@ layer, and `epic` sits *inside* it:
 | resolvable by `theme:`? | yes — the only type a `theme:` ref may point at | no — `theme:` pointing at an epic is a validation error |
 | may have children | yes (issues, epics, tasks) | yes (tasks, bugs, chores, other epics) |
 | must have active children | required (a childless theme is clutter) | not required |
+| status vs completion | **enforced** — 100% must be `done`/`dropped`, `done` must be 100% | no rule (an epic is not a status boundary) |
 | count | one or more | zero or more (optional depth) |
 
 So **a theme is the superset**: it is the boundary of the tree, and every epic,
@@ -211,10 +212,19 @@ intended — the gate requires the theme root either way.
   `priority` = its most urgent open child, then link its children
   (`theme:` / `order:` shape in the README). Reach for `epic` only when a theme's
   work needs an intermediate grouping — it does not replace the theme.
+- **Close the theme when its work is done — the gate refuses a contradiction.**
+  Completion is `done / (children − dropped)`, the same formula the HTML view
+  prints, so a theme at 100% must carry `status: done` (or `dropped`), and a theme
+  marked `done` must be at 100%. Whichever way it is wrong, `issue-tree.ps1 -Check`
+  fails and names the theme file with the count. A partly-done theme stays
+  `open`/`in-progress` — a `blocked` or `dropped` child is not done; only
+  `dropped` leaves the denominator. `status` is authored, never derived: fixing
+  it is a one-line edit, not a regenerated tree.
 - Chain order is the sort key: priority → `order` → id — computed by the script, so
   set `order` only when same-priority children need an explicit sequence.
 
-**Done:** every non-theme issue carries a resolvable link (proved in step 4).
+**Done:** every non-theme issue carries a resolvable link (proved in step 4), and
+every theme whose children are all `done`/`dropped` is closed.
 
 ## 4. Refresh the tree, the view, and go green
 

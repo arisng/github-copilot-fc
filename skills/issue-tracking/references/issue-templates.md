@@ -17,7 +17,7 @@ validates every file against its template and fails closed.
   (epic, task, bug, chore) must resolve to exactly one theme, directly
   (`theme: NNNN`) or through a `parent:` chain. A `theme:` value may only point
   at `type: theme`. A theme must not declare `theme:` or `parent:`, and must
-  have at least one active child.
+  have at least one active child *and* a status that matches its completion.
 - **`epic` is an intermediate grouping inside a theme** — an optional mid-level
   bundle of that theme's work. Because it is a non-theme type, an epic must
   itself resolve to a theme, and epics may nest under other epics.
@@ -25,6 +25,18 @@ validates every file against its template and fails closed.
 Containment order: **theme ⊃ epic ⊃ task/bug/chore**. Model one workstream as a
 theme, not an epic; add an epic only when a theme's work needs an intermediate
 grouping.
+
+### A theme closes with its work
+
+The gate ties a theme's `status` to its completion, in both directions: a theme at
+100% must be `done` (or `dropped`), and a theme marked `done` must be at 100%.
+Completion is the HTML view's formula — `done / (children − dropped)`, an
+all-`dropped` theme being vacuously complete — so the number next to the theme in
+`tree.html` and the verdict from `issue-tree.ps1 -Check` can never disagree.
+`blocked` and `in-progress` children are remaining work; only `dropped` leaves the
+denominator. The rule is **enforced, not derived**: `status` stays the authored
+value and an inconsistent state is an error, not silently rewritten. Epics are not
+status boundaries, so no equivalent rule applies to them.
 
 ## Where templates live
 

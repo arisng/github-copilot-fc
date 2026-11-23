@@ -20,7 +20,9 @@
          get its required fields, and see its required body sections - errors
          print as TEMPLATE lines (references/issue-templates.md).
       2. Theme relations: resolvable, no cycles, theme refs point at type: theme,
-         every theme has at least one active child.
+         every theme has at least one active child, and a theme's status agrees
+         with its completion (100% must be 'done'/'dropped'; 'done' must be 100%).
+         Completion is the view's formula: done / (children - dropped).
       3. -Check also fails when the tree file is missing or stale.
 
     Store resolution (repo-agnostic): .github/issue-tracker.json, read relative to
@@ -544,19 +546,46 @@ foreach ($record in $records) {
     }
 }
 
-# Every theme must carry active work, otherwise it is clutter to archive.
+# Every theme must carry active work (otherwise it is clutter to archive), and
+# its status must agree with its completion - a theme rendered at 100% beside an
+# 'open' pill is self-contradictory. Completion is the view's own definition
+# (assets/tree-template.html): done / (children - dropped), an all-dropped theme
+# being vacuously complete. Status stays authoritative (enforced, not derived),
+# and the two directions are mutually exclusive, so any reported state has a fix.
 foreach ($record in $records) {
     if ($record.Type -ne 'theme') { continue }
-    $hasChild = $false
-    foreach ($other in $records) {
-        if ($other.Type -ne 'theme' -and $other.ResolvedTheme -eq $record.Id) {
-            $hasChild = $true
-            break
-        }
-    }
-    if (-not $hasChild) {
+    $members = @($records | Where-Object {
+        $_.Type -ne 'theme' -and $_.ResolvedTheme -eq $record.Id
+    })
+    if ($members.Count -eq 0) {
         $fail = $true
         "THEME   $issuesLabel/$($record.File): theme has no active child issues"
+        continue
+    }
+    $countable = $members.Count - @($members | Where-Object { $_.Status -eq 'dropped' }).Count
+    $doneCount = @($members | Where-Object { $_.Status -eq 'done' }).Count
+    $pct = 100
+    if ($countable -gt 0) {
+        # Round half away from zero: JavaScript's Math.round, so this percentage
+        # and the one the HTML view prints can never drift apart.
+        $pct = [int][math]::Round($doneCount * 100 / $countable,
+            [System.MidpointRounding]::AwayFromZero)
+    }
+    $complete = ($doneCount -eq $countable)
+    if ($complete -and $record.Status -ne 'done' -and $record.Status -ne 'dropped') {
+        $fail = $true
+        $scope = "$doneCount of $countable child issues done"
+        if ($countable -eq 0) { $scope = 'every child is dropped' }
+        "THEME   $issuesLabel/$($record.File): theme is 100% complete ($scope) but status is '$($record.Status)' - set 'status: done'"
+    }
+    elseif ($record.Status -eq 'done' -and -not $complete) {
+        $fail = $true
+        $remaining = @($members |
+            Where-Object { $_.Status -ne 'done' -and $_.Status -ne 'dropped' } |
+            Group-Object Status |
+            Sort-Object Name |
+            ForEach-Object { "$($_.Count) $($_.Name)" })
+        "THEME   $issuesLabel/$($record.File): theme is marked done but only $pct% complete ($($countable - $doneCount) of $countable child issues not done: $($remaining -join ', '))"
     }
 }
 
