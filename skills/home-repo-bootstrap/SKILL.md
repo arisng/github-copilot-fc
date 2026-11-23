@@ -155,7 +155,7 @@ belong in the gitignored manifest.
 | `pointer bullet has no 'Clone from' URL` | Add `Clone from <url> if missing.` to the same bullet. |
 | `malformed clone URL` | Use `https://`, `git@`, `ssh://`, or `git://`. |
 | `pointer paths absent on this machine` (WARN) | Expected on another machine; clone the repo if the work needs it. |
-| `core.hooksPath is ''` | Run `git config core.hooksPath .githooks`; `/verify` reports this as a failure. |
+| `core.hooksPath is ''` | Run `git config core.hooksPath .githooks`; `Test-HomeRepoBootstrap.ps1` reports this as a failure. |
 | `daily-report skill is missing` | A report is staged but the validator is absent: install the skill or set `DAILY_REPORT_SKILL_DIR`. |
 | `pwsh not found` | Install PowerShell 7+. The hook skips rather than failing, so the gate is simply inactive. |
 
