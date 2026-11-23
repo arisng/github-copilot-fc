@@ -1,0 +1,51 @@
+# Home Repo
+
+Shared steering for {{GIT_USER}}'s repos, following the
+[Home Repo pattern](https://www.aihero.dev/the-home-repo-pattern): shared docs, the
+daily-report tower, and pointers to every other repo live here. **Start agent sessions in
+this repo**; reach other repos through the pointers below.
+
+Seeded by the `home-repo-bootstrap` skill. This file is yours now — edit it freely; the skill
+never overwrites it unless you pass `-Force`.
+
+## How to work from here
+
+- Sessions start in this repo. To work on another repo, use its pointer: if the path exists,
+  work there; if it does not, clone from the remote first.
+- Give each feature its own worktree inside that repo's clone, so several agents can work one
+  repo at once.
+- Read a repo's own AGENTS.md first when it has one (hinted below).
+- The paths below reflect one machine. A missing path is not an error — clone from the remote
+  if missing. Committing these absolute paths is the documented exception to the
+  "machine paths live only in the manifest" rule.
+
+## Other Repos
+
+<!-- One bullet per repo: "name: <absolute path>. Clone from <clone-url> if missing." -->
+<!-- local CI fails a bullet without an absolute path AND a well-formed clone URL. -->
+<!-- Keep paths free of spaces: local CI reads them as whitespace-terminated tokens. -->
+
+{{POINTER_BULLETS}}
+
+## Skills
+
+One rule: **a skill has exactly one source of truth** — an updater or a git repo — and it is
+never copied to a second location.
+
+- **Shared upstream skills** — git source `arisng/github-copilot-fc` (root `skills/`),
+  installed and refreshed with `npx skills update -g` into `~/.agents/skills/` (tracked by
+  `~/.agents/.skill-lock.json`). Do not copy them into any repo.
+- **Plugin skills** — refreshed with `copilot plugin update --all`
+  (`~/.copilot/installed-plugins/`).
+- **Repo-level skills** — live only in their own repo and load only in sessions started there.
+- **Canonical user-level store** — `~/.agents/skills/`. The personal dirs
+  `~/.claude/skills/`, `~/.copilot/skills/` and `~/.codex/skills/` are junctions to it.
+
+## Where things live
+
+- `docs/` — shared coding standards (`docs/coding-standards.md`) and the standing glossary
+  (`docs/glossary.md`).
+- `reports/daily/` — the daily-report tower output; the per-machine manifest
+  (`daily-report.manifest.json`) and exported transcripts stay gitignored.
+- `scripts/local-ci.ps1` with `.githooks/pre-commit` — the whole CI: it validates staged
+  reports and the pointers in this file; there is no cloud pipeline.

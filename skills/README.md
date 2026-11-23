@@ -114,6 +114,7 @@ skills/
 | `github-pr-media` | 0.2.2 | Upload a local image or video file to GitHub's user-attachments API and embed the returned hosted URL in a pull request description or comment. Use when asked… |
 | `googleworkspace-cli` | 0.1.0 | Unified CLI interface for Google Workspace APIs (Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, etc.) with structured output and multi-service support |
 | `handoff` | 1.0.0 | Compact the current conversation into a handoff document for another agent to pick up. |
+| `home-repo-bootstrap` | 0.1.0 | Bootstrap and verify a personal home repo (the Home Repo pattern) on a new developer machine or teammate laptop — seed AGENTS.md repo pointers, shared docs,… |
 | `issue-md-writer` | 2.2.0 | Create and draft markdown-based issue documents (bug reports, feature plans, RFCs, ADRs, tasks, retrospectives) in the top-level `.issues/` folder. Use this… |
 | `issue-relevance-check` | 0.1.0 | Slash command to evaluate whether an issue or pull request is still relevant, actionable, and worth keeping open |
 | `issue-tracking` | 1.5.1 | Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the… |

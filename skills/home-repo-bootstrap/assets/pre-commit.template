@@ -1,0 +1,10 @@
+#!/bin/sh
+# Pre-commit local CI: validate staged daily reports, glossary consistency and
+# the AGENTS.md pointers. This hook is the whole CI for this tower - there is
+# no cloud pipeline. Skips cleanly when pwsh is missing so a clone without
+# PowerShell is never bricked by the hook; the warning keeps the skip visible.
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "pre-commit: pwsh not found on PATH - skipping report validation" >&2
+  exit 0
+fi
+exec pwsh -NoProfile -File scripts/local-ci.ps1 -Staged

@@ -1,0 +1,5 @@
+# Per-machine absolute paths — never commit (the daily-report manifest describes
+# one machine; the checkout holding it is the tower).
+reports/daily/daily-report.manifest.json
+# Exported session transcripts are local artifacts
+reports/daily/*/sessions/
