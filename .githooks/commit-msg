@@ -1,0 +1,14 @@
+#!/bin/sh
+# Commit-msg: validate "<type>(<scope>): <summary>" against
+# .github/git-scope-constitution.md. A message outside the approved pairs is
+# the cheapest possible failure to catch, and the only one the pre-commit and
+# pre-push gates never saw (retro 2026-11-23).
+# Skips cleanly when pwsh is missing so a clone without PowerShell still works.
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "commit-msg: pwsh not found on PATH - skipping message validation" >&2
+  exit 0
+fi
+# The hook's own directory is the repo's hooks dir; the script lives in the
+# working tree that git is committing from.
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+exec pwsh -NoProfile -File "$repo_root/scripts/workspace/check-commit-message.ps1" -MessagePath "$1"

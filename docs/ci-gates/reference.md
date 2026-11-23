@@ -10,14 +10,20 @@ the mode decides *which checks run*.
 
 | | Local lane | Cloud lane |
 |---|---|---|
-| Entry points | `.githooks/pre-commit`, `.githooks/pre-push`, `task lint`, `task check` | `.github/workflows/ci.yml` (runs `task check`) |
+| Entry points | `.githooks/commit-msg`, `.githooks/pre-commit`, `.githooks/pre-push`, `task lint`, `task check` | `.github/workflows/ci.yml` (runs `task check`) |
 | Runs on | developer machine | `ubuntu-latest` runner |
 | Enforcement | blocks the commit/push via hook exit code | posts a check run on the push/PR; `main` is not branch-protected (verified 2026-11-21), so a red run does not block by itself |
 | Availability | opt-in per clone (`task hooks:install`); each hook skips cleanly when `pwsh` is missing | every push to `main` and every pull request |
 
-The boundary in one sentence: **pre-commit ⊂ pre-push ⊂ `task check` = CI** —
+The boundary in one sentence: **commit-msg ⊂ pre-commit ⊂ pre-push ⊂ `task check` = CI** —
 each gate is a strict superset of the one before it, and the cloud lane runs
 the exact command (`task check`) that defines the full local gate.
+
+**Do not run `task check` by hand as a pre-flight.** `pre-push` runs the same
+suite on the tree you are about to push, so a manual full run duplicates it.
+Use `task lint` (~8 s) to check before committing, and reserve a manual
+`task check` for debugging a pre-push failure or for the advisory `waza check`
+the push deliberately skips.
 
 ## Modes of workspace-check.ps1
 
@@ -59,11 +65,18 @@ updated together when a check is added, moved between modes, or retired.
 
 | Gate | Trigger | Mode | Blocks |
 |---|---|---|---|
+| `.githooks/commit-msg` | `git commit`, after the message is written | message validation (`check-commit-message.ps1`) | the commit |
 | `.githooks/pre-commit` | `git commit` | Quick | the commit |
 | `.githooks/pre-push` | `git push` (banner prints first) | Push | the push |
 | `task lint` | manual | Quick | nothing (exit code only) |
 | `task check` | manual; default task | Full | nothing (exit code only); this is also the CI command |
 | `task check:linux` | manual | Pester suites in a Linux container | nothing (exit code only); see Coverage constraints |
+
+`commit-msg` validates the subject against `.github/git-scope-constitution.md`:
+the type must be approved and non-deprecated, and the scope must be one that
+type lists. Git-generated messages (merge, revert, fixup!) pass through. It
+costs under a second, which is why it sits first — a wrong `type(scope)` is the
+cheapest failure to catch and the only one the other two hooks never saw.
 
 Hooks are wired by `core.hooksPath=.githooks`, set once per clone via
 `task hooks:install`. `core.hooksPath` is never repointed.
