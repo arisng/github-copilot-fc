@@ -3,7 +3,7 @@ name: issue-tracking
 description: >
   Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (interactive or auto-inferred; this skill owns the manifest schema), then triages issues with evidence checks, prioritizes and links them into a theme tree, refreshes the generated tree and its interactive static HTML view (.issues/tree.html), and hands out new issue ids collision-free across parallel sessions. Gates every issue file against a per-type issue template (GitHub-conventional defaults; consumers register their own in the manifest to override per type on demand), and closes themes whose children are all done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh .issues/tree.md, render the tree HTML, verify issue claims against git history, enforce issue templates, or set up an issue tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree view with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 1.4.0
+  version: 1.4.1
   author: arisng
 ---
 
@@ -219,12 +219,15 @@ intended — the gate requires the theme root either way.
   fails and names the theme file with the count. A partly-done theme stays
   `open`/`in-progress` — a `blocked` or `dropped` child is not done; only
   `dropped` leaves the denominator. `status` is authored, never derived: fixing
-  it is a one-line edit, not a regenerated tree.
+  it is a one-line edit, not a regenerated tree. **`local-markdown` only** — in
+  github mode the sync *derives* the header from all member rows (so it cannot
+  contradict itself) and `-Check` stays structural; do not port the rule.
 - Chain order is the sort key: priority → `order` → id — computed by the script, so
   set `order` only when same-priority children need an explicit sequence.
 
 **Done:** every non-theme issue carries a resolvable link (proved in step 4), and
-every theme whose children are all `done`/`dropped` is closed.
+every theme whose children are all `done`/`dropped` is closed (local-markdown;
+github mode derives the header instead).
 
 ## 4. Refresh the tree, the view, and go green
 

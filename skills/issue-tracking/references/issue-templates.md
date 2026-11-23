@@ -38,6 +38,17 @@ denominator. The rule is **enforced, not derived**: `status` stays the authored
 value and an inconsistent state is an error, not silently rewritten. Epics are not
 status boundaries, so no equivalent rule applies to them.
 
+**This applies to `local-markdown` only.** Under `tracker: github` +
+`treeSource: github` there is no authored theme status to check: the sync
+*derives* each `## THEME` header from all of that theme's member rows
+(open if any member is live, `done` if any was completed, `dropped` only when
+nothing was), and the cap can never hide live work because an open child of a
+closed parent is promoted into the section's open region. So the contradiction
+this rule forbids cannot be produced, and `issue-tree.ps1 -Check` correctly stays
+a structural check that accepts a header disagreeing with the rows the cap
+happened to render. Do not "fix" that by porting the rule: a github-mode header
+may legitimately disagree with its visible rows.
+
 ## Where templates live
 
 | Set | Location | Owned by |

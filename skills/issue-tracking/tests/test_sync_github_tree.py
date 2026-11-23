@@ -769,3 +769,107 @@ def test_summary_cap_and_lookback_keys(tmp_path: Path, pwsh_exe: str, skill: Pat
     assert re.search(r"\|cap=300$", summary_lines[0]), summary_lines[0]
     chk = run(pwsh_exe, skill, repo2, "issue-tree.ps1", "-Check")
     assert chk.returncode == 0, chk.stdout + chk.stderr
+
+
+# --------------------------------------------------------------------------
+# 9. Theme status under github mode: derived by sync, never gated
+# --------------------------------------------------------------------------
+# github mode has no authored theme status to validate: a `## THEME` header's
+# status is *derived* by the sync from all of the theme's member rows
+# (actionable-wins: open if any member is live, done if any is done, else
+# dropped). The local-markdown rule that a theme's status must match its
+# completion therefore cannot apply here - there is no input to contradict -
+# and issue-tree.ps1 must keep accepting a header that disagrees with the rows
+# it happens to render. These tests pin both halves.
+
+THEME_HEADER = re.compile(r"^## THEME\|([^|]+)\|([^|]+)\|([^|]+)\|")
+
+
+def theme_status(text: str, section_id: str) -> str:
+    for line in text.split("\n"):
+        m = THEME_HEADER.match(line)
+        if m and m.group(1) == section_id:
+            return m.group(3)
+    raise AssertionError(f"no THEME header for {section_id!r} in:\n{text}")
+
+
+@pytest.mark.parametrize(
+    ("members", "expected"),
+    [
+        # All done -> the theme is done (the state the local gate demands).
+        ([("done", "COMPLETED"), ("done", "COMPLETED")], "done"),
+        # One live member wins over any number of closed ones.
+        ([("done", "COMPLETED"), ("open", None)], "open"),
+        ([("open", None), ("in-progress", None)], "open"),
+        # All not-planned -> dropped, and dropped alone.
+        ([("dropped", "NOT_PLANNED"), ("dropped", "NOT_PLANNED")], "dropped"),
+        # done outranks dropped: the header only says 'dropped' when nothing
+        # in the theme was actually completed.
+        ([("done", "COMPLETED"), ("dropped", "NOT_PLANNED")], "done"),
+    ],
+    ids=["all-done", "open-beats-done", "open-beats-in-progress", "all-dropped", "done-beats-dropped"],
+)
+def test_theme_status_is_derived_from_members(
+    tmp_path: Path, pwsh_exe: str, skill: Path, members: list, expected: str
+) -> None:
+    issues = []
+    for offset, (state, reason) in enumerate(members):
+        issues.append(
+            gh_issue(
+                910 + offset,
+                f"member {offset}",
+                state="CLOSED" if reason else "OPEN",
+                state_reason=reason,
+                labels=("theme:Derived",),
+            )
+        )
+    repo = make_repo(tmp_path, manifest())
+    out = sync(pwsh_exe, skill, repo, issues)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert theme_status(read_tree(repo), "T-derived") == expected
+
+
+def test_github_mode_accepts_header_status_contradicting_visible_rows(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # A committed tree whose header says 'open' while the cap only let done
+    # rows through: the local rule would call that a contradiction, but here
+    # the header derives from members the cap hid, so the gate must stay green.
+    repo = make_repo(tmp_path, manifest())
+    (repo / ".issues").mkdir()
+    (repo / ".issues" / "tree.md").write_text(
+        "SUMMARY|themes=1|issues=2|total=3|asOfEpoch=1763630400"
+        "|P0=0|P1=0|P2=0|P3=0|blocked=0|cap=2|lookback=365\n"
+        "\n"
+        "## THEME|T-cap|none|open|Cap-hidden live member\n"
+        "\n"
+        "- 0901|T-cap|-|none|done|Visible done\n"
+        "   - 0902|T-cap|0901|none|done|Visible done child\n",
+        encoding="utf-8",
+    )
+    chk = run(pwsh_exe, skill, repo, "issue-tree.ps1", "-Check")
+    assert chk.returncode == 0, chk.stdout + chk.stderr
+    assert "structurally consistent" in chk.stdout
+
+
+def test_open_child_under_closed_parent_is_promoted_above_the_cap(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # The cap can never hide live work: an open child of a closed root is
+    # promoted into the section's open region, so the header's derived status
+    # and the rendered rows always agree about what is still live.
+    issues = [
+        gh_issue(920, "closed root", state="CLOSED", state_reason="COMPLETED"),
+        gh_issue(921, "open child", parent=920),
+        gh_issue(922, "done sibling", state="CLOSED", state_reason="COMPLETED"),
+    ]
+    repo = make_repo(tmp_path, manifest(treeMaxIssues=2))
+    out = sync(pwsh_exe, skill, repo, issues)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "promoted to its section" in out.stdout
+    text = read_tree(repo)
+    assert theme_status(text, f"{REPO} issues") == "open"
+    tree = parse_tree(text)
+    assert [r["id"] for r in tree["sections"][0]["rows"]][:1] == ["0921"]
+    chk = run(pwsh_exe, skill, repo, "issue-tree.ps1", "-Check")
+    assert chk.returncode == 0, chk.stdout + chk.stderr

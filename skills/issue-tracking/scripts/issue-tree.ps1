@@ -23,6 +23,9 @@
          every theme has at least one active child, and a theme's status agrees
          with its completion (100% must be 'done'/'dropped'; 'done' must be 100%).
          Completion is the view's formula: done / (children - dropped).
+         LOCAL-MARKDOWN ONLY: in github mode the sync derives each theme
+         header's status from its members, so there is no authored value to
+         contradict and -Check stays a structural check by design.
       3. -Check also fails when the tree file is missing or stale.
 
     Store resolution (repo-agnostic): .github/issue-tracker.json, read relative to
