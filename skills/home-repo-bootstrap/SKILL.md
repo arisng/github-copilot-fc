@@ -147,11 +147,35 @@ Pointers are the only machine-specific content in a committed file, and CI toler
 missing path, so one shared `AGENTS.md` stays valid across machines. Machine-specific paths
 belong in the gitignored manifest.
 
+## Examples
+
+Fresh machine, no repos cloned yet — seed with a placeholder pointer, then finish it by hand:
+
+```powershell
+pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo'
+pwsh -NoProfile -File scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
+```
+
+Teammate onboarding with the tower wired to two checkouts:
+
+```powershell
+pwsh -NoProfile -File scripts/Initialize-HomeRepo.ps1 -Path 'C:\Work\home-repo' `
+  -Repo 'copilot-fc|C:\Work\Agents\github-copilot-fc|https://github.com/arisng/github-copilot-fc.git' `
+  -Repo 'widgets|C:\Work\widgets|https://github.com/acme/widgets.git' `
+  -WatchedRepo 'C:\Work\Agents\github-copilot-fc','C:\Work\widgets'
+```
+
+Repairing a home repo whose gate is red — verify first, because it names the failing check:
+
+```powershell
+pwsh -NoProfile -File scripts/Test-HomeRepoBootstrap.ps1 -Path 'C:\Work\home-repo'
+```
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `pointer bullet has no local path` | The bullet lacks an absolute Windows path; local CI matches a drive-letter path only. |
+| `pointer bullet has no local path` | The bullet lacks an absolute path. Windows drive paths (`C:\...`) and POSIX paths (`/home/...`) are both accepted. |
 | `pointer bullet has no 'Clone from' URL` | Add `Clone from <url> if missing.` to the same bullet. |
 | `malformed clone URL` | Use `https://`, `git@`, `ssh://`, or `git://`. |
 | `pointer paths absent on this machine` (WARN) | Expected on another machine; clone the repo if the work needs it. |
@@ -165,5 +189,6 @@ belong in the gitignored manifest.
 - `scripts/Test-HomeRepoBootstrap.ps1` — the acceptance check; prints JSON, exits non-zero on failure.
 - `assets/` — the seeded content: `AGENTS.md.template`, `coding-standards.md`,
   `glossary.md`, `local-ci.ps1`, `pre-commit.template`, `gitignore.template`.
-- `references/design-notes.md` — why the skeleton has this shape, and how it evolved.
+- `references/design-notes.md` — [why the skeleton has this shape](references/design-notes.md),
+  and how to add a new seeded file.
 - `tests/` — Pester suites for both scripts.

@@ -62,7 +62,7 @@ $required = @(
     '.githooks/pre-commit',
     '.gitignore'
 )
-$missing = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $root ($_ -replace '/', '\'))) })
+$missing = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $root ($_ -replace '/', [System.IO.Path]::DirectorySeparatorChar))) })
 if ($missing.Count -eq 0) {
     Add-Check 'layout' 'pass' "$($required.Count) seeded file(s) present"
 }
@@ -153,7 +153,7 @@ else {
     if ($bulletCount -eq 0) { $problems += 'no pointer bullets under "## Other Repos"' }
     $missingPaths = 0
     foreach ($b in $bullets) {
-        $paths = @([regex]::Matches($b, '(?<![A-Za-z0-9_])([A-Za-z]:\\[^\s]+)') |
+        $paths = @([regex]::Matches($b, '(?<![:/A-Za-z0-9_])((?:[A-Za-z]:[\\/]|/)[^\s]+)') |
             ForEach-Object { $_.Groups[1].Value.TrimEnd('.', ',', ';', ')') })
         $urls = @([regex]::Matches($b, 'Clone from\s+(\S+)') |
             ForEach-Object { $_.Groups[1].Value.TrimEnd('.', ',', ';', ')') })
@@ -200,7 +200,10 @@ else {
 }
 
 # --- 6. shared skills -----------------------------------------------------
-$skillStore = Join-Path $env:USERPROFILE '.agents\skills'
+# $env:USERPROFILE is unset on Linux and macOS; fall back to the OS home so the
+# check reports honestly on every platform the factory gate runs on.
+$homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$skillStore = Join-Path (Join-Path (Join-Path $homeDir '.agents') 'skills') '.'
 $needed = @('daily-report')
 $absent = @($needed | Where-Object { -not (Test-Path -LiteralPath (Join-Path $skillStore "$_\SKILL.md")) })
 if ($absent.Count -eq 0) {

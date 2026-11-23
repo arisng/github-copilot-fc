@@ -94,6 +94,29 @@ Describe 'Test-HomeRepoBootstrap.ps1' {
         $r.passed | Should -BeFalse
     }
 
+    It 'accepts a POSIX absolute pointer path so a non-Windows teammate passes the gate' {
+        $target = New-HomeRepo 'posix-pointer'
+        $agentsPath = Join-Path $target 'AGENTS.md'
+        $text = Get-Content -LiteralPath $agentsPath -Raw
+        $text = $text -replace '(?m)^- .*$', '- widgets: /home/dev/widgets. Clone from https://github.com/acme/widgets.git if missing.'
+        Set-Content -LiteralPath $agentsPath -Value $text -NoNewline
+
+        $r = Invoke-Verify -Path $target
+        (@($r.checks | Where-Object { $_.name -eq 'pointers' })[0].status) | Should -Be 'pass'
+    }
+
+    It 'does not read a clone URL as the pointer path' {
+        $target = New-HomeRepo 'url-not-path'
+        $agentsPath = Join-Path $target 'AGENTS.md'
+        $text = Get-Content -LiteralPath $agentsPath -Raw
+        $text = $text -replace '(?m)^- .*$', '- widgets: Clone from https://github.com/acme/widgets.git if missing.'
+        Set-Content -LiteralPath $agentsPath -Value $text -NoNewline
+
+        $r = Invoke-Verify -Path $target
+        (@($r.checks | Where-Object { $_.name -eq 'pointers' })[0].status) | Should -Be 'fail'
+        (@($r.checks | Where-Object { $_.name -eq 'pointers' })[0].detail) | Should -Match 'without a local path'
+    }
+
     It 'fails when the local CI gate fails' {
         $target = New-HomeRepo 'red-gate'
         $agentsPath = Join-Path $target 'AGENTS.md'

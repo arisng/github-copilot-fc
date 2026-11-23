@@ -33,10 +33,14 @@ of one file, and it is documented as deliberate rather than routine.
 ## Why pointer paths may not contain spaces
 
 `local-ci.ps1` extracts pointer paths with a whitespace-terminated regex
-(`[A-Za-z]:\\[^\s]+`), because the same parser must handle wrapped bullets that prose wraps
-arbitrarily. Allowing spaces would require quoting syntax the parser cannot infer. The
-initializer therefore rejects a spaced path at seed time — a loud failure and an immediate
-explanation is better than a pointer that truncates silently on the next machine.
+(`(?:[A-Za-z]:[\\/]|/)[^\s]+` — drive-letter or POSIX absolute), because the same parser must
+handle wrapped bullets that prose wraps arbitrarily. Allowing spaces would require quoting
+syntax the parser cannot infer. The initializer therefore rejects a spaced path at seed time —
+a loud failure and an immediate explanation is better than a pointer that truncates silently
+on the next machine.
+
+The lookbehind in that pattern excludes `:` and `/`, so a clone URL's `//host/path` is never
+read as a local pointer path. Both behaviours are pinned by tests.
 
 ## Why the validator resolves lazily
 

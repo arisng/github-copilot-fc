@@ -78,7 +78,11 @@ if (Test-Path $agentsPath) {
         $pointerProblems += 'no pointer bullets found under "## Other Repos"'
     }
     foreach ($b in $bullets) {
-        $paths = @([regex]::Matches($b, '(?<![A-Za-z0-9_])([A-Za-z]:\\[^\s]+)') |
+        # Windows drive paths and POSIX absolute paths; a pointer path never
+        # contains whitespace (the initializer rejects those at seed time). The
+        # lookbehind excludes ':' and '/' so a clone URL's "//host/path" is
+        # never mistaken for a local path.
+        $paths = @([regex]::Matches($b, '(?<![:/A-Za-z0-9_])((?:[A-Za-z]:[\\/]|/)[^\s]+)') |
             ForEach-Object { $_.Groups[1].Value.TrimEnd('.', ',', ';', ')') })
         $urls = @([regex]::Matches($b, 'Clone from\s+(\S+)') |
             ForEach-Object { $_.Groups[1].Value.TrimEnd('.', ',', ';', ')') })
@@ -145,7 +149,14 @@ if ($targets.Count -eq 0) {
 
 # Resolve the validator only when there is something to validate: a fresh home
 # repo must gate green before the daily-report skill is installed.
-$skillHome = if ($env:DAILY_REPORT_SKILL_DIR) { $env:DAILY_REPORT_SKILL_DIR } else { Join-Path $env:USERPROFILE '.agents\skills\daily-report' }
+$skillHome = if ($env:DAILY_REPORT_SKILL_DIR) {
+    $env:DAILY_REPORT_SKILL_DIR
+}
+else {
+    # $env:USERPROFILE is unset on Linux and macOS; fall back to the OS home.
+    $homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+    Join-Path (Join-Path (Join-Path $homeDir '.agents') 'skills') 'daily-report'
+}
 $tester = Join-Path $skillHome 'scripts\Test-DailyReport.ps1'
 if (-not (Test-Path $tester)) {
     Write-Error "local-ci: $($targets.Count) report target(s) but the daily-report skill is missing at '$skillHome'. Install it (npx skills add arisng/github-copilot-fc -s daily-report -g -y) or set DAILY_REPORT_SKILL_DIR."
@@ -158,7 +169,7 @@ foreach ($rel in ($targets.Keys | Sort-Object)) {
     $user = $m.Groups[1].Value
     $code = $m.Groups[2].Value
     $date = "20$($code.Substring(0, 2))-$($code.Substring(2, 2))-$($code.Substring(4, 2))"
-    $file = Join-Path $repoRoot ($rel -replace '/', '\')
+    $file = Join-Path $repoRoot ($rel -replace '/', [System.IO.Path]::DirectorySeparatorChar)
     $cov = Join-Path (Split-Path $file -Parent) "sessions\$code\coverage.json"
     $out = & $tester -ReportPath $file -RepoRoot $repoRoot -GitUser $user -Date $date -CoverageJson $cov 2>&1 | Out-String
     if ($LASTEXITCODE -eq 0) {
