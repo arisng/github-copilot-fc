@@ -139,7 +139,17 @@ task skills:catalog  # regenerate the skills catalog in skills/README.md
 
 ### Git hooks
 
-`core.hooksPath` is `.githooks` — **never repoint it**. Wire each fresh clone or worktree once with `task hooks:install`. `.githooks/pre-commit` runs the quick mode (`workspace-check.ps1 -Quick`); `.githooks/pre-push` runs `workspace-check.ps1 -SkipAdvisoryWaza` (banner first, ~90 s — slow is the gate working, not a hang) and `.github/workflows/ci.yml` runs the complete `task check` on every push/PR. Both hooks skip cleanly when `pwsh` is missing so a clone without PowerShell is never bricked.
+`core.hooksPath` is `.githooks` — **never repoint it**. Wire each fresh clone or worktree once with `task hooks:install`. Three hooks run, cheapest first:
+
+| Hook | Runs | Cost |
+|---|---|---|
+| `commit-msg` | `scripts/workspace/check-commit-message.ps1` — validates `type(scope)` against the constitution | <1 s |
+| `pre-commit` | `workspace-check.ps1 -Quick` | ~8 s |
+| `pre-push` | `workspace-check.ps1 -SkipAdvisoryWaza` | ~90-180 s |
+
+`.github/workflows/ci.yml` runs the complete `task check` on every push/PR. All three hooks skip cleanly when `pwsh` is missing so a clone without PowerShell is never bricked.
+
+**Checking before you commit:** run `task lint` (the pre-commit subset, ~8 s). Do not run the full `task check` by hand as a pre-flight — the pre-push hook runs the same suite on the tree you are about to push, so a manual full run is duplicated work. Run `task check` by hand only to debug a pre-push failure, or when you want the advisory waza check the push deliberately skips.
 
 ### Schemas
 

@@ -147,6 +147,16 @@ Generated from every `skills/*/SKILL.md` frontmatter. Regenerate after adding or
 - Include examples and usage instructions in SKILL.md
 - Test skills thoroughly before publishing
 
+**Adding a skill — the whole sequence.** Four of these five steps are enforced by the gate, but each fails late and alone, so run them in this order and finish with the gate:
+
+1. `skills/<name>/SKILL.md`, directory name equal to the frontmatter `name`, plus `metadata.version` (semver) and `metadata.status`. The schema and consistency engine check all three.
+2. Put scripts in `scripts/` and reusable prose in `references/`; keep the body under 500 lines.
+3. Add a Pester suite (`tests/*.Tests.ps1`) or a pytest suite (`tests/test_*.py`) for any script you ship. Both suites are wired into the full gate.
+4. `python3 scripts/workspace/generate-skills-catalog.py` — the catalog in this file is generated and its freshness is gated.
+5. `task check` — the same suite the pre-push hook and CI run. Fix what it reports; do not push red.
+
+`assets/` files are only linted when something references them, so `.template` files need no markdownlint exemption.
+
 **Description-as-router**: every SKILL.md `description` must partition on the real discriminator using explicit `USE FOR:` (positive triggers) and `DO NOT USE FOR:` (negative space) clauses. Sibling skills must each claim the other's exclusions so routing never double-claims. Keep every `description` within the existing 1,024-character cap (enforced by `schemas/skill.schema.json` via `scripts/workspace/validate-manifests.py` in `workspace-check`).
 
 **Body budget**: keep the SKILL.md body at 500 lines or fewer. Push rare or expensive detail into `references/` and point to it with an explicit relative path (e.g. `references/details.md`) — never tell the agent to "search the skill directory".
