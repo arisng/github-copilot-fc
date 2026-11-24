@@ -160,6 +160,8 @@ task skills:catalog  # regenerate the skills catalog in skills/README.md
 
 **Checking before you commit:** run `task lint` (the pre-commit subset, ~8 s). Do not run the full `task check` by hand as a pre-flight — the pre-push hook runs the same suite on the tree you are about to push, so a manual full run is duplicated work. Run `task check` by hand only to debug a pre-push failure, or when you want the advisory waza check the push deliberately skips.
 
+**Cross-platform test changes:** fixtures that read differently on Linux (paths, sqlite, git identity) get one more local lane — `task check:linux` runs the Pester suites in a Docker ubuntu container, the ubuntu-latest parity the Windows gate cannot give (needs Docker; the first run pulls the image).
+
 ### Schemas
 
 `schemas/*.schema.json` are draft 2020-12 and validated as schemas themselves by `validate-manifests.py`. That script checks `plugins/<runtime>/<name>/plugin.json` (when plugins exist), every `skills/<name>/SKILL.md` frontmatter, `.github/plugin/marketplace.json` (when present), and instruction frontmatter (`description` 1–500 chars + `applyTo`).
@@ -189,3 +191,4 @@ npx --yes markdownlint-cli2@0.24.2 .github/copilot-instructions.md
 - `task` (go-task v3) is installed and is the supported entry point for lint/test/index commands; `git` and `npx` are required by the lint suite.
 - **`pwsh -File` passes an array parameter as one string.** `-IssueTypes task,bug,feature` arrives as a single element, not three, so any `[string[]]` parameter documented as a list must split on commas itself (`.Split(',')`, or the skill's `ConvertTo-StringList`). Accept both shapes: an array from an in-process call, and a comma-joined scalar from the CLI.
 - **Tool-quirk sharp edges**: pass filesystem paths to search/listing tools as plain strings (never JSON-array-shaped strings), and hand grep-style tools a **directory** plus a glob — a file path or array fails with "Search paths do not exist". Address the shell tool by its lowercase name `powershell`. `Select-String -Context` needs the space (`-Context 1,1`, never `-Context1,1`). Wrap one-item pipelines in `@()` before splatting (`& cmd @scalar` otherwise passes one character per argument), and write `${var}:` when a variable meets a colon inside a double-quoted string.
+- **Pushes that touch `.github/workflows/**` go through gh's token**: Git Credential Manager's stored OAuth token lacks the workflow scope, so GitHub rejects those pushes with "OAuth App ... without the workflow scope"; run `git -c credential.helper= -c "credential.https://github.com.helper=!gh auth git-credential" push origin main`. Ordinary pushes use the normal remote.
