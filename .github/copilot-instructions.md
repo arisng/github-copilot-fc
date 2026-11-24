@@ -27,7 +27,7 @@ Key facts:
 | `evals/` | waza evaluations, one folder per evaluated skill |
 | `docs/` | Diátaxis-style documentation; `docs/blazor-agui/` and `docs/ci-gates/` |
 | `.issues/` | Markdown issue documents plus the generated `.issues/index.md` |
-| `.github/` | Workspace-discovered artifacts: this file, `.github/skills/copilot-cli-tools-inventory-refresh/`, `git-scope-constitution.md`, `git-scope-inventory.md`, `copilot-memories.jsonl` |
+| `.github/` | Workspace-discovered artifacts: this file, `.github/skills/copilot-cli-tools-inventory-refresh/`, `git-scope-constitution.md`, `git-scope-inventory.md` |
 | `tools/` | Cross-runtime tools inventory (`tools/inventory.yaml`, drift report) |
 | `workshops/` | Workshop material (ignored by markdownlint) |
 | `.githooks/` | `pre-commit` and `pre-push` hooks |
