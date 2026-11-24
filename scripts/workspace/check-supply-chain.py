@@ -52,6 +52,10 @@ SCRIPT_TAG = re.compile(r"<script\b[^>]*>", re.I)
 SCRIPT_SRC = re.compile(r"\bsrc\s*=\s*[\"'](https?://[^\"']+)[\"']", re.I)
 DOMAIN = re.compile(r"https://([a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,})(?::\d+)?", re.I)
 VALID_DOMAIN = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$")
+# Inline code carries command material, not content links: a git config
+# section name (credential.https://github.com.helper=...) is data nobody
+# clicks, so code spans leave the domain scan (retro 2026-11-24).
+CODE_SPAN = re.compile(r"`[^`\n]*`")
 
 
 def discover() -> list[str]:
@@ -109,7 +113,7 @@ def main() -> int:
             if SCRIPT_SRC.search(tag_text) and "integrity=" not in tag_text.lower():
                 lineno = text.count("\n", 0, tag.start()) + 1
                 findings.append(("script", rel, lineno, tag_text.strip()[:100]))
-        for match in DOMAIN.finditer(text):
+        for match in DOMAIN.finditer(CODE_SPAN.sub("", text)):
             host = match.group(1).lower()
             if VALID_DOMAIN.match(host):
                 domains.add(host)
