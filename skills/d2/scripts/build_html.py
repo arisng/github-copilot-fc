@@ -310,8 +310,12 @@ def main() -> None:
 
     # Sync contract: embed a hash of the post-fmt source so any consumer
     # (manifest check, CI gate, diff review) can detect a source edit whose
-    # HTML was never rebuilt.
-    source_sha = hashlib.sha256(src.read_bytes()).hexdigest()
+    # HTML was never rebuilt. Line endings are normalized to LF first: `d2 fmt`
+    # writes CRLF on Windows, so hashing raw bytes made the contract
+    # platform-dependent and a fresh clone (LF in the repository) could never
+    # match it - every set then reported "source edited after the last build".
+    _src_bytes = src.read_bytes().replace(b"\r\n", b"\n")
+    source_sha = hashlib.sha256(_src_bytes).hexdigest()
 
     # Guardrail: full compile - d2 validate is parser-only and misses unknown shapes
     # and invalid style values. --target '' compiles every board (layers/scenarios/
