@@ -41,9 +41,9 @@ Every board (root, each layer, each scenario, step) has its own scope and its ow
 - `icon: https://...` - hosted icons (e.g. `https://icons.d2lang.com/...`) are bundled into
   the SVG at export (`--bundle` is on by default).
 - `style.fill`, `style.stroke`, `style.font-color`, `style.bold`, `style.italic`,
-  `style.opacity`, `style.shadow`, `style.border-radius`, `style.stroke-dash`,
-  `style.stroke-width`, `style.animated`, `style.3d` - named colors, hex (`"#2563eb"`), or
-  `linear-gradient(a, b)` for fill.
+  `style.opacity`, `style.shadow`, `style.border-radius`, `style.stroke-dash` (**a width in px,
+  e.g. `4`** — there is no `style.dashed`), `style.stroke-width`, `style.animated`, `style.3d` -
+  named colors, hex (`"#2563eb"`), or `linear-gradient(a, b)` for fill.
 - `near: top-center | top-left | bottom-right | ...` - free-floating label placement.
 - `width`, `height` - fixed dimensions when layout needs them.
 
@@ -173,6 +173,7 @@ each):
 |---|---|---|
 | `unknown shape "x"` at compile; `validate` said valid | `shape:` name typo | fix the shape name; **always verify by full compile** |
 | `expected "fill" to be a valid named color ...` | invalid `style.*` color value | named color, `#hex`, or gradient |
+| `invalid style keyword: "dashed"` at compile | `style.dashed` does not exist (a plausible-looking name that never worked) | set a **width**, not a boolean: `style.stroke-dash: 4` on the shape or the connection |
 | `unexpected text after map` | a `{ ... }` block closed early or stray text after it | check braces/quotes; run `d2 fmt` to normalize |
 | `link:` silently drops, no board file exported for a sub-diagram | the board was declared as a bare `name: { }` container instead of under `layers:` | wrap it in `layers: { ... }` inside its parent board |
 | `multiboard output cannot be written to stdout` | layers/scenarios/steps with output `-` | export to a directory or one-file package (see [html-packaging.md](html-packaging.md)) |
