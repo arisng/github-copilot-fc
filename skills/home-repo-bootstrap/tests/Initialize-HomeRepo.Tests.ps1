@@ -35,22 +35,24 @@ Describe 'Initialize-HomeRepo.ps1' {
 
     It 'writes pointer bullets with a path and a clone URL' {
         $target = New-Target 'pointers'
+        # Fixtures use /work/... because it is rooted on both platforms;
+        # 'C:\Work\...' is not absolute on the Linux CI runner.
         $r = Invoke-Init @{
             Path = $target
-            Repo = 'widgets|C:\Work\widgets|https://github.com/acme/widgets.git'
+            Repo = 'widgets|/work/widgets|https://github.com/acme/widgets.git'
         }
 
         @($r.pointers).Count | Should -Be 1
         @($r.pointers)[0].name | Should -Be 'widgets'
         $agents = Get-Content -LiteralPath (Join-Path $target 'AGENTS.md') -Raw
-        $agents | Should -Match 'C:\\Work\\widgets'
+        $agents | Should -Match '/work/widgets'
         $agents | Should -Match 'Clone from https://github.com/acme/widgets.git if missing'
         $agents | Should -Not -Match 'Placeholder repo'
     }
 
     It 'switches the manifest to multi mode when watched repos are given' {
         $target = New-Target 'multi'
-        Invoke-Init @{ Path = $target; WatchedRepo = @('C:\Work\one', 'C:\Work\two') } | Out-Null
+        Invoke-Init @{ Path = $target; WatchedRepo = @('/work/one', '/work/two') } | Out-Null
 
         $manifest = Get-Content -LiteralPath (Join-Path $target 'reports/daily/daily-report.manifest.json') -Raw | ConvertFrom-Json
         $manifest.schema | Should -Be 1
@@ -84,11 +86,11 @@ Describe 'Initialize-HomeRepo.ps1' {
 
     It 'keeps an existing manifest instead of replacing watched repos' {
         $target = New-Target 'manifest-preserve'
-        Invoke-Init @{ Path = $target; WatchedRepo = @('C:\Work\one') } | Out-Null
+        Invoke-Init @{ Path = $target; WatchedRepo = @('/work/one') } | Out-Null
         $manifestPath = Join-Path $target 'reports/daily/daily-report.manifest.json'
         $before = Get-Content -LiteralPath $manifestPath -Raw
 
-        $r = Invoke-Init @{ Path = $target; WatchedRepo = @('C:\Work\two') }
+        $r = Invoke-Init @{ Path = $target; WatchedRepo = @('/work/two') }
 
         (Get-Content -LiteralPath $manifestPath -Raw) | Should -Be $before
         @($r.skipped) | Should -Contain 'reports/daily/daily-report.manifest.json'
@@ -107,12 +109,12 @@ Describe 'Initialize-HomeRepo.ps1' {
 
     It 'rejects a pointer path containing a space' {
         $target = New-Target 'spaced'
-        { & $initializer -Path $target -Repo 'widgets|C:\Work\my widgets|https://github.com/acme/widgets.git' } | Should -Throw
+        { & $initializer -Path $target -Repo 'widgets|/work/my widgets|https://github.com/acme/widgets.git' } | Should -Throw
     }
 
     It 'rejects a malformed clone URL' {
         $target = New-Target 'bad-url'
-        { & $initializer -Path $target -Repo 'widgets|C:\Work\widgets|not-a-url' } | Should -Throw
+        { & $initializer -Path $target -Repo 'widgets|/work/widgets|not-a-url' } | Should -Throw
     }
 
     It 'adds origin only when a remote URL is supplied' {
