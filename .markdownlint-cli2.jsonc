@@ -1,7 +1,8 @@
 {
   // Markdown lint for the Copilot FC workspace — mechanical rules only.
-  // Wired into scripts/workspace/workspace-check.ps1, which passes the .md files
-  // changed in the working tree / pending branch commits (a ratchet: touch it, fix it).
+  // Wired into scripts/workspace/workspace-check.ps1, which scans every .md this
+  // config does not ignore against the committed debt baseline (full-tree
+  // ratchet: any new file or count increase fails).
   // No "globs" here on purpose: inputs come from the caller so a bare config
   // can never fan out to a whole-repo lint of legacy docs.
   "config": {
@@ -23,6 +24,9 @@
     // Scratch dirs from issue-tree sync sessions (untracked, generated):
     // never lint, never committed as debt.
     ".sync-*/**",
+    // Gitignored session handoffs (per-machine, never committed, invisible to
+    // CI): local notes must not gate local commits.
+    ".agent-handoffs/**",
     // Preserved third-party research essays (moved from .docs as-is) — kept,
     // not ratchet-managed, same rationale as .issues/workshops above.
     "docs/blazor-agui/**",

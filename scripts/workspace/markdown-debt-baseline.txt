@@ -3,14 +3,6 @@
 # missing from this list must be violation-free; any count increase fails.
 # Regenerate only to accept a reviewed change (the diff shows every entry):
 #   pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -UpdateMarkdownBaseline
-.agent-handoffs/260619-copilot-home-propagation.md	1
-.agent-handoffs/260619-env-fix-r2-test-results.md	1
-.agent-handoffs/260619-session-description.md	1
-.agent-handoffs/260619-slash-command-smoke-test.md	8
-.agent-handoffs/260619-subsession-handoff-test.md	1
-.agent-handoffs/260820-audit-toolkit-qa-plan.md	4
-.agent-handoffs/260821-eval-plan-of-copilot-cli-subsession-skill.md	1
-.agent-handoffs/Prompt Builder Schema.md	2
 .github/git-scope-inventory.md	1
 instructions/aspnetcore-10.instructions.md	14
 instructions/csharp-14.instructions.md	14
