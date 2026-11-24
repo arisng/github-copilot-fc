@@ -427,9 +427,22 @@ function Test-SkillPester {
     if ($result.FailedCount -gt 0) {
         # Name the failures: a count alone hid that they were all one suite
         # and cost a Linux container round-trip to localize (retro 2026-11-21).
+        # Append each failure's first message line and stack position: CI
+        # prints only this Detail, and names alone cost a WSL repro cycle to
+        # rediscover the assertion (retro 2026-11-24).
         $names = @($result.Failed | Select-Object -First 4 | ForEach-Object { $_.ExpandedPath })
         $more = if ($result.FailedCount -gt 4) { "; +$($result.FailedCount - 4) more" } else { '' }
-        return @{ Status = 'FAIL'; Detail = "$($result.FailedCount) failed / $($result.TotalCount) Pester tests ($($testFiles.Count) file(s) in $($dirs.Count) dir(s)): $($names -join '; ')$more" }
+        $why = @($result.Failed | Select-Object -First 3 | ForEach-Object {
+                $er = $_.ErrorRecord
+                $msgLines = @("$($er.Exception.Message)" -split '\r?\n' | Where-Object { $_ -and $_.Trim() })
+                $msg = if ($msgLines.Count -gt 0) { "$($msgLines[0])".Trim() } else { 'failed' }
+                if ($msg.Length -gt 180) { $msg = $msg.Substring(0, 180) + '...' }
+                $at = @("$($er.ScriptStackTrace)" -split '\r?\n' | Where-Object { $_ -match ': line \d+' -and $_ -notmatch 'Pester\.psm1' } | Select-Object -First 1)
+                $atLine = if ($at.Count -gt 0) { "$($at[0])".Trim() } else { $null }
+                if ($atLine) { "$msg [$atLine]" } else { "$msg" }
+            })
+        $whyText = if ($why.Count -gt 0) { ' | ' + (@($why) -join ' | ') } else { '' }
+        return @{ Status = 'FAIL'; Detail = "$($result.FailedCount) failed / $($result.TotalCount) Pester tests ($($testFiles.Count) file(s) in $($dirs.Count) dir(s)): $($names -join '; ')$more$whyText" }
     }
     return @{ Status = 'PASS'; Detail = "$($result.PassedCount) Pester tests green ($($testFiles.Count) file(s) in $($dirs.Count) dir(s))" }
 }

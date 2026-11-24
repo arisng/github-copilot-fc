@@ -12,7 +12,7 @@ Describe 'Compare-AuditDelta.ps1' {
     Context 'Input validation' {
 
         It 'Exits with code 2 when BeforeReport does not exist' {
-            $result = & pwsh -NoProfile -File $script:ScriptPath -BeforeReport 'C:\nonexistent-before.json' -AfterReport 'C:\nonexistent-after.json' 2>&1
+            $result = & pwsh -NoProfile -File $script:ScriptPath -BeforeReport '/nonexistent-before.json' -AfterReport '/nonexistent-after.json' 2>&1
             $LASTEXITCODE | Should -Be 2
         }
 

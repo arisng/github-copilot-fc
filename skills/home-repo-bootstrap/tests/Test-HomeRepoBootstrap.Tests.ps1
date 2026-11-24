@@ -58,7 +58,7 @@ Describe 'Test-HomeRepoBootstrap.ps1' {
         $target = New-HomeRepo 'bad-pointer'
         $agentsPath = Join-Path $target 'AGENTS.md'
         $text = Get-Content -LiteralPath $agentsPath -Raw
-        $text = $text -replace '(?m)^- .*$', '- widgets: C:\Work\widgets.'
+        $text = $text -replace '(?m)^- .*$', '- widgets: /work/widgets.'
         Set-Content -LiteralPath $agentsPath -Value $text -NoNewline
         $r = Invoke-Verify -Path $target
         $r.passed | Should -BeFalse
@@ -69,7 +69,7 @@ Describe 'Test-HomeRepoBootstrap.ps1' {
         $target = New-HomeRepo 'absent-path'
         $agentsPath = Join-Path $target 'AGENTS.md'
         $text = Get-Content -LiteralPath $agentsPath -Raw
-        $text = $text -replace '(?m)^- .*$', '- widgets: C:\No\Such\Path. Clone from https://github.com/acme/widgets.git if missing.'
+        $text = $text -replace '(?m)^- .*$', '- widgets: /no/such/path. Clone from https://github.com/acme/widgets.git if missing.'
         Set-Content -LiteralPath $agentsPath -Value $text -NoNewline
 
         $r = Invoke-Verify -Path $target
@@ -159,7 +159,7 @@ Describe 'Test-HomeRepoBootstrap.ps1' {
         $target = New-HomeRepo 'red-gate'
         $agentsPath = Join-Path $target 'AGENTS.md'
         $text = Get-Content -LiteralPath $agentsPath -Raw
-        $text = $text -replace '(?m)^- .*$', '- widgets: C:\Work\widgets.'
+        $text = $text -replace '(?m)^- .*$', '- widgets: /work/widgets.'
         Set-Content -LiteralPath $agentsPath -Value $text -NoNewline
 
         $r = Invoke-Verify -Path $target

@@ -12,7 +12,7 @@ Describe 'Test-SkillStructure.ps1' {
     Context 'Path validation' {
 
         It 'Exits with code 2 when SkillDir does not exist' {
-            $result = & pwsh -NoProfile -File $script:ScriptPath -SkillDir 'C:\nonexistent-path-12345' 2>&1
+            $result = & pwsh -NoProfile -File $script:ScriptPath -SkillDir '/nonexistent-path-12345' 2>&1
             $LASTEXITCODE | Should -Be 2
         }
 

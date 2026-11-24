@@ -33,6 +33,12 @@
             Scoped to *.Tests.ps1 (what the Linux gate runs); .exe embedded
             in string literals (stub bodies) is not parsed, so those remain
             review-time, not lint-time.
+      path: a drive-letter path is rooted only on Windows ([IO.Path]::IsPathRooted
+            is false for 'C:\...' on Unix), so a script validating it rejects the
+            fixture on ubuntu-latest; tests use /-rooted paths instead (retro
+            2026-11-24: five red CI runs over exactly this). Scoped to
+            *.Tests.ps1; waza-cli's tests resolve Windows paths as the feature
+            under test and are exempt.
 
     Run as a subprocess (the script exits): pwsh -NoProfile -File <this file>
 
@@ -104,6 +110,24 @@ foreach ($file in $targets) {
             }, $true)
         foreach ($v in $tempVars) {
             $findings.Add("temp: ${label}:$($v.Extent.StartLineNumber) - `$env:TEMP is unset on Linux; use [IO.Path]::GetTempPath() (tests run on ubuntu-latest)")
+        }
+
+        # path: drive-letter fixtures are rooted only on Windows, so the
+        # script under test rejects them on ubuntu-latest. waza-cli is
+        # exempt: resolving Windows CLI paths is the feature it tests.
+        if ($file.FullName -notmatch '[/\\]waza-cli[/\\]scripts[/\\]tests[/\\]') {
+            $driveLiterals = $ast.FindAll({
+                    param($n)
+                    $n -is [System.Management.Automation.Language.StringConstantExpressionAst] -and
+                    "$($n.Value)" -match '(?<![A-Za-z])[A-Za-z]:[\\/]'
+                }, $true)
+            foreach ($s in $driveLiterals) {
+                $raw = "$($s.Value)"
+                $m = [regex]::Match($raw, '(?<![A-Za-z])[A-Za-z]:[\\/]')
+                $excerpt = $raw.Substring($m.Index, [Math]::Min(50, $raw.Length - $m.Index))
+                if ($m.Index -gt 0) { $excerpt = "...$excerpt" }
+                $findings.Add("path: ${label}:$($s.Extent.StartLineNumber) - '$excerpt' is a Windows-only absolute path; fixtures must read as absolute on ubuntu-latest (use a /-rooted path)")
+            }
         }
     }
 

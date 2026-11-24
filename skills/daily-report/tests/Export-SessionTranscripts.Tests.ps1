@@ -18,7 +18,7 @@ Describe 'Export-SessionTranscripts.ps1' {
         sqlite3 $db @'
 CREATE TABLE sessions (id TEXT, summary TEXT, cwd TEXT, repository TEXT, branch TEXT, created_at TEXT);
 CREATE TABLE turns (session_id TEXT, turn_index INT, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-INSERT INTO sessions VALUES ('ccccdddd-0000-4000-8000-000000000001','fixture db session','C:/fixture','o/r','main','2026-11-17T08:00:00');
+INSERT INTO sessions VALUES ('ccccdddd-0000-4000-8000-000000000001','fixture db session','/fixture','o/r','main','2026-11-17T08:00:00');
 INSERT INTO turns VALUES ('ccccdddd-0000-4000-8000-000000000001',0,'DB question','DB answer','2026-11-17T08:00:00');
 '@
         if ($LASTEXITCODE -ne 0) { throw 'fixture db creation failed' }
