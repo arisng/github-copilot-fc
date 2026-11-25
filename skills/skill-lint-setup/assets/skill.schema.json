@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arisng/github-copilot-fc/schemas/skill.schema.json",
+  "title": "Copilot FC SKILL.md frontmatter",
+  "description": "Frontmatter schema for skills/<name>/SKILL.md. Delta vs existing layers: waza check reports spec compliance/token budgets (advisory) and workspace-check gates metadata.version. This schema adds blocking structure: kebab name <=64, description 10-1024, required metadata.version, and rejects unknown top-level keys.",
+  "type": "object",
+  "required": ["name", "description", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Kebab-case skill identifier; must equal the containing directory name (enforced by scripts/workspace/check-consistency.ps1)."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 1024,
+      "description": "The router: written for skill discovery. Follow the USE FOR / DO NOT USE FOR partitioning convention documented in skills/README.md. Blocking floor+ceiling, validated by scripts/workspace/validate-manifests.py."
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": { "$ref": "#/$defs/semver" },
+        "author": { "type": "string" }
+      },
+      "additionalProperties": true,
+      "description": "Bookkeeping block. version (semver) is required and gated; author recommended; auxiliary keys (lastVerified, tags, ...) are permitted."
+    },
+    "argument-hint": {
+      "type": "string",
+      "description": "Placeholder hint when the skill is invoked as a slash command."
+    },
+    "user-invocable": {
+      "type": "boolean",
+      "description": "Copilot harness key: whether the user can invoke the skill directly."
+    },
+    "disable-model-invocation": {
+      "type": "boolean",
+      "description": "Copilot harness key: prevent the model from invoking the skill automatically; manual invocation only."
+    },
+    "allowed-tools": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "description": "Tool allowlist for the skill."
+    },
+    "version": {
+      "$ref": "#/$defs/semver",
+      "description": "LEGACY top-level version key; prefer metadata.version. Tolerated while cap and context7-cli still declare it."
+    },
+    "env": {
+      "oneOf": [{ "type": "string" }, { "type": "object" }],
+      "description": "Runtime environment hint (rare; e.g. tldraw-creator)."
+    },
+    "machina": {
+      "oneOf": [{ "type": "object" }, { "type": "string" }],
+      "description": "Machina state-machine binding (rare; e.g. standup)."
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    }
+  }
+}

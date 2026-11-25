@@ -1,3 +1,6 @@
 # Git hooks are executed by bash — they must stay LF even on Windows
 # (core.autocrlf=true would otherwise turn them into CRLF and break the shebang).
 .githooks/* text eol=lf
+# Same for the hook template bundled inside the skill-lint-setup skill: the
+# installer copies it byte-for-byte into a target repo's .githooks/pre-commit.
+skills/skill-lint-setup/assets/pre-commit text eol=lf

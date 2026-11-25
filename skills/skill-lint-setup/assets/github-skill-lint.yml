@@ -1,0 +1,27 @@
+# Cloud CI backstop for skill frontmatter — OPT-IN, disabled by default.
+# Installed only by: python3 scripts/setup_skill_lint.py --ci
+# Default trigger is manual (workflow_dispatch) only. Uncomment push/pull_request
+# below to enforce on every change. Local enforcement (pre-commit hook +
+# task lint:skills) is the primary gate and needs no cloud runner.
+name: skill-lint
+on:
+  workflow_dispatch:
+  # push:
+  #   paths:
+  #     - "skills/**"
+  #     - "schemas/skill.schema.json"
+  #     - "scripts/validate_skill_frontmatter.py"
+  # pull_request:
+  #   paths:
+  #     - "skills/**"
+  #     - "schemas/skill.schema.json"
+  #     - "scripts/validate_skill_frontmatter.py"
+permissions:
+  contents: read
+jobs:
+  frontmatter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate SKILL.md frontmatter
+        run: python3 scripts/validate_skill_frontmatter.py

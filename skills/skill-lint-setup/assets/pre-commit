@@ -1,0 +1,20 @@
+#!/bin/sh
+# skill-lint-setup pre-commit gate: validate skills/*/SKILL.md frontmatter
+# before every commit (description 10-1024 chars, kebab name, metadata.version).
+# Local CI by design: cloud GitHub Actions stays opt-in and disabled by default.
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=.
+cd "$repo_root" || exit 1
+# Guard the fallback: `python` may be Python 2 or the Windows Store alias stub.
+py3_ok() {
+  command -v "$1" >/dev/null 2>&1 &&
+    "$1" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' \
+      >/dev/null 2>&1
+}
+if py3_ok python3; then
+  exec python3 scripts/validate_skill_frontmatter.py
+elif py3_ok python; then
+  exec python scripts/validate_skill_frontmatter.py
+fi
+echo "pre-commit: no working Python >= 3.8 found (tried python3, python)" >&2
+echo "skill-lint gate needs Python 3; install it, or bypass once with: git commit --no-verify" >&2
+exit 1
