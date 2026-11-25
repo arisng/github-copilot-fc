@@ -4,7 +4,7 @@ description: "Generate a one-page daily report for one git user, grounded in a s
 user-invocable: true
 disable-model-invocation: true
 metadata:
-  version: 1.4.0
+  version: 1.4.1
   author: arisng
 ---
 
