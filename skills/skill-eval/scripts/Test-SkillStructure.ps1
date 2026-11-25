@@ -79,12 +79,45 @@ else {
         $errors.Add('SKILL.md frontmatter missing required field: description')
     }
     else {
-        # Extract description value and check length
-        $descMatch = [regex]::Match($frontmatter, '(?m)^description\s*:\s*(.+)$')
-        if ($descMatch.Success) {
-            $descValue = $descMatch.Groups[1].Value.Trim().Trim('"').Trim("'")
-            if ($descValue.Length -gt 1024) {
-                $errors.Add("SKILL.md description field exceeds 1024 characters (actual: $($descValue.Length))")
+        # Measure with the canonical YAML parser: a line regex measures '>-',
+        # not the folded text, so the repo's dominant description style would
+        # pass any length. PyYAML-absent hosts get the line fallback plus a
+        # warning, so a degraded measurement is never silent.
+        $yamlPy = $null
+        foreach ($candidate in @('python3', 'python')) {
+            if (Get-Command -Name $candidate -ErrorAction SilentlyContinue) {
+                & $candidate -c 'import yaml' *> $null
+                if ($LASTEXITCODE -eq 0) {
+                    $yamlPy = $candidate
+                    break
+                }
+            }
+        }
+
+        if ($yamlPy) {
+            $probe = "import sys,yaml; d=yaml.safe_load(sys.stdin.read()); v=(d.get('description') if isinstance(d,dict) else None); print(len(v) if isinstance(v,str) else -1)"
+            $descLen = $frontmatter | & $yamlPy -X utf8 -c $probe 2>$null
+            if ($LASTEXITCODE -ne 0 -or $null -eq $descLen -or "$descLen".Trim() -eq '') {
+                $errors.Add('SKILL.md frontmatter is not valid YAML (description not measurable)')
+            }
+            else {
+                $len = [int]("$descLen".Trim())
+                if ($len -lt 0) {
+                    $errors.Add('SKILL.md description must be a non-empty string')
+                }
+                elseif ($len -gt 1024) {
+                    $errors.Add("SKILL.md description field exceeds 1024 characters (actual: $len)")
+                }
+            }
+        }
+        else {
+            $warnings.Add('PyYAML unavailable: description measured on one line; folded (>-) blocks not measured')
+            $descMatch = [regex]::Match($frontmatter, '(?m)^description\s*:\s*(.+)$')
+            if ($descMatch.Success) {
+                $descValue = $descMatch.Groups[1].Value.Trim().Trim('"').Trim("'")
+                if ($descValue.Length -gt 1024) {
+                    $errors.Add("SKILL.md description field exceeds 1024 characters (actual: $($descValue.Length))")
+                }
             }
         }
     }

@@ -5,6 +5,15 @@
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'Test-SkillStructure.ps1'
+    $script:HasPyYaml = {
+        foreach ($candidate in @('python3', 'python')) {
+            if (Get-Command -Name $candidate -ErrorAction SilentlyContinue) {
+                & $candidate -c 'import yaml' *> $null
+                if ($LASTEXITCODE -eq 0) { return $true }
+            }
+        }
+        return $false
+    }
 }
 
 Describe 'Test-SkillStructure.ps1' {
@@ -67,6 +76,54 @@ description: $longDesc
             $json = $result | ConvertFrom-Json
             $json.compliant | Should -BeFalse
             $json.errors | Should -Contain ($json.errors | Where-Object { $_ -match '1024' })
+        }
+
+        It 'Fails when a folded description exceeds 1024 characters' {
+            if (-not (& $script:HasPyYaml)) {
+                Set-ItResult -Skipped -Because 'PyYAML is required to measure folded descriptions'
+                return
+            }
+            $part1 = 'x' * 600
+            $part2 = 'y' * 600
+            $skillMd = @"
+---
+name: test-skill
+description: >-
+  $part1
+  $part2
+---
+
+# Test Skill
+"@
+            Set-Content -Path (Join-Path $tempDir 'SKILL.md') -Value $skillMd
+
+            $result = & pwsh -NoProfile -File $script:ScriptPath -SkillDir $tempDir 2>&1
+            $json = $result | ConvertFrom-Json
+            $json.compliant | Should -BeFalse
+            $json.errors | Should -Contain ($json.errors | Where-Object { $_ -match '1024' })
+        }
+
+        It 'Passes when a folded description stays within 1024 characters' {
+            if (-not (& $script:HasPyYaml)) {
+                Set-ItResult -Skipped -Because 'PyYAML is required to measure folded descriptions'
+                return
+            }
+            $skillMd = @"
+---
+name: test-skill
+description: >-
+  A folded description that stays well within the limit
+  and continues on a second line
+---
+
+# Test Skill
+"@
+            Set-Content -Path (Join-Path $tempDir 'SKILL.md') -Value $skillMd
+
+            $result = & pwsh -NoProfile -File $script:ScriptPath -SkillDir $tempDir 2>&1
+            $json = $result | ConvertFrom-Json
+            $json.compliant | Should -BeTrue
+            $json.errors | Should -BeNullOrEmpty
         }
 
         It 'Fails when frontmatter is missing' {
