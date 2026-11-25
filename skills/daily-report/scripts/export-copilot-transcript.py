@@ -603,20 +603,39 @@ footer { max-width: 940px; margin: 2.5rem auto 0; padding-top: .8rem; border-top
      inactive : small  + gray
      focused  : large  + gray   (same color as inactive, size of active)
      active   : large  + accent (same size as focused, different color)   */
-.minimap { position: fixed; left: .5rem; top: 50%; transform: translateY(-50%); z-index: 50; }
+.minimap {
+  position: fixed; left: .5rem; top: 50%; transform: translateY(-50%); z-index: 50;
+  width: 2rem; transition: width .2s ease;
+}
+.minimap:hover, .minimap:focus-within { width: 24rem; }
 .mm-list {
-  list-style: none; margin: 0; padding: .32rem .3rem;
+  list-style: none; margin: 0; padding: .32rem .85rem .32rem .3rem;
   display: flex; flex-direction: column; gap: .28rem;
-  background: var(--bg); border: 1px solid var(--panel-border);
+  background: var(--bg);
   border-radius: 10px; box-shadow: none;
-  max-width: 2rem; overflow: hidden;
-  transition: max-width .2s ease, background .15s ease, box-shadow .15s ease;
+  width: 100%; overflow: hidden;
+  max-height: 13.16rem;  /* border-box: 12.52rem content = 10 rows (1rem) + 9 gaps (.28rem), + .64rem padding */
+  transition: background .15s ease, box-shadow .15s ease;
 }
 .minimap:hover .mm-list, .minimap:focus-within .mm-list {
-  max-width: 24rem; background: var(--focus);
+  background: var(--focus);
   box-shadow: 0 3px 12px rgba(0,0,0,.15);
 }
-.mm-row { display: flex; align-items: center; gap: .42rem; min-width: 0; }
+/* custom scrollbar: the strip never scrolls natively, so no native scrollbar
+   can render in any viewer and no arrow buttons can ever appear */
+.mm-scroll {
+  position: absolute; right: .28rem; top: .32rem; bottom: .32rem; width: 5px;
+  border-radius: 999px; background: rgba(128,128,128,.16);
+  opacity: 0; transition: opacity .1s ease; pointer-events: none;
+}
+.minimap:hover .mm-scroll, .minimap:focus-within .mm-scroll {
+  opacity: 1; transition: opacity .15s ease .25s;  /* appears after the expansion */
+}
+.mm-thumb {
+  position: absolute; left: 0; width: 100%; min-height: 1.2rem;
+  border-radius: 999px; background: #9aa3ad; cursor: grab; pointer-events: auto;
+}
+.mm-row { display: flex; align-items: center; gap: .42rem; min-width: 0; height: 1rem; }
 .mm-dot {
   width: .42rem; height: .42rem; min-width: .42rem; padding: 0;
   border: none; border-radius: 50%; background: #9aa3ad; cursor: pointer;
@@ -838,7 +857,8 @@ def render_html(meta: dict) -> str:
         body_cls = ' class="has-minimap"'
         minimap_html = (
             '<nav class="minimap" id="minimap" aria-label="User requests mini-map">'
-            f'<ol class="mm-list">{"".join(mm_rows)}</ol></nav>'
+            f'<ol class="mm-list">{"".join(mm_rows)}</ol>'
+            '<div class="mm-scroll" aria-hidden="true"><div class="mm-thumb"></div></div></nav>'
         )
     exported_dt = datetime.now().astimezone()
     exported_iso = exported_dt.isoformat()
@@ -887,6 +907,7 @@ JS = r"""
   // overridden by an earlier request that is still visible in the same viewport)
   var selected = -1;
   var flying = false, flyTimer = 0;  // goTo smooth-scroll flight window
+  var mmUserScroll = false, lastFollowed = -1;  // mini-map: user strip scroll beats follow
 
   function setActive(i) {
     if (i < 0 || !rows[i]) return;
@@ -899,6 +920,17 @@ JS = r"""
       else if (has) { rows[j].classList.remove('active'); }
     }
     active = i;
+    // slide the mini-map strip to the active symbol — but never fight the
+    // user's own strip scrolling: follow resumes when the active turn changes
+    var strip = rows[i].parentNode;
+    if (strip && strip.scrollHeight > strip.clientHeight) {
+      if (i !== lastFollowed) { mmUserScroll = false; lastFollowed = i; }
+      if (!mmUserScroll) {
+        var lr = strip.getBoundingClientRect(), rr = rows[i].getBoundingClientRect();
+        if (rr.top < lr.top) { strip.scrollTop -= (lr.top - rr.top); }
+        else if (rr.bottom > lr.bottom) { strip.scrollTop += (rr.bottom - lr.bottom); }
+      }
+    }
   }
 
   // Active rule, in precedence order:
@@ -1018,6 +1050,53 @@ JS = r"""
         if (rows[i].dataset.target === t.dataset.target) { goTo(i); return; }
       }
     });
+  }
+
+  // custom scrollbar: the strip never scrolls natively (overflow: hidden), so
+  // this thumb is the only scrollbar — wheel over the mini-map scrolls the
+  // strip, the thumb drags, and no arrow buttons can ever render
+  if (minimap) {
+    var strip = minimap.querySelector('.mm-list');
+    var thumb = minimap.querySelector('.mm-thumb');
+    var syncThumb = function () {
+      if (!strip || !thumb) return;
+      var h = strip.clientHeight, sh = strip.scrollHeight;
+      var holder = thumb.parentNode;
+      if (sh <= h + 1) { holder.style.display = 'none'; return; }
+      holder.style.display = 'block';
+      var hh = holder.clientHeight;
+      var th = Math.max(Math.round(hh * h / sh), 19);
+      if (th > hh) { th = hh; }
+      thumb.style.height = th + 'px';
+      thumb.style.top = Math.round((hh - th) * strip.scrollTop / (sh - h)) + 'px';
+    };
+    if (strip) {
+      strip.addEventListener('scroll', syncThumb);
+      window.addEventListener('resize', syncThumb);
+      minimap.addEventListener('wheel', function (e) {
+        if (strip.scrollHeight <= strip.clientHeight) return;
+        e.preventDefault();
+        mmUserScroll = true;
+        strip.scrollTop += e.deltaY;
+      }, { passive: false });
+      syncThumb();
+    }
+    if (thumb && strip) {
+      var dragging = false, dragY = 0, dragTop = 0;
+      thumb.addEventListener('mousedown', function (e) {
+        dragging = true; dragY = e.clientY; dragTop = strip.scrollTop;
+        mmUserScroll = true;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        var h = strip.clientHeight, sh = strip.scrollHeight;
+        var th = thumb.offsetHeight, hh = thumb.parentNode.clientHeight;
+        if (sh <= h) return;
+        strip.scrollTop = dragTop + (e.clientY - dragY) * (sh - h) / Math.max(hh - th, 1);
+      });
+      document.addEventListener('mouseup', function () { dragging = false; });
+    }
   }
 
   document.addEventListener('click', function (e) {
