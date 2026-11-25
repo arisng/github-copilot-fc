@@ -1,6 +1,7 @@
 #!/bin/sh
 # skill-lint-setup pre-commit gate: validate skills/*/SKILL.md frontmatter
-# before every commit (description 10-1024 chars, kebab name, metadata.version).
+# (description 10-1024 chars, kebab name, metadata.version) and fail any
+# staged skill change whose metadata.version did not move.
 # Local CI by design: cloud GitHub Actions stays opt-in and disabled by default.
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=.
 cd "$repo_root" || exit 1
@@ -11,10 +12,13 @@ py3_ok() {
       >/dev/null 2>&1
 }
 if py3_ok python3; then
-  exec python3 scripts/validate_skill_frontmatter.py
+  py=python3
 elif py3_ok python; then
-  exec python scripts/validate_skill_frontmatter.py
+  py=python
+else
+  echo "pre-commit: no working Python >= 3.8 found (tried python3, python)" >&2
+  echo "skill-lint gate needs Python 3; install it, or bypass once with: git commit --no-verify" >&2
+  exit 1
 fi
-echo "pre-commit: no working Python >= 3.8 found (tried python3, python)" >&2
-echo "skill-lint gate needs Python 3; install it, or bypass once with: git commit --no-verify" >&2
-exit 1
+"$py" scripts/validate_skill_frontmatter.py || exit 1
+exec "$py" scripts/check_skill_version_bump.py --staged

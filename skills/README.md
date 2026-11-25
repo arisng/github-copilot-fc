@@ -126,7 +126,7 @@ skills/
 | `playwright-cli` | 1.1.0 | Automates browser interactions for web testing, form filling, screenshots, and data extraction. Use when the user needs to navigate websites, interact with… |
 | `postrboard-design` | 1.0.0 | Apply the Postrboard design language — a refined, airy, code-native aesthetic used across postrboard.com and burkeholland.github.io — when designing or… |
 | `skill-eval` | 0.3.0 | Optimize existing AI agent skills with a dual-loop workflow for activation tuning and execution quality. Use when improving a skill after initial creation,… |
-| `skill-lint-setup` | 0.1.0 | Standardize skill-frontmatter validation as local CI in any repo containing Copilot skills: install a JSON Schema (SKILL.md description 10-1024 chars, kebab… |
+| `skill-lint-setup` | 0.2.0 | Standardize skill-frontmatter validation as local CI in any repo containing Copilot skills: install a JSON Schema (SKILL.md description 10-1024 chars, kebab… |
 | `speckit-task-grounding` | 1.0.0 | Task grounding validation framework for ensuring development tasks are properly specified in planning artifacts before implementation. Use when validating… |
 | `standup` | 0.6.2 | Generate daily standup reports from Copilot session history and git data. Scoped to the current git user; files accumulate multi-author contributions in… |
 | `taskfile-authoring` | 0.1.0 | Author and maintain Taskfile.yml files for the Task runner (taskfile.dev). Use when creating, editing, or troubleshooting Taskfiles, writing task definitions,… |

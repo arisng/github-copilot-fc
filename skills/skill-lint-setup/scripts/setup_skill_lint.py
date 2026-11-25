@@ -4,12 +4,15 @@
 What gets installed:
   schemas/skill.schema.json             - canonical frontmatter schema (10-1024 desc)
   scripts/validate_skill_frontmatter.py - stdlib-only validator
-  .githooks/pre-commit                  - local gate running the validator
+  scripts/check_skill_version_bump.py   - stdlib+git gate: changed skill must bump metadata.version
+  .githooks/pre-commit                  - local gate running both checks
   .github/workflows/skill-lint.yml      - ONLY with --ci (opt-in; manual trigger)
 
 Behavior:
   - Skips any file that already exists (prints SKIP); --force overwrites.
   - Never clobbers a foreign pre-commit hook: reports it so the agent can chain.
+  - A hook/task wired to the validator only is reported: the version-bump line
+    is part of the standard, and a half-wired gate must not read as done.
   - Sets core.hooksPath=.githooks only when unset or already .githooks; a
     different existing value is reported, never changed.
   - Cloud CI is opt-in: without --ci nothing under .github/workflows is touched.
@@ -33,9 +36,10 @@ ASSETS = SKILL_DIR / "assets"
 HOOK_MARKER = "skill-lint-setup pre-commit gate"
 TASK_SNIPPET = """  # >>> skill-lint-setup >>>
   lint:skills:
-    desc: Validate skills/*/SKILL.md frontmatter (description 10-1024 chars)
+    desc: Validate skills/*/SKILL.md frontmatter (10-1024 chars) and version bumps
     cmds:
       - python3 scripts/validate_skill_frontmatter.py
+      - python3 scripts/check_skill_version_bump.py
   # <<< skill-lint-setup <<<
 """
 
@@ -93,11 +97,21 @@ def wire_pre_commit(repo: Path, *, force: bool, dry_run: bool) -> None:
     if hook.exists() and not force:
         text = hook.read_text(encoding="utf-8", errors="replace")
         if HOOK_MARKER in text:
-            skip(".githooks/pre-commit already wired")
+            if "check_skill_version_bump" in text:
+                skip(".githooks/pre-commit already wired")
+            else:
+                warn(
+                    ".githooks/pre-commit runs the validator but not "
+                    "scripts/check_skill_version_bump.py - half-wired gate. "
+                    "Review it, then re-run with --force to upgrade it (or "
+                    "append: exec python3 scripts/check_skill_version_bump.py "
+                    "--staged)"
+                )
             return
         warn(
             f".githooks/pre-commit exists but is not from this skill; chain it "
-            f"manually: call `python3 scripts/validate_skill_frontmatter.py` from "
+            f"manually: call `python3 scripts/validate_skill_frontmatter.py` "
+            f"then `python3 scripts/check_skill_version_bump.py --staged` from "
             f"that hook (see SKILL.md, 'Wire an existing repo')."
         )
         return
@@ -133,7 +147,8 @@ def wire_hooks_path(repo: Path, *, dry_run: bool) -> None:
     else:
         warn(
             f"core.hooksPath is {current!r}; not changed. Point the existing hook "
-            f"directory at scripts/validate_skill_frontmatter.py instead "
+            f"directory at scripts/validate_skill_frontmatter.py and "
+            f"scripts/check_skill_version_bump.py instead "
             f"(see SKILL.md, 'Wire an existing repo')."
         )
 
@@ -145,14 +160,24 @@ def wire_taskfile(repo: Path) -> None:
         return
     text = taskfile.read_text(encoding="utf-8", errors="replace")
     if "lint:skills" in text:
-        if "validate_skill_frontmatter" in text:
-            skip("Taskfile.yml already defines lint:skills running the validator")
-        else:
+        has_validator = "validate_skill_frontmatter" in text
+        has_bump = "check_skill_version_bump" in text
+        if has_validator and has_bump:
+            skip("Taskfile.yml already defines lint:skills running both checks")
+            return
+        if has_validator and not has_bump:
             warn(
-                "Taskfile.yml defines lint:skills but it does NOT run "
-                "scripts/validate_skill_frontmatter.py - the gate task is a "
-                "no-op. Reconcile it manually with this snippet:\n" + TASK_SNIPPET
+                "Taskfile.yml defines lint:skills running the validator but NOT "
+                "scripts/check_skill_version_bump.py - the version-bump rule is "
+                "unchecked. Reconcile it manually with this snippet:\n"
+                + TASK_SNIPPET
             )
+            return
+        warn(
+            "Taskfile.yml defines lint:skills but it does NOT run "
+            "scripts/validate_skill_frontmatter.py - the gate task is a "
+            "no-op. Reconcile it manually with this snippet:\n" + TASK_SNIPPET
+        )
         return
     print(
         "[INFO] Add this task under `tasks:` in Taskfile.yml "
@@ -202,6 +227,10 @@ def main(argv: list[str] | None = None) -> int:
                  marker="github-copilot-fc/schemas/skill.schema.json")
     install_file(ASSETS / "validate_frontmatter.py",
                  repo / "scripts" / "validate_skill_frontmatter.py",
+                 force=args.force, dry_run=args.dry_run,
+                 marker="installed by skill-lint-setup")
+    install_file(ASSETS / "check_skill_version_bump.py",
+                 repo / "scripts" / "check_skill_version_bump.py",
                  force=args.force, dry_run=args.dry_run,
                  marker="installed by skill-lint-setup")
     wire_pre_commit(repo, force=args.force, dry_run=args.dry_run)

@@ -1,8 +1,12 @@
-# Cloud CI backstop for skill frontmatter — OPT-IN, disabled by default.
-# Installed only by: python3 scripts/setup_skill_lint.py --ci
-# Default trigger is manual (workflow_dispatch) only. Uncomment push/pull_request
-# below to enforce on every change. Local enforcement (pre-commit hook +
-# task lint:skills) is the primary gate and needs no cloud runner.
+# Cloud CI backstop for skill frontmatter and version bumps - OPT-IN,
+# disabled by default. Installed only by: python3 scripts/setup_skill_lint.py --ci
+# Default trigger is manual (workflow_dispatch) only; the bump step compares HEAD
+# against the default branch, so a dispatch still checks real changes instead of
+# silently passing. Uncomment push/pull_request below to enforce on every change:
+# the bump step then uses the event's base ref (PR base / push before), falling
+# back to the default branch for new-branch pushes (before = all zeros). Local
+# enforcement (pre-commit hook + task lint:skills) is the primary gate and needs
+# no cloud runner.
 name: skill-lint
 on:
   workflow_dispatch:
@@ -11,11 +15,13 @@ on:
   #     - "skills/**"
   #     - "schemas/skill.schema.json"
   #     - "scripts/validate_skill_frontmatter.py"
+  #     - "scripts/check_skill_version_bump.py"
   # pull_request:
   #   paths:
   #     - "skills/**"
   #     - "schemas/skill.schema.json"
   #     - "scripts/validate_skill_frontmatter.py"
+  #     - "scripts/check_skill_version_bump.py"
 permissions:
   contents: read
 jobs:
@@ -23,5 +29,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # merge-base for the version-bump range check needs history
       - name: Validate SKILL.md frontmatter
         run: python3 scripts/validate_skill_frontmatter.py
+      - name: Check skill version bumps
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            BASE="${{ github.event.before }}"
+          else
+            BASE="origin/${{ github.event.repository.default_branch }}"
+          fi
+          python3 scripts/check_skill_version_bump.py --base "$BASE"

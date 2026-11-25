@@ -35,9 +35,12 @@ def test_fresh_install_writes_all_local_files(tmp_path: Path) -> None:
     assert code == 0, out
     assert (repo / "schemas" / "skill.schema.json").is_file()
     assert (repo / "scripts" / "validate_skill_frontmatter.py").is_file()
+    assert (repo / "scripts" / "check_skill_version_bump.py").is_file()
     hook = repo / ".githooks" / "pre-commit"
     assert hook.is_file()
-    assert "skill-lint-setup pre-commit gate" in hook.read_text(encoding="utf-8")
+    hook_text = hook.read_text(encoding="utf-8")
+    assert "skill-lint-setup pre-commit gate" in hook_text
+    assert "check_skill_version_bump.py --staged" in hook_text
     # CI must stay opt-in: no workflow without --ci
     assert not (repo / ".github" / "workflows" / "skill-lint.yml").exists()
     # hooksPath wired
@@ -66,7 +69,33 @@ def test_foreign_pre_commit_is_not_clobbered(tmp_path: Path) -> None:
     code, out = run_setup(repo)
     assert code == 1, out
     assert "[WARN]" in out and "chain it" in out
+    assert "check_skill_version_bump" in out  # both checks named for chaining
     assert hook.read_text(encoding="utf-8") == "#!/bin/sh\necho existing hook\n"
+
+
+def test_half_wired_hook_warns_instead_of_claiming_done(tmp_path: Path) -> None:
+    # An older bundle's hook carries the marker but only runs the validator.
+    # Re-running the installer must surface the missing bump line (exit 1),
+    # never report "already wired" for a gate that is only half there.
+    repo = make_repo(tmp_path)
+    run_setup(repo)
+    hook = repo / ".githooks" / "pre-commit"
+    hook.write_text(
+        "#!/bin/sh\n# skill-lint-setup pre-commit gate (older bundle)\n"
+        'exec python3 scripts/validate_skill_frontmatter.py\n',
+        encoding="utf-8",
+    )
+    code, out = run_setup(repo)
+    assert code == 1, out
+    assert "[WARN]" in out and "half-wired" in out
+    assert "check_skill_version_bump" in out
+    # not overwritten without --force
+    assert "older bundle" in hook.read_text(encoding="utf-8")
+    # --force upgrades it to both checks, still acknowledged with a WARN
+    code2, out2 = run_setup(repo, "--force")
+    assert code2 == 1, out2
+    upgraded = hook.read_text(encoding="utf-8")
+    assert "check_skill_version_bump.py --staged" in upgraded
 
 
 def test_existing_non_default_hooks_path_not_clobbered(tmp_path: Path) -> None:
@@ -160,12 +189,33 @@ def test_matching_lint_skills_task_skips_cleanly(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     (repo / "Taskfile.yml").write_text(
         "version: '3'\ntasks:\n  lint:skills:\n"
-        "    cmds:\n      - python3 scripts/validate_skill_frontmatter.py\n",
+        "    cmds:\n      - python3 scripts/validate_skill_frontmatter.py\n"
+        "      - python3 scripts/check_skill_version_bump.py\n",
         encoding="utf-8",
     )
     code, out = run_setup(repo)
     assert code == 0, out
-    assert "running the validator" in out
+    assert "running both checks" in out
+
+
+def test_validator_only_task_warns_as_half_wired(tmp_path: Path) -> None:
+    # Regression: an older install wired only the validator. The version-bump
+    # rule would be silently unchecked - the installer must say so (exit 1),
+    # not report done.
+    repo = make_repo(tmp_path)
+    (repo / "Taskfile.yml").write_text(
+        "version: '3'\ntasks:\n  lint:skills:\n"
+        "    cmds:\n      - python3 scripts/validate_skill_frontmatter.py\n",
+        encoding="utf-8",
+    )
+    code, out = run_setup(repo)
+    assert code == 1, out
+    assert "[WARN]" in out
+    assert "NOT" in out and "check_skill_version_bump" in out
+    assert "check_skill_version_bump.py" in out  # fix snippet included
+    # never rewritten by the script
+    text = (repo / "Taskfile.yml").read_text(encoding="utf-8")
+    assert "check_skill_version_bump" not in text
 
 
 def test_force_warns_when_replacing_foreign_pre_commit(tmp_path: Path) -> None:
