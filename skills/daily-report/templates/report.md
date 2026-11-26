@@ -9,6 +9,7 @@ updated: {YYYY-MM-DD HH:mm +HH:MM}
 > Section order is completion-first: Completed → Under Review → Active Work → Blockers → Next Up.
 > **Scope:** one checkout in single mode — no tags needed. In multi-repo tower mode every change names its repository: `[repo]` on a Completed title, `[repo]` in the first cell of an Under Review or Active Work row. The token is an alias of a watched repo (a substring of its path leaf; `+` joins a cross-repo change, e.g. `[webapi+fc]`). Blockers and Next Up stay untagged when no single repo owns them.
 > **Executive one-page report.** Signal over noise: every line must earn its place. Report outcomes and decisions — never a change log of files.
+> **Session pointers.** A cited session is a link: display text is the 8-char id, the target is the exported transcript `sessions/<yymmdd>/<full-uuid>.html`. The transcripts are committed, so the link resolves for every reader; the full UUID in the target is what makes it survive a rerun. Write it `[b5696ab2](sessions/261125/b5696ab2-4a90-4196-a743-767e58bb450b.html)`. A prose ``session `xxxxxxxx` `` citation still exports, but the link is the form this template asks for.
 
 ---
 
@@ -20,7 +21,7 @@ updated: {YYYY-MM-DD HH:mm +HH:MM}
 
 - **Why:** {one sentence — what breaks or gets lost if this had not been done}
 - **Result:** {one sentence — the verifiable state change; the action verbs live here}
-- **Refs:** {ONE line with 2 to 4 pointers — session id · hyperlinked pull request or issue · check result (a short label with its outcome: `quality gate → PASS` — never a full shell command) · file path. Never commit hashes, turn numbers, or window tags}
+- **Refs:** {ONE line with 2 to 4 pointers — session link · hyperlinked pull request or issue · check result (a short label with its outcome: `quality gate → PASS` — never a full shell command) · file path. Never commit hashes, turn numbers, or window tags}
 
 ### 2. {Second item — same three lines}
 

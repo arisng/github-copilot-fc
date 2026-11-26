@@ -49,10 +49,11 @@ updated: $stamp
 | git proof | known | Author-filtered window commits as proof rows. |
 "@
             [IO.File]::WriteAllText($report, $body)
-            # The report cites session 16f5c5b5; enforcement requires its export.
+            # The report cites session 16f5c5b5; enforcement requires its export
+            # under the full UUID, matching the template's link form.
             $sessDir = Join-Path $dir 'sessions/261110'
             New-Item -ItemType Directory -Force -Path $sessDir | Out-Null
-            [IO.File]::WriteAllText((Join-Path $sessDir '16f5c5b5.html'), "<!doctype html><html><body>transcript 16f5c5b5</body></html>")
+            [IO.File]::WriteAllText((Join-Path $sessDir '16f5c5b5-1111-4222-8333-444444444444.html'), "<!doctype html><html><body>transcript 16f5c5b5</body></html>")
             return $report
         }
 
@@ -139,18 +140,46 @@ updated: $stamp
 
     It 'fails when an exported transcript for a cited session is missing' {
         $r = New-Fixture '2026-11-10 13:57 +07:00'
-        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5.html')
+        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5-1111-4222-8333-444444444444.html')
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
         $LASTEXITCODE | Should -Be 1
         "$out" | Should -Match 'sessions:'
         "$out" | Should -Match '16f5c5b5'
     }
 
+    It 'passes the template link form: 8-char label over a full-UUID target' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($r) -replace 'session `16f5c5b5`', '[16f5c5b5](sessions/261110/16f5c5b5-1111-4222-8333-444444444444.html)'
+        [IO.File]::WriteAllText($r, $c)
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 0
+        "$out" | Should -Match 'PASS'
+    }
+
+    It 'fails a transcript link whose target is a short slug' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($r) -replace 'session `16f5c5b5`', '[16f5c5b5](sessions/261110/16f5c5b5.html)'
+        [IO.File]::WriteAllText($r, $c)
+        [IO.File]::WriteAllText((Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5.html'), '<html>x</html>')
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'must name the full session UUID'
+    }
+
+    It 'fails a transcript link whose label is not the 8-char id of its target' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $c = [IO.File]::ReadAllText($r) -replace 'session `16f5c5b5`', '[some other name](sessions/261110/16f5c5b5-1111-4222-8333-444444444444.html)'
+        [IO.File]::WriteAllText($r, $c)
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match "must be the 8-char id '16f5c5b5'"
+    }
+
     It 'does not demand an export for grill session mentions' {
         $r = New-Fixture '2026-11-10 13:57 +07:00'
         $c = [IO.File]::ReadAllText($r) -replace 'session `16f5c5b5`', 'grill session `20261105-120133`'
         [IO.File]::WriteAllText($r, $c)
-        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5.html')
+        Remove-Item (Join-Path (Split-Path $r -Parent) 'sessions/261110/16f5c5b5-1111-4222-8333-444444444444.html')
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' 2>&1
         $LASTEXITCODE | Should -Be 0
         "$out" | Should -Match 'PASS'
@@ -185,7 +214,16 @@ updated: $stamp
         $cov = New-CoverageReceipt $r '{"schema":1,"date":"2026-11-10","verified":true,"missed":[],"inScopeIds":["deadbeef-0000-4222-8333-444444444444"],"outOfScope":[],"unattributed":[]}'
         $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson $cov 2>&1
         $LASTEXITCODE | Should -Be 1
-        "$out" | Should -Match 'coverage: no transcript export for in-scope session deadbeef'
+        "$out" | Should -Match 'coverage: no transcript export'
+        "$out" | Should -Match 'deadbeef-0000-4222-8333-444444444444'
+    }
+
+    It 'fails when a coverage receipt in-scope id is not a full UUID' {
+        $r = New-Fixture '2026-11-10 13:57 +07:00'
+        $cov = New-CoverageReceipt $r '{"schema":1,"date":"2026-11-10","verified":true,"missed":[],"inScopeIds":["deadbeef"],"outOfScope":[],"unattributed":[]}'
+        $out = & $tester -ReportPath $r -GitUser 'alice' -Date '2026-11-10' -CoverageJson $cov 2>&1
+        $LASTEXITCODE | Should -Be 1
+        "$out" | Should -Match 'is not a full UUID'
     }
 
     It 'fails when the coverage receipt file is missing' {

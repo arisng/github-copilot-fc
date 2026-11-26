@@ -1,32 +1,46 @@
 <#
 .SYNOPSIS
-  Export every session a daily report mentions to sessions/<yymmdd>/<session-slug>.html.
+  Export every session a daily report cites to sessions/<yymmdd>/<full-uuid>.html.
 .DESCRIPTION
-  Parses the report for session mentions (`session `xxxxxxxx``; a full UUID also
-  matches, `grill session` never does) and writes a self-contained turns-only
-  HTML transcript beside the report under sessions/<yymmdd>/, one file per mentioned
-  session. The slug is the id exactly as the report cites it (lowercased), so
-  Test-DailyReport.ps1 re-checks the same paths through -ListOnly without
-  touching the session stores.
+  Reads the report for session citations and writes a self-contained turns-only
+  HTML transcript beside the report under sessions/<yymmdd>/, one file per
+  cited session. The slug is ALWAYS the full session UUID — never the short
+  form the prose uses — so one session owns exactly one file and a link written
+  today still resolves after a rerun. The transcripts are committed; only the
+  coverage receipt beside them is git-ignored.
 
-  Resolution per mention, against this machine's Copilot state ($CopilotHome or
-  $env:COPILOT_HOME, else ~/.copilot): events.jsonl folder first, then
+  Two citation forms are read, and both feed the same single parser:
+    1. a transcript link, `[<8-char id>](sessions/<yymmdd>/<full-uuid>.html)`
+       (the template form: display text stays short and copy-friendly, the
+       link target carries the full id);
+    2. a legacy prose citation, ``session `<8-char or full>` `` (a full UUID
+       also matches, `grill session` never does).
+  When a session is cited in both forms the link form wins, so the slug never
+  depends on which form appeared first.
+
+  Resolution per citation, against this machine's Copilot state ($CopilotHome
+  or $env:COPILOT_HOME, else ~/.copilot): events.jsonl folder first, then
   session-store.db turns. An 8-char prefix that resolves to more than one
   session fails loudly before any file is written — cite the full id instead.
+  A link whose target is a short id while the session resolves here also fails
+  loudly: the link must name the full UUID.
 
   A session this machine cannot resolve gets an explicit notice page carrying
   the `daily-report-session-notice` marker, so a missing transcript is always an
-  honest artifact and never a silent skip. Existing files are never downgraded:
-  a real transcript is kept as-is (pass -Refresh to re-export it), a notice is
-  upgraded to the real transcript the moment the data becomes resolvable here.
-  The JSON receipt reports {total, exported, notice, kept}.
+  honest artifact and never a silent skip; its only possible slug is the cited
+  id, because the full UUID is exactly what this machine does not hold.
+  Existing files are never downgraded: a real transcript is kept as-is (pass
+  -Refresh to re-export it), a notice is upgraded to the real transcript the
+  moment the data becomes resolvable here. A leftover short-form file for a
+  session that now exports under its full UUID is pruned, so one session never
+  leaves two artifacts. The JSON receipt reports
+  {total, exported, notice, kept, pruned}.
 
-  -ListOnly prints the mentioned ids (one per line) and stops before any store
-  or Python access; Test-DailyReport.ps1 uses it to enforce the exports.
+  -ListOnly prints the cited ids (one per line) and stops before any store or
+  Python access; Test-DailyReport.ps1 uses it to enforce the exports.
   -CoverageJson <receipt> additionally exports every in-scope session of the
   day from Get-SessionCoverage.ps1, cited or not, so each grounded session
-  leaves an artifact. The report's mention form wins the slug (validator
-  checks those paths); coverage-only sessions get the full-id slug.
+  leaves an artifact under its full UUID.
 .EXAMPLE
   .\Export-SessionTranscripts.ps1 -ReportPath ..\..\..\reports\daily\alice\261117.md
 .EXAMPLE
@@ -47,6 +61,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $exporterScript = Join-Path $PSScriptRoot 'export-copilot-transcript.py'
 $NoticeMarker = 'daily-report-session-notice'
+$uuidRx = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 
 # ---- report path (same derivation rules as Test-DailyReport.ps1) ----
 if (-not $ReportPath) {
@@ -61,34 +76,74 @@ if (-not $ReportPath) {
 if (-not (Test-Path -LiteralPath $ReportPath)) { Write-Error "report not found: $ReportPath"; exit 1 }
 $ReportPath = [IO.Path]::GetFullPath($ReportPath)
 
-# ---- session mentions: single source of truth for exporter and validator ----
-function Get-MentionedSessions([string]$Text) {
-    $rx = [regex]::new('(?<![\w-])(?<!grill )sessions?\s+`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{8})`', 'IgnoreCase')
-    $all = @()
-    foreach ($m in $rx.Matches($Text)) { $all += $m.Groups[1].Value.ToLowerInvariant() }
-    # Collapse a session cited both as short id and full UUID to one entry
-    # (first-cited form). Two distinct full UUIDs stay distinct even when they
-    # share an 8-char prefix — only short-vs-full of the same session dedupes.
-    $ids = @()
-    foreach ($id in $all) {
-        if ($ids -contains $id) { continue }
-        if ($id.Length -gt 8) {
-            if (@($ids | Where-Object { $_.Length -eq 8 -and $id.StartsWith($_) }).Count -gt 0) { continue }
-        }
-        else {
-            if (@($ids | Where-Object { $_.Length -gt 8 -and $_.StartsWith($id) }).Count -gt 0) { continue }
-        }
-        $ids += $id
+# Transcripts and the coverage receipt group under the report's date folder:
+# sessions/<yymmdd>/<full-uuid>.html, so days never mix in one flat directory.
+$dayCode = [IO.Path]::GetFileNameWithoutExtension($ReportPath)
+if ($dayCode -notmatch '^\d{6}$') {
+    Write-Error "report must be named yymmdd.md for date-grouped exports, got '$([IO.Path]::GetFileName($ReportPath))'."
+    exit 1
+}
+$sessionsDir = Join-Path (Join-Path (Split-Path $ReportPath -Parent) 'sessions') $dayCode
+
+# ---- session citations: single source of truth for exporter and validator ----
+# Two forms are read, and both yield the same target id:
+#   link  [<8-char id>](sessions/<yymmdd>/<full-uuid>.html)  — the template form
+#   prose session `<8-char id or full uuid>`                  — legacy reports
+# The transcript HTML is committed, so a link resolves for every reader; its
+# target must still name the full UUID, which is the slug on disk.
+function Get-CitedSessions([string]$Text) {
+    $cited = @()
+    $linkRx = [regex]::new('\[[^\]]*\]\(\s*<?([^)>\s]*)>?\s*\)', 'IgnoreCase')
+    foreach ($m in $linkRx.Matches($Text)) {
+        $href = $m.Groups[1].Value
+        $stemMatch = [regex]::Match($href, '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[0-9a-fA-F]{8})\.html$')
+        if (-not $stemMatch.Success) { continue }
+        $cited += [pscustomobject]@{ id = $stemMatch.Groups[1].Value.ToLowerInvariant(); target = $href; form = 'link' }
     }
-    return $ids
+    $proseRx = [regex]::new('(?<![\w-])(?<!grill )sessions?\s+`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{8})`', 'IgnoreCase')
+    foreach ($m in $proseRx.Matches($Text)) {
+        $cited += [pscustomobject]@{ id = $m.Groups[1].Value.ToLowerInvariant(); target = $null; form = 'prose' }
+    }
+    # Dedupe by id, preferring the link form, then drop every 8-char form a full
+    # UUID absorbs. Two distinct full UUIDs stay distinct even when they share
+    # an 8-char prefix.
+    $byId = [ordered]@{}
+    foreach ($c in $cited) {
+        if (-not $byId.Contains($c.id)) { $byId[$c.id] = $c }
+        elseif ($c.form -eq 'link' -and $byId[$c.id].form -eq 'prose') { $byId[$c.id] = $c }
+    }
+    $list = @($byId.Values)
+    $out = @()
+    foreach ($c in $list) {
+        if ($c.id.Length -eq 8 -and @($list | Where-Object { $_.id.Length -gt 8 -and $_.id.StartsWith($c.id) }).Count -gt 0) { continue }
+        $out += $c
+    }
+    return $out
 }
 
-$mentioned = @(Get-MentionedSessions ([IO.File]::ReadAllText($ReportPath)))
+$cited = @(Get-CitedSessions ([IO.File]::ReadAllText($ReportPath)))
+
+# A link is what a reader clicks, so its stem must be the full UUID and must
+# sit in this report's date folder. Both are contract violations, not
+# ambiguity: fail before anything is written.
+foreach ($c in $cited) {
+    if ($c.form -ne 'link') { continue }
+    if ($c.id -notmatch $uuidRx) {
+        Write-Error "transcript link target '$($c.target)' must name the full session UUID — write [$($c.id)](sessions/$dayCode/<full-uuid>.html)."
+        exit 1
+    }
+    $targetDir = ((Split-Path (($c.target -replace '\\', '/') -replace '/+', '/') -Parent) -replace '\\', '/')
+    if ($targetDir -and $targetDir -ne "sessions/$dayCode") {
+        Write-Error "transcript link '$($c.target)' must live in sessions/$dayCode/ beside its report."
+        exit 1
+    }
+}
+
+$mentioned = @($cited | ForEach-Object { $_.id })
 if ($ListOnly) { $mentioned; exit 0 }
 
 # Coverage union: every in-scope session of the day gets an export, cited or
-# not. Applied after -ListOnly so the validator's mention list stays exact;
-# the mention form wins the slug it already checks.
+# not. Applied after -ListOnly so the validator's citation list stays exact.
 if ($CoverageJson) {
     if (-not (Test-Path -LiteralPath $CoverageJson)) { Write-Error "coverage receipt not found: $CoverageJson"; exit 1 }
     $cov = Get-Content -LiteralPath $CoverageJson -Raw | ConvertFrom-Json
@@ -101,20 +156,33 @@ if ($CoverageJson) {
             if ($id.Length -gt 8 -and $id.StartsWith($existing)) { $dup = $true; break }
             if ($existing.Length -gt 8 -and $existing.StartsWith($id)) { $dup = $true; break }
         }
-        if (-not $dup) { $mentioned += $id }
+        if (-not $dup) { $cited += [pscustomobject]@{ id = $id; target = $null; form = 'coverage' } }
     }
 }
 
-# Transcripts and the coverage receipt group under the report's date folder:
-# sessions/<yymmdd>/<slug>.html, so days never mix in one flat directory.
-$dayCode = [IO.Path]::GetFileNameWithoutExtension($ReportPath)
-if ($dayCode -notmatch '^\d{6}$') {
-    Write-Error "report must be named yymmdd.md for date-grouped exports, got '$([IO.Path]::GetFileName($ReportPath))'."
-    exit 1
+# ---- phase 5 helper: orphan short-form sweep ----
+# A short-form file left by an older run is pruned only when exactly one
+# full-UUID file under the same 8-char prefix exists, so an ambiguous prefix
+# never destroys another session's artifact. Runs even when nothing is cited,
+# which is what makes a rerun converge on one file per session.
+function Invoke-OrphanSweep([object[]]$AlreadyPruned) {
+    $found = @()
+    if (-not (Test-Path -LiteralPath $sessionsDir)) { return $found }
+    $byBase = @(Get-ChildItem -LiteralPath $sessionsDir -Filter '*.html' -File)
+    foreach ($f in $byBase) {
+        if ($f.BaseName -notmatch '^[0-9a-f]{8}$') { continue }
+        $fullPeers = @($byBase | Where-Object { $_.BaseName -match "^$([regex]::Escape($f.BaseName))-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" })
+        if ($fullPeers.Count -ne 1) { continue }
+        if (@($AlreadyPruned | Where-Object { $_['path'] -eq $f.FullName }).Count -gt 0) { continue }
+        Remove-Item -LiteralPath $f.FullName -Force
+        $found += [ordered]@{ id = $f.BaseName; slug = $fullPeers[0].BaseName; status = 'pruned'; path = $f.FullName }
+    }
+    return $found
 }
-$sessionsDir = Join-Path (Join-Path (Split-Path $ReportPath -Parent) 'sessions') $dayCode
-if ($mentioned.Count -eq 0) {
-    [ordered]@{ report = $ReportPath; sessionsDir = $sessionsDir; total = 0; exported = @(); notice = @(); kept = @() } | ConvertTo-Json -Depth 6
+
+if ($cited.Count -eq 0) {
+    $orphans = @(Invoke-OrphanSweep @())
+    [ordered]@{ report = $ReportPath; sessionsDir = $sessionsDir; total = 0; exported = @(); notice = @(); kept = @(); pruned = $orphans } | ConvertTo-Json -Depth 6
     exit 0
 }
 
@@ -184,12 +252,12 @@ the generated file here to replace this notice.</p>
     [IO.File]::WriteAllText($Path, $html)
 }
 
-# ---- phase 1: resolve every mention; ambiguity fails before anything is written ----
+# ---- phase 1: resolve every citation; ambiguity fails before anything is written ----
 $plan = @()
-foreach ($id in $mentioned) {
-    $r = Resolve-Session $id
+foreach ($c in $cited) {
+    $r = Resolve-Session $c.id
     if ($r.ids.Count -gt 1) {
-        Write-Error "ambiguous session id ${id}: matches $($r.ids -join ', ') — cite the full session id in the report."
+        Write-Error "ambiguous session id $($c.id): matches $($r.ids -join ', ') — cite the full session id in the report."
         exit 1
     }
     $full = if ($r.ids.Count -eq 1) { $r.ids[0] } else { $null }
@@ -198,7 +266,11 @@ foreach ($id in $mentioned) {
         if (Test-Path -LiteralPath (Join-Path (Join-Path $stateDir $full) 'events.jsonl')) { $source = 'events' }
         elseif ($r.dbIds -contains $full) { $source = 'db' }
     }
-    $plan += [pscustomobject]@{ id = $id; full = $full; source = $source }
+    # Slug is the full UUID whenever one is known: resolved here, else the id the
+    # report already carries. Only an unresolvable short citation stays short —
+    # that session's full UUID is exactly what this machine does not hold.
+    $slug = if ($full) { $full } else { $c.id }
+    $plan += [pscustomobject]@{ id = $c.id; slug = $slug; full = $full; source = $source }
 }
 
 # ---- phase 2: decide each action; existing real transcripts are never downgraded ----
@@ -209,7 +281,7 @@ function Test-ExistingNotice([string]$Slug) {
 }
 $actions = @()
 foreach ($p in $plan) {
-    $existing = Test-ExistingNotice $p.id
+    $existing = Test-ExistingNotice $p.slug
     if ($p.source) {
         if ($null -eq $existing) { $actions += [pscustomobject]@{ plan = $p; action = 'export' } }
         elseif ($existing) { $actions += [pscustomobject]@{ plan = $p; action = 'export' } }  # upgrade notice
@@ -249,19 +321,20 @@ if (-not (Test-Path -LiteralPath $sessionsDir)) { New-Item -ItemType Directory -
 
 # ---- phase 4: write ----
 $entries = @()
+$pruned = @()
 $savedCopilotHome = $env:COPILOT_HOME
 $env:COPILOT_HOME = $CopilotHome
 try {
     foreach ($a in $actions) {
-        $slug = $a.plan.id
+        $slug = $a.plan.slug
         $path = Join-Path $sessionsDir "$slug.html"
         switch ($a.action) {
             'keep' {
-                $entries += [ordered]@{ id = $slug; slug = $slug; status = 'kept'; path = $path }
+                $entries += [ordered]@{ id = $a.plan.id; slug = $slug; status = 'kept'; path = $path }
             }
             'notice' {
                 Write-UnavailableNotice -Path $path -SessionId $slug -Report $ReportPath
-                $entries += [ordered]@{ id = $slug; slug = $slug; status = 'notice'; path = $path }
+                $entries += [ordered]@{ id = $a.plan.id; slug = $slug; status = 'notice'; path = $path }
             }
             'export' {
                 $sessArg = if ($a.plan.source -eq 'events') { Join-Path $stateDir $a.plan.full } else { $a.plan.full }
@@ -279,7 +352,16 @@ try {
                 }
                 $turns = $null
                 if ([regex]::IsMatch($pyOut, '(\d+)\s+turns')) { $turns = [int][regex]::Match($pyOut, '(\d+)\s+turns').Groups[1].Value }
-                $entries += [ordered]@{ id = $slug; slug = $slug; status = 'exported'; source = $a.plan.source; turns = $turns; path = $path }
+                $entries += [ordered]@{ id = $a.plan.id; slug = $slug; status = 'exported'; source = $a.plan.source; turns = $turns; path = $path }
+            }
+        }
+        # One session, one artifact: a short-form file left by an older run is
+        # dropped once the same session exports under its full UUID.
+        if ($a.plan.slug -ne $a.plan.id -and $a.action -ne 'keep') {
+            $stale = Join-Path $sessionsDir "$($a.plan.id).html"
+            if (Test-Path -LiteralPath $stale) {
+                Remove-Item -LiteralPath $stale -Force
+                $pruned += [ordered]@{ id = $a.plan.id; slug = $slug; status = 'pruned'; path = $stale }
             }
         }
     }
@@ -289,13 +371,17 @@ finally {
     else { $env:COPILOT_HOME = $savedCopilotHome }
 }
 
+# ---- phase 5: orphan short-form sweep ----
+$pruned += @(Invoke-OrphanSweep $pruned)
+
 # ---- receipt ----
 [ordered]@{
     report      = $ReportPath
     sessionsDir = $sessionsDir
-    total       = $mentioned.Count
+    total       = $cited.Count
     exported    = @($entries | Where-Object { $_['status'] -eq 'exported' })
     notice      = @($entries | Where-Object { $_['status'] -eq 'notice' })
     kept        = @($entries | Where-Object { $_['status'] -eq 'kept' })
+    pruned      = @($pruned)
 } | ConvertTo-Json -Depth 6
 exit 0

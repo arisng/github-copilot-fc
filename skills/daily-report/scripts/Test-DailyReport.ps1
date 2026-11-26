@@ -6,8 +6,10 @@
   formats and the script-enforced guardrails: path and naming, frontmatter
   schema (created/updated with runtime UTC offsets, no covers), timeless
   body, section structure and caps, refs format, one-page budget,
-  session-transcript exports (every session the report mentions must have
-  its sessions/<yymmdd>/<slug>.html beside the report), report-to-canonical glossary
+  session-transcript exports (every session the report cites must have its
+  sessions/<yymmdd>/<full-uuid>.html beside the report, and a transcript link
+  must name that full UUID with the matching 8-char label),
+  report-to-canonical glossary
   consistency, and — with -EvidenceJson — empty-source honesty; with
   -CoverageJson — grounding completeness (receipt verified, no missed
   in-scope session, a transcript export per in-scope session). Exits
@@ -55,7 +57,7 @@ if (-not (Test-Path $ReportPath)) { Write-Error "report not found: $ReportPath";
 $content = [IO.File]::ReadAllText($ReportPath)
 $lines = $content -split "\r?\n"
 # Transcripts and the coverage receipt live in the report's date folder:
-# sessions/<yymmdd>/<slug>.html (flat fallback only when the name is already
+# sessions/<yymmdd>/<full-uuid>.html (flat fallback only when the name is already
 # failing the naming guardrail above).
 $dayCode = if ($fileName -match '^(\d{6})\.md$') { $matches[1] } else { '' }
 $sessionsDir = if ($dayCode) { Join-Path (Join-Path (Split-Path $ReportPath -Parent) 'sessions') $dayCode } else { Join-Path (Split-Path $ReportPath -Parent) 'sessions' }
@@ -170,20 +172,54 @@ foreach ($r in $refLines) {
     }
 
     # ---- session transcript exports (enforced) ----
-    # Every session the body mentions must have its export beside the report;
-    # Export-SessionTranscripts.ps1 -ListOnly is the single mention parser.
+    # Every session the body cites must have its export beside the report. The
+    # transcripts are committed, so this holds on any clone; the slug is the
+    # full session UUID in both citation forms, so the check is a plain path
+    # test. Export-SessionTranscripts.ps1 -ListOnly stays the single parser.
     $exportScript = Join-Path $PSScriptRoot 'Export-SessionTranscripts.ps1'
     if (-not (Test-Path -LiteralPath $exportScript)) { Fail "sessions: missing $exportScript" }
     else {
         $mentioned = @()
         $listed = $false
         try { $mentioned = @(& $exportScript -ReportPath $ReportPath -ListOnly); $listed = $true }
-        catch { Fail "sessions: cannot list mentioned sessions for '$ReportPath' — $($_.Exception.Message)" }
+        catch { Fail "sessions: cannot list cited sessions for '$ReportPath' — $($_.Exception.Message)" }
         if ($listed -and $LASTEXITCODE -ne 0) { Fail "sessions: session listing failed for '$ReportPath' (exit $LASTEXITCODE)" }
         if ($listed) {
+            # Cited ids come in two shapes. A full UUID must own exactly that
+            # file. A legacy 8-char citation is either a notice under its short
+            # name or a real export under the resolved full UUID sharing its
+            # prefix — the exporter prunes the short file once the full one
+            # exists, so one of the two must be present.
+            $dirBases = @()
+            if (Test-Path -LiteralPath $sessionsDir) {
+                $dirBases = @(Get-ChildItem -LiteralPath $sessionsDir -Filter '*.html' -File | ForEach-Object { $_.BaseName.ToLowerInvariant() })
+            }
             foreach ($sid in $mentioned) {
-                if ($sid -and -not (Test-Path -LiteralPath (Join-Path $sessionsDir "$sid.html"))) {
+                if (-not $sid) { continue }
+                if ($sid -match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+                    if (-not (Test-Path -LiteralPath (Join-Path $sessionsDir "$sid.html"))) {
+                        Fail "sessions: no exported transcript 'sessions/$dayCode/$sid.html' — run scripts/Export-SessionTranscripts.ps1 -ReportPath '$ReportPath'"
+                    }
+                    continue
+                }
+                $shortHit = Test-Path -LiteralPath (Join-Path $sessionsDir "$sid.html")
+                $fullHit = @($dirBases | Where-Object { $_ -match "^$([regex]::Escape($sid))-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }).Count
+                if (-not $shortHit -and $fullHit -eq 0) {
                     Fail "sessions: no exported transcript for session $sid — run scripts/Export-SessionTranscripts.ps1 -ReportPath '$ReportPath'"
+                }
+            }
+            # A transcript link must name the full UUID in its target, and its
+            # visible label must be that session's 8-char id.
+            foreach ($m in [regex]::Matches($body, '\[([^\]]*)\]\(\s*<?([^)>\s]*)>?\s*\)')) {
+                $label = $m.Groups[1].Value.Trim()
+                $target = $m.Groups[2].Value
+                if ($target -notmatch '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{8})\.html$') { continue }
+                $stem = $matches[1].ToLowerInvariant()
+                if ($stem -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+                    Fail "sessions: transcript link '$target' must name the full session UUID, not '$stem'"
+                }
+                elseif ($label -and $label.ToLowerInvariant() -ne $stem.Substring(0, 8)) {
+                    Fail "sessions: transcript link label '$label' must be the 8-char id '$($stem.Substring(0, 8))' of $stem"
                 }
             }
         }
@@ -271,6 +307,9 @@ if ($EvidenceJson -and (Test-Path $EvidenceJson)) {
 }
 
 # ---- session grounding coverage (with -CoverageJson) ----
+# The receipt is a local audit artifact (git-ignored): it records this
+# checkout's session cwd paths. Pass it on the machine that generated the day;
+# a repository gate runs without it.
 if ($CoverageJson) {
     if (-not (Test-Path -LiteralPath $CoverageJson)) { Fail "coverage: receipt not found: $CoverageJson" }
     else {
@@ -283,15 +322,15 @@ if ($CoverageJson) {
             elseif (-not $cov.verified) { Fail 'coverage: receipt is unverified — pass every per-repo evidence file to Get-SessionCoverage.ps1 -EvidenceJson' }
             elseif (@($cov.missed).Count -gt 0) { Fail "coverage: in-scope session(s) missing from evidence: $(@($cov.missed) -join ', ')" }
             else {
-                $bases = @()
-                if (Test-Path -LiteralPath $sessionsDir) {
-                    $bases = @(Get-ChildItem -LiteralPath $sessionsDir -Filter '*.html' -File | ForEach-Object { $_.BaseName.ToLowerInvariant() })
-                }
                 foreach ($sid in @($cov.inScopeIds)) {
                     if (-not $sid) { continue }
                     $sidL = ([string]$sid).ToLowerInvariant()
-                    if (-not @($bases | Where-Object { $sidL.Contains($_) }).Count) {
-                        Fail "coverage: no transcript export for in-scope session $sidL — run Export-SessionTranscripts.ps1 with -CoverageJson"
+                    if ($sidL -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+                        Fail "coverage: in-scope session id '$sidL' is not a full UUID"
+                        continue
+                    }
+                    if (-not (Test-Path -LiteralPath (Join-Path $sessionsDir "$sidL.html"))) {
+                        Fail "coverage: no transcript export 'sessions/$dayCode/$sidL.html' — run Export-SessionTranscripts.ps1 with -CoverageJson"
                     }
                 }
             }

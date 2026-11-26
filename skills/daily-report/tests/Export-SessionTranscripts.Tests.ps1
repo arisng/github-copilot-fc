@@ -7,7 +7,9 @@ Describe 'Export-SessionTranscripts.ps1' {
         $fxHome = Join-Path $TestDrive 'copilot-home'
         $stateDir = Join-Path $fxHome 'session-state'
         New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
-        $evDir = Join-Path $stateDir 'aaaabbbb-1111-4222-8333-444444444444'
+        $evFull = 'aaaabbbb-1111-4222-8333-444444444444'
+        $dbFull = 'ccccdddd-0000-4000-8000-000000000001'
+        $evDir = Join-Path $stateDir $evFull
         New-Item -ItemType Directory -Force -Path $evDir | Out-Null
         $events = @'
 {"type":"user.message","timestamp":"2026-11-17T08:00:00Z","data":{"interactionId":"i1","content":"Fixture question","source":"user"}}
@@ -40,6 +42,11 @@ updated: 2026-11-17 16:00 +07:00
         }
 
         $refsAll = '- **Refs:** session `aaaabbbb` · session `ccccdddd` · session `eeeeffff` · grill session `20261105-120133`'
+        # Template link form: 8-char display label, full-UUID target.
+        # A report may still carry an old link; it is not a citation form.
+        $refsLinks = "- **Refs:** [$($evFull.Substring(0,8))](sessions/261117/$evFull.html) · [$($dbFull.Substring(0,8))](sessions/261117/$dbFull.html)"
+
+        function Get-SessDir([string]$Report) { Join-Path (Split-Path $Report -Parent) 'sessions/261117' }
     }
 
     BeforeEach {
@@ -47,12 +54,26 @@ updated: 2026-11-17 16:00 +07:00
         if (Test-Path $sessionsDir) { Remove-Item $sessionsDir -Recurse -Force }
     }
 
-    It 'ListOnly lists every mentioned copilot session and never grill sessions' {
+    It 'ListOnly lists every cited copilot session and never grill sessions' {
         $r = New-Report $refsAll
         $ids = @(& $export -ReportPath $r -ListOnly)
         $LASTEXITCODE | Should -Be 0
         $ids | Should -Be @('aaaabbbb', 'ccccdddd', 'eeeeffff')
         Test-Path (Join-Path (Split-Path $r -Parent) 'sessions') | Should -BeFalse
+    }
+
+    It 'ListOnly reads the link form and yields the full-UUID target stem' {
+        $r = New-Report $refsLinks
+        $ids = @(& $export -ReportPath $r -ListOnly)
+        $LASTEXITCODE | Should -Be 0
+        $ids | Should -Be @($evFull, $dbFull)
+    }
+
+    It 'ListOnly collapses a session cited in both forms to its full UUID' {
+        $r = New-Report "- **Refs:** session ``aaaabbbb`` · [$($evFull.Substring(0,8))](sessions/261117/$evFull.html)"
+        $ids = @(& $export -ReportPath $r -ListOnly)
+        $LASTEXITCODE | Should -Be 0
+        $ids | Should -Be @($evFull)
     }
 
     It 'ListOnly works without any copilot home (pure parse, no store access)' {
@@ -61,16 +82,20 @@ updated: 2026-11-17 16:00 +07:00
         $ids | Should -Be @('deadbeef')
     }
 
-    It 'exports events- and db-backed sessions and notices the unresolvable one' {
+    It 'exports under the full UUID and notices the unresolvable short citation' {
         $r = New-Report $refsAll
         $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
         $LASTEXITCODE | Should -Be 0
         $j.total | Should -Be 3
         @($j.exported).Count | Should -Be 2
         @($j.notice).Count | Should -Be 1
-        $sessionsDir = Join-Path (Split-Path $r -Parent) 'sessions/261117'
-        (Get-Content (Join-Path $sessionsDir 'aaaabbbb.html') -Raw) | Should -Match 'Fixture question'
-        (Get-Content (Join-Path $sessionsDir 'ccccdddd.html') -Raw) | Should -Match 'DB answer'
+        # the slug is the full UUID even though the report cites the short form
+        @($j.exported | ForEach-Object { $_.slug }) | Should -Be @($evFull, $dbFull)
+        $sessionsDir = Get-SessDir $r
+        (Get-Content (Join-Path $sessionsDir "$evFull.html") -Raw) | Should -Match 'Fixture question'
+        (Get-Content (Join-Path $sessionsDir "$dbFull.html") -Raw) | Should -Match 'DB answer'
+        Test-Path (Join-Path $sessionsDir 'aaaabbbb.html') | Should -BeFalse
+        Test-Path (Join-Path $sessionsDir 'ccccdddd.html') | Should -BeFalse
         $notice = Get-Content (Join-Path $sessionsDir 'eeeeffff.html') -Raw
         $notice | Should -Match 'daily-report-session-notice'
         $notice | Should -Match 'not available on this machine'
@@ -85,6 +110,20 @@ updated: 2026-11-17 16:00 +07:00
         @($j.notice).Count | Should -Be 0
     }
 
+    It 'prunes a stale short-form file once the session exports under its full UUID' {
+        $r = New-Report $refsAll
+        $sessionsDir = Get-SessDir $r
+        New-Item -ItemType Directory -Force -Path $sessionsDir | Out-Null
+        [IO.File]::WriteAllText((Join-Path $sessionsDir 'aaaabbbb.html'), '<!doctype html><html><body>old short export</body></html>')
+        $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        Test-Path (Join-Path $sessionsDir 'aaaabbbb.html') | Should -BeFalse
+        Test-Path (Join-Path $sessionsDir "$evFull.html") | Should -BeTrue
+        @($j.pruned).Count | Should -Be 1
+        $j.pruned[0].id | Should -Be 'aaaabbbb'
+        $j.pruned[0].slug | Should -Be $evFull
+    }
+
     It 'upgrades a notice to the real transcript once the session data exists' {
         $r = New-Report '- **Refs:** session `eeeeffff`'
         & $export -ReportPath $r -CopilotHome $fxHome | Out-Null   # notice: unresolvable
@@ -94,7 +133,9 @@ updated: 2026-11-17 16:00 +07:00
         try {
             $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
             @($j.exported).Count | Should -Be 1
-            $j.exported[0].id | Should -Be 'eeeeffff'
+            $j.exported[0].slug | Should -Be 'eeeeffff-9999-4222-8333-444444444444'
+            # the short-form notice is pruned by the upgrade
+            Test-Path (Join-Path (Get-SessDir $r) 'eeeeffff.html') | Should -BeFalse
         }
         finally { Remove-Item $full -Recurse -Force }
     }
@@ -115,26 +156,74 @@ updated: 2026-11-17 16:00 +07:00
         }
     }
 
-    It 'exports a coverage-receipt session the report never mentions' {
+    It 'exports a link-form citation straight to its full-UUID slug' {
+        $r = New-Report $refsLinks
+        $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $j.total | Should -Be 2
+        @($j.exported | ForEach-Object { $_.slug }) | Should -Be @($evFull, $dbFull)
+        $sessionsDir = Get-SessDir $r
+        (Get-Content (Join-Path $sessionsDir "$evFull.html") -Raw) | Should -Match 'Fixture question'
+        @(Get-ChildItem $sessionsDir -Filter '*.html' -File).Count | Should -Be 2
+    }
+
+    It 'rejects a link whose target is not the full session UUID' {
+        $r = New-Report '- **Refs:** [aaaabbbb](sessions/261117/aaaabbbb.html)'
+        { & $export -ReportPath $r -CopilotHome $fxHome } | Should -Throw -ExpectedMessage '*full session UUID*'
+        Test-Path (Join-Path (Split-Path $r -Parent) 'sessions') | Should -BeFalse
+    }
+
+    It 'rejects a link pointing outside the report date folder' {
+        $r = New-Report "- **Refs:** [$($evFull.Substring(0,8))](sessions/261118/$evFull.html)"
+        { & $export -ReportPath $r -CopilotHome $fxHome } | Should -Throw -ExpectedMessage '*beside its report*'
+    }
+
+    It 'exports a coverage-receipt session the report never cites' {
         $r = New-Report '- **Refs:** check `task test` → PASS'
         $cov = Join-Path $TestDrive 'cov.json'
         '{"schema":1,"date":"2026-11-17","verified":true,"missed":[],"inScopeIds":["ccccdddd-0000-4000-8000-000000000001"]}' | Set-Content $cov
         $j = (& $export -ReportPath $r -CopilotHome $fxHome -CoverageJson $cov | Out-String) | ConvertFrom-Json
         $LASTEXITCODE | Should -Be 0
         $j.total | Should -Be 1
-        $sessionsDir = Join-Path (Split-Path $r -Parent) 'sessions/261117'
-        (Get-Content (Join-Path $sessionsDir 'ccccdddd-0000-4000-8000-000000000001.html') -Raw) | Should -Match 'DB answer'
+        (Get-Content (Join-Path (Get-SessDir $r) "$dbFull.html") -Raw) | Should -Match 'DB answer'
     }
 
-    It 'keeps the mention slug when a receipt repeats a cited session' {
+    It 'keeps one artifact when a receipt repeats a cited session by short id' {
         $r = New-Report '- **Refs:** session `ccccdddd`'
         $cov = Join-Path $TestDrive 'cov.json'
         '{"schema":1,"date":"2026-11-17","verified":true,"missed":[],"inScopeIds":["ccccdddd-0000-4000-8000-000000000001"]}' | Set-Content $cov
         $j = (& $export -ReportPath $r -CopilotHome $fxHome -CoverageJson $cov | Out-String) | ConvertFrom-Json
         $j.total | Should -Be 1
-        $sessionsDir = Join-Path (Split-Path $r -Parent) 'sessions/261117'
-        Test-Path (Join-Path $sessionsDir 'ccccdddd.html') | Should -BeTrue
-        Test-Path (Join-Path $sessionsDir 'ccccdddd-0000-4000-8000-000000000001.html') | Should -BeFalse
+        $sessionsDir = Get-SessDir $r
+        Test-Path (Join-Path $sessionsDir "$dbFull.html") | Should -BeTrue
+        Test-Path (Join-Path $sessionsDir 'ccccdddd.html') | Should -BeFalse
+        @(Get-ChildItem $sessionsDir -Filter '*.html' -File).Count | Should -Be 1
+    }
+
+    It 'sweeps an orphan short-form file whose full-UUID peer exists' {
+        $r = New-Report '- **Refs:** check `task test` → PASS'
+        $sessionsDir = Get-SessDir $r
+        New-Item -ItemType Directory -Force -Path $sessionsDir | Out-Null
+        [IO.File]::WriteAllText((Join-Path $sessionsDir 'feedface.html'), '<html>old short</html>')
+        [IO.File]::WriteAllText((Join-Path $sessionsDir 'feedface-2222-4222-8333-444444444444.html'), '<html>full</html>')
+        $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $j.total | Should -Be 0
+        @($j.pruned).Count | Should -Be 1
+        Test-Path (Join-Path $sessionsDir 'feedface.html') | Should -BeFalse
+        Test-Path (Join-Path $sessionsDir 'feedface-2222-4222-8333-444444444444.html') | Should -BeTrue
+    }
+
+    It 'never sweeps a short file whose prefix is ambiguous' {
+        $r = New-Report '- **Refs:** check `task test` → PASS'
+        $sessionsDir = Get-SessDir $r
+        New-Item -ItemType Directory -Force -Path $sessionsDir | Out-Null
+        [IO.File]::WriteAllText((Join-Path $sessionsDir 'feedface.html'), '<html>short</html>')
+        [IO.File]::WriteAllText((Join-Path $sessionsDir 'feedface-2222-4222-8333-444444444444.html'), '<html>a</html>')
+        [IO.File]::WriteAllText((Join-Path $sessionsDir 'feedface-3333-4222-8333-444444444444.html'), '<html>b</html>')
+        $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
+        @($j.pruned).Count | Should -Be 0
+        @(Get-ChildItem $sessionsDir -Filter '*.html' -File).Count | Should -Be 3
     }
 
     It 'fails loudly when the coverage receipt is missing' {
@@ -150,11 +239,12 @@ updated: 2026-11-17 16:00 +07:00
         Test-Path (Join-Path $dir 'sessions') | Should -BeFalse
     }
 
-    It 'emits a zero-total receipt and creates no folder when nothing is mentioned' {
+    It 'emits a zero-total receipt and creates no folder when nothing is cited' {
         $r = New-Report '- **Refs:** check `task test` → PASS'
         $j = (& $export -ReportPath $r -CopilotHome $fxHome | Out-String) | ConvertFrom-Json
         $LASTEXITCODE | Should -Be 0
         $j.total | Should -Be 0
+        @($j.pruned).Count | Should -Be 0
         Test-Path (Join-Path (Split-Path $r -Parent) 'sessions') | Should -BeFalse
     }
 

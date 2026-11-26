@@ -1,10 +1,10 @@
 ---
 name: daily-report
-description: "Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as `reports/daily/{git user}/yymmdd.md` with `created`/`updated` frontmatter, a personal glossary at `glossary.md`, and one turns-only HTML transcript per grounded session (cited or coverage-listed) under `sessions/{yymmdd}/{session-slug}.html`. USE THIS SKILL whenever the user asks what was done in a time range or wants their daily report, in English or Vietnamese: 'daily report', 'daily standup', 'daily update', 'what did I work on', 'yesterday's work', 'what did I do today', 'generate a report from 9h to 13h today', 'tạo báo cáo hôm nay'. Also for backfilling a date range (batch mode). NOT for: weekly or monthly stakeholder summaries, pull-request description writing. Two modes: single-repo (default) or multi-repo tower, dictated by the manifest `reports/daily/daily-report.manifest.json`."
+description: "Generate a one-page daily report for one git user, grounded in a single calendar day: git proof plus repo-scoped Copilot session evidence, rendered as `reports/daily/{git user}/yymmdd.md` with `created`/`updated` frontmatter, a personal glossary at `glossary.md`, and one turns-only HTML transcript per grounded session (cited or coverage-listed) under `sessions/{yymmdd}/{full-session-uuid}.html` (committed; only its `coverage.json` is git-ignored). USE THIS SKILL whenever the user asks what was done in a time range or wants their daily report, in English or Vietnamese: 'daily report', 'daily standup', 'daily update', 'what did I work on', 'yesterday's work', 'what did I do today', 'generate a report from 9h to 13h today', 'tạo báo cáo hôm nay'. Also for backfilling a date range (batch mode). NOT for: weekly or monthly stakeholder summaries, pull-request description writing. Two modes: single-repo (default) or multi-repo tower, dictated by the manifest `reports/daily/daily-report.manifest.json`."
 user-invocable: true
 disable-model-invocation: true
 metadata:
-  version: 1.4.1
+  version: 2.1.0
   author: arisng
 ---
 
@@ -206,7 +206,7 @@ This comparison is the only de-duplication the Glossary has.
   window). At most 4 items, each at most 4 lines:
   - **Why** — one sentence; the purpose, never "because it was assigned".
   - **Result** — one sentence; the verifiable state change, with the action verbs.
-  - **Refs** — ONE line with 2 to 4 pointers: a bare session id, a hyperlinked
+  - **Refs** — ONE line with 2 to 4 pointers: a session link, a hyperlinked
     issue or pull request, a check result written as a short label with its
     outcome (`quality gate → PASS` — never a full shell command), a file path.
     Never commit hashes, turn numbers, or window tags.
@@ -260,20 +260,34 @@ refused — two users on one day produce two folders, never one merged file.
 
 **Session transcript exports (enforced):** right after the report file is
 written, run `scripts/Export-SessionTranscripts.ps1 -ReportPath <path>
--CoverageJson <receipt>`. It
-reads every session the body mentions (``session `xxxxxxxx` `` — the slug is
-that id, lowercased; `grill session` mentions are never exported) plus every
-`inScope` session in the coverage receipt — cited or not, each grounded
-session leaves one artifact — and writes
-one self-contained HTML file per session to `sessions/<yymmdd>/<session-slug>.html`
-beside the report — every day's transcripts in their own date folder, never
-mixed with another report day's. The session data comes from **this machine's** Copilot state
+-CoverageJson <receipt>`. It reads every session the body cites — a transcript
+link `[<8-char id>](sessions/<yymmdd>/<full-uuid>.html)` or a legacy prose
+``session `xxxxxxxx` `` (`grill session` is never exported) — plus every
+`inScope` session in the coverage receipt, cited or not, so each grounded
+session leaves one artifact.
+
+**The slug is always the full session UUID**, never the short form the prose
+shows. A session cited by its 8-char id exports to
+`sessions/<yymmdd>/<full-uuid>.html`, and any stale short-form file from an
+older run is pruned, so one session never owns two files and a link written
+today still resolves after a rerun. Only a session this machine cannot resolve
+keeps the short name: its full UUID is exactly what the machine does not hold,
+and its page is the honest "not available" notice.
+
+The session data comes from **this machine's** Copilot state
 (`$env:COPILOT_HOME`, else `~/.copilot`): `events.jsonl` first, then the
 session store. A session this machine does not hold gets an explicit
 "not available" notice page instead of a silent skip. The JSON receipt
-reports `total` / `exported` / `notice` / `kept` — quote it in the report-back.
-Existing exports are never rewritten (pass `-Refresh` to re-export). The
-exported `.html` files are git-ignored local artifacts, never committed.
+reports `total` / `exported` / `notice` / `kept` / `pruned` — quote it in the
+report-back. Existing exports are never rewritten (pass `-Refresh` to
+re-export).
+
+**What gets committed.** The turns-only `.html` transcripts ARE committed —
+that is what lets a report link its own session files and a reader open them
+from any clone. Git-ignore only the coverage receipt beside them
+(`reports/daily/*/sessions/*/coverage.json`): it records this checkout's
+session cwd paths, so it is a local audit artifact, never published. Never
+link the receipt from a report.
 
 **Frontmatter (enforced):** exactly two stamps, local time with the runtime
 offset:
@@ -312,13 +326,16 @@ rename it into this folder/naming before updating.
   -CoverageJson <receipt>` must **PASS** before reporting back. It enforces
   path/naming, the frontmatter
   schema, the timeless body, structure and caps, refs format, multi-mode
-  per-repo scoping, the session
-  transcript exports (every mentioned session must have its
-  `sessions/<yymmdd>/<slug>.html`), the budget, report-to-canonical glossary
+  per-repo scoping, the session transcript exports (on the generating machine,
+  every cited short id must resolve to its `sessions/<yymmdd>/<full-uuid>.html`),
+  the refs rule that a session pointer is a bare id and never a transcript
+  link, the
+  budget, report-to-canonical glossary
   consistency, and — with the coverage receipt — grounding completeness (a
   receipt that is missing, unverified, or lists missed in-scope sessions
-  fails, as does an in-scope session without a transcript export). Failures
-  are line-specific.
+  fails, as does an in-scope session without a transcript export under its
+  full UUID). The receipt is git-ignored, so a repository gate passes it only
+  where the local artifact exists. Failures are line-specific.
 - Report back: the active mode (`single` or `multi`, plus the tower path in
   multi), the file path, counts (N Completed, M Active), created/updated
   stamps, the glossary receipt, the transcript-export receipt
@@ -359,7 +376,7 @@ single-day path** — no separate rendering logic:
 | `scripts/Get-GitProof.ps1` | Single-day, author-filtered, checkpoint-excluding git evidence as JSON. |
 | `scripts/Get-SessionEvidence.ps1` | Single-day Copilot session evidence, scoped to the current repository by repository key or cwd (exact match only, no unfiltered queries); optional `-CloudJson` merge. |
 | `scripts/Get-SessionCoverage.ps1` | Per-day cross-check of the store against the watched set: classifies every session (inScope / outOfScope / unattributed) and, with `-EvidenceJson`, diffs in-scope ids against what evidence returned; emits the coverage receipt for export and validation. |
-| `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report mentions — plus every `inScope` coverage-receipt session with `-CoverageJson` — to `sessions/<yymmdd>/<session-slug>.html` grouped by the report's date (events store first, session-store fallback, honest notice page when absent on this machine); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
+| `scripts/Export-SessionTranscripts.ps1` | Exports every session a rendered report cites — a transcript link or a legacy prose id — plus every `inScope` coverage-receipt session with `-CoverageJson`, always to `sessions/<yymmdd>/<full-session-uuid>.html` grouped by the report's date (events store first, session-store fallback, honest notice page when absent on this machine; a stale short-form file is pruned once the full UUID exists); `-ListOnly` feeds the validator. Drives `export-copilot-transcript.py`. |
 | `scripts/Merge-Glossary.ps1` | All canonical-glossary mechanics: parse, validate, upsert, sort, atomic write, JSON receipt; `-Validate` shared with the test script. |
 | `scripts/Invoke-DailyReportBatch.ps1` | Backfill loop: date enumeration, skip/regenerate policy, per-day evidence, isolation. |
 | `scripts/Test-DailyReport.ps1` | Read-only validator for report + glossary against the pinned formats; `-EvidenceJson` adds empty-source honesty, `-CoverageJson` adds grounding-completeness enforcement. |
@@ -395,10 +412,13 @@ mechanical invariant. Pester tests for every script live under `tests/`.
 ### 1. [repo] Verified local and origin develop sync
 - **Why:** Untested sync leaves conflicting history for the next session.
 - **Result:** Fetched and rebased — develop matches origin/develop, 0 ahead, 0 conflicts.
-- **Refs:** session `16f5c5b5` · sync check → PASS (0 ahead).
+- **Refs:** [16f5c5b5](sessions/261110/16f5c5b5-1111-4222-8333-444444444444.html) · sync check → PASS (0 ahead).
 ```
 
-(The `[repo]` tag appears in multi mode; single mode omits it.)
+(The `[repo]` tag appears in multi mode; single mode omits it. The session
+pointer is a link: 8-char label, full-UUID target. A prose
+``session `16f5c5b5` `` still exports, but the link is the form that survives a
+rerun and is what the template asks for.)
 
 **Example 4 — multi-repo tower**
 
@@ -418,7 +438,7 @@ Mechanical guardrails are enforced by `Test-DailyReport.ps1`,
 manifest schema, attribution,
 path and naming, frontmatter schema, timeless body, structure and budget, rerun
 idempotency, empty-source honesty, batch isolation, session-transcript export
-presence for every session the report mentions, session-grounding coverage
+presence for every session the report cites under its full UUID, session-grounding coverage
 (receipt verified against evidence, no missed in-scope session, one transcript
 per in-scope session), and the glossary schema,
 ownership, idempotency, and report-to-canonical consistency. A violation fails
