@@ -2,7 +2,7 @@
 name: join-copilot-fc
 description: "Extract (promote) a repo-level agent skill from the current repository into the github-copilot-fc skills factory and publish it as a user-level skill — the join-copilot-fc flow: locate the repo skill, strip repo-specific references, add metadata.version, commit and push inside the factory, then remove the skill from the source repo and repoint its references. Use when the user asks to 'promote this repo skill', 'extract the repo-level skill', 'move a skill into github-copilot-fc', 'make this repo skill public/user-level', 'install this repo skill globally', or says 'join-copilot-fc'. Not for updating or version-bumping an already-extracted skill, authoring a brand-new skill, or publishing skills that did not originate in a repo."
 metadata:
-  version: 1.1.0
+  version: 1.1.1
   author: arisng
 ---
 
@@ -44,7 +44,9 @@ patterns and before/after rewrites. Rules of thumb:
 ## 3. Land the skill in the factory
 
 Factory clone: `C:\Workplace\Agents\github-copilot-fc` (branch `main`, remote
-`arisng/github-copilot-fc`); ask the user if it lives elsewhere.
+`arisng/github-copilot-fc`). Confirm it rather than hunt for it: `git -C` that path must
+report branch `main` with that remote. Ask the user only when the path is absent or the
+check disagrees — do not enumerate candidate folders first.
 
 1. Copy the agnostized folder to `skills/<name>/`.
 2. Add public-skill metadata to the frontmatter (required so consumers can run
