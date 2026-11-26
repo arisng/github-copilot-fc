@@ -239,7 +239,10 @@ function Test-Consistency {
         return @{ Status = 'PASS'; Detail = $summary }
     }
     if ($code -eq 2) {
-        return @{ Status = 'FAIL'; Detail = 'consistency checker: required tooling missing (python3/jsonschema/PyYAML)' }
+        $failLines = @($lines | Where-Object { $_ -match '^\[FAIL\]' })
+        $detail = 'consistency checker: required tooling missing'
+        if ($failLines.Count -gt 0) { $detail = ($failLines -join ' | ') -replace '^\[FAIL\] ', '' }
+        return @{ Status = 'FAIL'; Detail = $detail }
     }
     $failLines = @($lines | Where-Object { $_ -match '^\[FAIL\]' })
     $shown = (@($failLines | Select-Object -First 3) -join ' | ')

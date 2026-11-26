@@ -107,11 +107,27 @@ def split_frontmatter(text: str):
     return text[3:end]
 
 
+def interpreter_hint(package: str) -> str:
+    """Name the exact interpreter and command that installs `package` here.
+
+    The bare "(pip install jsonschema)" hint sent an agent to the wrong
+    interpreter: the gate runs `python3`, and on a machine where `python` and
+    `python3` are different installs, `pip` belongs to `python`. The install
+    then succeeded into an interpreter the gate never invokes, so the error
+    survived and the fix looked broken (retro 2026-11-26).
+    """
+    exe = sys.executable or "python3"
+    return f'"{exe}" -m pip install {package}'
+
+
 def main() -> int:
     try:
         import jsonschema  # noqa: F401
     except ImportError:
-        print("[FAIL] python3 package 'jsonschema' is required (pip install jsonschema)")
+        print(f"[FAIL] package 'jsonschema' is missing for the interpreter running this gate")
+        print(f"[FAIL] interpreter: {sys.executable or 'unknown'}")
+        print(f"[FAIL] install with: {interpreter_hint('jsonschema')}")
+        print("[FAIL] note: the gate is invoked as `python3`, so install into that interpreter - not `python`")
         return 2
 
     validators = {name: load_schema(name) for name in SCHEMAS}
@@ -139,7 +155,9 @@ def main() -> int:
     try:
         import yaml
     except ImportError:
-        print("[FAIL] python3 package 'PyYAML' is required for frontmatter parsing")
+        print("[FAIL] package 'PyYAML' is missing for the interpreter running this gate")
+        print(f"[FAIL] interpreter: {sys.executable or 'unknown'}")
+        print(f"[FAIL] install with: {interpreter_hint('PyYAML')}")
         return 2
     skills = sorted((REPO / "skills").glob("*/SKILL.md"))
     if not skills:
