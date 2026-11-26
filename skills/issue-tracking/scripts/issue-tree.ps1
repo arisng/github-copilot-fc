@@ -50,7 +50,7 @@
       -Check      structural self-consistency of treeFile only (parser +
                   count cross-checks; no store dir, no byte-compare)
       -Inventory  parse treeFile and print its data rows (no NEXT_ID - GitHub
-                  assigns issue numbers)
+                  assigns issue numbers); with -Brief, SUMMARY only
 
     Modes (local-markdown: all validate first; errors print as THEME lines and
     exit 1):
@@ -58,8 +58,13 @@
       -Check      validate only + tree freshness (repo issue lint, pre-commit gate)
       -Inventory  print one pipe row per issue, then the next free id:
                     id|type|status|priority|theme|parent|order|file|labels|title
-                    NEXT_ID|NNNN   (max id across active + archived, plus one,
-                    skipping ids reserved by issue-new-id leases)    tree grammar (blank and comment lines are not data; title is always the
+                    NEXT_ID|NNNN   (max id across active + archived *and every
+                    worktree checkout of this clone*, plus one, skipping ids
+                    reserved by issue-new-id leases)
+      -Inventory -Brief  summary + next id only, no rows:
+                    SUMMARY|themes=N|issues=N
+                    NEXT_ID|NNNN
+                  tree grammar (blank and comment lines are not data; title is always the
     last field and may contain '|'):
                   SUMMARY|themes=N|issues=N|P0=N|P1=N|P2=N|P3=N|blocked=N
                   NEXT|id|theme|priority|status|title   (absent when nothing actionable)
@@ -78,15 +83,23 @@
     pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Check
 .EXAMPLE
     pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory
+.EXAMPLE
+    pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory -Brief
 #>
 param(
     [switch]$Check,
-    [switch]$Inventory
+    [switch]$Inventory,
+    [switch]$Brief
 )
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path -Path $PSScriptRoot -ChildPath 'issue-id-lib.ps1')
 . (Join-Path -Path $PSScriptRoot -ChildPath 'issue-template-lib.ps1')
+
+if ($Brief -and -not $Inventory) {
+    "issue-tree: -Brief applies to -Inventory only (run -Inventory -Brief)"
+    exit 1
+}
 
 # --- Store resolution: manifest first, .issues fallback (repo-agnostic) ------
 $issuesDir = '.issues'
@@ -291,6 +304,10 @@ if ($githubMode) {
         exit 1
     }
     if ($Inventory) {
+        if ($Brief) {
+            "SUMMARY|themes=$($parsed.ThemeTotal)|issues=$($parsed.RowTotal)"
+            exit 0
+        }
         foreach ($dataLine in $parsed.DataLines) { $dataLine }
         exit 0
     }
@@ -642,21 +659,23 @@ if ($Check -and $Inventory) {
 
 # --- 4. Inventory: the store as machine rows ---------------------------------
 if ($Inventory) {
-    'id|type|status|priority|theme|parent|order|file|labels|title'
-    foreach ($record in $records) {
-        $themeField = '-'
-        if (-not [string]::IsNullOrWhiteSpace($record.ResolvedTheme)) {
-            $themeField = $record.ResolvedTheme
+    if (-not $Brief) {
+        'id|type|status|priority|theme|parent|order|file|labels|title'
+        foreach ($record in $records) {
+            $themeField = '-'
+            if (-not [string]::IsNullOrWhiteSpace($record.ResolvedTheme)) {
+                $themeField = $record.ResolvedTheme
+            }
+            $parentField = '-'
+            if (-not [string]::IsNullOrWhiteSpace($record.Parent)) {
+                $parentField = $record.Parent
+            }
+            $labelsField = '-'
+            if ($record.Labels.Count -gt 0) {
+                $labelsField = ($record.Labels -join ',')
+            }
+            "$($record.Id)|$($record.Type)|$($record.Status)|$($record.Priority)|$themeField|$parentField|$($record.Order)|$($record.File)|$labelsField|$($record.Title)"
         }
-        $parentField = '-'
-        if (-not [string]::IsNullOrWhiteSpace($record.Parent)) {
-            $parentField = $record.Parent
-        }
-        $labelsField = '-'
-        if ($record.Labels.Count -gt 0) {
-            $labelsField = ($record.Labels -join ',')
-        }
-        "$($record.Id)|$($record.Type)|$($record.Status)|$($record.Priority)|$themeField|$parentField|$($record.Order)|$($record.File)|$labelsField|$($record.Title)"
     }
     $maxId = 0
     foreach ($record in $records) {
@@ -674,8 +693,15 @@ if ($Inventory) {
             }
         }
     }
+    # Union with every worktree checkout of this clone: an id committed on an
+    # unmerged branch exists only in that worktree's .issues, and its lease may
+    # already be released or expired - the local scan alone would hand it out
+    # again (the historical double-filing failure).
+    $union = Get-IssueIdUsageAcrossRoots -Roots @(Get-IssueIdWorktreeRoots) -IssuesDir $issuesDir -ArchiveDir $archiveDir
+    if ($union.MaxId -gt $maxId) { $maxId = $union.MaxId }
     # NEXT_ID must agree with the allocator (issue-new-id.ps1): skip ids that
-    # are only reserved (outstanding lease in the shared git-common-dir store).
+    # are only reserved (outstanding lease in the shared lease store), and take
+    # the union max computed above for ids filed only in sibling worktrees.
     $nextCandidate = $maxId + 1
     $reservedLeases = Get-IssueIdLeases -LeaseDir (Get-IssueIdLeaseDir)
     while ($nextCandidate -le 9999 -and
@@ -683,6 +709,10 @@ if ($Inventory) {
         $nextCandidate++
     }
     $nextId = '{0:D4}' -f $nextCandidate
+    if ($Brief) {
+        $themeCount = @($records | Where-Object { $_.IsThemeRoot }).Count
+        "SUMMARY|themes=$themeCount|issues=$(@($records).Count - $themeCount)"
+    }
     ''
     "NEXT_ID|$nextId"
     exit 0

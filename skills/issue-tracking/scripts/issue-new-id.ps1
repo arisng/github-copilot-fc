@@ -9,12 +9,17 @@
     issuesDir; refuses anything else.
 
     How ids stay unique across parallel sessions:
-      - ids come from max(active + archived NNNN-*.md) + 1, skipping every
-        outstanding lease, then are reserved with an exclusive file create in a
-        machine-shared store keyed by the repo's normalized remote URL
-        (<temp>/issue-id-leases/<sha1>) - every worktree AND every clone of this
-        repo on this machine draws from one pool, so two racing sessions can
-        never be handed the same id (the loser just takes the next one). No
+      - ids come from max(active + archived NNNN-*.md) + 1 **over every
+        worktree checkout of this clone** (`git worktree list` roots - an id
+        committed on an unmerged branch exists only in that worktree's store),
+        skipping every outstanding lease, then are reserved with an exclusive
+        file create in a machine-shared store keyed by the repo's normalized
+        remote URL (<temp>/issue-id-leases/<sha1>) - every worktree AND every
+        clone of this repo on this machine draws from one pool, so two racing
+        sessions can never be handed the same id (the loser just takes the next
+        one). One id filed under two different filenames across worktrees (two
+        racing files) prints a WARNING - renumber the later one, first-filed
+        keeps the id. No
         remote configured -> the git common dir (all worktrees of this clone);
         no git -> a per-repo-root temp bucket.
       - leases expire after -TtlHours (default 24) so a crashed session's
@@ -116,7 +121,15 @@ if (-not [string]::IsNullOrWhiteSpace($Release)) {
 }
 
 # --- allocate -----------------------------------------------------------------
-$candidate = $usage.MaxId + 1
+# Union across every worktree of this clone: the local scan above cannot see an
+# id that exists only in a sibling worktree's .issues (committed on an
+# unmerged branch), and its lease may already be released or expired.
+$union = Get-IssueIdUsageAcrossRoots -Roots @(Get-IssueIdWorktreeRoots) -IssuesDir $issuesDir -ArchiveDir $archiveDir
+foreach ($collision in $union.Conflicts) {
+    "issue-id: WARNING - id filed twice across worktrees: $collision"
+    "issue-id: WARNING - renumber the later file (first-filed keeps the id); the repo issue lint refuses the collision at merge"
+}
+$candidate = $union.MaxId + 1
 while ($candidate -le 9999) {
     $id = '{0:D4}' -f $candidate
     if (-not $usage.Used.ContainsKey($id) -and -not $leases.Active.ContainsKey($id)) {

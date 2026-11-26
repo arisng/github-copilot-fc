@@ -3,7 +3,7 @@ name: issue-tracking
 description: >
   Repo-agnostic issue tracking for local markdown stores - bootstraps .github/issue-tracker.json on first use (this skill owns its schema), then triages issues with evidence checks, links them into a theme tree, refreshes .issues/tree.md and its HTML view, and allocates ids collision-free across parallel sessions. Classification follows GitHub's native issue type field (default task/bug/feature, overridable via manifest issueTypes); grouping is a label axis - a theme root carries the `theme` label. Gates every issue file against a per-type template (GitHub-conventional defaults; consumers register overrides) and closes themes whose children are done. Use when asked to triage, groom, prioritize, or audit issues, pick next work by theme, file or link an issue, refresh or render the tree, verify claims against git history, enforce issue templates, or set up a tracker manifest. Routes GitHub issues to triage-backlog (plus the synced tree with treeSource: github); Azure DevOps via az boards.
 metadata:
-  version: 2.0.0
+  version: 2.1.0
   author: arisng
 ---
 
@@ -128,7 +128,7 @@ pwsh <skill-folder>/scripts/issue-tracker-init.ps1 -Apply -Force `
 |---|---|
 | see the effective registry | `pwsh <skill-folder>/scripts/issue-template.ps1 -List` |
 | validate the set + registration | `pwsh <skill-folder>/scripts/issue-template.ps1 -Validate` |
-| print a template to file from | `pwsh <skill-folder>/scripts/issue-template.ps1 -Show <type>` |
+| print a filing skeleton to copy into a new issue file | `pwsh <skill-folder>/scripts/issue-template.ps1 -Show <type>` |
 
 Unregistered files in `issueTemplatesDir` are ignored — they may be native
 GitHub.com templates. Templates describe the local store, so the registry is
@@ -158,9 +158,11 @@ pwsh ~/.agents/skills/issue-tracking/scripts/issue-tree.ps1 -Inventory
 ```
 
 - One row per issue — `id|type|status|priority|theme|parent|order|file|labels|title`
-  — followed by `NEXT_ID|NNNN` (next free id across active + archived, skipping ids
-  reserved by outstanding allocator leases — advisory; the allocator is the source
-  of truth). Validation runs first: core/relations errors print as
+  — followed by `NEXT_ID|NNNN` (next free id across active + archived **and every
+  worktree checkout of the clone**, skipping ids reserved by outstanding allocator
+  leases — advisory; the allocator is the source of truth). Add `-Brief` to print
+  only `SUMMARY|themes=N|issues=N` + `NEXT_ID|NNNN` when the ids/counts are all the
+  run needs. Validation runs first: core/relations errors print as
   `THEME .issues/<file>: <reason>`, template conformance errors as
   `TEMPLATE .issues/<file>: <reason>`, and the run exits 1; fix them before doing
   anything else.
@@ -199,7 +201,11 @@ is the source of truth; there is no local store to validate:
   URL, so parallel sessions in the same worktree, in sibling worktrees, *or in a
   different clone of this repo on this machine* can never be handed the same id
   (24 h TTL reclaims crashed sessions; `-List` shows leases, `-Release NNNN` drops
-  one). Write `NNNN-slug.md` immediately after allocating. Never hand-pick an id —
+  one). The allocator also **counts ids filed** in every worktree checkout of
+  the clone (`git worktree list`), so an id committed on an unmerged branch is
+  never re-handed, and one id filed under two different filenames across
+  worktrees prints a WARNING — renumber the later file; first-filed keeps the
+  id. Write `NNNN-slug.md` immediately after allocating. Never hand-pick an id —
   `NEXT_ID` from `-Inventory` is the advisory view of the same rule. Isolated
   machines cannot see each other's uncommitted issues; there the always-on
   duplicate-id gate (the repo's issue lint, pre-commit) refuses to let a collision

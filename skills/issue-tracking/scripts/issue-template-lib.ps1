@@ -463,7 +463,7 @@ function Test-IssueTemplateConformance {
     }
     foreach ($section in $Template.Sections) {
         if (-not $headingSet.ContainsKey($section.Trim().ToLowerInvariant())) {
-            $errors += "missing required section '$section' (template '$($Template.Type)')"
+            $errors += "missing required section '$section' (template '$($Template.Type)') - template file: $($Template.Label)"
         }
     }
     return $errors

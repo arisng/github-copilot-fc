@@ -194,3 +194,76 @@ function Get-IssueIdUsage {
     }
     return @{ Used = $used; Duplicates = $dupes; MaxId = $maxId }
 }
+
+function Get-IssueIdWorktreeRoots {
+    # Every checkout of this clone (current root first, then `git worktree
+    # list --porcelain` roots, slash-normalized and deduped). An id committed on
+    # an unmerged branch exists only in that worktree's store, so callers that
+    # compute the id space (allocator, -Inventory NEXT_ID) must union all roots
+    # instead of the current checkout alone. Falls back to the current root when
+    # git is unavailable or the directory is not a repo.
+    param([string]$RepoRoot = (Get-Location).Path)
+
+    $roots = New-Object System.Collections.Generic.List[string]
+    $roots.Add($RepoRoot)
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $out = & git -C $RepoRoot worktree list --porcelain 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $seen = @{ $RepoRoot.TrimEnd('\', '/').Replace('/', '\').ToLowerInvariant() = $true }
+                foreach ($line in $out) {
+                    if ($line -notmatch '^worktree\s+(.+)$') { continue }
+                    $path = $Matches[1].Trim().TrimEnd('\', '/')
+                    $key = $path.Replace('/', '\').ToLowerInvariant()
+                    if (-not $seen.ContainsKey($key)) {
+                        $seen[$key] = $true
+                        $roots.Add($path)
+                    }
+                }
+            }
+        }
+        catch { }   # no git / not a repo: the current root is all we can see
+        finally { $ErrorActionPreference = $prev }
+    }
+    # Plain return: the pipeline unrolls the array, so every caller form
+    # (@(f), $r = f, foreach) receives a flat string list - the `,` wrap would
+    # nest it one level deeper and hand Join-Path an array-as-path.
+    return $roots.ToArray()
+}
+
+function Get-IssueIdUsageAcrossRoots {
+    # Union of filed NNNN prefixes across every worktree checkout of the clone.
+    # Same id + same filename in two checkouts is one issue seen twice (shared
+    # or merged branch) - benign. Same id + DIFFERENT filename is two racing
+    # files - reported in Conflicts so the caller can warn before the repo's
+    # duplicate-id lint refuses the collision at merge time.
+    param(
+        [string[]]$Roots,
+        [string]$IssuesDir,
+        [string]$ArchiveDir
+    )
+    $used = @{}
+    $conflicts = New-Object System.Collections.Generic.List[string]
+    $maxId = 0
+    foreach ($root in @($Roots)) {
+        foreach ($dir in @((Join-Path -Path $root -ChildPath $IssuesDir), (Join-Path -Path $root -ChildPath $ArchiveDir))) {
+            if (-not (Test-Path -LiteralPath $dir)) { continue }
+            foreach ($f in (Get-ChildItem -LiteralPath $dir -File -Filter '*.md' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d{4}-' })) {
+                $prefix = $f.Name.Substring(0, 4)
+                if ($used.ContainsKey($prefix)) {
+                    if ($used[$prefix].File -ne $f.Name) {
+                        $conflicts.Add("id $prefix filed as '$($used[$prefix].File)' ($($used[$prefix].Root)) and '$($f.Name)' ($root)")
+                    }
+                }
+                else {
+                    $used[$prefix] = @{ File = $f.Name; Root = $root }
+                }
+                $parsedId = 0
+                if ([int]::TryParse($prefix, [ref]$parsedId) -and $parsedId -gt $maxId) { $maxId = $parsedId }
+            }
+        }
+    }
+    return @{ Used = $used; MaxId = $maxId; Conflicts = $conflicts }
+}
