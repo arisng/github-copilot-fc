@@ -74,28 +74,57 @@ $scope = $match.Groups[2].Value
 
 # Parse the constitution: approved types with the scopes each allows. A type
 # whose section says "Deprecated type" is refused even when it lists scopes.
+#
+# A section heading may name several types at once - constitutions group them
+# ("### `feat` and `fix`", "### `chore` and `build`"), and those types share
+# every scope listed beneath. Matching only a lone backticked name silently
+# under-approves: the grouped sections parse as nothing, so the checker reads
+# a fraction of the constitution and rejects legitimate commits (retro
+# 2026-11-26). Collect every backticked name on the heading line instead.
 $approved = @{}
 $deprecated = @{}
-$currentType = $null
+$globalScopes = [System.Collections.Generic.List[string]]::new()
+$currentTypes = @()
 $inSection = $false
 foreach ($line in @(Get-Content -LiteralPath $ConstitutionPath)) {
     if ($line -match '^##\s+') {
         $inSection = $line -match '^##\s+Approved Scopes by Commit Type\s*$'
-        $currentType = $null
+        $currentTypes = @()
         continue
     }
     if (-not $inSection) { continue }
-    if ($line -match '^###\s+`([a-z][a-z0-9-]*)`\s*$') {
-        $currentType = $Matches[1]
-        if (-not $approved.ContainsKey($currentType)) {
-            $approved[$currentType] = [System.Collections.Generic.List[string]]::new()
+    if ($line -match '^###\s') {
+        $currentTypes = @([regex]::Matches($line, '`([a-z][a-z0-9-]*)`') | ForEach-Object { $_.Groups[1].Value })
+        foreach ($t in $currentTypes) {
+            if (-not $approved.ContainsKey($t)) {
+                $approved[$t] = [System.Collections.Generic.List[string]]::new()
+            }
         }
         continue
     }
-    if (-not $currentType) { continue }
-    if ($line -match 'Deprecated type\.') { $deprecated[$currentType] = $true }
-    if ($line -match '^\s*-\s+`([a-z][a-z0-9-]*)`\s*:') {
-        $approved[$currentType].Add($Matches[1])
+    # A heading may name no type at all (a shared "(all types)" block); its
+    # scopes still count, so only type-scoped items depend on $currentTypes.
+    if ($line -match 'Deprecated type\.' -and $currentTypes.Count -gt 0) {
+        foreach ($t in $currentTypes) { $deprecated[$t] = $true }
+    }
+    # "(all types)" marks a scope every approved type accepts - attribute
+    # scopes (api, ui, i18n) genuinely span types, and forcing them into one
+    # grouped section is how a constitution drifts from practice. Collected
+    # and applied after the whole file is read so declaration order is free.
+    $scopeItem = [regex]::Match($line, '^\s*-\s+`([a-z][a-z0-9-]*)`\s*(:|\()')
+    if ($scopeItem.Success) {
+        $scopeName = $scopeItem.Groups[1].Value
+        if ($line -match '\(all types\)') {
+            if ($globalScopes -notcontains $scopeName) { $globalScopes.Add($scopeName) }
+        }
+        elseif ($currentTypes.Count -gt 0) {
+            foreach ($t in $currentTypes) { $approved[$t].Add($scopeName) }
+        }
+    }
+}
+foreach ($scopeName in $globalScopes) {
+    foreach ($t in $approved.Keys) {
+        if ($approved[$t] -notcontains $scopeName) { $approved[$t].Add($scopeName) }
     }
 }
 foreach ($t in $deprecated.Keys) { $approved.Remove($t) }

@@ -38,7 +38,8 @@ BeforeAll {
     }
 
     # Minimal constitution fixture: one approved type with two scopes, one
-    # deprecated type that still lists scopes.
+    # deprecated type that still lists scopes, and two compound headings whose
+    # types share the scopes beneath them.
     $script:Constitution = @'
 ## Approved Scopes by Commit Type
 
@@ -50,6 +51,14 @@ BeforeAll {
 ### `docs`
 
 - `readme`: Root or directory-level README files
+
+### `feat` and `fix`
+
+- `api`: Request handling and endpoints
+
+### `chore` and `build`
+
+- `config`: Build and tool configuration
 
 ### `ai`
 
@@ -73,9 +82,9 @@ Describe 'check-commit-message.ps1' {
     }
 
     It 'refuses a type the constitution does not list' {
-        $r = Invoke-Check -Subject 'fix(skill): repair the gate' -Constitution $script:Constitution
+        $r = Invoke-Check -Subject 'perf(skill): speed up the gate' -Constitution $script:Constitution
         $r.Code | Should -Be 1
-        $r.Output | Should -Match "type 'fix' is not approved"
+        $r.Output | Should -Match "type 'perf' is not approved"
         $r.Output | Should -Match 'approved types:'
     }
 
@@ -118,5 +127,32 @@ Describe 'check-commit-message.ps1' {
         $r = Invoke-Check -Subject '   ' -Constitution $script:Constitution
         $r.Code | Should -Be 1
         $r.Output | Should -Match 'empty commit message'
+    }
+
+    Context 'compound headings' {
+        It 'approves every type a grouped heading names' -ForEach @(
+            @{ Subject = 'feat(api): add the endpoint' }
+            @{ Subject = 'fix(api): repair the endpoint' }
+            @{ Subject = 'chore(config): bump the toolchain' }
+            @{ Subject = 'build(config): bump the toolchain' }
+        ) {
+            $r = Invoke-Check -Subject $Subject -Constitution $script:Constitution
+            $r.Code | Should -Be 0
+        }
+
+        It 'applies the scopes listed under a grouped heading to each type' {
+            $r = Invoke-Check -Subject 'chore(api): wrong scope for chore' -Constitution $script:Constitution
+            $r.Code | Should -Be 1
+            $r.Output | Should -Match "scope 'api' is not approved for type 'chore'"
+            $r.Output | Should -Match 'approved chore scopes: config'
+        }
+
+        It 'parses a grouped heading that names types across the whole line' {
+            # Regression: a parser matching only a lone backticked name read one
+            # type out of a grouped constitution and rejected everything else.
+            $r = Invoke-Check -Subject 'feat(api): add the endpoint' -Constitution $script:Constitution
+            $r.Code | Should -Be 0
+            $r.Output | Should -Match '\[PASS\] feat\(api\)'
+        }
     }
 }
