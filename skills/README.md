@@ -135,6 +135,7 @@ skills/
 | `visual-explainer` | 0.2.1 | Generate beautiful, self-contained HTML pages that visually explain systems, code changes, plans, and data. Use when the user asks for a diagram, architecture… |
 | `vn-payroll` | 1.0.0 | Calculates Net Income, Personal Income Tax (PIT), and Social Insurance (BHXH) based on Vietnam's progressive tax brackets. |
 | `waza-cli` | 0.3.0 | Drive the waza CLI (microsoft/waza) — the default skill-evaluation tool for this workspace — to check skill readiness for free (waza check, waza tokens), run… |
+| `windows-dpapi` | 1.0.0 | Encrypt and decrypt secrets for the current Windows user with DPAPI (Data Protection API, ProtectedData/CryptProtectData). Use when storing API keys, tokens… |
 <!-- SKILLS-CATALOG:END -->
 
 Generated from every `skills/*/SKILL.md` frontmatter. Regenerate after adding or updating a skill: `python3 scripts/workspace/generate-skills-catalog.py` (the gate checks freshness with `--check`).
