@@ -2,7 +2,7 @@
 name: windows-credential-manager
 description: Store CLI/tool secrets in Windows Credential Manager instead of plaintext files on Windows. Use when Docker warns "Your credentials are stored unencrypted in config.json", when configuring credsStore or docker-credential-wincred/docker-credential-desktop, when migrating plaintext registry tokens (ECR, Docker Hub, ACR, GCR) out of .docker config.json, when auditing or deleting stored credentials with cmdkey, or whenever a request asks to keep tool secrets out of plaintext JSON/config files on Windows.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   author: arisng
 ---
 
@@ -22,7 +22,7 @@ Keep secrets in the OS secure store instead of plaintext config files. Tools plu
 
 1. **Detect**: warning `Your credentials are stored unencrypted`, or plaintext `auths` values in `config.json`.
 2. **Pick helper**: `wincred` → Windows Credential Manager (the usual default); `desktop` → Docker Desktop's store (on Windows this *is* Credential Manager — same 2560-byte limit); `dpapi` → DPAPI-encrypted file, **no size limit** — install first via the [windows-dpapi](../windows-dpapi/SKILL.md) skill. Confirm with `Get-Command docker-credential-wincred`.
-3. **Migrate + enable**: run `scripts/Enable-DockerCredStore.ps1 -Helper wincred`. It preflights token sizes against the 2560-byte credential limit (refusing unsafe configs), backs up `config.json`, moves every plaintext `auths` secret into the helper, sets `credsStore`, and rewrites the file (UTF-8, no BOM) preserving `currentContext`/`plugins`/`features`.
+3. **Migrate + enable**: run `~/.agents/skills/windows-credential-manager/scripts/Enable-DockerCredStore.ps1 -Helper wincred` (path shown for the default user-level install; use the script's location if the skill lives elsewhere). It preflights token sizes against the 2560-byte credential limit (refusing unsafe configs), backs up `config.json`, moves every plaintext `auths` secret into the helper, sets `credsStore`, and rewrites the file (UTF-8, no BOM) preserving `currentContext`/`plugins`/`features`.
 4. **Re-login**: re-run the original login (e.g. `docker login <registry>`, or the task/build command that wraps it). Expect `Login Succeeded` with no warning.
 5. **Verify**: `cmdkey /list | findstr /i ecr` shows entries; `config.json` has `"credsStore"` and an empty `auths`.
 
