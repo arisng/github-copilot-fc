@@ -2,7 +2,7 @@
 name: windows-dpapi
 description: Encrypt and decrypt secrets for the current Windows user with DPAPI (Data Protection API, ProtectedData/CryptProtectData). Use when storing API keys, tokens or passwords encrypted in files instead of plaintext on Windows, when a secret exceeds Windows Credential Manager's 2560-byte limit (e.g. long ECR tokens used as Docker credsStore), when docker login/build fails with docker-credential-dpapi executable file not found (helper installed but its dir off PATH), or when asked to DPAPI-encrypt/decrypt data, protect config-file secrets, or convert secrets with ConvertFrom-SecureString without a key.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   author: arisng
 ---
 
@@ -39,6 +39,6 @@ $secure = ConvertTo-SecureString $enc                                           
 
 For `credsStore` when registry tokens exceed 2560 chars (ECR): a helper storing secrets DPAPI-encrypted in `<store-dir>\dpapi-store.json` — same `store/get/erase/list` protocol, no size cap.
 
-1. Install: `~/.agents/skills/windows-dpapi/scripts/Install-DpapiHelper.ps1` — copies the helper onto a PATH directory (prefers `%USERPROFILE%\.local\bin`, otherwise `%USERPROFILE%\.docker\bin` + user PATH registration).
+1. Install: `~/.agents/skills/windows-dpapi/scripts/Install-DpapiHelper.ps1` — copies the helper onto a PATH directory (prefers `%USERPROFILE%\.local\bin`, otherwise `%USERPROFILE%\.docker\bin` + user PATH registration). Add `-NoPathUpdate` to copy the files only, leaving the registry and the user PATH untouched — the safe mode for a smoke test or a throwaway install.
 2. Migrate: run `~/.agents/skills/windows-credential-manager/scripts/Enable-DockerCredStore.ps1 -Helper dpapi`.
 3. Verify: re-run the registry login (`docker login <registry>`, or whatever task wraps it) → `Login Succeeded` **without** the unencrypted-credentials warning; `dpapi-store.json` must contain ciphertext only.

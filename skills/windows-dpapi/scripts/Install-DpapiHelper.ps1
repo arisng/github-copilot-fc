@@ -2,7 +2,12 @@
 [CmdletBinding()]
 param(
     # Override the install directory; must be on PATH or it will be added to the user PATH.
-    [string]$InstallDir
+    [string]$InstallDir,
+
+    # Copy the helper files only: touch neither the registry nor the user PATH.
+    # Use for smoke tests and throwaway installs - the default writes a
+    # persistent per-user environment change that outlives the process.
+    [switch]$NoPathUpdate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,6 +17,12 @@ if (-not $InstallDir) { $InstallDir = Join-Path $env:USERPROFILE '.local\bin' }
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 foreach ($file in 'docker-credential-dpapi-impl.ps1', 'docker-credential-dpapi.cmd') {
     Copy-Item (Join-Path $skillScripts $file) $InstallDir -Force
+}
+
+if ($NoPathUpdate) {
+    Write-Host "Copied docker-credential-dpapi -> $InstallDir (PATH unchanged: -NoPathUpdate)"
+    Write-Host "Add it to PATH yourself, or re-run without -NoPathUpdate, to invoke the helper by name."
+    exit 0
 }
 
 $normalized = { param($list) @($list | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\') }) }

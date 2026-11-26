@@ -136,7 +136,7 @@ skills/
 | `vn-payroll` | 1.0.0 | Calculates Net Income, Personal Income Tax (PIT), and Social Insurance (BHXH) based on Vietnam's progressive tax brackets. |
 | `waza-cli` | 0.3.0 | Drive the waza CLI (microsoft/waza) — the default skill-evaluation tool for this workspace — to check skill readiness for free (waza check, waza tokens), run… |
 | `windows-credential-manager` | 1.0.1 | Store CLI/tool secrets in Windows Credential Manager instead of plaintext files on Windows. Use when Docker warns "Your credentials are stored unencrypted in… |
-| `windows-dpapi` | 1.0.0 | Encrypt and decrypt secrets for the current Windows user with DPAPI (Data Protection API, ProtectedData/CryptProtectData). Use when storing API keys, tokens… |
+| `windows-dpapi` | 1.0.1 | Encrypt and decrypt secrets for the current Windows user with DPAPI (Data Protection API, ProtectedData/CryptProtectData). Use when storing API keys, tokens… |
 <!-- SKILLS-CATALOG:END -->
 
 Generated from every `skills/*/SKILL.md` frontmatter. Regenerate after adding or updating a skill: `python3 scripts/workspace/generate-skills-catalog.py` (the gate checks freshness with `--check`).
