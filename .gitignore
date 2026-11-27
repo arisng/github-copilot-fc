@@ -10,5 +10,8 @@ todos.db
 .agent-handoffs/
 **/evals/samples/
 *.log
+# Throwaway scratch rendered beside a skill's scripts (e.g. d2 probe diagrams
+# and SVG exports). Never part of a skill's shipped assets.
+**/scripts/tmp/
 tools/inventory-drift-report.json
 tools/inventory-drift-report.md
