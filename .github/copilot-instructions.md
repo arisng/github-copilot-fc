@@ -115,17 +115,22 @@ pwsh -NoProfile -File scripts/workspace/workspace-check.ps1        # full suite
 pwsh -NoProfile -File scripts/workspace/workspace-check.ps1 -Quick # pre-commit subset
 ```
 
+**Iterate on `-Quick` (~9 s), not the full suite (~250 s).** Both gates that can fail on a doc,
+schema, or script defect — markdown and consistency — are in `-Quick`. A full-suite failure
+whose check is `-Quick`-covered prints that hint; running the full suite to rediscover an
+MD056 costs ~28× the cheaper gate.
+
 Full-suite checks, in order:
 
 1. **Markdown lint** — full-repo markdownlint-cli2 scan compared with the frozen-debt baseline `scripts/workspace/markdown-debt-baseline.txt`: legacy debt passes at its recorded per-file count, and any new file or count increase FAILs (regenerate the baseline with `workspace-check.ps1 -UpdateMarkdownBaseline` only to accept a reviewed change).
-2. **Consistency** — `scripts/workspace/check-consistency.ps1`: jsonschema validation via `validate-manifests.py` (plugin/skill/marketplace schemas + instruction frontmatter), cross-file rules (skill dir ↔ name, 500-line body budget, agent name uniqueness, EMBED marker resolution, no `-beta` identity in source), skills-catalog freshness, issues index freshness, and marketplace parity via the shipped verifier when a marketplace index exists.
+2. **Consistency** — `scripts/workspace/check-consistency.ps1`: jsonschema validation via `validate-manifests.py` (plugin/skill/marketplace schemas + instruction frontmatter), cross-file rules (skill dir ↔ name, 500-line body budget, agent name uniqueness, EMBED marker resolution, no `-beta` identity in source), the `interpreter` rule (no authored markdown may invoke a script through bare `python` — the mandate is `python3`), skills-catalog freshness, issues index freshness, and marketplace parity via the shipped verifier when a marketplace index exists.
 3. **PowerShell lint** — `scripts/workspace/check-powershell.ps1` over every `.ps1`: parse errors, the parameter-clobber pattern (a parameter assigned before its first read), and cross-platform portability (`.exe` suffixes, `$env:TEMP` in tests).
-4. **waza check** — advisory skill-quality report; never blocking.
-5. **Supply chain** — `scripts/workspace/check-supply-chain.py`: flags shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags, and link domains outside `scripts/workspace/known-domains.txt` (warn-first; `--strict` is the future ratchet target, `--update-allowlist` regenerates the list).
-6. **Eval preflight** — `waza preflight` over every `evals/*/eval.yaml` (offline only).
+4. **Pin parity** — `workspace-check.ps1` compares locally installed CLIs against the version the docs claim and CI pins: `waza` (preflight classification is version-sensitive) and `d2` (every claim in `skills/d2` — `--pad` default, bundled engines, grid/`tala` geometry — changes between releases, so docs that say "verified against d2 vX" must match the installed build).
+5. **waza check** — advisory skill-quality report; never blocking.
+6. **Supply chain** — `scripts/workspace/check-supply-chain.py`: flags shell-install pipes, insecure plaintext links, un-SRI'd CDN script tags, and link domains outside `scripts/workspace/known-domains.txt` (warn-first; `--strict` is the future ratchet target, `--update-allowlist` regenerates the list).
+7. **Eval preflight** — `waza preflight` over every `evals/*/eval.yaml` (offline only).
 
 `-Quick` runs steps 1–3 (markdown, consistency, PowerShell lint). Exit is non-zero on any FAIL.
-
 **Parse-check a directory before iterating.** `check-powershell.ps1` takes `-Path`, parses in well under a second, and reports the line and token:
 
 ```powershell
@@ -184,7 +189,7 @@ npx --yes markdownlint-cli2@0.24.2 .github/copilot-instructions.md
 ## Tooling norms
 
 - **PowerShell 7+ only**: invoke scripts as `pwsh -NoProfile -File <path>`. Never Windows PowerShell 5.1 — the suite uses `Set-StrictMode -Version Latest` and modern syntax.
-- **`python3`, never `python`**: every Taskfile command and doc example uses `python3` (for example `python3 scripts/workspace/generate-skills-catalog.py`).
+- **`python3`, never `python`**: every Taskfile command and doc example uses `python3` (for example `python3 scripts/workspace/generate-skills-catalog.py`). Enforced by the `interpreter` rule in the consistency engine, so a doc example cannot regress it.
 - **Forward slashes** in all markdown links and doc snippets, even on Windows.
 - **Kebab-case directory names** in every authored tree — FAIL-checked by the consistency engine; file names are kebab-case too except where a toolchain owns the name (pytest `test_*.py`, waza `trigger_tests.yaml`).
 - **`&&` only for native commands** (e.g. `npm test && git status`); in PowerShell scripts use `;` and explicit `if` blocks instead.

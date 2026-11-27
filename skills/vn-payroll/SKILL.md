@@ -18,7 +18,7 @@ Usage:
 To calculate a salary breakdown, run the python script with the following arguments:
 
 ```shell
-python calc_pit.py --gross <AMOUNT> --dependents <COUNT> --region <1|2|3|4>
+python3 calc_pit.py --gross <AMOUNT> --dependents <COUNT> --region <1|2|3|4>
 ```
 
 Arguments:

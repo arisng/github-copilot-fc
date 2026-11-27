@@ -216,7 +216,7 @@ The `resilient_diagram.py` script automates the entire workflow:
 
 ```bash
 # Basic usage
-python scripts/resilient_diagram.py \
+python3 scripts/resilient_diagram.py \
     --code "flowchart TD; A-->B" \
     --markdown-file design_doc \
     --diagram-num 1 \
@@ -224,7 +224,7 @@ python scripts/resilient_diagram.py \
     --format png
 
 # With JSON output (recommended for programmatic use)
-python scripts/resilient_diagram.py \
+python3 scripts/resilient_diagram.py \
     --code "sequenceDiagram..." \
     --markdown-file api \
     --diagram-num 2 \

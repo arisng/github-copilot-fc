@@ -58,7 +58,7 @@ cadence, and script output structure. Load when the SKILL.md pointer sends you h
 
 ```bash
 # Step 1: Extract historical scopes
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py \
+python3 skills/git-commit-scope-constitution/scripts/extract_scopes.py \
   --output .github/git-scope-inventory.md
 
 # Step 2: Analyze repository structure
@@ -97,7 +97,7 @@ From git history (.github/git-scope-inventory.md):
 
 ```bash
 # Extract last week's scopes
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py \
+python3 skills/git-commit-scope-constitution/scripts/extract_scopes.py \
   --since "1 week ago" --format markdown
 
 # Check for new folders/modules

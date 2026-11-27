@@ -93,7 +93,7 @@ skills/issue-md-writer/
 3. **Fill in metadata**: Update `date`, `severity` (set to High if it's affecting users), `status` (Investigating while you work)
 4. **Write content**: Follow the Problem → Root Cause → Solution structure
 5. **Save and update status**: Once fixed, change status to Resolved
-6. **(Optional) Index**: Run `python scripts/extract_issue_metadata.py` to regenerate `.issues/index.md`
+6. **(Optional) Index**: Run `python3 scripts/extract_issue_metadata.py` to regenerate `.issues/index.md`
 
 ## Tips for Writing Effective Documents
 

@@ -72,7 +72,7 @@ You should see new folders: `blog_config/` and a `blog/` folder.
 ## Step 5: Run the development server
 
 ```bash
-python manage.py runserver
+python3 manage.py runserver
 ```
 
 The output will show:

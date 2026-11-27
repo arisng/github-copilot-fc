@@ -198,7 +198,7 @@ For retroactive reorganization of an existing `docs/` wiki:
 
 1. **Review**: Human reviews the manifest and approves/rejects individual moves
 2. **Execute**: Script executes approved moves (create folders, `mv` files)
-3. **Regenerate**: Run `python skills/diataxis/scripts/generate_index.py` to update `index.md`
+3. **Regenerate**: Run `python3 skills/diataxis/scripts/generate_index.py` to update `index.md`
 
 ### Batch Scan Command (Pseudocode)
 

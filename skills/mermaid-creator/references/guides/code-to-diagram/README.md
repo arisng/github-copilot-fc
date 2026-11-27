@@ -687,10 +687,10 @@ Always label:
 
 ```bash
 # Extract diagrams from markdown
-python scripts/extract_mermaid.py docs/architecture.md --validate
+python3 scripts/extract_mermaid.py docs/architecture.md --validate
 
 # Convert to image to verify rendering
-python scripts/mermaid_to_image.py diagram.mmd output.png
+python3 scripts/mermaid_to_image.py diagram.mmd output.png
 ```
 
 ### 5. **Keep Diagrams Current**

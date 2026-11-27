@@ -38,7 +38,7 @@ Use this decision tree to select the right template:
 Create a new issue document via script:
 
 ```bash
-python scripts/create_issue.py --type "Bug" --title "Fix login timeout" --description "Users are logged out after 5 minutes" --severity "High"
+python3 scripts/create_issue.py --type "Bug" --title "Fix login timeout" --description "Users are logged out after 5 minutes" --severity "High"
 ```
 
 Or copy a template directly:
@@ -50,7 +50,7 @@ cp templates/<type>.md .issues/<date>_<slug>.md
 To extract metadata and regenerate the index of all issues:
 
 ```bash
-python scripts/extract_issue_metadata.py
+python3 scripts/extract_issue_metadata.py
 ```
 
 ## Template Reference
