@@ -362,6 +362,42 @@ else {
     Add-Finding -Level 'PASS' -Area 'steering' -Detail "$($steeringSeen.Count) path reference(s) across $($steeringFiles.Count) steering file(s) resolve$steeringSuffix ($steeringGlobs wildcard-checked)"
 }
 
+# --- Interpreter mandate: `python3`, never `python` (retro 2026-11-27) -------
+# The workspace mandate says "`python3`, never `python`" and the gate hard-requires
+# it (`Get-Command python3` above: a missing python3 is a FAIL), yet nothing
+# checked authored docs for the bare form. A session writing a new skill
+# documented `python scripts/...` in 10 places; on a host where the two names
+# resolve to different interpreters (here 3.14.7 vs 3.13.15) a reader's command
+# runs a different environment than the gate verified. Mechanical rule: no
+# invocation of a script may name the bare interpreter in any authored markdown.
+# Bare `python -c` / `python -m` are caught by the same spelling test.
+$pythonRx = '(?<![A-Za-z0-9_-])python(?!3)(?=\s+(?:--?[A-Za-z]+\s+)*(?:\.\.?/)?[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*/?[A-Za-z0-9_.-]+\.py\b)'
+$pythonOffenders = [System.Collections.Generic.List[string]]::new()
+$pythonScanned = 0
+foreach ($tree in @('skills', 'instructions', 'docs', '.github')) {
+    $dir = Join-Path $repoRoot $tree
+    if (-not (Test-Path -LiteralPath $dir)) { continue }
+    foreach ($md in Get-ChildItem -LiteralPath $dir -Recurse -Filter '*.md' -File -Force) {
+        if ($md.FullName -match '[\\/](node_modules|\.archived|\.build)[\\/]') { continue }
+        $pythonScanned++
+        $lines = [System.IO.File]::ReadAllLines($md.FullName)
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ([regex]::IsMatch($lines[$i], $pythonRx, 'None')) {
+                $rel = $md.FullName.Substring($repoRoot.Length + 1).Replace('\', '/')
+                $pythonOffenders.Add("${rel}:$($i + 1): $($lines[$i].Trim())")
+            }
+        }
+    }
+}
+if ($pythonOffenders.Count -gt 0) {
+    foreach ($bad in $pythonOffenders) {
+        Add-Finding -Level 'FAIL' -Area 'interpreter' -Detail "uses bare 'python' (mandate: python3) - $bad"
+    }
+}
+else {
+    Add-Finding -Level 'PASS' -Area 'interpreter' -Detail "$pythonScanned authored markdown file(s) name only 'python3'"
+}
+
 # --- Issue-doc shipped-claim path citations (retro 2026-11-21) --------------
 # .issues/*.md reads like instructions to a subagent: one ran the
 # never-existent scripts/workspace/run-command.ps1 because a "Completed"

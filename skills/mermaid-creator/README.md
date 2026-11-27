@@ -178,16 +178,16 @@ All diagrams use accessible, high-contrast colors - see SKILL.md for full detail
 
 ```bash
 # List all diagrams in a file
-python scripts/extract_mermaid.py document.md --list-only
+python3 scripts/extract_mermaid.py document.md --list-only
 
 # Extract to separate .mmd files
-python scripts/extract_mermaid.py document.md --output-dir diagrams/
+python3 scripts/extract_mermaid.py document.md --output-dir diagrams/
 
 # Validate all diagrams
-python scripts/extract_mermaid.py document.md --validate
+python3 scripts/extract_mermaid.py document.md --validate
 
 # Replace diagrams with image references (for Confluence)
-python scripts/extract_mermaid.py document.md --replace-with-images \
+python3 scripts/extract_mermaid.py document.md --replace-with-images \
   --image-format png --output-markdown output.md
 ```
 
@@ -195,18 +195,18 @@ python scripts/extract_mermaid.py document.md --replace-with-images \
 
 ```bash
 # Single file
-python scripts/mermaid_to_image.py diagram.mmd output.png
+python3 scripts/mermaid_to_image.py diagram.mmd output.png
 
 # Custom theme and size
-python scripts/mermaid_to_image.py diagram.mmd output.svg \
+python3 scripts/mermaid_to_image.py diagram.mmd output.svg \
   --theme dark --background white --width 1200
 
 # Batch convert directory
-python scripts/mermaid_to_image.py diagrams/ output/ \
+python3 scripts/mermaid_to_image.py diagrams/ output/ \
   --format png --recursive
 
 # From stdin
-echo "graph TD; A-->B" | python scripts/mermaid_to_image.py - output.png
+echo "graph TD; A-->B" | python3 scripts/mermaid_to_image.py - output.png
 ```
 
 ## Requirements
@@ -235,7 +235,7 @@ mmdc --version
 1. **Start with Activity Diagrams** - Read `references/guides/diagrams/activity-diagrams.md`
 2. **Learn Unicode Symbols** - Read `references/guides/unicode-symbols/guide.md`
 3. **Try an Example** - Use patterns from `examples/spring-boot/`
-4. **Validate Your Work** - Run `python scripts/extract_mermaid.py --validate`
+4. **Validate Your Work** - Run `python3 scripts/extract_mermaid.py --validate`
 
 ### Need to Document Existing Code?
 

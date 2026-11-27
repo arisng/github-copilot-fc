@@ -63,6 +63,38 @@ def run_d2(d2: str, args: "list[str]", *, quiet: bool = False) -> "subprocess.Co
     return proc
 
 
+# --- post-render geometry lint ---------------------------------------------
+# `d2 validate` is parser-only and a full compile only proves D2 understood the
+# source; neither sees a label printing on another label or an edge label
+# sitting inside a node rect. lint_svg.py checks the rendered geometry, so the
+# builder runs it on the SVG it is about to package. The two scripts are
+# siblings in this skill directory.
+LINT_SCRIPT = Path(__file__).resolve().parent / "lint_svg.py"
+
+
+def lint_svg(d2: str, svg_path: Path, source: Path) -> bool:
+    """Return True when the rendered board is free of visual defects."""
+    if not LINT_SCRIPT.is_file():
+        print("warning: lint_svg.py not found beside build_html.py - "
+              "skipping the geometry lint")
+        return True
+    ignore = os.environ.get("D2_HTML_IGNORE_LINT") == "1"
+    proc = subprocess.run(
+        [sys.executable, str(LINT_SCRIPT), str(svg_path),
+         "--source", str(source), "--quiet", "--d2", d2],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if proc.returncode == 0:
+        print(f"lint clean: {svg_path.name} (no visual defects)")
+        return True
+    out = (proc.stdout or "") + (proc.stderr or "")
+    sys.stderr.write(out)
+    if ignore:
+        print("warning: geometry lint reported visual defects "
+              "(D2_HTML_IGNORE_LINT=1, continuing)")
+        return True
+    return False
+
+
 def strip_xml_decl(svg: str) -> str:
     return re.sub(r"^\s*<\?xml[^>]*\?>\s*", "", svg)
 
@@ -345,6 +377,22 @@ def main() -> None:
 
         boards_dir = Path(tmp) / "boards"
         title = src.stem
+        # Geometry lint on what was actually rendered: the compile above proves
+        # D2 understood the source, not that the picture is readable.
+        if args.animate_interval and out_base.is_file():
+            boards_for_lint = [out_base]
+        elif boards_dir.is_dir():
+            boards_for_lint = sorted(boards_dir.rglob("*.svg"))
+        elif out_base.is_file():
+            boards_for_lint = [out_base]
+        else:
+            boards_for_lint = []
+        for board_svg in boards_for_lint:
+            if not lint_svg(d2, board_svg, src):
+                fail(f"visual defects in {board_svg.name} (see the findings "
+                     f"above; re-run with D2_HTML_IGNORE_LINT=1 to package "
+                     f"anyway)")
+
         if args.animate_interval and out_base.is_file():
             html_doc = wrap_static(strip_xml_decl(out_base.read_text(encoding="utf-8",
                                                                    errors="replace")),

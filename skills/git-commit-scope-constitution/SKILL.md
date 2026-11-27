@@ -99,10 +99,10 @@ Analyze git commit history to see what scopes have been used:
 
 ```bash
 # Extract all historical scopes
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py --format markdown --output .github/git-scope-inventory.md
+python3 skills/git-commit-scope-constitution/scripts/extract_scopes.py --format markdown --output .github/git-scope-inventory.md
 
 # Or just recent scopes (last 3 months)
-python skills/git-commit-scope-constitution/scripts/extract_scopes.py --since "3 months ago" --format markdown
+python3 skills/git-commit-scope-constitution/scripts/extract_scopes.py --since "3 months ago" --format markdown
 ```
 
 This generates an inventory of all scopes currently used in the repository's git history, organized by commit type. Inventory (what was used) vs constitution (what is approved): see Key Distinction in Repository Storage Convention above.

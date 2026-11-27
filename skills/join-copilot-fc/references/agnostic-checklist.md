@@ -24,7 +24,7 @@ meaning, not by raw match count.
 ## Rewrite rules
 
 - **Repo-local script path** → published path, or drop the claim:
-  - before: `python .github/skills/d2/scripts/build_html.py file.d2`
+  - before: `python3 .github/skills/d2/scripts/build_html.py file.d2`
   - after: `python ~/.agents/skills/d2/scripts/build_html.py file.d2`
 - **Repo gate reference** → generic consumer wording:
   - before: `# gate: exit 1 when unformatted (use in CI — task check enforces it)`
