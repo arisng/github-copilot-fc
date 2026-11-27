@@ -310,6 +310,52 @@ function Test-WazaPin {
     return @{ Status = 'PASS'; Detail = "waza $local matches the CI pin" }
 }
 
+function Test-D2Pin {
+    [CmdletBinding()]
+    param()
+
+    # Docs version parity (retro 2026-11-27, the Test-WazaPin rule applied to a
+    # second tool): skills/d2 documents d2's CLI surface as "verified against
+    # the d2 v0.9.0 CLI" in four files, and every claim in it is version-
+    # sensitive - `--pad` defaults to 100, the bundled engines are
+    # dagre/elk/tala, and the grid/`tala` geometry the lint encodes all change
+    # between releases. Nothing asserted the claim, so the docs could drift
+    # silently the moment a contributor's d2 was a different build. A missing
+    # d2 is a WARN (the skill degrades to linting pre-rendered SVGs), and an
+    # unpinned claim in the docs is the thing that FAILs.
+    $d2 = Get-Command d2 -ErrorAction SilentlyContinue
+    if (-not $d2) {
+        return @{ Status = 'WARN'; Detail = 'd2 CLI not found on PATH - skills/d2 version claims unverified (install from d2lang/d2 releases)' }
+    }
+    $skillMd = Join-Path $repoRoot 'skills' 'd2' 'SKILL.md'
+    if (-not (Test-Path -LiteralPath $skillMd)) {
+        return @{ Status = 'SKIP'; Detail = 'skills/d2 not present' }
+    }
+    $claimed = @()
+    foreach ($doc in @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'skills' 'd2') -Recurse -Filter '*.md' -File)) {
+        $text = [System.IO.File]::ReadAllText($doc.FullName)
+        foreach ($m in [regex]::Matches($text, '[Vv]erified against (?:the )?d2 v?(\d+\.\d+\.\d+)|measured on d2 v?(\d+\.\d+\.\d+)')) {
+            $claimed += ($m.Groups[1].Value + $m.Groups[2].Value)
+        }
+    }
+    if ($claimed.Count -eq 0) {
+        return @{ Status = 'FAIL'; Detail = 'skills/d2 docs make no "verified against d2 vX.Y.Z" claim - state the version the CLI surface was checked on' }
+    }
+    $distinct = @($claimed | Sort-Object -Unique)
+    $installed = ((& d2 --version 2>&1) | Out-String).Trim()
+    if ($installed -notmatch 'v?(\d+\.\d+\.\d+)') {
+        return @{ Status = 'WARN'; Detail = "d2 version unreadable from '$installed' - claims unverified" }
+    }
+    $local = $Matches[1]
+    if ($distinct.Count -gt 1) {
+        return @{ Status = 'FAIL'; Detail = "skills/d2 docs disagree on the verified d2 version: $($distinct -join ', ')" }
+    }
+    if ($distinct[0] -ne $local) {
+        return @{ Status = 'FAIL'; Detail = "skills/d2 docs are verified against d2 v$($distinct[0]) but d2 v$local is installed - re-verify the CLI surface (d2 --help, d2 layout) and update skills/d2, or install the documented release" }
+    }
+    return @{ Status = 'PASS'; Detail = "d2 v$local matches the version skills/d2 documents ($($claimed.Count) claim(s))" }
+}
+
 function Test-SupplyChain {
     [CmdletBinding()]
     param()
@@ -529,6 +575,7 @@ $checks = @(
 )
 if (-not $Quick) {
     $checks += @{ Name = 'waza pin parity'; Action = { Test-WazaPin } }
+    $checks += @{ Name = 'd2 docs pin parity'; Action = { Test-D2Pin } }
     if (-not $SkipAdvisoryWaza) {
         $checks += @{ Name = 'waza check (advisory)'; Action = { Invoke-WazaCheck } }
     }
@@ -554,6 +601,15 @@ $gateTimer.Stop()
 
 if ($failures.Count -gt 0) {
     Write-Host "workspace-check: FAILED ($($failures.Count)): $($failures -join ', ') ($([math]::Round($gateTimer.Elapsed.TotalSeconds,1))s)" -ForegroundColor Red
+    # Redirect to the cheap gate (retro 2026-11-27): the three -Quick checks
+    # catch every doc/schema/script defect, yet a session that hit a markdown
+    # table error and a stale catalog ran this 300 s suite twice (~598 s) to be
+    # told things `-Quick` reports in 8.7 s. Naming the covering gate at the
+    # moment of failure is the one place the hint is worth its tokens.
+    $quickCovered = @($failures | Where-Object { $_ -in @('Markdown lint', 'Consistency', 'PowerShell lint') })
+    if ($quickCovered.Count -gt 0 -and -not $Quick) {
+        Write-Host "  hint: $($quickCovered -join ', ') also run in '-Quick' (~9 s) - iterate there before re-running the full suite" -ForegroundColor Yellow
+    }
     exit 1
 }
 
