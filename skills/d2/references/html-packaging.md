@@ -12,6 +12,7 @@ against d2 v0.9.0. Workflow context: [../SKILL.md](../SKILL.md).
 - [Mode B - multi-board drill-down, one HTML file](#mode-b---multi-board-drill-down-one-html-file)
 - [Mode C - multi-board auto-cycling, one HTML file](#mode-c---multi-board-auto-cycling-one-html-file)
 - [Embedding in a web app](#embedding-in-a-web-app)
+- [Geometry lint in the packaging pipeline](#geometry-lint-in-the-packaging-pipeline)
 - [Troubleshooting](#troubleshooting)
 
 ## What "self-contained" means
@@ -116,7 +117,7 @@ resources.
 Run it with:
 
 ```bash
-python scripts/build_html.py system.d2 -o system.html --layout tala
+python3 scripts/build_html.py system.d2 -o system.html --layout tala
 ```
 
 ## Mode C - multi-board auto-cycling, one HTML file
@@ -161,3 +162,26 @@ previews.
 | Board links go to `404`/blank in one-file output | board hrefs not rewritten to anchors | use Mode B builder (rewrites `x.svg` -> `#board-x`) |
 | Nested-board hrefs fail to resolve into anchors on Windows | d2 emits backslashes in nested hrefs (`dir\file.svg`) | normalize `\` to `/` before path resolution (the builder does) |
 | Diagram clipped or too small | `--pad`/`--scale`/shell CSS | set `--pad 20`, keep `svg { max-width: 100%; height: auto; }` |
+| Diagram compiles and packages, but a label prints on another label / sits inside a node | a visual defect a compile cannot see | run `python3 scripts/lint_svg.py board.d2 --layout tala`; see [visual-defects.md](visual-defects.md) |
+| `error: visual defects in boards.svg` from the builder | `build_html.py` gates on the geometry lint | fix the reported node/label, or set `D2_HTML_IGNORE_LINT=1` to package anyway |
+
+## Geometry lint in the packaging pipeline
+
+`build_html.py` runs [../scripts/lint_svg.py](../scripts/lint_svg.py) on every rendered board
+**before** it writes the HTML, so a diagram that compiles but looks wrong never ships:
+
+```text
+formatted system.d2
+verified system.d2 (full compile, exit 0)
+lint clean: boards.svg (no visual defects)
+wrote system.html [single board, 20049 bytes]
+```
+
+A finding aborts the build with the offending node/label named and a fix, because the defects
+it encodes (two floating headers on one anchor, an edge label inside a node rect, a buried
+arrow, a diagonally re-ranked board) are invisible to every other gate. Escape hatch:
+`D2_HTML_IGNORE_LINT=1` packages anyway, with a warning.
+
+The lint needs no d2 CLI for an existing SVG; `--animate-interval` output is split into one
+board per animation wrapper so stacked boards are not compared against each other. Details and
+the measured numbers: [visual-defects.md](visual-defects.md).

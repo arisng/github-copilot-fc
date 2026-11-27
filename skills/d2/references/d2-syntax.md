@@ -179,3 +179,10 @@ each):
 | `multiboard output cannot be written to stdout` | layers/scenarios/steps with output `-` | export to a directory or one-file package (see [html-packaging.md](html-packaging.md)) |
 | `mkdir ... nul` / cannot create output when verifying multi-board to `NUL` | multi-board output is a directory; the null device cannot receive it | verify with `d2 --target '' file.d2 NUL` |
 | links dead inside HTML | embedded via `<img src=...>` | inline the SVG (browser sandboxes `<img>`) |
+| `err: substitutions must begin on {` at compile, in a **label** | a literal `$` starts an interpolation (`"cost $5"`) | escape it: `a -> b: "cost \\$5"`. Braces are fine unescaped (`"TASK {run}"` compiles), so this is the `$` alone |
+| two `near: top-center` labels print on top of each other | both `shape: text` nodes get the same anchor | use ONE `\|md` node (see [visual-defects.md](visual-defects.md)) |
+| a grid hop sweeps diagonally across the board | `grid-rows`/`grid-columns` fill ROW-MAJOR in declaration order | declare nodes in boustrophedon (snake) order |
+| a backward edge lays a linear spine out diagonally | a cycle in the graph re-ranks the layout | run `python3 ../scripts/lint_svg.py file.d2` and route the loop explicitly |
+
+The last three defects compile clean and exit 0 - `d2 validate` and a full compile cannot see
+them. [visual-defects.md](visual-defects.md) has the measured evidence and fixes.
