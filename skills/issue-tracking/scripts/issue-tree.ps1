@@ -719,10 +719,83 @@ if ($Inventory) {
 }
 
 # --- 5. Render the tree ------------------------------------------------------
-$themes = @($records |
+# Render from the git INDEX, not the working directory: a row whose file is
+# untracked is a dangling link in every clone that fetches the commit (a
+# 2026-11-28 docs commit shipped rows for 7 untracked issues exactly this way
+# - the tree gate regenerated from the working dir and staged the result).
+# Untracked files stage in with their own commit; until then the tree stays
+# honest and a notice says what was held out. Outside a git repo, when the
+# store itself is untracked, or when run from anywhere but the repo root, fall
+# back to every working-dir file (the historical behaviour). NOTE the filter
+# is render-only: section 1 validation and -Inventory still see every file, so
+# NEXT_ID keeps reserving ids that only exist as untracked files.
+$trackedNames = $null   # $null = unfiltered; hashtable = index membership
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $gitTopRaw = @(git rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $gitTopRaw.Count -gt 0) {
+        # git prints forward slashes even on Windows; normalize both sides
+        # before comparing, or every Windows check silently falls back.
+        $norm = { param($s) ([string]$s) -replace '/', '\' }
+        $cwdNorm = (& $norm (Get-Location).Path).TrimEnd('\')
+        $topNorm = (& $norm $gitTopRaw[0]).TrimEnd('\')
+        # Only trust the index when the store sits at the repo root the script
+        # documents; a subdir inside some larger repo would list the wrong tree.
+        if ([string]::Equals($cwdNorm, $topNorm, [StringComparison]::OrdinalIgnoreCase)) {
+            $prefix = (($issuesDir -replace '\\', '/').TrimEnd('/')) + '/'
+            $lsOut = @(git ls-files -- $issuesDir 2>$null)
+            if ($LASTEXITCODE -eq 0 -and @($lsOut).Count -eq 0 -and @($records).Count -gt 0) {
+                # Store exists on disk but nothing in it is in the index: a
+                # brand-new local store (or an ignored one) whose tree is a
+                # local view. Filtering would render an empty tree - fall back.
+                $trackedNames = $null
+            }
+            elseif ($LASTEXITCODE -eq 0) {
+                $trackedNames = @{}
+                foreach ($line in $lsOut) {
+                    $p = $line -replace '\\', '/'
+                    if (-not $p.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+                    $leaf = $p.Substring($prefix.Length)
+                    if ($leaf -match '/') { continue }   # nested (archived/): records are top-level only
+                    $trackedNames[$leaf] = $true
+                }
+            }
+        }
+    }
+}
+$renderRecords = $records
+$heldUntracked = @()
+$heldNoTheme = @()
+if ($null -ne $trackedNames) {
+    $renderRecords = @()
+    foreach ($record in $records) {
+        if ($trackedNames.ContainsKey($record.File)) { $renderRecords += $record }
+        else { $heldUntracked += $record.File }
+    }
+    # A staged child whose theme root is not staged cannot be placed under a
+    # header that will not exist: hold it back too, or SUMMARY would count a
+    # row the tree never prints. It reappears the moment its theme stages.
+    $renderThemeIds = @{}
+    foreach ($record in $renderRecords) { if ($record.IsThemeRoot) { $renderThemeIds[$record.Id] = $true } }
+    $placed = @()
+    foreach ($record in $renderRecords) {
+        if (-not $record.IsThemeRoot -and -not $renderThemeIds.ContainsKey($record.ResolvedTheme)) {
+            $heldNoTheme += $record.File
+            continue
+        }
+        $placed += $record
+    }
+    $renderRecords = $placed
+    if ($heldUntracked.Count -gt 0) {
+        "issue-tree: $($heldUntracked.Count) untracked issue file(s) kept out of the tree (stage them to include): $($heldUntracked -join ', ')"
+    }
+    if ($heldNoTheme.Count -gt 0) {
+        "issue-tree: $($heldNoTheme.Count) staged issue file(s) held back until their theme root is staged: $($heldNoTheme -join ', ')"
+    }
+}
+$themes = @($renderRecords |
     Where-Object { $_.IsThemeRoot } |
     Sort-Object @{ Expression = { Get-PriorityRank $_.Priority } }, @{ Expression = { $_.Id } })
-$children = @($records | Where-Object { -not $_.IsThemeRoot })
+$children = @($renderRecords | Where-Object { -not $_.IsThemeRoot })
 $sortedChildren = @($children |
     Sort-Object @{ Expression = { Get-PriorityRank $_.Priority } },
                  @{ Expression = { $_.Order } },

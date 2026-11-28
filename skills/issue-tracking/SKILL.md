@@ -367,6 +367,14 @@ invalid store is refused *before* anything is written) — then `git add` the tw
 artifacts and run both `-Check`s. An issue mutation can then never land with a
 stale tree or view, while corrupt data still fails the commit.
 
+**Render membership follows the git index**, not the working directory: untracked
+issue files are held out of the tree (with a notice naming them) and staged files
+are in — so a committed `tree.md` can never reference a file the commit does not
+carry (a 2026-11-28 commit shipped rows for seven untracked issues exactly that
+way). Validation and `-Inventory` still see every working-dir file, so `NEXT_ID`
+keeps reserving ids that exist only as untracked files; a store with **zero**
+index entries (brand-new, or outside git) renders from disk as always.
+
 Note the limit for **github mode**: a staged-file hook cannot observe *remote*
 issue changes — nothing staged moves when someone files an issue on GitHub. A
 `gh`-backed refresh hook is possible but must stay optional and auth/offline
