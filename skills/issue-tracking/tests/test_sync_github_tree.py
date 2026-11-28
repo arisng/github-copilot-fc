@@ -425,6 +425,103 @@ def test_theme_slug_normalization_and_ordinal_first(
 
 
 # --------------------------------------------------------------------------
+# 5b. themeRealms -> T-<realm>-<slug> (realm label on the issue)
+# --------------------------------------------------------------------------
+
+def test_theme_realms_prefix_and_plain_fallback(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    issues = [
+        # realm label + slug containing the realm -> T-<realm>-<bare slug>
+        gh_issue(451, "skillcon gap", labels=("theme:skillcon-escalation", "skillcon")),
+        # realm label + unrelated slug -> T-<realm>-<slug>
+        gh_issue(452, "sdlc gap", labels=("theme:release planning", "sdlc")),
+        # slug equal to the realm -> T-<realm> only
+        gh_issue(453, "realm is the slug", labels=("theme:skillcon", "skillcon")),
+        # NO realm label -> plain T-<slug> (issues outside any realm)
+        gh_issue(454, "no realm", labels=("theme:feedback", "triage")),
+        # no theme: label at all -> realm irrelevant, repo bucket
+        gh_issue(455, "unthemed", labels=("sdlc",)),
+    ]
+    repo = make_repo(tmp_path, manifest(themeRealms=["skillcon", "sdlc"]))
+    out = sync(pwsh_exe, skill, repo, issues)
+    assert out.returncode == 0, out.stdout + out.stderr
+
+    tree = parse_tree(read_tree(repo))
+    # Ordinal section order: T-feedback < T-sdlc-release-planning < T-skillcon...
+    assert [s["id"] for s in tree["sections"]] == [
+        "T-feedback",
+        "T-sdlc-release-planning",
+        "T-skillcon",
+        "T-skillcon-escalation",
+        "acme/widgets issues",
+    ]
+    assert [r["id"] for r in section(tree, "T-skillcon-escalation")["rows"]] == ["0451"]
+    assert [r["id"] for r in section(tree, "T-sdlc-release-planning")["rows"]] == ["0452"]
+    assert [r["id"] for r in section(tree, "T-skillcon")["rows"]] == ["0453"]
+    assert [r["id"] for r in section(tree, "T-feedback")["rows"]] == ["0454"]
+    assert [r["id"] for r in section(tree, "acme/widgets issues")["rows"]] == ["0455"]
+
+    chk = run(pwsh_exe, skill, repo, "issue-tree.ps1", "-Check")
+    assert chk.returncode == 0, chk.stdout + chk.stderr
+    rnd = run(pwsh_exe, skill, repo, "render-issue-tree.ps1")
+    assert rnd.returncode == 0, rnd.stdout + rnd.stderr
+
+    # Row theme must equal its section id (grammar F.3) for every realm row.
+    for sid in ("T-skillcon-escalation", "T-sdlc-release-planning", "T-skillcon"):
+        assert section(tree, sid)["rows"][0]["theme"] == sid
+
+
+def test_theme_realms_absent_key_keeps_plain_ids(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    # No themeRealms key in the manifest -> realm labels are inert; the exact
+    # pre-realm behavior is preserved byte-for-byte.
+    issues = [
+        gh_issue(461, "gap", labels=("theme:skillcon-escalation", "skillcon")),
+        gh_issue(462, "gap", labels=("theme:release-planning", "sdlc")),
+    ]
+    repo = make_repo(tmp_path, manifest())
+    out = sync(pwsh_exe, skill, repo, issues)
+    assert out.returncode == 0, out.stdout + out.stderr
+    tree = parse_tree(read_tree(repo))
+    assert [s["id"] for s in tree["sections"]] == [
+        "T-release-planning",
+        "T-skillcon-escalation",
+    ]
+
+
+def test_theme_realms_multiple_realms_ordinal_first_warns(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    issues = [
+        gh_issue(471, "both realms", labels=("theme:x-theme", "sdlc", "skillcon")),
+    ]
+    repo = make_repo(tmp_path, manifest(themeRealms=["skillcon", "sdlc"]))
+    out = sync(pwsh_exe, skill, repo, issues)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "has 2 realm labels - using 'sdlc' (ordinal-first)" in out.stdout
+    tree = parse_tree(read_tree(repo))
+    assert [s["id"] for s in tree["sections"]] == ["T-sdlc-x-theme"]
+
+
+def test_theme_realms_broken_list_fails_the_sync(
+    tmp_path: Path, pwsh_exe: str, skill: Path
+) -> None:
+    for i, (bad, needle) in enumerate(
+        (
+            (["skillcon", "skillcon"], "twice"),
+            (["  "], "at least one realm label"),
+            ([], "at least one realm label"),
+        )
+    ):
+        repo = make_repo(tmp_path, manifest(themeRealms=bad), name=f"repo-{i}")
+        out = sync(pwsh_exe, skill, repo, [gh_issue(481, "x", labels=("theme:a",))])
+        assert out.returncode == 1, (bad, out.stdout + out.stderr)
+        assert needle in out.stdout, (bad, out.stdout)
+
+
+# --------------------------------------------------------------------------
 # 6. FILTER line -> dataJson.filter -> HTML (renderer extension E)
 # --------------------------------------------------------------------------
 

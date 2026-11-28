@@ -251,3 +251,51 @@ def test_no_tree_conflicts_with_explicit_tree_source(env: SimpleNamespace) -> No
     assert out.returncode == 1, out.stdout + out.stderr
     assert "-NoTree" in out.stdout and "-TreeSource" in out.stdout, out.stdout
     assert not env.manifest.exists()
+
+
+# --- themeRealms (realm labels -> T-<realm>-<slug> section ids) -------------
+
+def test_theme_realms_written_and_split_from_one_argument(env: SimpleNamespace) -> None:
+    # pwsh -File hands the array over as ONE comma-separated string; the
+    # writer must split it (same list-shape contract as issueTypes).
+    out = env.run(*GITHUB_BASE, "-ThemeRealms", "skillcon, sdlc")
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert env.read()["themeRealms"] == ["skillcon", "sdlc"]
+
+
+def test_theme_realms_force_rewrite_carries_persisted_list(
+    env: SimpleNamespace,
+) -> None:
+    first = env.run(*GITHUB_BASE, "-ThemeRealms", "skillcon")
+    assert first.returncode == 0, first.stdout + first.stderr
+    before = env.read()
+    # -Force WITHOUT the flag must not strip the key (A5: writer knows every key).
+    second = env.run(*GITHUB_BASE, "-Force")
+    assert second.returncode == 0, second.stdout + second.stderr
+    after = env.read()
+    assert after["themeRealms"] == ["skillcon"]
+    assert after == before
+    # Passing the flag on -Force replaces the persisted list.
+    third = env.run(*GITHUB_BASE, "-Force", "-ThemeRealms", "skillcon,sdlc")
+    assert third.returncode == 0, third.stdout + third.stderr
+    assert env.read()["themeRealms"] == ["skillcon", "sdlc"]
+
+
+def test_theme_realms_absent_key_stays_absent(env: SimpleNamespace) -> None:
+    out = env.run(*GITHUB_BASE)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "themeRealms" not in env.read()
+
+
+def test_theme_realms_duplicate_rejected(env: SimpleNamespace) -> None:
+    out = env.run(*GITHUB_BASE, "-ThemeRealms", "skillcon,SKILLCON")
+    assert out.returncode == 1, out.stdout + out.stderr
+    assert "twice" in out.stdout, out.stdout
+    assert not env.manifest.exists()
+
+
+def test_theme_realms_local_markdown_rejected(env: SimpleNamespace) -> None:
+    out = env.run("-Apply", "-Tracker", "local-markdown", "-ThemeRealms", "skillcon")
+    assert out.returncode == 1, out.stdout + out.stderr
+    assert "themeRealms" in out.stdout and "only applies" in out.stdout, out.stdout
+    assert not env.manifest.exists()

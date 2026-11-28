@@ -34,6 +34,11 @@
                kebab-case, unique, and at most 25 (GitHub's per-owner ceiling).
                Every configured type must resolve to a template (shipped
                default or registered override).
+               -ThemeRealms <label,...> declares the realm labels (e.g.
+               skillcon, sdlc) the sync prefixes onto theme section ids
+               (T-<realm>-<slug>); a -Force rewrite carries a persisted list
+               over. Entries must be non-empty and unique; omit the key to
+               keep plain T-<slug> ids.
 
     Schema ownership and the bootstrap flow (interactive vs autopilot inference)
     live in this skill's SKILL.md step 0 and references/manifest-schema.md.
@@ -61,6 +66,7 @@ param(
     [string]$IssueTemplatesDir,
     [string[]]$IssueTemplateOverride,
     [string[]]$IssueTypes,
+    [string[]]$ThemeRealms,
     [string]$Repo,
     [string]$Org,
     [string]$Project,
@@ -95,6 +101,7 @@ $githubParams = [ordered]@{
     TreeMinPriority    = 'treeMinPriority'
     TreeFreshnessHours = 'treeFreshnessHours'
     IssueQuery         = 'issueQuery'
+    ThemeRealms        = 'themeRealms'
 }
 
 if ($Probe -eq $Apply) {
@@ -263,6 +270,33 @@ if ($Tracker -eq 'github') {
             }
         }
     }
+    if ($PSBoundParameters.ContainsKey('ThemeRealms')) {
+        # Same list-shape contract as issueTypes: a comma-separated single
+        # argument (pwsh -File) splits; entries must be non-empty and unique
+        # (case-insensitive). The sync re-validates, this fails at bootstrap.
+        $realmRaw = @()
+        foreach ($realmEntry in @($ThemeRealms)) {
+            if ($null -eq $realmEntry) { continue }
+            foreach ($part in (ConvertTo-StringList -Value ([string]$realmEntry))) { $realmRaw += $part }
+        }
+        if ($realmRaw.Count -eq 0) {
+            $errors += 'themeRealms must list at least one realm label (omit the key for plain theme ids)'
+        }
+        $realmSeen = @{}
+        foreach ($rawRealm in $realmRaw) {
+            $realmName = ([string]$rawRealm).Trim()
+            if ($realmName -eq '') {
+                $errors += 'themeRealms contains an empty label name'
+                continue
+            }
+            $realmKey = $realmName.ToLowerInvariant()
+            if ($realmSeen.ContainsKey($realmKey)) {
+                $errors += "themeRealms lists '$realmName' twice"
+                continue
+            }
+            $realmSeen[$realmKey] = $true
+        }
+    }
 }
 elseif (-not [string]::IsNullOrWhiteSpace($Tracker)) {
     foreach ($name in $githubParams.Keys) {
@@ -307,6 +341,8 @@ foreach ($key in $repoRelativeKeys) {
 $registry = [ordered]@{}
 $carriedTemplatesDir = $null
 $carriedIssueTypes = $null
+$carriedThemeRealms = $null
+$effectiveThemeRealms = @()
 if ($Tracker -ne 'azure-devops' -and -not [string]::IsNullOrWhiteSpace($Tracker)) {
     $existingManifest = $null
     if ((Test-Path -LiteralPath $manifestRel) -and $Force) {
@@ -326,6 +362,9 @@ if ($Tracker -ne 'azure-devops' -and -not [string]::IsNullOrWhiteSpace($Tracker)
         if ($existingNames -contains 'issueTypes') {
             $carriedIssueTypes = @($existingManifest.issueTypes)
         }
+        if ($existingNames -contains 'themeRealms') {
+            $carriedThemeRealms = @($existingManifest.themeRealms)
+        }
         if ($existingNames -contains 'issueTemplateOverrides') {
             foreach ($prop in $existingManifest.issueTemplateOverrides.PSObject.Properties) {
                 $registry[[string]$prop.Name] = [string]$prop.Value
@@ -339,6 +378,16 @@ if ($Tracker -ne 'azure-devops' -and -not [string]::IsNullOrWhiteSpace($Tracker)
     $taxonomy = Get-IssueTypeTaxonomy -Overrides $taxonomyValues
     foreach ($taxonomyError in $taxonomy.Errors) { $errors += $taxonomyError }
     $effectiveTypes = @($taxonomy.Types)
+    # Realm labels: -ThemeRealms replaces; otherwise a -Force rewrite carries
+    # the persisted list over (same A5 rule as issueTypes - never strip).
+    $effectiveThemeRealms = $carriedThemeRealms
+    if ($PSBoundParameters.ContainsKey('ThemeRealms')) {
+        $effectiveThemeRealms = @()
+        foreach ($realmEntry in @($ThemeRealms)) {
+            if ($null -eq $realmEntry) { continue }
+            foreach ($part in (ConvertTo-StringList -Value ([string]$realmEntry))) { $effectiveThemeRealms += $part }
+        }
+    }
 }
 
 if ($Tracker -eq 'local-markdown') {
@@ -540,6 +589,11 @@ if ($Tracker -eq 'github') {
     }
     if ($PSBoundParameters.ContainsKey('IssueQuery')) {
         Add-JsonPair -Key 'issueQuery' -Value $IssueQuery
+    }
+    # Realm labels: written whenever configured (supplied or carried) - the
+    # sync derives T-<realm>-<slug> section ids from them.
+    if ($null -ne $effectiveThemeRealms -and @($effectiveThemeRealms).Count -gt 0) {
+        Add-JsonStringArrayPair -Key 'themeRealms' -Values $effectiveThemeRealms
     }
 }
 

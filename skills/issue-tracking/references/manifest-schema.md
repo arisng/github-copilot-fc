@@ -42,6 +42,7 @@ writes it after validating against this document. The companion renderer
 | `treeScript` | no | bundled `issue-tree.ps1` path when the skill copy lives in-repo | script that validates the store and regenerates the tree |
 | `lintTask` | no | — | repo task running the gate (e.g. `lint:issues`) |
 | `issueTypes` | no | `["task","bug","feature"]` | replaces the shipped `type` taxonomy wholesale — the classification vocabulary (GitHub's native issue type field, not a label). Lowercase kebab-case, unique, max 25 (GitHub's ceiling). **Both GitHub-shaped trackers** (`local-markdown`, `github`); rejected for `azure-devops` |
+| `themeRealms` | `github`: no | absent = plain `T-<slug>` theme ids | realm labels (e.g. `["skillcon","sdlc"]`); when an issue carries one, the sync derives its theme section id as `T-<realm>-<slug>` (lowercase realm, duplicated realm stripped from the slug). Non-empty, unique. github only |
 | `issueTemplatesDir` | no | `.github/ISSUE_TEMPLATE` | `local-markdown` only: consumer dir holding custom issue templates (industry-conventional GitHub template location) |
 | `issueTemplateOverrides` | no | — | `local-markdown` only: map of issue type → template filename inside `issueTemplatesDir`; registers consumer templates that override the skill defaults per type ([issue-templates.md](issue-templates.md)) |
 | `treeMaxIssues` | `github`: no (always written) | `300` | cap applied after sorting |
@@ -75,9 +76,9 @@ writes it after validating against this document. The companion renderer
   applies to `local-markdown` and `github` (still rejected for `azure-devops`).
   Paths must be repo-relative — no rooted paths, no `..`.
 - The GitHub tree fields (`treeSource`, `treeMaxIssues`, `treeLookbackDays`,
-  `treeIncludeClosed`, `treeMinPriority`, `treeFreshnessHours`, `issueQuery`, plus
-  the `-NoTree` opt-out) apply to `github` only — rejected for `local-markdown`
-  and `azure-devops`.
+  `treeIncludeClosed`, `treeMinPriority`, `treeFreshnessHours`, `issueQuery`,
+  `themeRealms`, plus the `-NoTree` opt-out) apply to `github` only — rejected for
+  `local-markdown` and `azure-devops`.
 - `treeSource` must be `local-markdown` or `github`; `-NoTree` (omit the key) and an
   explicit `-TreeSource` are mutually exclusive.
 - `treeMaxIssues`, `treeLookbackDays` and `treeFreshnessHours` must be positive
@@ -85,6 +86,10 @@ writes it after validating against this document. The companion renderer
   `treeIncludeClosed` (true) are always written for `github` — their schema
   defaults when the flags are absent; `treeMinPriority`, `treeFreshnessHours` and
   `issueQuery` are written only when supplied.
+- `themeRealms` entries must be non-empty and unique (case-insensitive);
+  `-Force` carries a persisted list over, like `issueTypes`. The key is written
+  only when configured (supplied or carried), and the sync re-validates it
+  before deriving `T-<realm>-<slug>` section ids.
 - `issueQuery` is validated by `Test-GithubIssueQuery` from
   `scripts/query-composition-lib.ps1` — the writer dot-sources that library, so
   the reject list has exactly one implementation (no drift): empty or multi-line

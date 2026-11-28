@@ -222,6 +222,48 @@ if ($taxonomy.Errors.Count -gt 0) {
     exit 1
 }
 $taxonomyTypes = @($taxonomy.Types)
+
+# Realm vocabulary (references/manifest-schema.md): optional `themeRealms`
+# lists the issue labels that name a realm (e.g. skillcon, sdlc). When the
+# issue carries one, the theme: section id becomes T-<realm>-<slug> (duplicated
+# realm stripped from the slug). Absent key, or an issue without a realm
+# label, keeps the plain T-<slug> - not every issue is scoped to a realm.
+$themeRealms = @()
+if ($names -contains 'themeRealms') {
+    $realmValues = @()
+    $rawRealmSpec = $manifest.themeRealms
+    if ($rawRealmSpec -is [string]) {
+        foreach ($part in (ConvertTo-StringList -Value $rawRealmSpec)) { $realmValues += $part }
+    }
+    else {
+        foreach ($entry in @($rawRealmSpec)) {
+            if ($null -eq $entry) { continue }
+            # A shell may hand the whole list over as one comma-separated
+            # string even for an array parameter (pwsh -File does).
+            foreach ($part in (ConvertTo-StringList -Value ([string]$entry))) { $realmValues += $part }
+        }
+    }
+    $realmSeen = @{}
+    foreach ($rawRealm in $realmValues) {
+        $realmName = ([string]$rawRealm).Trim()
+        if ($realmName -eq '') {
+            "sync-github-tree: themeRealms contains an empty label name"
+            exit 1
+        }
+        $realmKey = $realmName.ToLowerInvariant()
+        if ($realmSeen.ContainsKey($realmKey)) {
+            "sync-github-tree: themeRealms lists '$realmName' twice"
+            exit 1
+        }
+        $realmSeen[$realmKey] = $true
+        $themeRealms += $realmName
+    }
+    if ($themeRealms.Count -eq 0) {
+        "sync-github-tree: themeRealms must list at least one realm label (omit the key to keep plain theme ids)"
+        exit 1
+    }
+}
+
 $treePath = '.issues/tree.md'
 if ($names -contains 'treeFile' -and -not [string]::IsNullOrWhiteSpace([string]$manifest.treeFile)) {
     $treePath = [string]$manifest.treeFile
@@ -474,6 +516,9 @@ foreach ($issue in $issues) {
     # Theme (sketch 1.5 step 3): theme: label wins -> T-<slug> with
     # lowercase/trim/non-alnum-collapse normalization; multiple theme: labels
     # -> ordinal-first + warning; milestone -> M<num>; else one repo bucket.
+    # When the manifest declares `themeRealms` and the issue carries one, the
+    # id becomes T-<realm>-<slug> (lowercase realm, duplicated realm stripped
+    # from the slug); an issue without a realm label keeps T-<slug>.
     # Issue type (GitHub's native single-select field, NOT a label). The tree
     # grammar has no type slot - a row carries priority/status/theme - so the
     # type is used for TAXONOMY ENFORCEMENT: a value outside the configured
@@ -510,6 +555,32 @@ foreach ($issue in $issues) {
         $slug = [regex]::Replace($rawTheme.ToLowerInvariant().Trim(), '[^a-z0-9]+', '-')
         if ($slug -ne '') {
             $themeId = "T-$slug"
+            # Realm prefix: an issue may carry one of the manifest's realm
+            # labels (ordinal-first). T-<realm>-<slug>, lowercase, with a
+            # duplicated realm stripped from the slug; no realm label -> T-<slug>.
+            if ($themeRealms.Count -gt 0) {
+                $realmMatches = [System.Collections.Generic.List[string]]::new()
+                foreach ($lname in $labelNames) {
+                    if ($themeRealms -contains $lname) { [void]$realmMatches.Add($lname) }
+                }
+                if ($realmMatches.Count -gt 0) {
+                    $sortedRealmMatches = [string[]]$realmMatches
+                    [Array]::Sort($sortedRealmMatches, [System.StringComparer]::Ordinal)
+                    $realmName = $sortedRealmMatches[0]
+                    if ($realmMatches.Count -gt 1) {
+                        $warnings.Add("issue #${id}: has $($realmMatches.Count) realm labels - using '$realmName' (ordinal-first)")
+                    }
+                    $realm = [regex]::Replace($realmName.ToLowerInvariant().Trim(), '[^a-z0-9]+', '-')
+                    if ($realm -ne '') {
+                        if ($slug -eq $realm) { $bareSlug = '' }
+                        elseif ($slug.StartsWith("$realm-", [System.StringComparison]::Ordinal)) {
+                            $bareSlug = $slug.Substring($realm.Length + 1)
+                        }
+                        else { $bareSlug = $slug }
+                        $themeId = if ($bareSlug -ne '') { "T-$realm-$bareSlug" } else { "T-$realm" }
+                    }
+                }
+            }
             $themeTitle = $rawTheme
         }
         else {

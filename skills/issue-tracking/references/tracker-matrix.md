@@ -110,7 +110,7 @@ Enforced by `issue-tracker-init.ps1`. Reference: [manifest-schema.md](manifest-s
 | `issueTemplatesDir`, `issueTemplateOverrides` | yes | rejected | rejected |
 | `treeSource` | rejected | yes (`github`) | rejected |
 | `treeFile` | yes (default) | yes (committed snapshot; default `.issues/tree.md`) | rejected |
-| `treeMaxIssues`, `treeLookbackDays`, `treeIncludeClosed`, `treeMinPriority`, `issueQuery` | rejected | yes | rejected |
+| `treeMaxIssues`, `treeLookbackDays`, `treeIncludeClosed`, `treeMinPriority`, `issueQuery`, `themeRealms` | rejected | yes | rejected |
 | `treeFreshnessHours` | rejected | **stored-only** — no script reads it, so it gates nothing | rejected |
 | `repo` | **ignored** | required | **ignored** |
 | `org`, `project` | **ignored** | **ignored** | required |
